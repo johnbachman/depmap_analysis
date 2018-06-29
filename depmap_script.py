@@ -59,7 +59,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--ceres-file', required=True,
                         help='Ceres correlation score in csv format')
     parser.add_argument('-r', '--recalc', action='store_true',
-                        help='If True (Default), load a previous correlation '
+                        help='If True (Default), recalculate correlation '
                              'calculation.')
     parser.add_argument('-ll', type=float, default=0.5,
                         help='Lower limit CERES correlation score filter.')
