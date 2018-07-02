@@ -102,3 +102,12 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# user added files and directories
+.idea/codeStyles/codeStyleConfig.xml
+.idea/vcs.xml
+.idea/depmap_analysis.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/workspace.xml
+

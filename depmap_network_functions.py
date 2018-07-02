@@ -1,10 +1,11 @@
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
+from indra.sources.indra_db_rest.client_api import IndraDBRestError
 
 
 def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
                 id=None, type='all'):
-    """A wrapper function for he.get_parents to make the functionilty more
+    """A wrapper function for he.get_parents to make the functionality more
     clear.
 
     ho : HierarchyManager object
@@ -104,8 +105,14 @@ def direct_relation(id1, id2, on_limit='sample'):
     stmts : list[:py:class:`indra.statements.Statement`]
         A list of INDRA Statement instances.
     """
-    stmts = capi.get_statements(subject=id1, object=id2, on_limit=on_limit)
-    stmts + capi.get_statements(subject=id2, object=id1, on_limit=on_limit)
+    try:
+        stmts = capi.get_statements(subject=id1, object=id2, on_limit=on_limit)
+        stmts + capi.get_statements(subject=id2, object=id1, on_limit=on_limit)
+    except IndraDBRestError:
+        stmts = capi.get_statements(subject=id1+'@TEXT', object=id2+'@TEXT',
+                                    on_limit=on_limit)
+        stmts + capi.get_statements(subject=id2+'@TEXT', object=id1+'@TEXT',
+                                    on_limit=on_limit)
     return stmts
 
 
@@ -176,7 +183,7 @@ def are_connected(id1, id2):
         direct found in the indra.sources.indra_db_rest.client_api databases.
     """
     return has_common_parent(ns1='HGCN', id1=id1, ns2='HGCN', id2=id2) or \
-           has_direct_relation(id1=id1, id2=id2)
+        has_direct_relation(id1=id1, id2=id2)
 
 
 def connection_type(id1, id2):
@@ -208,11 +215,11 @@ def connection_type(id1, id2):
         ctype = 'direct'
 
     elif has_common_parent(id1=id1, id2=id2) and \
-         not has_direct_relation(id1=id1, id2=id2):
+            not has_direct_relation(id1=id1, id2=id2):
         ctype = 'parent'
 
     elif has_common_parent(id1=id1, id2=id2) and \
-         has_direct_relation(id1=id1, id2=id2):
+            has_direct_relation(id1=id1, id2=id2):
         ctype = 'both'
 
     return ctype
