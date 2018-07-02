@@ -11,14 +11,17 @@ def main(args):
     data = pd.read_csv(args.ceres_file, index_col=0, header=0)
     data = data.T
 
+    # Calculate the correlations, or load from cached
     if args.recalc:
         corr = data.corr()
         corr.to_hdf('correlations.h5', 'correlations')
     else:
         corr = pd.read_hdf('correlations.h5', 'correlations')
 
+    # Load the prior gene file
     with open('prior_genes.txt', 'rt') as f:
         prior_genes = [line.strip() for line in f.readlines()]
+    # Load the metabolic genes
     metab_genes = []
     with open('metabolic_genes.txt', 'rt') as f:
         for line in f.readlines():
@@ -43,7 +46,7 @@ def main(args):
         mlarge_corr = mlarge_corr[mlarge_corr.abs() < args.ul]
     msort_corrs = mlarge_corr.abs().sort_values(ascending=False)
 
-    # Find out if the HGCN pairs are connected and if they are how
+    # Find out if the HGNC pairs are connected and if they are how
     dir_conn_pairs = []
     for pair in msort_corrs.items():
         (id1, id2), score = pair

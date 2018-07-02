@@ -50,7 +50,6 @@ def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
     set
         set of common parents in uri(?) format  # ToDo Format name is uri?
     """
-
     return find_parent(ho, ns1, id1, type) & find_parent(ho, ns2, id2, type)
 
 
@@ -59,6 +58,8 @@ def has_common_parent(ho=hm.hierarchies['entity'], ns1='HGNC', id1=None,
 
     """Returns True if id1 and id2 has at least one common parent.
 
+    Parameters
+    ----------
     ho : HierarchyManager object
         A HierarchyManager object. Default: entity hierarchy object
     ns1 : str
@@ -83,8 +84,10 @@ def has_common_parent(ho=hm.hierarchies['entity'], ns1='HGNC', id1=None,
 
 
 def direct_relation(id1, id2, on_limit='sample'):
-    """
+    """Queries INDRA DB for Statements linking two genes.
 
+    Parameters
+    ----------
     id1/id2 : str
         Strings of the two ids to check a direct relation between.
         Default: None
@@ -109,6 +112,9 @@ def direct_relation(id1, id2, on_limit='sample'):
 def relation_type(indra_stmt):
     """
     Return the relation type in an INDRA statement as a string.
+
+    Parameters
+    ----------
     indra_stmt : :py:class:`indra.statements.Statement`
 
     Returns
@@ -120,8 +126,10 @@ def relation_type(indra_stmt):
 
 
 def relation_types(stmts):
-    """
+    """Returns INDRA Statement types associated with a list of Statements.
 
+    Parameters
+    ----------
     stmts : list[:py:class:`indra.statements.Statement`]
         A list of INDRA Statement instances
 
@@ -137,9 +145,12 @@ def relation_types(stmts):
 
 
 def has_direct_relation(id1, id2):
-    """
+    """Indicates whether two genes are linked by Statements in the INDRA DB.
 
-    id1/id2 :
+    Parameters
+    ----------
+    id1/id2 : str
+        HGNC names for the two genes.
 
     Returns
     -------
@@ -151,8 +162,10 @@ def has_direct_relation(id1, id2):
 
 
 def are_connected(id1, id2):
-    """
+    """Indicates whether two genes have a connection.
 
+    Parameters
+    ----------
     id1/i2 : str
         HGNC id
 
@@ -167,8 +180,10 @@ def are_connected(id1, id2):
 
 
 def connection_type(id1, id2):
-    """
+    """Indicates the connection type linking two genes.
 
+    Parameters
+    ----------
     id1/i2 : str
         HGNC id
 
