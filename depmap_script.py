@@ -30,7 +30,7 @@ def main(args):
             if gene_name in data:
                 gene_set.append(gene_name)
 
-    filtr_data = data[gene_set]
+    filtr_data = data[gene_set]  # ToDo: filter one gene in pair is in set
     filtr = filtr_data.corr()
     fcorr_list = filtr.unstack()
     flarge_corr = fcorr_list[fcorr_list != 1.0]
