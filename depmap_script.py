@@ -10,6 +10,8 @@ sys.path.append('~/repos/indra/')
 
 
 def main(args):
+
+    # Open data file
     data = pd.read_csv(args.ceres_file, index_col=0, header=0)
     data = data.T
 
@@ -20,33 +22,22 @@ def main(args):
     else:
         corr = pd.read_hdf('correlations.h5', 'correlations')
 
-    # Load the prior gene file
-    # with open('prior_genes.txt', 'rt') as f:
-    #     prior_genes = [line.strip() for line in f.readlines()]
-    # Load the metabolic genes
-    metab_genes = []
-    with open('metabolic_genes.txt', 'rt') as f:
+    # Read gene set to look at
+    gene_set = []
+    with open(args.geneset_file, 'rt') as f:
         for line in f.readlines():
             gene_name = line.strip().upper()
             if gene_name in data:
-                metab_genes.append(gene_name)
+                gene_set.append(gene_name)
 
-    # corr_list = corr.unstack()
-    # large_corr = corr_list[corr_list != 1.0]
-    # large_corr = large_corr[large_corr.abs() > args.ll]
-    # if args.ul < 1.0:
-    #     large_corr = large_corr[large_corr.abs() < args.ul]
-    # sort_corrs = large_corr.abs().sort_values(ascending=False)
-    # prior_corrs = large_corr[metab_genes]
-
-    metab_data = data[metab_genes]
-    metab_corr = metab_data.corr()
-    mcorr_list = metab_corr.unstack()
-    mlarge_corr = mcorr_list[mcorr_list != 1.0]
-    mlarge_corr = mlarge_corr[mlarge_corr.abs() > args.ll]
+    filtr_data = data[gene_set]
+    filtr = filtr_data.corr()
+    fcorr_list = filtr.unstack()
+    flarge_corr = fcorr_list[fcorr_list != 1.0]
+    flarge_corr = flarge_corr[flarge_corr.abs() > args.ll]
     if args.ul < 1.0:
-        mlarge_corr = mlarge_corr[mlarge_corr.abs() < args.ul]
-    msort_corrs = mlarge_corr.abs().sort_values(ascending=False)
+        flarge_corr = flarge_corr[flarge_corr.abs() < args.ul]
+    fsort_corrs = flarge_corr.abs().sort_values(ascending=False)
 
     # Find out if the HGNC pairs are connected and if they are how
     uniq_pairs = set()
@@ -54,7 +45,7 @@ def main(args):
         wrtr = csv.writer(csvf, delimiter=',')
         dir_conn_pairs = []
         unexplained = []
-        for pair in msort_corrs.items():
+        for pair in fsort_corrs.items():
             (id1, id2), score = pair
             if frozenset([id1, id2, score]) not in uniq_pairs:
                 uniq_pairs.add(frozenset([id1, id2, score]))
@@ -78,6 +69,8 @@ if __name__ == '__main__':
     parser = ap.ArgumentParser()
     parser.add_argument('-f', '--ceres-file', required=True,
                         help='Ceres correlation score in csv format')
+    parser.add_argument('-g', '--geneset-file', required=True,
+                        help='File with gene set data.')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp')
     parser.add_argument('-r', '--recalc', action='store_true',
@@ -88,5 +81,5 @@ if __name__ == '__main__':
     parser.add_argument('-ul', type=float, default=1.0,
                         help='Upper limit CERES correlation score filter.')
 
-    args = parser.parse_args()
-    main(args)
+    a = parser.parse_args()
+    main(a)
