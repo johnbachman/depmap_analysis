@@ -117,8 +117,7 @@ def direct_relation(id1, id2, on_limit='sample'):
 
 
 def relation_type(indra_stmt):
-    """
-    Return the relation type in an INDRA statement as a string.
+    """Return the statement type in an INDRA statement as a string.
 
     Parameters
     ----------
@@ -133,7 +132,8 @@ def relation_type(indra_stmt):
 
 
 def relation_types(stmts):
-    """Returns INDRA Statement types associated with a list of Statements.
+    """Returns the corresponding list of INDRA Statement types associated
+    with a list of Statements.
 
     Parameters
     ----------
@@ -152,7 +152,8 @@ def relation_types(stmts):
 
 
 def has_direct_relation(id1, id2):
-    """Indicates whether two genes are linked by Statements in the INDRA DB.
+    """Indicates whether two genes are linked by Statements in the INDRA data
+    bases.
 
     Parameters
     ----------
@@ -169,7 +170,8 @@ def has_direct_relation(id1, id2):
 
 
 def are_connected(id1, id2):
-    """Indicates whether two genes have a connection.
+    """Indicates whether two genes have a connection either through a direct
+    relation or a through a common parent.
 
     Parameters
     ----------
@@ -180,14 +182,15 @@ def are_connected(id1, id2):
     -------
     bool
         True if the two HGNC ids either have a common parent or if they have a
-        direct found in the indra.sources.indra_db_rest.client_api databases.
+        direct relation found in the indra.sources.indra_db_rest.client_api
+        databases.
     """
     return has_common_parent(ns1='HGCN', id1=id1, ns2='HGCN', id2=id2) or \
         has_direct_relation(id1=id1, id2=id2)
 
 
-def connection_type(id1, id2):
-    """Indicates the connection type linking two genes.
+def connection_types(id1, id2):
+    """Returns a list of the connection types linking two genes.
 
     Parameters
     ----------
@@ -196,30 +199,15 @@ def connection_type(id1, id2):
 
     Returns
     -------
-    ctype : str
-        Returns one of four options:
-        `None` - No connection.
-        `direct` - id1 and id2 are directly connected in the
-            indra.sources.indra_db_rest.client_api databases, but are *not*
-            connected by family or complex.
-        `parent` - id1 and id2 are connected by family or complex, but are
-            *not* directly connected in the
-            indra.sources.indra_db_rest.client_api databases.
-        `both` - id1 and id2 are connected both directly and by family/complex.
+    ctypes : list[type]
+        Returns a list of connection types.
+        `[]` - empty list if no connections.
+        Type is any of:
+        `INDRA statement` - Any INDRA statement type
+        `parent` - id1 and id2 are connected through common parent(s)
     """
 
-    ctype = None
-
-    if has_direct_relation(id1=id1, id2=id2) and \
-       not has_common_parent(id1=id1, id2=id2):
-        ctype = 'direct'
-
-    elif has_common_parent(id1=id1, id2=id2) and \
-            not has_direct_relation(id1=id1, id2=id2):
-        ctype = 'parent'
-
-    elif has_common_parent(id1=id1, id2=id2) and \
-            has_direct_relation(id1=id1, id2=id2):
-        ctype = 'both'
-
-    return ctype
+    ctypes = relation_types(direct_relation(id1=id1, id2=id2))
+    if has_common_parent(id1=id1, id2=id2):
+        ctypes += ['parent']
+    return ctypes
