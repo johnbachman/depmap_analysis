@@ -32,11 +32,9 @@ def main(args):
     data = pd.read_csv(args.ceres_file, index_col=0, header=0)
     data = data.T
 
-    # pdb.set_trace()  # Check if 'data' is ok; check args.geneset_file args.strict 
     if args.geneset_file:
         # Read gene set to look at
         gene_set = read_gene_set_file(gf=args.geneset_file, data=data)
-        # pdb.set_trace()  # Check if there is a 'gene_set'
 
     # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
     if not args.geneset_file or (args.geneset_file and not args.strict):
@@ -46,7 +44,6 @@ def main(args):
             corr.to_hdf('correlations.h5', 'correlations')
         else:
             corr = pd.read_hdf('correlations.h5', 'correlations')
-        # pdb.set_trace()  # Check corr
         # No gene set file, leave 'corr' intact and unstack
         if not args.geneset_file:
             fcorr_list = corr.unstack()
@@ -54,18 +51,18 @@ def main(args):
         # Gene set file present: filter and unstack
         elif args.geneset_file and not args.strict:
             fcorr_list = corr[gene_set].unstack()
-            # pdb.set_trace()  # check fcorr_list
 
     # 3. Strict: both genes in interaction must be from loaded set
     elif args.geneset_file and args.strict:
         fcorr_list = data[gene_set].corr().unstack()
 
+    # Remove self correlation, correlations below ll, sort on magnitude
     flarge_corr = fcorr_list[fcorr_list != 1.0]
     flarge_corr = flarge_corr[flarge_corr.abs() > args.ll]
     if args.ul < 1.0:
         flarge_corr = flarge_corr[flarge_corr.abs() < args.ul]
-    fsort_corrs = flarge_corr.abs().sort_values(ascending=False)
-    # pdb.set_trace()  # Check fsort_corrs
+    fsort_corrs = flarge_corr[
+        flarge_corr.abs().sort_values(ascending=False).index]
 
     # Find out if the HGNC pairs are connected and if they are how
     uniq_pairs = set()
@@ -80,7 +77,7 @@ def main(args):
                 wrtr.writerow([id1, id2, score])
                 if dnf.are_connected(id1, id2):
                     dir_conn_pairs.append([id1, id2, score,
-                                           dnf.connection_type(id1, id2)])
+                                           dnf.connection_types(id1, id2)])
                 else:
                     unexplained.append([id1, id2, score])
 
