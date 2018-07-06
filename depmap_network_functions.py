@@ -8,7 +8,7 @@ db_prim = dbu.get_primary_db()
 
 
 def load_statements(hgnc_ids):
-    """Load statements where hgnc id is subject or object from
+    """Load statements where hgnc id is subject or object from indra.db.client
 
     Parameters
     ----------
@@ -143,7 +143,7 @@ def direct_relation(id1, id2, long_stmts=set()):
         stmts = direct_relation_from_api(id1=id1, id2=id2)
     else:
         stmts = direct_relation_from_stmts(id1=id1, id2=id2,
-                                           stmts_in=long_stmts)
+                                           s_in=long_stmts)
     return stmts
 
 
@@ -179,7 +179,7 @@ def direct_relation_from_api(id1, id2, on_limit='sample'):
     return stmts
 
 
-def direct_relation_from_stmts(id1, id2, stmts_in):
+def direct_relation_from_stmts(id1, id2, s_in):
     """Returns a list of INDRA statements that connect id1 and id2 queried
     from a provided list of statements,
 
@@ -187,20 +187,20 @@ def direct_relation_from_stmts(id1, id2, stmts_in):
     ----------
     id1/id2 : str
         Strings of the two ids to check a direct relation between.
-    long_stmts : list[:py:class:`indra.statements.Statement`]
+    s_in : set[:py:class:`indra.statements.Statement`]
         List of INDRA statements to find connections in.
     Returns
     -------
-    stmts : list[:py:class:`indra.statements.Statement`]
+    s_out : list[:py:class:`indra.statements.Statement`]
         List of INDRA statements that directly relate id1 and id2
     """
-    stmts = []
-    for s in stmts_in:
-        if (s.obj.name == id1 and s.subj.name == id2) \
-                or (s.obj.name == id2 and s.subj.name == id1):
-            stmts.append(s)
-
-    return stmts
+    target_ag = {id1, id2}
+    s_out = []
+    for s in s_in:
+        s_ag = set(s.agent_list())
+        if target_ag.issubset(s_ag):
+            s_out.append(s)
+    return s_out
 
 
 def relation_type(indra_stmt):
