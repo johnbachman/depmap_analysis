@@ -1,6 +1,43 @@
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
+from indra.db import client as dbc
+from indra.db import util as dbu
+from sqlalchemy.exc import StatementError
+db_prim = dbu.get_primary_db()
+
+
+def load_statements(hgnc_ids):
+    """Load statements where hgnc id is subject or object from
+
+    Parameters
+    ----------
+    hgnc_ids : iterable
+        An iterable containing HGNC ids
+    Returns
+    -------
+    stmts : set{:py:class:`indra.statements.Statement`}
+        A set of all retrieved INDRA statemetents containing HGNC id
+    """
+    stmts = set()
+    counter = 0
+    try:
+        for hgnc_id in hgnc_ids:
+            counter += 1
+            if counter % 10 == 0:
+                print(' : : : counter = %i : : :' % counter)
+            stmts.update(dbc.get_statements_by_gene_role_type(agent_id=hgnc_id,
+                                                              db=db_prim,
+                                                              preassembled=
+                                                              False,
+                                                              fix_refs=False))
+    except KeyboardInterrupt as e:
+        db_prim.session.rollback()
+        raise e
+    except StatementError as e:
+        db_prim.session.rollback()
+        raise e
+    return stmts
 
 
 def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
@@ -8,6 +45,8 @@ def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
     """A wrapper function for he.get_parents to make the functionality more
     clear.
 
+    Parameters
+    ----------
     ho : HierarchyManager object
         A HierarchyManager object. Default: entity hierarchy object
     ns : str
@@ -31,6 +70,8 @@ def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
                   id1=None, ns2='HGNC', id2=None, type='all'):
     """Returns the set of common parents.
 
+    Parameters
+    ----------
     ho : HierarchyManager object
         A HierarchyManager object. Default: entity hierarchy object
     ns1 : str
@@ -84,14 +125,36 @@ def has_common_parent(ho=hm.hierarchies['entity'], ns1='HGNC', id1=None,
     return bool(common_parent(ho, ns1, id1, ns2, id2, type))
 
 
-def direct_relation(id1, id2, on_limit='sample'):
-    """Queries INDRA DB for Statements linking two genes.
+def direct_relation(id1, id2, long_stmts=set()):
+    """Returns a list of INDRA statements
 
     Parameters
     ----------
     id1/id2 : str
         Strings of the two ids to check a direct relation between.
-        Default: None
+    long_stmts : set[:py:class:`indra.statements.Statement`]
+        (Optional) List of INDRA statements to find connections in
+    Returns
+    -------
+    stmts : list[:py:class:`indra.statements.Statement`]
+        List of INDRA statements that directly relate id1 and id2
+    """
+    if not long_stmts:
+        stmts = direct_relation_from_api(id1=id1, id2=id2)
+    else:
+        stmts = direct_relation_from_stmts(id1=id1, id2=id2,
+                                           stmts_in=long_stmts)
+    return stmts
+
+
+def direct_relation_from_api(id1, id2, on_limit='sample'):
+    """Queries INDRA DB for Statements linking two genes and returns a list
+    containing the matching statements.
+
+    Parameters
+    ----------
+    id1/id2 : str
+        Strings of the two ids to check a direct relation between.
     on_limit : str
         There are four options for handling the a query that is to large:
         `sample` - (default) take a sample of statements from the result,
@@ -109,10 +172,34 @@ def direct_relation(id1, id2, on_limit='sample'):
         stmts = capi.get_statements(subject=id1, object=id2, on_limit=on_limit)
         stmts + capi.get_statements(subject=id2, object=id1, on_limit=on_limit)
     except IndraDBRestError:
-        stmts = capi.get_statements(subject=id1+'@TEXT', object=id2+'@TEXT',
+        stmts = capi.get_statements(subject=id1 + '@TEXT', object=id2 + '@TEXT',
                                     on_limit=on_limit)
-        stmts + capi.get_statements(subject=id2+'@TEXT', object=id1+'@TEXT',
+        stmts + capi.get_statements(subject=id2 + '@TEXT', object=id1 + '@TEXT',
                                     on_limit=on_limit)
+    return stmts
+
+
+def direct_relation_from_stmts(id1, id2, stmts_in):
+    """Returns a list of INDRA statements that connect id1 and id2 queried
+    from a provided list of statements,
+
+    Parameters
+    ----------
+    id1/id2 : str
+        Strings of the two ids to check a direct relation between.
+    long_stmts : list[:py:class:`indra.statements.Statement`]
+        List of INDRA statements to find connections in.
+    Returns
+    -------
+    stmts : list[:py:class:`indra.statements.Statement`]
+        List of INDRA statements that directly relate id1 and id2
+    """
+    stmts = []
+    for s in stmts_in:
+        if (s.obj.name == id1 and s.subj.name == id2) \
+                or (s.obj.name == id2 and s.subj.name == id1):
+            stmts.append(s)
+
     return stmts
 
 
@@ -151,7 +238,7 @@ def relation_types(stmts):
     return types
 
 
-def has_direct_relation(id1, id2):
+def has_direct_relation(id1, id2, long_stmts=set()):
     """Indicates whether two genes are linked by Statements in the INDRA data
     bases.
 
@@ -166,10 +253,10 @@ def has_direct_relation(id1, id2):
         True if the HGNC ids has a direct relation found in the
         indra.sources.indra_db_rest.client_api databases.
     """
-    return bool(direct_relation(id1, id2))
+    return bool(direct_relation(id1, id2, long_stmts=long_stmts))
 
 
-def are_connected(id1, id2):
+def are_connected(id1, id2, long_stmts=set()):
     """Indicates whether two genes have a connection either through a direct
     relation or a through a common parent.
 
@@ -186,10 +273,10 @@ def are_connected(id1, id2):
         databases.
     """
     return has_common_parent(ns1='HGCN', id1=id1, ns2='HGCN', id2=id2) or \
-        has_direct_relation(id1=id1, id2=id2)
+        has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
 
 
-def connection_types(id1, id2):
+def connection_types(id1, id2, long_stmts=set()):
     """Returns a list of the connection types linking two genes.
 
     Parameters
@@ -207,7 +294,8 @@ def connection_types(id1, id2):
         `parent` - id1 and id2 are connected through common parent(s)
     """
 
-    ctypes = relation_types(direct_relation(id1=id1, id2=id2))
+    ctypes = relation_types(direct_relation(id1=id1, id2=id2,
+                                            long_stmts=long_stmts))
     if has_common_parent(id1=id1, id2=id2):
         ctypes += ['parent']
     return ctypes
