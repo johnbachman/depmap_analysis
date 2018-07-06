@@ -5,7 +5,7 @@ import depmap_network_functions as dnf
 from time import time
 import pdb
 
-# Temp fix because indra doesn't import when script is run from terminal =
+# Temp fix because indra doesn't import when script is run from terminal
 import sys
 sys.path.append('~/repos/indra/')
 
@@ -68,18 +68,26 @@ def main(args):
     uniq_pairs = set()
     with open(args.outbasename+'_all.csv', 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
-        dir_conn_pairs = []
-        unexplained = []
         for pair in fsort_corrs.items():
-            (id1, id2), score = pair
-            if frozenset([id1, id2, score]) not in uniq_pairs:
-                uniq_pairs.add(frozenset([id1, id2, score]))
-                wrtr.writerow([id1, id2, score])
-                if dnf.are_connected(id1, id2):
-                    dir_conn_pairs.append([id1, id2, score,
-                                           dnf.connection_types(id1, id2)])
-                else:
-                    unexplained.append([id1, id2, score])
+            (id1, id2), correlation = pair
+            if frozenset([id1, id2, correlation]) not in uniq_pairs:
+                uniq_pairs.add(frozenset([id1, id2, correlation]))
+                wrtr.writerow([id1, id2, correlation])
+
+    # Get all statements containing any gene from provided list as a set
+    stmts_all = dnf.load_statements(gene_set)
+
+    # Loop through the unique pairs
+    dir_conn_pairs = []
+    unexplained = []
+    for pair in uniq_pairs:
+        correlation, id1, id2 = tuple(pair)
+        if dnf.are_connected(id1, id2, long_stmts=stmts_all):
+            dir_conn_pairs.append([id1, id2, correlation,
+                                   dnf.connection_types(id1, id2,
+                                                        long_stmts=stmts_all)])
+        else:
+            unexplained.append([id1, id2, correlation])
 
     with open(args.outbasename+'_connections.csv', 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
@@ -100,9 +108,6 @@ if __name__ == '__main__':
                         help='With \'-s\', the correlations are restricted to '
                              'only be between loaded gene set. If no gene set '
                              'is loaded, this option has no effect.')
-    parser.add_argument('-stf', '--statement-file',
-                        help='With \'-stf\' use file with INDRA statements '
-                             'instead of quering from the web clients.')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp')
     parser.add_argument('-r', '--recalc', action='store_true',
