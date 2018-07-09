@@ -7,6 +7,19 @@ from sqlalchemy.exc import StatementError
 db_prim = dbu.get_primary_db()
 
 
+def _agent_name_set(s):
+    ags = set()
+    try:
+        ags.update(set(map(lambda a: a.name, s.agent_list())))
+    except AttributeError:
+        for a in s.agent_list():
+            if a is None:
+                pass
+            else:
+                ags.add(a.name)
+    return ags
+
+
 def load_statements(hgnc_ids):
     """Load statements where hgnc id is subject or object from indra.db.client
 
@@ -143,7 +156,7 @@ def direct_relation(id1, id2, long_stmts=set()):
         stmts = direct_relation_from_api(id1=id1, id2=id2)
     else:
         stmts = direct_relation_from_stmts(id1=id1, id2=id2,
-                                           s_in=long_stmts)
+                                           stmts_in=long_stmts)
     return stmts
 
 
@@ -179,7 +192,7 @@ def direct_relation_from_api(id1, id2, on_limit='sample'):
     return stmts
 
 
-def direct_relation_from_stmts(id1, id2, s_in):
+def direct_relation_from_stmts(id1, id2, stmts_in):
     """Returns a list of INDRA statements that connect id1 and id2 queried
     from a provided list of statements,
 
@@ -187,20 +200,20 @@ def direct_relation_from_stmts(id1, id2, s_in):
     ----------
     id1/id2 : str
         Strings of the two ids to check a direct relation between.
-    s_in : set[:py:class:`indra.statements.Statement`]
+    stmts_in : set[:py:class:`indra.statements.Statement`]
         List of INDRA statements to find connections in.
     Returns
     -------
-    s_out : list[:py:class:`indra.statements.Statement`]
+    stmts_out : list[:py:class:`indra.statements.Statement`]
         List of INDRA statements that directly relate id1 and id2
     """
     target_ag = {id1, id2}
-    s_out = []
-    for s in s_in:
-        s_ag = set(s.agent_list())
-        if target_ag.issubset(s_ag):
-            s_out.append(s)
-    return s_out
+    stmts_out = []
+    for stms in stmts_in:
+        s_agents = _agent_name_set(stms)
+        if target_ag.issubset(s_agents):
+            stmts_out.append(stms)
+    return stmts_out
 
 
 def relation_type(indra_stmt):
