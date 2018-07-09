@@ -36,7 +36,7 @@ def main(args):
 
     if args.geneset_file:
         # Read gene set to look at
-        gene_list = read_gene_set_file(gf=args.geneset_file, data=data)
+        gene_filter_list = read_gene_set_file(gf=args.geneset_file, data=data)
 
     # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
     if not args.geneset_file or (args.geneset_file and not args.strict):
@@ -52,11 +52,11 @@ def main(args):
 
         # Gene set file present: filter and unstack
         elif args.geneset_file and not args.strict:
-            fcorr_list = corr[gene_list].unstack()
+            fcorr_list = corr[gene_filter_list].unstack()
 
     # 3. Strict: both genes in interaction must be from loaded set
     elif args.geneset_file and args.strict:
-        fcorr_list = data[gene_list].corr().unstack()
+        fcorr_list = data[gene_filter_list].corr().unstack()
 
     # Remove self correlation, correlations below ll, sort on magnitude,
     # leave correlation intact
@@ -85,7 +85,7 @@ def main(args):
         stmts_all = set(ac_load_stmts(args.statements_in))
     else:
         if args.geneset_file:
-            stmts_all = dnf.load_statements(gene_list)
+            stmts_all = dnf.load_statements(gene_filter_list)
         else:
             # if there is no gene set file, restrict to gene ids in
             # correlation data
