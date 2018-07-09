@@ -81,9 +81,9 @@ def main(args):
 
     # Get statements from file or from database that contain any gene from
     # provided list as set
-    if args.statements_in:
+    if args.statements_in:  # Get statments from file
         stmts_all = set(ac_load_stmts(args.statements_in))
-    else:
+    else:  # Use api to get statements. NOT the same as querying for each ID
         if args.geneset_file:
             stmts_all = dnf.load_statements(gene_filter_list)
         else:
@@ -91,7 +91,7 @@ def main(args):
             # correlation data
             stmts_all = dnf.load_statements(list(all_hgnc_ids))
 
-    # Dump statements to pickle file
+    # Dump statements to pickle file if output name has been given
     if args.statements_out:
         dump_statements(stmts=stmts_all, fname=args.statements_out)
 
