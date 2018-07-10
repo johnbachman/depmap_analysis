@@ -3,6 +3,7 @@ import argparse as ap
 import logging
 from math import ceil, log10
 import pandas as pd
+import numpy as np
 import depmap_network_functions as dnf
 from indra.tools.assemble_corpus import dump_statements
 from indra.tools.assemble_corpus import load_statements as ac_load_stmts
@@ -22,7 +23,7 @@ logger = logging.getLogger('SlowClap')
 #    the loaded data set
 
 
-def read_gene_set_file(gf, data):
+def _read_gene_set_file(gf, data):
     gset = []
     with open(gf, 'rt') as f:
         for g in f.readlines():
@@ -30,6 +31,13 @@ def read_gene_set_file(gf, data):
             if gn in data:
                 gset.append(gn)
     return gset
+
+
+def _is_float(n):
+    if type(n) is np.float64 or type(n) is float:
+        return True
+    else:
+        return False
 
 
 def main(args):
@@ -40,7 +48,7 @@ def main(args):
 
     if args.geneset_file:
         # Read gene set to look at
-        gene_filter_list = read_gene_set_file(gf=args.geneset_file, data=data)
+        gene_filter_list = _read_gene_set_file(gf=args.geneset_file, data=data)
 
     # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
     if not args.geneset_file or (args.geneset_file and not args.strict):
@@ -110,13 +118,13 @@ def main(args):
             logger.info('Pair %i or %i' % (counter, npairs))
         pl = list(pair)
         for li in pl:
-            if type(li) == float:
+            if _is_float(li):
                 correlation = li
                 break
         pl.remove(correlation)
         id1, id2 = pl
         if dnf.are_connected(id1, id2, long_stmts=stmts_all):
-            logger.info('Found connection between %s and %s ')
+            logger.info('Found connection between %s and %s' % (id1, id2))
             dir_conn_pairs.append([id1, id2, correlation,
                                    dnf.connection_types(id1, id2,
                                                         long_stmts=stmts_all)])
