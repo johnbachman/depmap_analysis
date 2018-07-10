@@ -1,13 +1,15 @@
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
+from collections import defaultdict
+import itertools as itt
 from indra.db import client as dbc
 from indra.db import util as dbu
 from sqlalchemy.exc import StatementError
-db_prim = dbu.get_primary_db()
+#db_prim = dbu.get_primary_db()
 
 
-def _agent_name_set(s):
+def agent_name_set(s):
     ags = set()
     try:
         ags.update(set(map(lambda a: a.name, s.agent_list())))
@@ -20,37 +22,74 @@ def _agent_name_set(s):
     return ags
 
 
-def load_statements(hgnc_ids):
-    """Load statements where hgnc id is subject or object from indra.db.client
+def nested_dict_gen(stmts):
+    """Generates a nested dict of the form dict[key1][key2] = {connection set}
+    from INDRA statements.
 
-    Parameters
-    ----------
-    hgnc_ids : iterable
-        An iterable containing HGNC ids
+    stmts :  list[:py:class:`indra.statements.Statement`]
+        List or set of INDRA statements to find connections in
+
     Returns
     -------
-    stmts : set{:py:class:`indra.statements.Statement`}
-        A set of all retrieved INDRA statemetents containing HGNC id
+    stmts_dict : collections.defaultdict
+         dict of the form dict[key1][key2] = {connection set}
     """
-    stmts = set()
-    counter = 0
-    try:
-        for hgnc_id in hgnc_ids:
-            counter += 1
-            if counter % 10 == 0:
-                print(' : : : counter = %i : : :' % counter)
-            stmts.update(dbc.get_statements_by_gene_role_type(agent_id=hgnc_id,
-                                                              db=db_prim,
-                                                              preassembled=
-                                                              False,
-                                                              fix_refs=False))
-    except KeyboardInterrupt as e:
-        db_prim.session.rollback()
-        raise e
-    except StatementError as e:
-        db_prim.session.rollback()
-        raise e
-    return stmts
+    stmts_dict = defaultdict(dict)
+
+    for st in stmts:
+        # NOTE1: Agents can be more than two and be only one too.
+        # NOTE2: Pair can show up multiple times when connection types differ
+        # Hence: Only skip if pair+connection type already exists
+
+        # Get agent names as list
+        agent_names = list(agent_name_set(st))
+        if len(agent_names) > 1:
+            # Only one connection type per statement
+            connection = st.to_json()['type']
+            if connection:
+                # Permuation: ignore order (i.e. ignore subject/object)
+                for agent, other_agent in itt.permutations(agent_names, r=2):
+                    try:
+                        stmt_dicts[agent][other_agent].add(connection)
+                    except KeyError:  # If pair does not exist yet
+                        stmt_dicts[agent][other_agent] = {connection}
+        else:  # With only one (or zero) agent(s) there is no connection, skip
+            continue
+
+    return stmts_dict
+
+
+# def load_statements(hgnc_ids):
+#     """Load statements where hgnc id is subject or object from indra.db.client
+#
+#     Parameters
+#     ----------
+#     hgnc_ids : iterable
+#         An iterable containing HGNC ids
+#     Returns
+#     -------
+#     stmts : set{:py:class:`indra.statements.Statement`}
+#         A set of all retrieved INDRA statemetents containing HGNC id
+#     """
+#     stmts = set()
+#     counter = 0
+#     try:
+#         for hgnc_id in hgnc_ids:
+#             counter += 1
+#             if counter % 10 == 0:
+#                 print(' : : : counter = %i : : :' % counter)
+#             stmts.update(dbc.get_statements_by_gene_role_type(agent_id=hgnc_id,
+#                                                               db=db_prim,
+#                                                               preassembled=
+#                                                               False,
+#                                                               fix_refs=False))
+#     except KeyboardInterrupt as e:
+#         db_prim.session.rollback()
+#         raise e
+#     except StatementError as e:
+#         db_prim.session.rollback()
+#         raise e
+#     return stmts
 
 
 def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
@@ -146,7 +185,7 @@ def direct_relation(id1, id2, long_stmts=set()):
     id1/id2 : str
         Strings of the two ids to check a direct relation between.
     long_stmts : set[:py:class:`indra.statements.Statement`]
-        (Optional) List of INDRA statements to find connections in
+        (Optional) List or set of INDRA statements to find connections in
     Returns
     -------
     stmts : list[:py:class:`indra.statements.Statement`]
@@ -210,7 +249,7 @@ def direct_relation_from_stmts(id1, id2, stmts_in):
     target_ag = {id1, id2}
     stmts_out = []
     for stms in stmts_in:
-        s_agents = _agent_name_set(stms)
+        s_agents = agent_name_set(stms)
         if target_ag.issubset(s_agents):
             stmts_out.append(stms)
     return stmts_out
