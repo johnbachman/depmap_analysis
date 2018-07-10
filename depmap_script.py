@@ -1,5 +1,7 @@
 import csv
 import argparse as ap
+import logging
+from math import ceil, log10
 import pandas as pd
 import depmap_network_functions as dnf
 from indra.tools.assemble_corpus import dump_statements
@@ -10,6 +12,8 @@ import pdb
 # Temp fix because indra doesn't import when script is run from terminal
 import sys
 sys.path.append('~/repos/indra/')
+
+logger = logging.getLogger('SlowClap')
 
 # 1. no geneset -> use corr from full DepMap data, no filtering needed
 # 2. geneset, not strict -> interaction has to contain at least one gene from
@@ -98,7 +102,12 @@ def main(args):
     # Loop through the unique pairs
     dir_conn_pairs = []
     unexplained = []
+    counter = 0
+    npairs = len(uniq_pairs)
     for pair in uniq_pairs:
+        counter +=1
+        if counter % max(10, (10**ceil(log10(npairs)))//100) == 0:
+            logger.info('Pair %i or %i' % (counter, npairs))
         pl = list(pair)
         for li in pl:
             if type(li) == float:
@@ -107,6 +116,7 @@ def main(args):
         pl.remove(correlation)
         id1, id2 = pl
         if dnf.are_connected(id1, id2, long_stmts=stmts_all):
+            logger.info('Found connection between %s and %s ')
             dir_conn_pairs.append([id1, id2, correlation,
                                    dnf.connection_types(id1, id2,
                                                         long_stmts=stmts_all)])
