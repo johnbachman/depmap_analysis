@@ -1,7 +1,6 @@
 import csv
 import argparse as ap
 import logging
-from math import ceil, log10
 import pandas as pd
 import numpy as np
 import depmap_network_functions as dnf
@@ -127,18 +126,17 @@ def main(args):
 
         # nested_dict_statemtens.get(id1).get(id2) raises AttributeError
         # if nested_dict_statemtens.get(id1) returns {}
-        if nested_dict_statemtens.get(id1):
-            if nested_dict_statemtens.get(id1).get(id2):
-                logger.info(
-                    'Found connection between %s and %s' % (id1, id2))
-                dir_conn_pairs.append((id1, id2, correlation,
-                                       nested_dict_statemtens[id1][id2]))
-        elif nested_dict_statemtens.get(id2):
-            if nested_dict_statemtens.get(id2).get(id1):
-                logger.info(
-                    'Found connection between %s and %s' % (id1, id2))
-                dir_conn_pairs.append((id1, id2, correlation,
-                                       nested_dict_statemtens[id2][id1]))
+        if nested_dict_statemtens.get(id1) and \
+                nested_dict_statemtens.get(id1).get(id2):
+            logger.info('Found connection between %s and %s' % (id1, id2))
+            dir_conn_pairs.append((id1, id2, correlation,
+                                   nested_dict_statemtens[id1][id2]))
+
+        elif nested_dict_statemtens.get(id2) and \
+                nested_dict_statemtens.get(id2).get(id1):
+            logger.info('Found connection between %s and %s' % (id1, id2))
+            dir_conn_pairs.append((id2, id1, correlation,
+                                   nested_dict_statemtens[id2][id1]))
         else:
             unexplained.append([id1, id2, correlation])
 
