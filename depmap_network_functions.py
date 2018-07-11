@@ -2,11 +2,14 @@ from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 from collections import defaultdict
+from math import ceil, log10
 import itertools as itt
+import logging
 from indra.db import client as dbc
 from indra.db import util as dbu
 from sqlalchemy.exc import StatementError
-#db_prim = dbu.get_primary_db()
+db_prim = dbu.get_primary_db()
+dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
 def agent_name_set(stmt):
@@ -21,13 +24,13 @@ def agent_name_set(stmt):
     """
     ags = set()
     try:
-        ags.update(set(map(lambda a: a.name, stmt.agent_list())))
+        ags.update(set(map(lambda ag: ag.name, stmt.agent_list())))
     except AttributeError:
-        for a in stmt.agent_list():
-            if a is None:
+        for ag in stmt.agent_list():
+            if ag is None:
                 pass
             else:
-                ags.add(a.name)
+                ags.add(ag.name)
     return ags
 
 
@@ -43,10 +46,11 @@ def nested_dict_gen(stmts):
     stmts_dict : collections.defaultdict
          dict of the form dict[key1][key2] = {connection set}
     """
+
     nested_stmt_dicts = defaultdict(dict)
 
     for st in stmts:
-        # NOTE1: Agents can be more than two and be only one too.
+        # NOTE1: Agents can be other than two and be only one too.
         # NOTE2: Pair can show up multiple times when connection types differ
         # Hence: Only skip if pair+connection type already exists
 
@@ -68,44 +72,49 @@ def nested_dict_gen(stmts):
                     # Has common parent
                     if has_common_parent(id1=agent, id2=other_agent):
                         nested_stmt_dicts[agent][other_agent].add('parent')
+
         else:
             continue
 
+    dnf_logger.info('Created nested dict from %i statements.' % len(stmts))
     return nested_stmt_dicts
 
 
-# def load_statements(hgnc_ids):
-#     """Load statements where hgnc id is subject or object from indra.db.client
-#
-#     Parameters
-#     ----------
-#     hgnc_ids : iterable
-#         An iterable containing HGNC ids
-#
-#     Returns
-#     -------
-#     stmts : set{:py:class:`indra.statements.Statement`}
-#         A set of all retrieved INDRA statemetents containing HGNC id
-#     """
-#     stmts = set()
-#     counter = 0
-#     try:
-#         for hgnc_id in hgnc_ids:
-#             counter += 1
-#             if counter % 10 == 0:
-#                 print(' : : : counter = %i : : :' % counter)
-#             stmts.update(dbc.get_statements_by_gene_role_type(agent_id=hgnc_id,
-#                                                               db=db_prim,
-#                                                               preassembled=
-#                                                               False,
-#                                                               fix_refs=False))
-#     except KeyboardInterrupt as e:
-#         db_prim.session.rollback()
-#         raise e
-#     except StatementError as e:
-#         db_prim.session.rollback()
-#         raise e
-#     return stmts
+def dbc_load_statements(hgnc_ids):
+    """Load statements where hgnc id is subject or object from indra.db.client
+
+    Parameters
+    ----------
+    hgnc_ids : iterable
+        An iterable containing HGNC ids
+
+    Returns
+    -------
+    stmts : set{:py:class:`indra.statements.Statement`}
+        A set of all retrieved INDRA statemetents containing HGNC id
+    """
+    stmts = set()
+    counter = 0
+    n_hgnc_ids = len(hgnc_ids)
+    try:
+        for hgnc_id in hgnc_ids:
+            stmts.update(dbc.get_statements_by_gene_role_type(agent_id=hgnc_id,
+                                                              db=db_prim,
+                                                              preassembled=
+                                                              False,
+                                                              fix_refs=False))
+            counter += 1
+            if counter % max(10, 10 ** ceil(log10(n_hgnc_ids)) // 100) == 0:
+                dnf_logger.info(' : : : Finished %i queries out of %i '
+                                ': : :' % (counter, n_hgnc_ids))
+
+    except KeyboardInterrupt as e:
+        db_prim.session.rollback()
+        raise e
+    except StatementError as e:
+        db_prim.session.rollback()
+        raise e
+    return stmts
 
 
 def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
