@@ -97,11 +97,11 @@ def main(args):
         stmts_all = set(ac_load_stmts(args.statements_in))
     else:  # Use api to get statements. NOT the same as querying for each ID
         if args.geneset_file:
-            stmts_all = dnf.load_statements(gene_filter_list)
+            stmts_all = dnf.dbc_load_statements(gene_filter_list)
         else:
             # if there is no gene set file, restrict to gene ids in
             # correlation data
-            stmts_all = dnf.load_statements(list(all_hgnc_ids))
+            stmts_all = dnf.dbc_load_statements(list(all_hgnc_ids))
 
     # Dump statements to pickle file if output name has been given
     if args.statements_out:
