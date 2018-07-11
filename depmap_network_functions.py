@@ -9,12 +9,21 @@ from sqlalchemy.exc import StatementError
 #db_prim = dbu.get_primary_db()
 
 
-def agent_name_set(s):
+def agent_name_set(stmt):
+    """Returns the set of agent names in a statement.
+
+    stmt : :py:class:`indra.statements.Statement`
+
+    Returns
+    -------
+    ags : set
+
+    """
     ags = set()
     try:
-        ags.update(set(map(lambda a: a.name, s.agent_list())))
+        ags.update(set(map(lambda a: a.name, stmt.agent_list())))
     except AttributeError:
-        for a in s.agent_list():
+        for a in stmt.agent_list():
             if a is None:
                 pass
             else:
@@ -34,7 +43,7 @@ def nested_dict_gen(stmts):
     stmts_dict : collections.defaultdict
          dict of the form dict[key1][key2] = {connection set}
     """
-    stmts_dict = defaultdict(dict)
+    nested_stmt_dicts = defaultdict(dict)
 
     for st in stmts:
         # NOTE1: Agents can be more than two and be only one too.
@@ -43,6 +52,8 @@ def nested_dict_gen(stmts):
 
         # Get agent names as list
         agent_names = list(agent_name_set(st))
+
+        # With less than two agents there is no connection, skip it
         if len(agent_names) > 1:
             # Only one connection type per statement
             connection = st.to_json()['type']
@@ -50,13 +61,17 @@ def nested_dict_gen(stmts):
                 # Permuation: ignore order (i.e. ignore subject/object)
                 for agent, other_agent in itt.permutations(agent_names, r=2):
                     try:
-                        stmt_dicts[agent][other_agent].add(connection)
+                        nested_stmt_dicts[agent][other_agent].add(connection)
                     except KeyError:  # If pair does not exist yet
-                        stmt_dicts[agent][other_agent] = {connection}
-        else:  # With only one (or zero) agent(s) there is no connection, skip
+                        nested_stmt_dicts[agent][other_agent] = {connection}
+
+                    # Has common parent
+                    if has_common_parent(id1=agent, id2=other_agent):
+                        nested_stmt_dicts[agent][other_agent].add('parent')
+        else:
             continue
 
-    return stmts_dict
+    return nested_stmt_dicts
 
 
 # def load_statements(hgnc_ids):
@@ -66,6 +81,7 @@ def nested_dict_gen(stmts):
 #     ----------
 #     hgnc_ids : iterable
 #         An iterable containing HGNC ids
+#
 #     Returns
 #     -------
 #     stmts : set{:py:class:`indra.statements.Statement`}
@@ -186,6 +202,7 @@ def direct_relation(id1, id2, long_stmts=set()):
         Strings of the two ids to check a direct relation between.
     long_stmts : set[:py:class:`indra.statements.Statement`]
         (Optional) List or set of INDRA statements to find connections in
+
     Returns
     -------
     stmts : list[:py:class:`indra.statements.Statement`]
@@ -241,6 +258,7 @@ def direct_relation_from_stmts(id1, id2, stmts_in):
         Strings of the two ids to check a direct relation between.
     stmts_in : set[:py:class:`indra.statements.Statement`]
         List of INDRA statements to find connections in.
+
     Returns
     -------
     stmts_out : list[:py:class:`indra.statements.Statement`]
