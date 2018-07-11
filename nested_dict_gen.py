@@ -36,6 +36,11 @@ def main(args):
                         stmt_dicts[agent][other_agent].add(connection)
                     except KeyError:  # If pair does not exist yet
                         stmt_dicts[agent][other_agent] = {connection}
+
+                    # Has common parent
+                    if dnf.has_common_parent(id1=agent, id2=other_agent):
+                        stmt_dicts[agent][other_agent].add('parent')
+
         else:
             continue
     with open(args.outbasename+'.pkl', 'wb') as pf:
