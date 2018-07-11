@@ -107,15 +107,16 @@ def main(args):
     if args.statements_out:
         dump_statements(stmts=stmts_all, fname=args.statements_out)
 
+    # Get nested dicts from statements
+    nested_dict_statemtens = dnf.nested_dict_gen(stmts_all)
+
     # Loop through the unique pairs
     dir_conn_pairs = []
     unexplained = []
-    counter = 0
     npairs = len(uniq_pairs)
+
+    logger.info('Looking for connections between %i pairs' % npairs)
     for pair in uniq_pairs:
-        counter +=1
-        if counter % max(10, (10**ceil(log10(npairs)))//100) == 0:
-            logger.info('Pair %i or %i' % (counter, npairs))
         pl = list(pair)
         for li in pl:
             if _is_float(li):
@@ -123,11 +124,21 @@ def main(args):
                 break
         pl.remove(correlation)
         id1, id2 = pl
-        if dnf.are_connected(id1, id2, long_stmts=stmts_all):
-            logger.info('Found connection between %s and %s' % (id1, id2))
-            dir_conn_pairs.append([id1, id2, correlation,
-                                   dnf.connection_types(id1, id2,
-                                                        long_stmts=stmts_all)])
+
+        # nested_dict_statemtens.get(id1).get(id2) raises AttributeError
+        # if nested_dict_statemtens.get(id1) returns {}
+        if nested_dict_statemtens.get(id1):
+            if nested_dict_statemtens.get(id1).get(id2):
+                logger.info(
+                    'Found connection between %s and %s' % (id1, id2))
+                dir_conn_pairs.append((id1, id2, correlation,
+                                       nested_dict_statemtens[id1][id2]))
+        elif nested_dict_statemtens.get(id2):
+            if nested_dict_statemtens.get(id2).get(id1):
+                logger.info(
+                    'Found connection between %s and %s' % (id1, id2))
+                dir_conn_pairs.append((id1, id2, correlation,
+                                       nested_dict_statemtens[id2][id1]))
         else:
             unexplained.append([id1, id2, correlation])
 
