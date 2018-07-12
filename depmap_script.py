@@ -153,7 +153,7 @@ def main(args):
 
     with open(args.outbasename+'_neg_conn.csv', 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
-        wrtr.writerows(dir_conn_pairs)
+        wrtr.writerows(dir_neg_conn_pairs)
 
     with open(args.outbasename+'_unexplained.csv', 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
