@@ -107,10 +107,11 @@ def main(args):
         dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
-    nested_dict_statemtens = dnf.nested_dict_gen(stmts_all)
+    nested_dict_statements = dnf.nested_dict_gen(stmts_all)
 
     # Loop through the unique pairs
     dir_conn_pairs = []
+    dir_neg_conn_pairs = []
     unexplained = []
     npairs = len(uniq_pairs)
 
@@ -124,23 +125,33 @@ def main(args):
         pl.remove(correlation)
         id1, id2 = pl
 
-        # nested_dict_statemtens.get(id1).get(id2) raises AttributeError
-        # if nested_dict_statemtens.get(id1) returns {}
-        if nested_dict_statemtens.get(id1) and \
-                nested_dict_statemtens.get(id1).get(id2):
+        # nested_dict_statements.get(id1).get(id2) raises AttributeError
+        # if nested_dict_statements.get(id1) returns {}
+        if nested_dict_statements.get(id1) and \
+                nested_dict_statements.get(id1).get(id2):
             logger.info('Found connection between %s and %s' % (id1, id2))
             dir_conn_pairs.append((id1, id2, correlation,
-                                   nested_dict_statemtens[id1][id2]))
+                                   nested_dict_statements[id1][id2]))
+            if correlation < 0:
+                dir_neg_conn_pairs.append((id1, id2, correlation,
+                                           nested_dict_statements[id1][id2]))
 
-        elif nested_dict_statemtens.get(id2) and \
-                nested_dict_statemtens.get(id2).get(id1):
+        elif nested_dict_statements.get(id2) and \
+                nested_dict_statements.get(id2).get(id1):
             logger.info('Found connection between %s and %s' % (id1, id2))
             dir_conn_pairs.append((id2, id1, correlation,
-                                   nested_dict_statemtens[id2][id1]))
+                                   nested_dict_statements[id2][id1]))
+            if correlation < 0:
+                dir_neg_conn_pairs.append((id2, id1, correlation,
+                                           nested_dict_statements[id2][id1]))
         else:
             unexplained.append([id1, id2, correlation])
 
     with open(args.outbasename+'_connections.csv', 'w', newline='') as csvf:
+        wrtr = csv.writer(csvf, delimiter=',')
+        wrtr.writerows(dir_conn_pairs)
+
+    with open(args.outbasename+'_neg_conn.csv', 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
         wrtr.writerows(dir_conn_pairs)
 
