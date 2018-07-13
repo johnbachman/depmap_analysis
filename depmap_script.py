@@ -115,6 +115,10 @@ def main(args):
     unexplained = []
     npairs = len(uniq_pairs)
 
+    f_con = open(args.outbasename + '_connections_text.txt', 'w')
+
+    f_neg_c = open(args.outbasename + '_neg_conn_text.txt', 'w')
+
     logger.info('Looking for connections between %i pairs' % npairs)
     for pair in uniq_pairs:
         pl = list(pair)
@@ -125,26 +129,51 @@ def main(args):
         pl.remove(correlation)
         id1, id2 = pl
 
+        forward_fail = False
+        backward_fail = False
+
         # nested_dict_statements.get(id1).get(id2) raises AttributeError
         # if nested_dict_statements.get(id1) returns {}
+
+        # Checks subj=id1, obj=id2
         if nested_dict_statements.get(id1) and \
                 nested_dict_statements.get(id1).get(id2):
+            stmts = nested_dict_statements[id1][id2]
             logger.info('Found connection between %s and %s' % (id1, id2))
-            dir_conn_pairs.append((id1, id2, correlation,
-                                   nested_dict_statements[id1][id2]))
-            if correlation < 0:
-                dir_neg_conn_pairs.append((id1, id2, correlation,
-                                           nested_dict_statements[id1][id2]))
+            dir_conn_pairs.append((id1, id2, correlation, stmts))
+            f_con.write(dnf.str_output(subj=id1, obj=id2, corr=correlation,
+                                       stmts=stmts, ignore_str='parent'))
 
-        elif nested_dict_statements.get(id2) and \
-                nested_dict_statements.get(id2).get(id1):
-            logger.info('Found connection between %s and %s' % (id1, id2))
-            dir_conn_pairs.append((id2, id1, correlation,
-                                   nested_dict_statements[id2][id1]))
             if correlation < 0:
-                dir_neg_conn_pairs.append((id2, id1, correlation,
-                                           nested_dict_statements[id2][id1]))
+                dir_neg_conn_pairs.append((id1, id2, correlation, stmts))
+                f_neg_c.write(dnf.str_output(subj=id1, obj=id2,
+                                             corr=correlation,
+                                             stmts=stmts,
+                                             ignore_str='parent'))
         else:
+            forward_fail = True
+
+        # Checks subj=id2, obj=id1
+        if nested_dict_statements.get(id2) and \
+                nested_dict_statements.get(id2).get(id1):
+            stmts = nested_dict_statements[id2][id1]
+            logger.info('Found connection between %s and %s' % (id2, id1))
+            dir_conn_pairs.append((id2, id1, correlation, stmts))
+            f_con.write(dnf.str_output(subj=id2, obj=id1, corr=correlation,
+                                       stmts=stmts, ignore_str='parent'))
+
+            if correlation < 0:
+                dir_neg_conn_pairs.append((id2, id1, correlation, stmts))
+                f_neg_c.write(dnf.str_output(subj=id2, obj=id1,
+                                             corr=correlation,
+                                             stmts=stmts,
+                                             ignore_str='parent'))
+
+        else:
+            backward_fail = True
+
+        # If both failed, count as unexaplined
+        if forward_fail and backward_fail:
             unexplained.append([id1, id2, correlation])
 
     with open(args.outbasename+'_connections.csv', 'w', newline='') as csvf:
@@ -158,6 +187,9 @@ def main(args):
     with open(args.outbasename+'_unexplained.csv', 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
         wrtr.writerows(unexplained)
+
+    f_con.close()
+    f_neg_c.close()
 
 
 if __name__ == '__main__':
