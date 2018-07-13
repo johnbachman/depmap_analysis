@@ -1,4 +1,5 @@
 from indra.preassembler import hierarchy_manager as hm
+from indra.preassembler import Preassembler as pa
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 from collections import defaultdict
@@ -8,34 +9,35 @@ import logging
 from indra.db import client as dbc
 from indra.db import util as dbu
 from sqlalchemy.exc import StatementError
+import pdb
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
 def agent_name_set(stmt):
-    """Returns the set of agent names in a statement.
+    """Returns the list of agent names in a statement.
 
     stmt : :py:class:`indra.statements.Statement`
 
     Returns
     -------
-    ags : set
+    ags : list[agent names]
 
     """
-    ags = set()
+    ags = []
     try:
-        ags.update(set(map(lambda ag: ag.name, stmt.agent_list())))
+        ags.update(list(map(lambda ag: ag.name, stmt.agent_list())))
     except AttributeError:
         for ag in stmt.agent_list():
             if ag is None:
                 pass
             else:
-                ags.add(ag.name)
+                ags.append(ag.name)
     return ags
 
 
 def nested_dict_gen(stmts):
-    """Generates a nested dict of the form dict[key1][key2] = {connection set}
+    """Generates a nested dict of the form dict[key1][key2] = [statement list]
     from INDRA statements.
 
     stmts :  list[:py:class:`indra.statements.Statement`]
@@ -44,40 +46,137 @@ def nested_dict_gen(stmts):
     Returns
     -------
     stmts_dict : collections.defaultdict
-         dict of the form dict[key1][key2] = {connection set}
+         dict of the form dict[subj][obj] = list[stmts]
     """
 
     nested_stmt_dicts = defaultdict(dict)
 
+    count = 0
     for st in stmts:
-        # NOTE1: Agents can be other than two and be only one too.
-        # NOTE2: Pair can show up multiple times when connection types differ
-        # Hence: Only skip if pair+connection type already exists
+        count += 1
+        # NOTE: If statement is complex, it migth have more than two agents
+        # and the agents won't be distinguishable as subject,object
 
-        # Get agent names as list
-        agent_names = list(agent_name_set(st))
+        agent_list = agent_name_set(stmt=st)
 
-        # With less than two agents there is no connection, skip it
-        if len(agent_names) > 1:
-            # Only one connection type per statement
-            connection = st.to_json()['type']
-            if connection:
-                # Permuation: ignore order (i.e. ignore subject/object)
-                for agent, other_agent in itt.permutations(agent_names, r=2):
+        # It takes two agents to tango
+        if len(agent_list) > 1:
+
+            # Is complex
+            if st.to_json()['type'].lower in ['complex', 'selfmodification']:
+                for agent, other_agent in itt.permutations(agent_list, r=2):
                     try:
-                        nested_stmt_dicts[agent][other_agent].add(connection)
+                        nested_stmt_dicts[agent][other_agent].append(st)
                     except KeyError:  # If pair does not exist yet
-                        nested_stmt_dicts[agent][other_agent] = {connection}
+                        nested_stmt_dicts[agent][other_agent] = [st]
 
-                    # Has common parent
-                    if has_common_parent(id1=agent, id2=other_agent):
-                        nested_stmt_dicts[agent][other_agent].add('parent')
+            # Non-complex interaction
+            else:
+                subj = agent_list[0]
+                obj = agent_list[1]
 
+                try:
+                    nested_stmt_dicts[subj][obj].append(st)
+                except KeyError:
+                    nested_stmt_dicts[subj][obj] = [st]
+
+            # Check common parent (same familiy or complex)
+            for agent, other_agent in itt.permutations(agent_list, r=2):
+                if has_common_parent(id1=agent, id2=other_agent):
+                    try:
+                        if 'parent' not in \
+                                nested_stmt_dicts[agent][other_agent]:
+                            nested_stmt_dicts[agent][other_agent].append(
+                                'parent')
+                    except KeyError:
+                        nested_stmt_dicts[agent][other_agent] = ['parent']
+
+        # Ignore when we only have one agent
         else:
             continue
 
-    dnf_logger.info('Created nested dict from %i statements.' % len(stmts))
+    dnf_logger.info('Created nested dict of length %i from %i statements.' %
+                    (len(nested_stmt_dicts), len(stmts)))
     return nested_stmt_dicts
+
+
+def deduplicate_stmt_dict(stmt_list, ignore_str):
+    """Takes a list of statements list[stmts] and runs
+    indra.preassembler.Preassembler.combine_duplicate_stmts() while also
+    taking care of non-statements stmts list
+
+    nest_dict : collections.defaultdict
+
+    Returns
+    -------
+    nest_dict : collections.defaultdict
+         dict of the form dict[subj][obj] = list[stmts]
+    """
+    # subjects should be the outer keys and objects should be the inner
+
+    if ignore_str in stmt_list:
+        only_stmt_list = [s for s in stmt_list if type(s) is not str]
+        stmt_list = pa.combine_duplicate_stmts(only_stmt_list)
+        stmt_list += [ignore_str]
+    else:
+        stmt_list = pa.combine_duplicate_stmts(stmt_list)
+    return stmt_list
+
+
+def str_output(subj, obj, corr, stmts, ignore_str='parent'):
+
+    # Build up a string that looks like the image on the whiteboard
+    output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr)
+
+    if ignore_str in stmts:
+        pure_list = [s for s in stmts if type(s) is not str]
+        types = relation_types(pure_list)
+        types += [ignore_str] * stmts.count(ignore_str)
+    else:
+        types = relation_types(stmts)
+
+    cp_stmts = stmts.copy()
+    dedupl_stmts = deduplicate_stmt_dict(cp_stmts, ignore_str)
+
+    types_set = set(types)
+    types_sstmt = []
+    for tp in types_set:
+        for st in dedupl_stmts:
+            if type(st) is not str:
+                if st.to_json()['type'] == tp:
+                    types_sstmt.append((tp, str(st)))
+            elif type(st) is str and tp is ignore_str:
+                types_sstmt.append((tp, str(st)))
+
+    for tp, str_stmt in types_sstmt:
+        if str_stmt is not ignore_str:
+            output += '\nInstances found of statement %s: %i\n' % \
+                      (str_stmt, types.count(tp))
+            for stmt in stmts:
+                if type(stmt) is not str and stmt.to_json()['type'] == tp:
+                    output += 'Evidence for uuid %s: ' % stmt.uuid
+                    output += stmt.evidence[0].text+'\n'
+                else:
+                    continue
+        else:
+            output += '\n%s and %s are in the same complex or ' \
+                      'family\n' % (subj, obj)
+
+    for tp, str_stmt in types_sstmt:
+        if tp is not ignore_str:
+            output += '\nInstances found of statement %s: %i\n' % \
+                      (str_stmt, types.count(tp))
+        for stmt in stmts:
+            if type(stmt) is str and str(stmt) == ignore_str:
+                output += '%s and %s are in the same complex or family\n' % \
+                          (subj, obj)
+            elif type(stmt) is not str and stmt.to_json()['type'] == tp:
+                output += 'Evidence for uuid %s:\n' % stmt.uuid
+                output += stmt.evidence[0].text+'\n'
+            else:
+                continue
+
+    return output
 
 
 def dbc_load_statements(hgnc_ids):
