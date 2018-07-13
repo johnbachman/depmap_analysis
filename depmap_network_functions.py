@@ -1,5 +1,6 @@
 from indra.preassembler import hierarchy_manager as hm
 from indra.preassembler import Preassembler as pa
+from indra.tools import assemble_corpus as ac
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 from collections import defaultdict
@@ -62,7 +63,7 @@ def nested_dict_gen(stmts):
         # It takes two agents to tango
         if len(agent_list) > 1:
 
-            # Is complex
+            # Is complex or selfmodification
             if st.to_json()['type'].lower in ['complex', 'selfmodification']:
                 for agent, other_agent in itt.permutations(agent_list, r=2):
                     try:
@@ -121,6 +122,20 @@ def deduplicate_stmt_dict(stmt_list, ignore_str):
     else:
         stmt_list = pa.combine_duplicate_stmts(stmt_list)
     return stmt_list
+
+
+def pa_filter_unique_evidence(stmts):
+
+    # Ground statemtens:
+    grounded_stmts = ac.map_grounding(stmts)
+
+    # Use curated site information to standardize modification sites in stmts
+    ms_stmts = ac.map_sequence(grounded_stmts)
+
+    # Complies together raw statements to statemetns with e.g. an evidence
+    # list with more than one entry
+    opa_stmts = ac.run_preassembly(ms_stmts, return_toplevel=False)
+    return opa_stmts
 
 
 def str_output(subj, obj, corr, stmts, ignore_str='parent'):
