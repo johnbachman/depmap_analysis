@@ -125,7 +125,7 @@ def deduplicate_stmt_dict(stmt_list, ignore_str):
 
 def str_output(subj, obj, corr, stmts, ignore_str='parent'):
 
-    # Build up a string that looks like the image on the whiteboard
+    # Build up a string that shows explanaitions for each connection
     output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr)
 
     if ignore_str in stmts:
@@ -149,21 +149,8 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
                 types_sstmt.append((tp, str(st)))
 
     for tp, str_stmt in types_sstmt:
-        if str_stmt is not ignore_str:
-            output += '\nInstances found of statement %s: %i\n' % \
-                      (str_stmt, types.count(tp))
-            for stmt in stmts:
-                if type(stmt) is not str and stmt.to_json()['type'] == tp:
-                    output += 'Evidence for uuid %s: ' % stmt.uuid
-                    output += stmt.evidence[0].text+'\n'
-                else:
-                    continue
-        else:
-            output += '\n%s and %s are in the same complex or ' \
-                      'family\n' % (subj, obj)
-
-    for tp, str_stmt in types_sstmt:
         if tp is not ignore_str:
+            output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -'
             output += '\nInstances found of statement %s: %i\n' % \
                       (str_stmt, types.count(tp))
         for stmt in stmts:
@@ -171,11 +158,14 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
                 output += '%s and %s are in the same complex or family\n' % \
                           (subj, obj)
             elif type(stmt) is not str and stmt.to_json()['type'] == tp:
-                output += 'Evidence for uuid %s:\n' % stmt.uuid
-                output += stmt.evidence[0].text+'\n'
+                output += 'Evidence for uuid %s: ' % stmt.uuid
+                ev = stmt.evidence[0].text
+                output += ('N/A' if ev is None else ev)+'\n'
             else:
                 continue
 
+    # Add separator between each connection
+    output += '\n\n#### #### #### #### #### ####\n'
     return output
 
 
