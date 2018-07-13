@@ -101,27 +101,27 @@ def nested_dict_gen(stmts):
     return nested_stmt_dicts
 
 
-def deduplicate_stmt_dict(stmt_list, ignore_str):
+def deduplicate_stmt_list(stmts, ignore_str):
     """Takes a list of statements list[stmts] and runs
     indra.preassembler.Preassembler.combine_duplicate_stmts() while also
-    taking care of non-statements stmts list
+    taking care of non-statements
 
-    nest_dict : collections.defaultdict
+    stmts : list[:py:class:`indra.statements.Statement`]
 
     Returns
     -------
-    nest_dict : collections.defaultdict
-         dict of the form dict[subj][obj] = list[stmts]
+    stmts : list[:py:class:`indra.statements.Statement`]
+         List of preassembled statments possibly including a non-statements
     """
     # subjects should be the outer keys and objects should be the inner
 
-    if ignore_str in stmt_list:
-        only_stmt_list = [s for s in stmt_list if type(s) is not str]
-        stmt_list = pa.combine_duplicate_stmts(only_stmt_list)
-        stmt_list += [ignore_str]
+    if ignore_str in stmts:
+        only_stmt_list = [s for s in stmts if type(s) is not str]
+        stmts = pa_filter_unique_evidence(only_stmt_list)
+        stmts += [ignore_str]
     else:
-        stmt_list = pa.combine_duplicate_stmts(stmt_list)
-    return stmt_list
+        stmts = pa_filter_unique_evidence(stmts)
+    return stmts
 
 
 def pa_filter_unique_evidence(stmts):
@@ -132,15 +132,14 @@ def pa_filter_unique_evidence(stmts):
     # Use curated site information to standardize modification sites in stmts
     ms_stmts = ac.map_sequence(grounded_stmts)
 
-    # Complies together raw statements to statemetns with e.g. an evidence
-    # list with more than one entry
+    # Compiles together raw statements to one statement per type
     opa_stmts = ac.run_preassembly(ms_stmts, return_toplevel=False)
     return opa_stmts
 
 
-def str_output(subj, obj, corr, stmts, ignore_str='parent'):
+def _old_str_output(subj, obj, corr, stmts, ignore_str='parent'):
 
-    # Build up a string that shows explanaitions for each connection
+    # Build up a string that shows explanations for each connection
     output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr)
 
     if ignore_str in stmts:
@@ -151,7 +150,7 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
         types = relation_types(stmts)
 
     cp_stmts = stmts.copy()
-    dedupl_stmts = deduplicate_stmt_dict(cp_stmts, ignore_str)
+    dedupl_stmts = deduplicate_stmt_list(cp_stmts, ignore_str)
 
     types_set = set(types)
     types_sstmt = []
@@ -178,6 +177,42 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
                 output += ('N/A' if ev is None else ev)+'\n'
             else:
                 continue
+
+    # Add separator between each connection
+    output += '\n\n#### #### #### #### #### ####\n'
+    return output
+
+
+def str_output(subj, obj, corr, stmts, ignore_str='parent'):
+
+    # Build up a string that shows explanations for each connection
+    output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr)
+
+    cp_stmts = stmts.copy()
+    pa_stmts = deduplicate_stmt_list(stmts=cp_stmts, ignore_str=ignore_str)
+
+    for stmt in pa_stmts:
+        output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -'
+        if type(stmt) is str and str(stmt) == ignore_str:
+            output += '%s and %s are in the same complex or family\n' % \
+                      (subj, obj)
+        else:
+            # Remove duplicate evidence text
+            ev_text_set = set(['N/A' if ev.text is None else ev.text for ev in
+                               stmt.evidence])
+            ev_text_list = list(ev_text_set)
+            if 'N/A' in ev_text_list:
+                ev_text_list.remove('N/A')
+
+            output += '\nInstances found of statement %s: %i; supports ' \
+                      'count: %i; Supported by count: %i\n' % \
+                      (str(stmt), len(ev_text_list), len(stmt.supports),
+                       len(stmt.supported_by))
+            for count, ev_text in enumerate(ev_text_list):
+                try:
+                    output += 'Evidence %i: ' % (count+1) + ev_text + '\n'
+                except TypeError:
+                    pdb.set_trace()
 
     # Add separator between each connection
     output += '\n\n#### #### #### #### #### ####\n'
