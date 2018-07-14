@@ -125,6 +125,16 @@ def deduplicate_stmt_list(stmts, ignore_str):
 
 
 def pa_filter_unique_evidence(stmts):
+    """Wrapper function for chaining preassembly statements meant to reduce
+    the number of statements.
+
+    stmts : list[:py:class:`indra.statements.Statement`]
+
+    Returns
+    -------
+    stmts : list[:py:class:`indra.statements.Statement`]
+        List of preassembled indra statements
+    """
 
     # Ground statemtens:
     grounded_stmts = ac.map_grounding(stmts)
@@ -184,6 +194,25 @@ def _old_str_output(subj, obj, corr, stmts, ignore_str='parent'):
 
 
 def str_output(subj, obj, corr, stmts, ignore_str='parent'):
+    """Formats information about statements and returns a string.
+
+    subj : str
+        indra statement subject
+    obj : str
+        indra statment object
+    corr : float
+        Correlation between subject and object
+    stmts : list[:py:class:`indra.statements.Statement`]
+        List of indra statements
+    ignore_str : str
+        String to ignore if it appears in the list of indra statements
+
+    Returns
+    -------
+    output : str
+        string with information about the statements that connect subject and
+        object formatted for printing or for writing to a text file.
+    """
 
     # Build up a string that shows explanations for each connection
     output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr)
@@ -209,10 +238,7 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
                       (str(stmt), len(ev_text_list), len(stmt.supports),
                        len(stmt.supported_by))
             for count, ev_text in enumerate(ev_text_list):
-                try:
-                    output += 'Evidence %i: ' % (count+1) + ev_text + '\n'
-                except TypeError:
-                    pdb.set_trace()
+                output += 'Evidence %i: ' % (count+1) + ev_text + '\n'
 
     # Add separator between each connection
     output += '\n\n#### #### #### #### #### ####\n'
@@ -243,7 +269,7 @@ def dbc_load_statements(hgnc_ids):
                                                               False,
                                                               fix_refs=False))
             counter += 1
-            if counter % max(10, 10 ** ceil(log10(n_hgnc_ids)) // 100) == 0:
+            if counter % max([10, 10 ** ceil(log10(n_hgnc_ids)) // 100]) == 0:
                 dnf_logger.info(' : : : Finished %i queries out of %i '
                                 ': : :' % (counter, n_hgnc_ids))
 
