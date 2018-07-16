@@ -115,9 +115,9 @@ def main(args):
     unexplained = []
     npairs = len(uniq_pairs)
 
-    f_con = open(args.outbasename + '_connections_text.txt', 'w')
+    f_con = open(args.outbasename + '_connections_latex.tex', 'w')
 
-    f_neg_c = open(args.outbasename + '_neg_conn_text.txt', 'w')
+    f_neg_c = open(args.outbasename + '_neg_conn_latex.tex', 'w')
 
     logger.info('Looking for connections between %i pairs' % npairs)
     for pair in uniq_pairs:
@@ -125,6 +125,7 @@ def main(args):
         for li in pl:
             if _is_float(li):
                 correlation = li
+                fmt_corr = '{0:.04}'.format(correlation)
                 break
         pl.remove(correlation)
         id1, id2 = pl
@@ -132,24 +133,41 @@ def main(args):
         forward_fail = False
         backward_fail = False
 
+        if (nested_dict_statements.get(id1) and
+                nested_dict_statements.get(id1).get(id2)) or \
+                (nested_dict_statements.get(id2) and
+                 nested_dict_statements.get(id2).get(id1)):
+            new_pair = r'\section{{{}, {}: {}}}'.format(id1, id2, fmt_corr)+'\n'+ \
+                 r'See correlation plot \href{{' \
+                 r'https://depmap.org/portal/interactive/?xDataset=Avana' \
+                 r'&xFeature={}&yDataset=Avana&yFeature={}&colorDataset=' \
+                 r'lineage&colorFeature=all&filterDataset=context' \
+                 r'&filterFeature=&regressionLine=false&statisticsTable=false' \
+                 r'&associationTable=true&plotOnly=false}}{{here}}'.format(
+                     id1, id2) + '\n\n'
+            f_con.write(new_pair)
+            if correlation < 0:
+                f_neg_c.write(new_pair)
+
         # nested_dict_statements.get(id1).get(id2) raises AttributeError
         # if nested_dict_statements.get(id1) returns {}
-
+        
+        ev_fltr = 0
+        
         # Checks subj=id1, obj=id2
         if nested_dict_statements.get(id1) and \
                 nested_dict_statements.get(id1).get(id2):
             stmts = nested_dict_statements[id1][id2]
             logger.info('Found connection between %s and %s' % (id1, id2))
             dir_conn_pairs.append((id1, id2, correlation, stmts))
-            f_con.write(dnf.str_output(subj=id1, obj=id2, corr=correlation,
-                                       stmts=stmts, ignore_str='parent'))
+            output = dnf.latex_output(subj=id1, obj=id2, corr=correlation,
+                                      ev_len_fltr=ev_fltr, stmts=stmts,
+                                      ignore_str='parent')
+            f_con.write(output)
 
             if correlation < 0:
                 dir_neg_conn_pairs.append((id1, id2, correlation, stmts))
-                f_neg_c.write(dnf.str_output(subj=id1, obj=id2,
-                                             corr=correlation,
-                                             stmts=stmts,
-                                             ignore_str='parent'))
+                f_neg_c.write(output)
         else:
             forward_fail = True
 
@@ -159,20 +177,19 @@ def main(args):
             stmts = nested_dict_statements[id2][id1]
             logger.info('Found connection between %s and %s' % (id2, id1))
             dir_conn_pairs.append((id2, id1, correlation, stmts))
-            f_con.write(dnf.str_output(subj=id2, obj=id1, corr=correlation,
-                                       stmts=stmts, ignore_str='parent'))
+            output = dnf.latex_output(subj=id2, obj=id1, corr=correlation,
+                                      ev_len_fltr=ev_fltr, stmts=stmts,
+                                      ignore_str='parent')
+            f_con.write(output)
 
             if correlation < 0:
                 dir_neg_conn_pairs.append((id2, id1, correlation, stmts))
-                f_neg_c.write(dnf.str_output(subj=id2, obj=id1,
-                                             corr=correlation,
-                                             stmts=stmts,
-                                             ignore_str='parent'))
+                f_neg_c.write(output)
 
         else:
             backward_fail = True
 
-        # If both failed, count as unexaplined
+        # If both failed, count as unexplained
         if forward_fail and backward_fail:
             unexplained.append([id1, id2, correlation])
 
@@ -219,6 +236,19 @@ if __name__ == '__main__':
                         help='Lower limit CERES correlation score filter.')
     parser.add_argument('-ul', type=float, default=1.0,
                         help='Upper limit CERES correlation score filter.')
-
     a = parser.parse_args()
+
+    with open('dep_map_script_log{}'.format(str(int(time()))), 'w') as f:
+        f.write('Command line options used:\n')
+        f.write('Correlation file: {}'.format(a.corr_file))
+        f.write('Ceres file: {}'.format(a.ceres_file))
+        f.write('Geneset file: {}'.format(a.geneset_file))
+        f.write('Ignore correlations below: {}'.format(a.ll))
+        f.write('Ignore correlations above: {}'.format(a.ul))
+        f.write('Output basename: {}'.format(a.outbasename))
+        f.write('Recalculate correlations: {}'.format(a.recalc))
+        f.write('Strict: {}'.format(a.strict))
+        f.write('Pickled statement file: {}'.format(a.statements_in))
+        f.write('Output loaded statements to: {}'.format(a.statements_out))
+
     main(a)
