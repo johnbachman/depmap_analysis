@@ -37,6 +37,17 @@ def agent_name_set(stmt):
     return ags
 
 
+def _uniq_evidence_count(stmt):
+    """Count the number of evidences listed.
+
+    stmt : indra statement
+
+    Returns
+    """
+
+    return
+
+
 def nested_dict_gen(stmts):
     """Generates a nested dict of the form dict[key1][key2] = [statement list]
     from INDRA statements.
@@ -214,14 +225,21 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
         object formatted for printing or for writing to a text file.
     """
 
+    output = ''
+
     # Build up a string that shows explanations for each connection
-    output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr)
+    output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr) + \
+             'https://depmap.org/portal/interactive/?xDataset=Avana&xFeature' \
+             '={}&yDataset=Avana&yFeature={}&colorDataset=lineage' \
+             '&colorFeature=all&filterDataset=context&filterFeature=' \
+             '&regressionLine=false&statisticsTable=false&associationTable=' \
+             'true&plotOnly=false\n'.format(subj, obj)
 
     cp_stmts = stmts.copy()
     pa_stmts = deduplicate_stmt_list(stmts=cp_stmts, ignore_str=ignore_str)
 
     for stmt in pa_stmts:
-        output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -'
+        output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -\n'
         if type(stmt) is str and str(stmt) == ignore_str:
             output += '%s and %s are in the same complex or family\n' % \
                       (subj, obj)
@@ -243,6 +261,118 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
     # Add separator between each connection
     output += '\n\n#### #### #### #### #### ####\n'
     return output
+
+
+def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
+    """Compiles information about statements and returns a LaTeX
+    formatted string that can be written to a file.
+
+    subj : str
+        indra statement subject
+    obj : str
+        indra statment object
+    corr : float
+        Correlation between subject and object
+    stmts : list[:py:class:`indra.statements.Statement`]
+        List of indra statements
+    ignore_str : str
+        String to ignore if it appears in the list of indra statements
+
+    Returns
+    -------
+    output : str
+        string with information about the statements that connect subject and
+        object formatted for printing or for writing to a text file.
+    """
+
+    output = ''
+
+    # Build up a string that shows explanations for each connection
+    # This string is put in the script instead
+    # output = r'\section{{{}, {}: {}}}'.format(subj, obj, corr) + '\n' + \
+    #          r'See correlation plot \href{{' \
+    #          r'https://depmap.org/portal/interactive/?xDataset=Avana' \
+    #          '&xFeature' \
+    #          '={}&yDataset=Avana&yFeature={}&colorDataset=lineage' \
+    #          '&colorFeature=all&filterDataset=context&filterFeature=' \
+    #          '&regressionLine=false&statisticsTable=false&associationTable=' \
+    #          'true&plotOnly=false}}{{here}}'.format(subj, obj) + '\n\n'
+
+    cp_stmts = stmts.copy()
+    pa_stmts = deduplicate_stmt_list(stmts=cp_stmts, ignore_str=ignore_str)
+
+    # HERE: insert subsection A->B
+    output += r'\subsection{{{A} $\rightarrow$ {B}}}'.format(A=subj, B=obj)+'\n'
+
+    # Sort stmts by evidence length
+    # stmts_dict = dict()
+    # ev_lens = []
+    # for stmt in pa_stmts:
+    #     stmts_dict[str(stmt)] = stmt
+    #     ev_text_list = list(set(['N/A' if ev.text is None else ev.text for ev in
+    #                        stmt.evidence]))
+    #     # pdb.set_trace()
+    #     if 'N/A' in ev_text_list:
+    #         ev_text_list.remove('N/A')
+    #     # Save tuple (len, str(stmt))
+    #     ev_lens.append((len(ev_text_list), str(stmt)))
+    # ev_lens.sort(key=lambda tup: tup[0], reverse=True)
+
+    # HERE: itemize per statement type in stmt for loop
+    output += r'\begin{itemize}'+'\n'
+    for stmt in pa_stmts:
+    # for lene, st_key in ev_lens:
+    #     stmt = stmts_dict[st_key]
+        if type(stmt) is str and str(stmt) == ignore_str:
+                output += r'\item {s} and {o} are in the same complex ' \
+                          r'or family'.format(s=subj, o=obj) + '\n'
+        else:
+            # Remove duplicate evidence text
+            ev_text_set = set(['N/A' if ev.text is None else ev.text for ev in
+                               stmt.evidence])
+            ev_text_list = list(ev_text_set)
+            if 'N/A' in ev_text_list:
+                ev_text_list.remove('N/A')
+
+            # assert lene == len(ev_text_list)
+
+            if len(ev_text_list) >= ev_len_fltr:
+
+                output += r'\item {nstmts} instances found of statement '\
+                          r'{stmt}; supports count: {supc}; Supported by ' \
+                          r'count: {supbc}'.format(stmt=str(stmt),
+                                                   nstmts=len(ev_text_list),
+                                                   supc=len(stmt.supports),
+                                                   supbc=len(
+                                                       stmt.supported_by))+'\n'
+
+                # There are statements with zero length evidence lists
+                if len(ev_text_list) > 0:
+                    # HERE enumerate evidence text
+                    output += r'\begin{enumerate}'+'\n'
+
+                    max_ev = 25  # Dont ouput more than 25 evidences
+                    for count, ev_text in enumerate(ev_text_list):
+                        output += r'\item Evidence: \texttt{' + ev_text + \
+                                  r'}' + '\n'
+                        if count+1 == max_ev:
+                            break
+
+                    output += r'\end{enumerate}'+'\n'
+            else:
+                output += 'Evidence count below threshold of {}.\n'\
+                    .format(ev_len_fltr)
+
+    output += r'\end{itemize}' + '\n'
+
+    # Don't forget to escape latex characters in 'ev_text'
+    output = output.replace('_', '\_')\
+        .replace('%', '\%')\
+        .replace('&', '\&')\
+        .replace('^', '\^')\
+        .replace('~', '\~')
+
+    return output.encode('ascii', 'ignore').decode('ascii')
 
 
 def dbc_load_statements(hgnc_ids):
