@@ -104,10 +104,14 @@ venv.bak/
 .mypy_cache/
 
 # user added files and directories
-.idea/codeStyles/codeStyleConfig.xml
-.idea/vcs.xml
-.idea/depmap_analysis.iml
-.idea/misc.xml
-.idea/modules.xml
-.idea/workspace.xml
+.idea/
+*.csv
+correlations.h5
+pure_ceres_scores.dat
+dep_map_script_log*
+*.txt
+*.dat
+*.tex
+*.ps
+*.png
 
