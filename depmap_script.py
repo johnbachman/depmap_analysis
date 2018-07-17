@@ -1,19 +1,17 @@
 import csv
-import argparse as ap
 import logging
-import pandas as pd
-import numpy as np
-import depmap_network_functions as dnf
-from indra.tools.assemble_corpus import dump_statements
-from indra.tools.assemble_corpus import load_statements as ac_load_stmts
+import argparse as ap
 from time import time
-import pdb
+import numpy as np
+import pandas as pd
+from indra.tools import assemble_corpus as ac
+import depmap_network_functions as dnf
 
 # Temp fix because indra doesn't import when script is run from terminal
 import sys
 sys.path.append('~/repos/indra/')
 
-logger = logging.getLogger('SlowClap')
+logger = logging.getLogger('depmap_script')
 
 # 1. no geneset -> use corr from full DepMap data, no filtering needed
 # 2. geneset, not strict -> interaction has to contain at least one gene from
@@ -78,7 +76,7 @@ def main(args):
     fsort_corrs = flarge_corr[
         flarge_corr.abs().sort_values(ascending=False).index]
 
-    # Find out if the HGNC pairs are connected and if they are how
+    # Compile set of correlations to be explained without duplicates A-B, B-A
     all_hgnc_ids = set()
     uniq_pairs = set()
     with open(args.outbasename+'_all.csv', 'w', newline='') as csvf:
@@ -93,7 +91,7 @@ def main(args):
     # Get statements from file or from database that contain any gene from
     # provided list as set
     if args.statements_in:  # Get statments from file
-        stmts_all = set(ac_load_stmts(args.statements_in))
+        stmts_all = set(ac.load_statements(args.statements_in))
     else:  # Use api to get statements. NOT the same as querying for each ID
         if args.geneset_file:
             stmts_all = dnf.dbc_load_statements(gene_filter_list)
@@ -104,7 +102,7 @@ def main(args):
 
     # Dump statements to pickle file if output name has been given
     if args.statements_out:
-        dump_statements(stmts=stmts_all, fname=args.statements_out)
+        ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
     nested_dict_statements = dnf.nested_dict_gen(stmts_all)
@@ -137,7 +135,8 @@ def main(args):
                 nested_dict_statements.get(id1).get(id2)) or \
                 (nested_dict_statements.get(id2) and
                  nested_dict_statements.get(id2).get(id1)):
-            new_pair = r'\section{{{}, {}: {}}}'.format(id1, id2, fmt_corr)+'\n'+ \
+            new_pair = r'\section{{{}, {}: {}}}'.format(id1, id2, fmt_corr)
+                 +'\n'+ \
                  r'See correlation plot \href{{' \
                  r'https://depmap.org/portal/interactive/?xDataset=Avana' \
                  r'&xFeature={}&yDataset=Avana&yFeature={}&colorDataset=' \
@@ -151,9 +150,9 @@ def main(args):
 
         # nested_dict_statements.get(id1).get(id2) raises AttributeError
         # if nested_dict_statements.get(id1) returns {}
-        
+
         ev_fltr = 0
-        
+
         # Checks subj=id1, obj=id2
         if nested_dict_statements.get(id1) and \
                 nested_dict_statements.get(id1).get(id2):
