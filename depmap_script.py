@@ -67,7 +67,8 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
         elif geneset_file and not strict:
             fcorr_list = corr[gene_filter_list].unstack()
 
-    # 3. Strict: both genes in interaction must be from loaded set
+    # 3. Strict: both genes in interaction must be from loaded set;
+    #    Filter data, then calculate correlations and then unstack
     elif geneset_file and strict:
         fcorr_list = data[gene_filter_list].corr().unstack()
 
@@ -80,6 +81,7 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
     flarge_corr = flarge_corr[flarge_corr.abs() > lower_limit]
     if upper_limit < 1.0:
         flarge_corr = flarge_corr[flarge_corr.abs() < upper_limit]
+
     # Sort by absolute value
     logger.info("Sorting correlations by absolute value")
     fsort_corrs = flarge_corr[
@@ -97,20 +99,23 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
                 uniq_pairs.append((id1, id2, correlation))
                 all_hgnc_ids.update([id1, id2])
                 wrtr.writerow([id1, id2, correlation])
-    return uniq_pairs, all_hgnc_ids, fsort_corrs
+    return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
 
 
 def main(args):
-    uniq_pairs, all_hgnc_ids, fsort_corrs = \
+
+    # Prepare data
+    gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs = \
             get_correlations(args.ceres_file, args.geneset_file,
                              args.corr_file, args.strict,
-                             args.outbasename, args.recalc, args.ll, args.ul)
+                             args.outbasename, args.recalc,
+                             args.ll, args.ul)
 
     # Get statements from file or from database that contain any gene from
     # provided list as set
     if args.statements_in:  # Get statments from file
         stmts_all = set(ac.load_statements(args.statements_in))
-    else:  # Use api to get statements. NOT the same as querying for each ID
+    else:  # Use api to get statements. _NOT_ the same as querying for each ID
         if args.geneset_file:
             stmts_all = dnf.dbc_load_statements(gene_filter_list)
         else:
@@ -120,6 +125,7 @@ def main(args):
 
     # Dump statements to pickle file if output name has been given
     if args.statements_out:
+        logger.info('Dumping read statements')
         ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
@@ -131,8 +137,8 @@ def main(args):
     unexplained = []
     npairs = len(uniq_pairs)
 
+    # Open files to write text/latex output
     f_con = open(args.outbasename + '_connections_latex.tex', 'w')
-
     f_neg_c = open(args.outbasename + '_neg_conn_latex.tex', 'w')
 
     logger.info('Looking for connections between %i pairs' % npairs)
@@ -169,6 +175,8 @@ def main(args):
         # nested_dict_statements.get(id1).get(id2) raises AttributeError
         # if nested_dict_statements.get(id1) returns {}
 
+        # Evidence list must have length above this value to be part of the
+        # text output
         ev_fltr = 0
 
         # Checks subj=id1, obj=id2
