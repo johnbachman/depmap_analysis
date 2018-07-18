@@ -1,3 +1,4 @@
+import csv
 import logging
 import numpy as np
 import pandas as pd
@@ -18,6 +19,19 @@ from indra.sources.indra_db_rest.client_api import IndraDBRestError
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
+
+
+def filter_corr_data(corr, clusters, cl_limit):
+    # To get gene names where clustering coefficient is above limit.
+    # Clusters has to come from an already produced graph.
+    # The filtered correlations can then be used to produce a new graph.
+    # The usage of this would be to get a nicer plot that conecntrates on the
+    # clusters instead of plotting _everything_, making it hard to see the
+    # forest for all the tress.
+
+    filtered_genes = [k for k in clusters if clusters[k] > cl_limit]
+    filtered_correlations = corr[filtered_genes].unstack()
+    return filtered_correlations
 
 
 def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
@@ -99,6 +113,80 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     corr_weight_graph.add_edges_from(ebunch=edge_bunch)
 
     return corr_weight_graph
+
+
+def _read_gene_set_file(gf, data):
+    gset = []
+    with open(gf, 'rt') as f:
+        for g in f.readlines():
+            gn = g.upper().strip()
+            if gn in data:
+                gset.append(gn)
+    return gset
+
+
+def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
+                     recalc=False, lower_limit=0.3, upper_limit=1.0):
+    # Open data file
+    dnf_logger.info("Reading CERES data from %s" % ceres_file)
+    data = pd.read_csv(ceres_file, index_col=0, header=0)
+    data = data.T
+
+    if geneset_file:
+        # Read gene set to look at
+        gene_filter_list = _read_gene_set_file(gf=geneset_file, data=data)
+
+    # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
+    if not geneset_file or (geneset_file and not strict):
+        # Calculate the full correlations, or load from cached
+        if recalc:
+            dnf_logger.info("Calculating correlations (may take a long time)")
+            corr = data.corr()
+            corr.to_hdf('correlations.h5', 'correlations')
+        else:
+            dnf_logger.info("Loading correlations from %s" % corr_file)
+            corr = pd.read_hdf(corr_file, 'correlations')
+        # No gene set file, leave 'corr' intact and unstack
+        if not geneset_file:
+            fcorr_list = corr.unstack()
+
+        # Gene set file present: filter and unstack
+        elif geneset_file and not strict:
+            fcorr_list = corr[gene_filter_list].unstack()
+
+    # 3. Strict: both genes in interaction must be from loaded set;
+    #    Filter data, then calculate correlations and then unstack
+    elif geneset_file and strict:
+        fcorr_list = data[gene_filter_list].corr().unstack()
+
+    # Remove self correlation, correlations below ll, sort on magnitude,
+    # leave correlation intact
+    dnf_logger.info("Removing self correlations")
+    flarge_corr = fcorr_list[fcorr_list != 1.0] # Self correlations
+    dnf_logger.info("Filtering correlations to %.1f < C < %.1f" %
+                (lower_limit, upper_limit))
+    flarge_corr = flarge_corr[flarge_corr.abs() > lower_limit]
+    if upper_limit < 1.0:
+        flarge_corr = flarge_corr[flarge_corr.abs() < upper_limit]
+
+    # Sort by absolute value
+    dnf_logger.info("Sorting correlations by absolute value")
+    fsort_corrs = flarge_corr[
+        flarge_corr.abs().sort_values(ascending=False).index]
+
+    # Compile set of correlations to be explained without duplicates A-B, B-A
+    dnf_logger.info("Compiling deduplicated set of correlations")
+    all_hgnc_ids = set()
+    uniq_pairs = []
+    with open(outbasename+'_all.csv', 'w', newline='') as csvf:
+        wrtr = csv.writer(csvf, delimiter=',')
+        for pair in fsort_corrs.items():
+            (id1, id2), correlation = pair
+            if (id2, id1, correlation) not in uniq_pairs:
+                uniq_pairs.append((id1, id2, correlation))
+                all_hgnc_ids.update([id1, id2])
+                wrtr.writerow([id1, id2, correlation])
+    return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
 
 
 def agent_name_set(stmt):
