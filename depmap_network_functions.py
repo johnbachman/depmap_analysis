@@ -1,22 +1,108 @@
-from indra.preassembler import hierarchy_manager as hm
-from indra.preassembler import Preassembler as pa
+import logging
+import numpy as np
+import pandas as pd
+import networkx as nx
+import itertools as itt
+from math import ceil, log10
+from collections import defaultdict
+from sqlalchemy.exc import StatementError
+from pandas.core.series import Series as pd_Series_class
+from pandas.core.frame import DataFrame as pd_DataFrame_class
+from indra.db import util as dbu
+from indra.db import client as dbc
 from indra.tools import assemble_corpus as ac
+from indra.preassembler import Preassembler as pa
+from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
-from collections import defaultdict
-from math import ceil, log10
-import itertools as itt
-import logging
-from indra.db import client as dbc
-from indra.db import util as dbu
-from sqlalchemy.exc import StatementError
-import pdb
+
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
+def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
+                                 edge_attr='correlation', use_abs_corr=False):
+    """Return a graph from a pandas sereis containing correlaton between gene A
+    and gene B, using the correlation as edge weight
+
+    corr_sr : pandas Series or DataFrame
+        Pandas Series/DataFrame containing A, B corr
+
+    source : str
+        which column to identify as source node (output is still undirected)
+
+    target : str
+        which column to identify as target nodes (output is still undirected)
+
+    edge_attr : int or str
+        Column to use for edge attributes
+    absolute : Bool
+        Use absolute value as edge weight. Otherwise magnitude is used.
+
+    Returns
+    -------
+    corr_weight_graph : nx.Graph
+        An undirected, weighted, networkx graph
+    """
+
+    # check if corr_sr is series or dataframe
+    if type(corr_sr) == pd_Series_class:
+        dnf_logger.info('Converting Pandas Series to Pandas DataFrame')
+        corr_df = pd.DataFrame(corr_sr).reset_index()
+    else:
+        corr_df = corr_sr
+
+    corr_df = corr_df.rename(
+        columns={'level_0': source, 'level_1': target, 0: edge_attr})
+
+    if use_abs_corr:
+        dnf_logger.info('Using absolute correlation values')
+        corr_df = corr_df.apply(lambda c: c.abs() if np.issubdtype(
+            c.dtype, np.number) else c)
+
+    if type(edge_attr) is list or type(edge_attr) is bool:
+        dnf_logger.warning('More than one attribute might be added to edges. '
+                           'Resulting networkx graph might not be usable as '
+                           'simple weighted graph.')
+    dnf_logger.info('Creating weighted undirected graph from network data')
+    corr_weight_graph = nx.from_pandas_dataframe(df=corr_df,
+                                                 source=source,
+                                                 target=target,
+                                                 edge_attr=edge_attr)
+    return corr_weight_graph
+
+
+def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
+    """Return a graph from a list of edges, using the correlation as weight
+
+    corr_list : list or iterator
+        Edge tuples
+
+    absolute : Bool
+        Use absolute value as edge weight. Otherwise magnitude is used.
+
+    Returns
+    -------
+    corr_weight_graph : nx.Graph
+        An undirected, weighted, networkx graph
+    """
+    corr_weight_graph = nx.Graph()
+
+    if use_abs_corr:
+        dnf_logger.info('Using absolute correlation values')
+        corr_list = map(lambda t: (t[0], t[1], abs(t[2])), corr_list)
+
+    dnf_logger.info('Converting tuples to an edge bunch')
+    edge_bunch = map(lambda t: (t[0], t[1], {'weight': t[2]}), corr_list)
+
+    dnf_logger.info('Creating weighted undirected graph from network data')
+    corr_weight_graph.add_edges_from(ebunch=edge_bunch)
+
+    return corr_weight_graph
+
+
 def agent_name_set(stmt):
-    """Returns the list of agent names in a statement.
+    """Return the list of agent names in a statement.
 
     stmt : :py:class:`indra.statements.Statement`
 
