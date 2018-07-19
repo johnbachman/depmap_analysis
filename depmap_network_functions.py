@@ -36,7 +36,7 @@ def filter_corr_data(corr, clusters, cl_limit):
 
 
 def nx_undirected_graph_from_nested_dict(nest_d):
-    """Returns an undirected graph built from a nested dict.
+    """Returns an undirected graph built from a nested dict of statements
 
     nest_d : defaultdict
         A nested dict with two or more layers
@@ -52,6 +52,7 @@ def nx_undirected_graph_from_nested_dict(nest_d):
     # Create queue from nested dict
     ndq = list(nest_d.items())
 
+    dnf_logger.info('Building undirected graph from nested dict of statements')
     # Run until queue is empty
     while ndq:
         # get node u and dict d from top of queue
