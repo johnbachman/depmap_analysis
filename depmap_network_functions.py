@@ -5,6 +5,7 @@ import pandas as pd
 import networkx as nx
 import itertools as itt
 from math import ceil, log10
+from collections import Mapping
 from collections import defaultdict
 from sqlalchemy.exc import StatementError
 from pandas.core.series import Series as pd_Series_class
@@ -32,6 +33,38 @@ def filter_corr_data(corr, clusters, cl_limit):
     filtered_genes = [k for k in clusters if clusters[k] > cl_limit]
     filtered_correlations = corr[filtered_genes].unstack()
     return filtered_correlations
+
+
+def nx_undirected_graph_from_nested_dict(nest_d):
+    """Returns an undirected graph built from a nested dict.
+
+    nest_d : defaultdict
+        A nested dict with two or more layers
+
+    Returns
+    -------
+    nx_undir : networkx.classes.graph.Graph
+        An undirected networkx graph
+    """
+
+    nx_undir = nx.Graph()
+
+    # Create queue from nested dict
+    ndq = list(nest_d.items())
+
+    # Run until queue is empty
+    while ndq:
+        # get node u and dict d from top of queue
+        u, d = ndq.pop()
+        # Loop nodes nd and (possible) dicts nd of dict d
+        for nu, nd in d.items():
+            # Add edge u-nu
+            nx_undir.add_edge(u, nu)
+            # If nd has deeper layers, put that to the queue
+            if isinstance(nd, Mapping):
+                ndq.append((nu, nd))
+
+    return nx_undir
 
 
 def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
