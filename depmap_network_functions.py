@@ -212,7 +212,7 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
     dnf_logger.info("Compiling deduplicated set of correlations")
     all_hgnc_ids = set()
     uniq_pairs = []
-    with open(outbasename+'_all.csv', 'w', newline='') as csvf:
+    with open(outbasename+'_all_correlations.csv', 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
         for pair in fsort_corrs.items():
             (id1, id2), correlation = pair
