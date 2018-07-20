@@ -35,10 +35,48 @@ def filter_corr_data(corr, clusters, cl_limit):
     return filtered_correlations
 
 
+def nx_directed_multigraph_from_nested_dict(nest_d):
+    """Returns a directed multigraph where each edge links a statement with
+    u=subj, v=obj, edge_key=stmt,
+
+    nest_d : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+
+    Returns
+    -------
+    nx_muldigraph : nx.MultiDiGraph
+        An nx directed multigraph linking agents with statements
+    """
+
+    nx_muldir = nx.MultiDiGraph()
+
+    for subj in nest_d:
+        if nest_d.get(subj):
+            for obj in nest_d[subj]:
+                # Check if subj-obj connection exists in dict
+                if nest_d.get(subj).get(obj):
+                    # Contains a list of statements
+                    stmts = nest_d[subj][obj]
+                    dds_list = deduplicate_stmt_list(stmts, 'parent')
+                    for stmt in dds_list:
+                        # One edge per statement
+                        # Could instead add stmt attributes like
+                        # evidence.text, suppoerted by, suppors, uuic, etc
+                        nx_muldir.add_edge(
+                            u=subj, v=obj, attr_dict={'stmt': stmt})
+
+                        # Debug
+                        assert list(map(lambda ag: ag.name,
+                                        nx_muldir[subj][obj][0][
+                                            'stmt'].agent_list())) == [subj,
+                                                                       obj]
+    return nx_muldir
+
+
 def nx_undirected_graph_from_nested_dict(nest_d):
     """Returns an undirected graph built from a nested dict of statements
 
-    nest_d : defaultdict
+    nest_d : defaultdict(dict)
         A nested dict with two or more layers
 
     Returns
@@ -243,17 +281,6 @@ def agent_name_set(stmt):
             else:
                 ags.append(ag.name)
     return ags
-
-
-def _uniq_evidence_count(stmt):
-    """Count the number of evidences listed.
-
-    stmt : indra statement
-
-    Returns
-    """
-
-    return
 
 
 def nested_dict_gen(stmts):
