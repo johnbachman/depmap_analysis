@@ -145,30 +145,30 @@ def main(args):
                 else:
                     found.append(False)
 
-                # any(found) is True if at least one connection was found and
-                # therefore "not any" is only True when no connection was found
-                if not any(found):
-                    # Check if connection A-X-B exists and save the set of
-                    # middle nodes.
-                    #
-                    # This can be built to a recursive search for n middle
-                    # nodes by inserting an 'else' at the bottom where the
-                    # neighbors of the neighbors are searched.
-                    if subj in node_set and obj in node_set:
-                        neighbor_node_connections = \
-                            set(undir_nx_graph[subj].keys()) & \
-                            set(undir_nx_graph[obj].keys())
-                        if neighbor_node_connections:
-                                logger.info('Found connection of length 2 '
-                                            'between %s and %s' % (subj, obj))
-                                two_step_conn_pairs.\
-                                    append((subj, obj, correlation,
-                                            len(neighbor_node_connections),
-                                            neighbor_node_connections))
+            # any(found) is True if at least one connection was found and
+            # therefore "not any" is only True when no connection was found
+            if not any(found):
+                # Check if connection A-X-B exists and save the set of
+                # middle nodes.
+                #
+                # This can be built to a recursive search for n middle
+                # nodes by inserting an 'else' at the bottom where the
+                # neighbors of the neighbors are searched.
+                if subj in node_set and obj in node_set:
+                    neighbor_node_connections = \
+                        set(undir_nx_graph[subj].keys()) & \
+                        set(undir_nx_graph[obj].keys())
+                    if neighbor_node_connections:
+                            logger.info('Found connection of length 2 '
+                                        'between %s and %s' % (subj, obj))
+                            two_step_conn_pairs.\
+                                append((subj, obj, correlation,
+                                        len(neighbor_node_connections),
+                                        neighbor_node_connections))
 
-                        # no connection A-B or A-X-B found
-                        else:
-                            unexplained.append([id1, id2, correlation])
+                    # no connection A-B or A-X-B found
+                    else:
+                        unexplained.append([id1, id2, correlation])
 
     with open(args.outbasename+'_conn_correlations.csv', 'w', newline='')\
             as csvf:
