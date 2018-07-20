@@ -64,12 +64,6 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
                         # evidence.text, suppoerted by, suppors, uuic, etc
                         nx_muldir.add_edge(
                             u=subj, v=obj, attr_dict={'stmt': stmt})
-
-                        # Debug
-                        assert list(map(lambda ag: ag.name,
-                                        nx_muldir[subj][obj][0][
-                                            'stmt'].agent_list())) == [subj,
-                                                                       obj]
     return nx_muldir
 
 
