@@ -55,9 +55,8 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
             for obj in nest_d[subj]:
                 # Check if subj-obj connection exists in dict
                 if nest_d.get(subj).get(obj):
-                    # Contains a list of statements
-                    stmts = nest_d[subj][obj]
-                    dds_list = deduplicate_stmt_list(stmts, 'parent')
+                    # Get list of statements
+                    dds_list = nest_d[subj][obj]
                     for stmt in dds_list:
                         # One edge per statement
                         # Could instead add stmt attributes like
@@ -341,6 +340,17 @@ def nested_dict_gen(stmts):
     return nested_stmt_dicts
 
 
+def dedupl_nested_dict_gen(stmts):
+    nd = nested_dict_gen(stmts)
+    for subj in nd:
+        for obj in nd[subj]:
+            st_list = nd[subj][obj]
+            nd[subj][obj] = deduplicate_stmt_list(stmts=st_list,
+                                                  ignore_str='parent')
+
+    return nd
+
+
 def deduplicate_stmt_list(stmts, ignore_str):
     """Takes a list of statements list[stmts] and runs
     indra.preassembler.Preassembler.combine_duplicate_stmts() while also
@@ -399,8 +409,7 @@ def _old_str_output(subj, obj, corr, stmts, ignore_str='parent'):
     else:
         types = relation_types(stmts)
 
-    cp_stmts = stmts.copy()
-    dedupl_stmts = deduplicate_stmt_list(cp_stmts, ignore_str)
+    dedupl_stmts = stmts.copy()
 
     types_set = set(types)
     types_sstmt = []
@@ -464,8 +473,7 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
              '&regressionLine=false&statisticsTable=false&associationTable=' \
              'true&plotOnly=false\n'.format(subj, obj)
 
-    cp_stmts = stmts.copy()
-    pa_stmts = deduplicate_stmt_list(stmts=cp_stmts, ignore_str=ignore_str)
+    pa_stmts = stmts.copy()
 
     for stmt in pa_stmts:
         output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -\n'
@@ -527,8 +535,7 @@ def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
     #          '&regressionLine=false&statisticsTable=false&associationTable=' \
     #          'true&plotOnly=false}}{{here}}'.format(subj, obj) + '\n\n'
 
-    cp_stmts = stmts.copy()
-    pa_stmts = deduplicate_stmt_list(stmts=cp_stmts, ignore_str=ignore_str)
+    pa_stmts = stmts.copy()
 
     # HERE: insert subsection A->B
     output += r'\subsection{{{A} $\rightarrow$ {B}}}'.format(A=subj, B=obj)+'\n'
