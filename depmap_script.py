@@ -72,16 +72,21 @@ def main(args):
         ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
-    nested_dict_statements = dnf.nested_dict_gen(stmts_all)
+    nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all)
 
     # Get undirected graph from nested dict
     undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
         nest_d=nested_dict_statements)
     node_set = set(undir_nx_graph.nodes())
 
+    # Get directed multigraph
+    muldi_nx_graph = dnf.nx_directed_multigraph_from_nested_dict(
+        nest_d=nested_dict_statements)
+
     # Loop through the unique pairs
     dir_conn_pairs = []  # Save pairs that are directly connected
     two_step_conn_pairs = []  # Extend to pairs connected by two direct edges
+    two_step_directed_pairs = []  # Directed paths between A & B
     dir_neg_conn_pairs = []  # Directly connected pairs with correlation < 0
     unexplained = []  # Unexplained correlations
     npairs = len(uniq_pairs)
@@ -128,7 +133,8 @@ def main(args):
                     dir_conn_pairs.append(stmt_tuple)
 
                     # ToDo Should two_step_conn_pairs contain connections of
-                    # length == 2 or <= 2? ==2 for now.
+                    # length == 2 or <= 2?
+                    # Doing ==2 for now.
                     two_step_conn_pairs.append((subj, obj, correlation,
                                                 0, 'direct'))
                     output = dnf.latex_output(subj=subj,
@@ -141,7 +147,16 @@ def main(args):
                     if correlation < 0:
                         dir_neg_conn_pairs.append(stmt_tuple)
                         f_neg_c.write(output)
-
+                # Checking route A -> X -> B
+                elif (subj, obj) in muldi_nx_graph.edges():
+                    dir_path = set(muldi_nx_graph.succ(subj)) & \
+                               set(muldi_nx_graph.pred(obj))
+                    if dir_path:
+                        logger.info('Found directed path of length 2 '
+                                    'between %s and %s' % (subj, obj))
+                        two_step_directed_pairs.append((subj, obj, correlation,
+                                        len(dir_path),
+                                        dir_path))
                 else:
                     found.append(False)
 
