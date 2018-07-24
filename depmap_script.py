@@ -124,7 +124,7 @@ def main(args):
             # nested_dict_statements.get(id1).get(id2) raises AttributeError
             # if nested_dict_statements.get(id1) returns {}
 
-            found = []
+            found = set()
 
             for subj, obj in itt.permutations((id1, id2), r=2):
                 if nested_dict_statements.get(subj) and \
@@ -132,7 +132,7 @@ def main(args):
                     stmts = nested_dict_statements[subj][obj]
                     logger.info('Found direct connection between %s and %s' % (
                         subj, obj))
-                    found.append(True)
+                    found.add(True)
                     stmt_tuple = (subj, obj, correlation, stmts)
                     dir_conn_pairs.append(stmt_tuple)
 
@@ -154,36 +154,47 @@ def main(args):
                     dir_path_nodes = set(nx_dir_graph.succ[subj]) & \
                                      set(nx_dir_graph.pred[obj])
                     if dir_path_nodes:
+                        found.add(True)
                         logger.info('Found directed path of length 2 '
                                     'between %s and %s' % (subj, obj))
                         two_step_directed_pairs.append((subj, obj, correlation,
                                                         'pathway',
                                                         len(dir_path_nodes),
                                                         dir_path_nodes))
+                    else:
+                        found.add(False)
                 else:
-                    found.append(False)
+                    found.add(False)
 
             if id1 in dir_node_set and id2 in dir_node_set:
                 # 2: share target/coregulator A -> X <- B
-                downstream_share = nx_dir_graph[id1].keys() &\
-                                   nx_dir_graph[id2].keys()
+                downstream_share = set(nx_dir_graph.succ[id1]) &\
+                                   set(nx_dir_graph.succ[id2])
                 # 3: No correlator A <- X -> B
-                upstream_share = set(nx_dir_graph.pred[id1]) & \
+                upstream_share = set(nx_dir_graph.pred[id1]) &\
                                  set(nx_dir_graph.pred[id2])
+
                 if downstream_share:
-                    found.append(True)
+                    found.add(True)
+                    logger.info('Downstream share between %s and %s' %
+                                (id1, id2))
                     two_step_directed_pairs.append((id1, id2, correlation,
                                                     'downstream_share',
                                                     len(downstream_share),
                                                     downstream_share))
+
                 if upstream_share:
-                    found.append(True)
+                    found.add(True)
+                    logger.info('Downstream share between %s and %s' %
+                                (id1, id2))
                     two_step_directed_pairs.append((id1, id2, correlation,
                                                     'upstream_share',
-                                                    len(downstream_share),
-                                                    downstream_share))
+                                                    len(upstream_share),
+                                                    upstream_share))
+                if not downstream_share and not upstream_share:
+                    found.add(False)
             else:
-                found.append(False)
+                found.add(False)
 
             # any(found) is True if at least one connection was found and
             # therefore "not any" is only True when no connection was found
