@@ -56,7 +56,7 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
         if nest_d.get(subj):
             for obj in nest_d[subj]:
                 # Check if subj-obj connection exists in dict
-                if nest_d.get(subj).get(obj):
+                if subj is not obj and nest_d.get(subj).get(obj):
                     # Get list of statements
                     dds_list = nest_d[subj][obj]
                     for stmt in dds_list:
@@ -70,7 +70,8 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
 
 def nx_directed_graph_from_nested_dict(nest_d):
     """Returns a directed multigraph where each edge links a statement with
-    u=subj, v=obj, edge_key=stmt,
+    u=subj, v=obj, attr_dict={'stmts': stmt_list} where
+    stmt_list = nest_d[subj][obj]
 
     nest_d : defaultdict(dict)
         Nested dict of statements: nest_d[subj][obj]
@@ -89,9 +90,11 @@ def nx_directed_graph_from_nested_dict(nest_d):
         if nest_d.get(subj):
             for obj in nest_d[subj]:
                 # Check if subj-obj connection exists in dict
-                if nest_d.get(subj).get(obj):
+                if subj is not obj and nest_d.get(subj).get(obj):
                     # Add edge
-                    nx_dir_g.add_edge(u=subj, v=obj)
+                    nx_dir_g.add_edge(u=subj,
+                                      v=obj,
+                                      attr_dict={'stmts': nest_d[subj][obj]})
     return nx_dir_g
 
 
@@ -119,8 +122,9 @@ def nx_undirected_graph_from_nested_dict(nest_d):
         u, d = ndq.pop()
         # Loop nodes nd and (possible) dicts nd of dict d
         for nu, nd in d.items():
-            # Add edge u-nu
-            nx_undir.add_edge(u, nu)
+            # Add edge u-nu if it's not a self-loop
+            if u is not nu:
+                nx_undir.add_edge(u, nu)
             # If nd has deeper layers, put that to the queue
             if isinstance(nd, Mapping):
                 ndq.append((nu, nd))
