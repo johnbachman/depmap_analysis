@@ -336,7 +336,7 @@ def nested_dict_gen(stmts):
         if len(agent_list) > 1:
 
             # Is complex or selfmodification
-            if st.to_json()['type'].lower in ['complex', 'selfmodification']:
+            if st.to_json()['type'].lower() in ['complex', 'selfmodification']:
                 for agent, other_agent in itt.permutations(agent_list, r=2):
                     try:
                         nested_stmt_dicts[agent][other_agent].append(st)
