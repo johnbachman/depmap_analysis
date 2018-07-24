@@ -2,6 +2,7 @@ import csv
 import logging
 import numpy as np
 import pandas as pd
+import pickle as pkl
 from time import time
 import networkx as nx
 import argparse as ap
@@ -68,7 +69,7 @@ def main(args):
 
     # Dump statements to pickle file if output name has been given
     if args.statements_out:
-        logger.info('Dumping read statements')
+        logger.info('Dumping read raw statements')
         ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
@@ -77,15 +78,18 @@ def main(args):
     # Get undirected graph from nested dict
     undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
         nest_d=nested_dict_statements)
-    node_set = set(undir_nx_graph.nodes())
+    undir_node_set = set(undir_nx_graph.nodes())
 
-    # Get directed multigraph
-    muldi_nx_graph = dnf.nx_directed_multigraph_from_nested_dict(
+    # Get directed simple graph
+    nx_dir_graph = dnf.nx_directed_graph_from_nested_dict(
         nest_d=nested_dict_statements)
+    dir_node_set = set(nx_dir_graph.nodes())
+    # Save as pickle file
+    with open('nx_directed_simple_graph.pkl', 'wb') as pklout:
+        pkl.dump(obj=nx_dir_graph, file=pklout)
 
     # Loop through the unique pairs
     dir_conn_pairs = []  # Save pairs that are directly connected
-    two_step_conn_pairs = []  # Extend to pairs connected by two direct edges
     two_step_directed_pairs = []  # Directed paths between A & B
     dir_neg_conn_pairs = []  # Directly connected pairs with correlation < 0
     unexplained = []  # Unexplained correlations
@@ -132,11 +136,6 @@ def main(args):
                     stmt_tuple = (subj, obj, correlation, stmts)
                     dir_conn_pairs.append(stmt_tuple)
 
-                    # ToDo Should two_step_conn_pairs contain connections of
-                    # length == 2 or <= 2?
-                    # Doing ==2 for now.
-                    two_step_conn_pairs.append((subj, obj, correlation,
-                                                0, 'direct'))
                     output = dnf.latex_output(subj=subj,
                                               obj=obj,
                                               corr=correlation,
@@ -144,56 +143,65 @@ def main(args):
                                               stmts=stmts,
                                               ignore_str='parent')
                     f_con.write(output)
+
                     if correlation < 0:
                         dir_neg_conn_pairs.append(stmt_tuple)
                         f_neg_c.write(output)
-                # Checking route A -> X -> B
-                elif (subj, obj) in muldi_nx_graph.edges():
-                    dir_path = set(muldi_nx_graph.succ(subj)) & \
-                               set(muldi_nx_graph.pred(obj))
-                    if dir_path:
+
+                # Checking:
+                # 1. "pathway": A -> X -> B (and B -> X -> A)
+                elif subj in dir_node_set and obj in dir_node_set:
+                    dir_path_nodes = set(nx_dir_graph.succ[subj]) & \
+                                     set(nx_dir_graph.pred[obj])
+                    if dir_path_nodes:
                         logger.info('Found directed path of length 2 '
                                     'between %s and %s' % (subj, obj))
                         two_step_directed_pairs.append((subj, obj, correlation,
-                                        len(dir_path),
-                                        dir_path))
+                                                        'pathway',
+                                                        len(dir_path_nodes),
+                                                        dir_path_nodes))
                 else:
                     found.append(False)
+
+            if id1 in dir_node_set and id2 in dir_node_set:
+                # 2: share target/coregulator A -> X <- B
+                downstream_share = nx_dir_graph[id1].keys() &\
+                                   nx_dir_graph[id2].keys()
+                # 3: No correlator A <- X -> B
+                upstream_share = set(nx_dir_graph.pred[id1]) & \
+                                 set(nx_dir_graph.pred[id2])
+                if downstream_share:
+                    found.append(True)
+                    two_step_directed_pairs.append((id1, id2, correlation,
+                                                    'downstream_share',
+                                                    len(downstream_share),
+                                                    downstream_share))
+                if upstream_share:
+                    found.append(True)
+                    two_step_directed_pairs.append((id1, id2, correlation,
+                                                    'upstream_share',
+                                                    len(downstream_share),
+                                                    downstream_share))
+            else:
+                found.append(False)
 
             # any(found) is True if at least one connection was found and
             # therefore "not any" is only True when no connection was found
             if not any(found):
-                # Check if connection A-X-B exists and save the set of
-                # middle nodes.
-                #
-                # This can be built to a recursive search for n middle
-                # nodes by inserting an 'else' at the bottom where the
-                # neighbors of the neighbors are searched.
-                if subj in node_set and obj in node_set:
-                    neighbor_node_connections = \
-                        set(undir_nx_graph[subj].keys()) & \
-                        set(undir_nx_graph[obj].keys())
-                    if neighbor_node_connections:
-                            logger.info('Found connection of length 2 '
-                                        'between %s and %s' % (subj, obj))
-                            two_step_conn_pairs.\
-                                append((subj, obj, correlation,
-                                        len(neighbor_node_connections),
-                                        neighbor_node_connections))
-
-                    # no connection A-B or A-X-B found
-                    else:
-                        unexplained.append([id1, id2, correlation])
+                unexplained.append([id1, id2, correlation])
+                if args.verbosity:
+                    logger.info('No explainable path found between %s and '
+                                '%s.' % (id1, id2))
 
     with open(args.outbasename+'_conn_correlations.csv', 'w', newline='')\
             as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
         wrtr.writerows(dir_conn_pairs)
 
-    with open(args.outbasename + '_two_conn_correlations.csv', 'w', newline='')\
-            as csvf:
+    with open(args.outbasename + '_twostep_conn_correlations.csv', 'w',
+              newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
-        wrtr.writerows(two_step_conn_pairs)
+        wrtr.writerows(two_step_directed_pairs)
 
     with open(args.outbasename+'_neg_conn_correlations.csv', 'w', newline='') \
             as csvf:
@@ -204,9 +212,6 @@ def main(args):
             as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
         wrtr.writerows(unexplained)
-
-    f_con.close()
-    f_neg_c.close()
 
 
 if __name__ == '__main__':
@@ -226,6 +231,9 @@ if __name__ == '__main__':
                         help='With \'-s\', the correlations are restricted to '
                              'only be between loaded gene set. If no gene set '
                              'is loaded, this option has no effect.')
+    parser.add_argument('-v', '--verbosity', action="count",
+                        help='increase output verbosity (e.g., -vv is more '
+                             'than -v)')
     parser.add_argument('-sti', '--statements-in', help='Loads a pickle file '
                                                         'to use instead of '
                                                         'quering a database.')
