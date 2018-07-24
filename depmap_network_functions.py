@@ -48,6 +48,8 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
         An nx directed multigraph linking agents with statements
     """
 
+    dnf_logger.info('Building directed multigraph from nested dict of '
+                    'statements')
     nx_muldir = nx.MultiDiGraph()
 
     for subj in nest_d:
@@ -64,6 +66,33 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
                         nx_muldir.add_edge(
                             u=subj, v=obj, attr_dict={'stmt': stmt})
     return nx_muldir
+
+
+def nx_directed_graph_from_nested_dict(nest_d):
+    """Returns a directed multigraph where each edge links a statement with
+    u=subj, v=obj, edge_key=stmt,
+
+    nest_d : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+
+    Returns
+    -------
+    nx_muldigraph : nx.MultiDiGraph
+        An nx directed multigraph linking agents with statements
+    """
+
+    dnf_logger.info('Building directed simple graph from nested dict of '
+                    'statements')
+    nx_dir_g = nx.DiGraph()
+
+    for subj in nest_d:
+        if nest_d.get(subj):
+            for obj in nest_d[subj]:
+                # Check if subj-obj connection exists in dict
+                if nest_d.get(subj).get(obj):
+                    # Add edge
+                    nx_dir_g.add_edge(u=subj, v=obj)
+    return nx_dir_g
 
 
 def nx_undirected_graph_from_nested_dict(nest_d):
@@ -341,12 +370,8 @@ def nested_dict_gen(stmts):
 
 
 def dedupl_nested_dict_gen(stmts):
-    nd = nested_dict_gen(stmts)
-    for subj in nd:
-        for obj in nd[subj]:
-            st_list = nd[subj][obj]
-            nd[subj][obj] = deduplicate_stmt_list(stmts=st_list,
-                                                  ignore_str='parent')
+    ddstmt_list = deduplicate_stmt_list(stmts=stmts, ignore_str='parent')
+    nd = nested_dict_gen(ddstmt_list)
 
     return nd
 
@@ -364,8 +389,10 @@ def deduplicate_stmt_list(stmts, ignore_str):
          List of preassembled statments possibly including a non-statements
     """
     # subjects should be the outer keys and objects should be the inner
-
+    
     if ignore_str in stmts:
+        dnf_logger.info('Deduplicating statements and accounting for custom '
+                        'string %s' % ignore_str)
         only_stmt_list = [s for s in stmts if type(s) is not str]
         stmts = pa_filter_unique_evidence(only_stmt_list)
         stmts += [ignore_str]
