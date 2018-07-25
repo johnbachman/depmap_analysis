@@ -102,8 +102,9 @@ def main(args):
 
     # Loop through the unique pairs
     dir_conn_pairs = []  # Save pairs that are directly connected
-    two_step_directed_pairs = []  # Directed paths between A & B
     dir_neg_conn_pairs = []  # Directly connected pairs with correlation < 0
+    two_step_directed_pairs = []  # Directed paths between A & B
+    two_step_neg_dir_pairs = []
     unexplained = []  # Unexplained correlations
     npairs = len(uniq_pairs)
 
@@ -173,6 +174,12 @@ def main(args):
                                                         'pathway',
                                                         len(dir_path_nodes),
                                                         dir_path_nodes))
+                        if correlation < 0:
+                            two_step_neg_dir_pairs.append((subj, obj,
+                                                           correlation,
+                                                           'pathway',
+                                                           len(dir_path_nodes),
+                                                           dir_path_nodes))
                     else:
                         found.add(False)
                 else:
@@ -194,6 +201,12 @@ def main(args):
                                                     'shared_target',
                                                     len(downstream_share),
                                                     downstream_share))
+                    if correlation < 0:
+                        two_step_neg_dir_pairs.append((id1, id2,
+                                                       correlation,
+                                                       'shared_target',
+                                                       len(downstream_share),
+                                                       downstream_share))
 
                 if upstream_share:
                     found.add(True)
@@ -203,6 +216,13 @@ def main(args):
                                                     'no_correlator',
                                                     len(upstream_share),
                                                     upstream_share))
+                    if correlation < 0:
+                        two_step_neg_dir_pairs.append((id1, id2,
+                                                       correlation,
+                                                       'no_correlator',
+                                                       len(upstream_share),
+                                                       upstream_share))
+
                 if not downstream_share and not upstream_share:
                     found.add(False)
             else:
@@ -225,6 +245,11 @@ def main(args):
               newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=',')
         wrtr.writerows(two_step_directed_pairs)
+
+    with open(args.outbasename + '_twostep_conn_neg_corr.csv', 'w',
+              newline='') as csvf:
+        wrtr = csv.writer(csvf, delimiter=',')
+        wrtr.writerows(two_step_neg_dir_pairs)
 
     with open(args.outbasename+'_neg_conn_correlations.csv', 'w', newline='') \
             as csvf:
