@@ -324,10 +324,10 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     for index, row in hash_pair_dataframe.iterrows():
         (subj, obj, stmt_type, stmt_hash) = row
         if nest_hash_dict.get(subj) and nest_hash_dict.get(subj).get(obj):
-            # Entry subj-obj already exists and should be a dict
-            nest_hash_dict[subj][obj][stmt_type] = stmt_hash
+            # Entry subj-obj already exists and should be a list
+            nest_hash_dict[subj][obj].append((stmt_type, stmt_hash))
         else:
-            nest_hash_dict[subj][obj] = {stmt_type: stmt_hash}
+            nest_hash_dict[subj][obj] = [(stmt_type, stmt_hash)]
         # # Add reverse direction if type is complex or selfmodification
         # if type.lower() in ['complex', 'selfmodification']:
         #     nest_hash_dict[obj][subj][stmt_type] = stmt_hash
