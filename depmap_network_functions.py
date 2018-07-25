@@ -28,7 +28,7 @@ def filter_corr_data(corr, clusters, cl_limit):
     # The filtered correlations can then be used to produce a new graph.
     # The usage of this would be to get a nicer plot that conecntrates on the
     # clusters instead of plotting _everything_, making it hard to see the
-    # forest for all the tress.
+    # forest for all the trees.
 
     filtered_genes = [k for k in clusters if clusters[k] > cl_limit]
     filtered_correlations = corr[filtered_genes].unstack()
@@ -309,6 +309,31 @@ def agent_name_set(stmt):
     return ags
 
 
+# ToDo: Mabye create a nested dict class instead that has a lookup method to
+# ToDo: return evidence etc?
+def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
+    """Returns a nested dict of
+
+    :param hash_pair_dataframe:
+    :return:
+    """
+    nest_hash_dict = defaultdict(dict)
+
+    # Row should be a mini dataframe with keys:
+    # agent_1=subj, agent_2=obj, type, hash
+    for index, row in hash_pair_dataframe.iterrows():
+        (subj, obj, stmt_type, stmt_hash) = row
+        if nest_hash_dict.get(subj) and nest_hash_dict.get(subj).get(obj):
+            # Entry subj-obj already exists and should be a dict
+            nest_hash_dict[subj][obj][stmt_type] = stmt_hash
+        else:
+            nest_hash_dict[subj][obj] = {stmt_type: stmt_hash}
+        # # Add reverse direction if type is complex or selfmodification
+        # if type.lower() in ['complex', 'selfmodification']:
+        #     nest_hash_dict[obj][subj][stmt_type] = stmt_hash
+    return nest_hash_dict
+
+
 def nested_dict_gen(stmts):
     """Generates a nested dict of the form dict[key1][key2] = [statement list]
     from INDRA statements.
@@ -497,12 +522,12 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
     output = ''
 
     # Build up a string that shows explanations for each connection
-    output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr) + \
-             'https://depmap.org/portal/interactive/?xDataset=Avana&xFeature' \
-             '={}&yDataset=Avana&yFeature={}&colorDataset=lineage' \
-             '&colorFeature=all&filterDataset=context&filterFeature=' \
-             '&regressionLine=false&statisticsTable=false&associationTable=' \
-             'true&plotOnly=false\n'.format(subj, obj)
+    output += 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr) + \
+              'https://depmap.org/portal/interactive/?xDataset=Avana&xFeature' \
+              '={}&yDataset=Avana&yFeature={}&colorDataset=lineage' \
+              '&colorFeature=all&filterDataset=context&filterFeature=' \
+              '&regressionLine=false&statisticsTable=false&associationTable=' \
+              'true&plotOnly=false\n'.format(subj, obj)
 
     pa_stmts = stmts.copy()
 
