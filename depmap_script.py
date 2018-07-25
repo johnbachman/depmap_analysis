@@ -49,7 +49,7 @@ def main(args):
     # text output
     ev_fltr = 0
 
-    # Prepare data
+    # Prepare data (we need uniq_pairs to look for explainable interactions)
     gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs = \
         dnf.get_correlations(args.ceres_file, args.geneset_file,
                              args.corr_file, args.strict, args.outbasename,
@@ -73,7 +73,10 @@ def main(args):
         ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
-    if args.nested_dict_in:
+    if args.light_weight_stmts:
+        hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
+        nested_dict_statements = dnf.nested_hash_dict_from_pd_dataframe(hash_df)
+    elif args.nested_dict_in:
         with open(args.nested_dict_in, 'rb') as rpkl:
             nested_dict_statements = pkl.load(rpkl)
     else:
@@ -283,8 +286,7 @@ if __name__ == '__main__':
                         help='increase output verbosity (e.g., -vv is more '
                              'than -v)')
     parser.add_argument('-dgi', '--directed-graph-in', help='Load '
-                                                            'precalculated '
-                                                            'directed graph.')
+        'precalculated directed graph.')
     parser.add_argument('-dgo', '--directed-graph-out', help='Save the '
                                                              'calculated '
                                                              'directed graph.')
@@ -294,9 +296,11 @@ if __name__ == '__main__':
     parser.add_argument('-ndo', '--nested-dict-out', help='Save the '
                                                           'calculated nested '
                                                           'dict of statements')
+    parser.add_argument('-lw', '--light-weight-stmts', help='A lightweight '
+        'file with (hgnc_id1, hgnc_id2, stmt_type, stmt_hash) as columns.')
     parser.add_argument('-sti', '--statements-in', help='Loads a pickle file '
-                                                        'to use instead of '
-                                                        'quering a database.')
+        'to use instead of quering a database. This option is unused if a '
+        'lightweight file [-lw] is provided.')
     parser.add_argument('-sto', '--statements-out', help='Saves the used '
                                                          'statements read from '
                                                          'the database')
