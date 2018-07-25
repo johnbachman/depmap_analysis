@@ -1,12 +1,12 @@
 import csv
 import logging
-import numpy as np
 import pandas as pd
 import pickle as pkl
 from time import time
 import networkx as nx
 import argparse as ap
 import itertools as itt
+from numpy import float64
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 
@@ -24,7 +24,7 @@ logger = logging.getLogger('depmap_script')
 
 
 def _is_float(n):
-    if type(n) is np.float64 or type(n) is float:
+    if type(n) is float64 or type(n) is float:
         return True
     else:
         return False
@@ -73,7 +73,14 @@ def main(args):
         ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
-    nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all)
+    if args.nested_dict_in:
+        with open(args.nested_dict_in, 'rb') as rpkl:
+            nested_dict_statements = pkl.load(rpkl)
+    else:
+        nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all)
+        if args.nested_dict_out:
+            with open(args.nested_dict_out, 'wb') as wpkl:
+                pkl.dump(obj=nested_dict_statements, file=wpkl)
 
     # Get undirected graph from nested dict
     undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
@@ -81,12 +88,17 @@ def main(args):
     undir_node_set = set(undir_nx_graph.nodes())
 
     # Get directed simple graph
-    nx_dir_graph = dnf.nx_directed_graph_from_nested_dict(
-        nest_d=nested_dict_statements)
+    if args.directed_graph_in:
+        with open(args.directed_graph_in, 'rb') as rpkl:
+            nx_dir_graph = pkl.load(rpkl)
+    else:
+        nx_dir_graph = dnf.nx_directed_graph_from_nested_dict(
+            nest_d=nested_dict_statements)
+        # Save as pickle file
+        if args.directed_graph_out:
+            with open(args.directed_graph_out, 'wb') as pklout:
+                pkl.dump(obj=nx_dir_graph, file=pklout)
     dir_node_set = set(nx_dir_graph.nodes())
-    # Save as pickle file
-    with open('nx_directed_simple_graph.pkl', 'wb') as pklout:
-        pkl.dump(obj=nx_dir_graph, file=pklout)
 
     # Loop through the unique pairs
     dir_conn_pairs = []  # Save pairs that are directly connected
@@ -101,6 +113,7 @@ def main(args):
 
         logger.info('Looking for connections between %i pairs' % npairs)
         for pair in uniq_pairs:
+            found = set()
             correlation, fmt_corr = None, None
             pl = list(pair)
             for li in pl:
@@ -115,6 +128,7 @@ def main(args):
                     nested_dict_statements.get(id1).get(id2)) or \
                     (nested_dict_statements.get(id2) and
                      nested_dict_statements.get(id2).get(id1)):
+                found.add(True)
                 new_pair = _corr_web_latex(id1, id2, fmt_corr)
                 f_con.write(new_pair)
 
@@ -123,8 +137,6 @@ def main(args):
 
             # nested_dict_statements.get(id1).get(id2) raises AttributeError
             # if nested_dict_statements.get(id1) returns {}
-
-            found = set()
 
             for subj, obj in itt.permutations((id1, id2), r=2):
                 if nested_dict_statements.get(subj) and \
@@ -176,19 +188,19 @@ def main(args):
 
                 if downstream_share:
                     found.add(True)
-                    logger.info('Downstream share between %s and %s' %
-                                (id1, id2))
+                    logger.info('Downstream share: %s and %s share at least '
+                                'one target' % (id1, id2))
                     two_step_directed_pairs.append((id1, id2, correlation,
-                                                    'downstream_share',
+                                                    'shared_target',
                                                     len(downstream_share),
                                                     downstream_share))
 
                 if upstream_share:
                     found.add(True)
-                    logger.info('Downstream share between %s and %s' %
-                                (id1, id2))
+                    logger.info('Upstream share: %s and %s are both targets '
+                                'of %i nodes' % (id1, id2, len(upstream_share)))
                     two_step_directed_pairs.append((id1, id2, correlation,
-                                                    'upstream_share',
+                                                    'no_correlator',
                                                     len(upstream_share),
                                                     upstream_share))
                 if not downstream_share and not upstream_share:
@@ -245,6 +257,18 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', action="count",
                         help='increase output verbosity (e.g., -vv is more '
                              'than -v)')
+    parser.add_argument('-dgi', '--directed-graph-in', help='Load '
+                                                            'precalculated '
+                                                            'directed graph.')
+    parser.add_argument('-dgo', '--directed-graph-out', help='Save the '
+                                                             'calculated '
+                                                             'directed graph.')
+    parser.add_argument('-ndi', '--nested-dict-in', help='Load precalculated '
+                                                         'nested dict of '
+                                                         'statements')
+    parser.add_argument('-ndo', '--nested-dict-out', help='Save the '
+                                                          'calculated nested '
+                                                          'dict of statements')
     parser.add_argument('-sti', '--statements-in', help='Loads a pickle file '
                                                         'to use instead of '
                                                         'quering a database.')
@@ -257,17 +281,22 @@ if __name__ == '__main__':
                         help='Upper limit CERES correlation score filter.')
     a = parser.parse_args()
 
-    with open('dep_map_script_log{}'.format(str(int(time()))), 'w') as f:
+    with open('dep_map_script_log{}'.format(str(int(time()))), 'w',
+              newline='\n') as f:
         f.write('Command line options used:\n')
-        f.write('Correlation file: {}'.format(a.corr_file))
-        f.write('Ceres file: {}'.format(a.ceres_file))
-        f.write('Geneset file: {}'.format(a.geneset_file))
-        f.write('Ignore correlations below: {}'.format(a.ll))
-        f.write('Ignore correlations above: {}'.format(a.ul))
-        f.write('Output basename: {}'.format(a.outbasename))
-        f.write('Recalculate correlations: {}'.format(a.recalc))
-        f.write('Strict: {}'.format(a.strict))
-        f.write('Pickled statement file: {}'.format(a.statements_in))
-        f.write('Output loaded statements to: {}'.format(a.statements_out))
+        f.write('Correlation file: {}\n'.format(a.corr_file))
+        f.write('Ceres file: {}\n'.format(a.ceres_file))
+        f.write('Geneset file: {}\n'.format(a.geneset_file))
+        f.write('Ignore correlations below: {}\n'.format(a.ll))
+        f.write('Ignore correlations above: {}\n'.format(a.ul))
+        f.write('Output basename: {}\n'.format(a.outbasename))
+        f.write('Recalculate correlations: {}\n'.format(a.recalc))
+        f.write('Strict: {}\n'.format(a.strict))
+        f.write('Pickled statement file: {}\n'.format(a.statements_in))
+        f.write('Output loaded statements to: {}\n'.format(a.statements_out))
+        f.write('Save nested dict to: {}\n'.format(a.nested_dict_out))
+        f.write('Load nested dict from: {}\n'.format(a.nested_dict_in))
+        f.write('Save directed graph to: {}\n'.format(a.directed_graph_out))
+        f.write('Load directed graph from: {}\n'.format(a.directed_graph_in))
 
     main(a)
