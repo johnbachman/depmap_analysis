@@ -56,21 +56,24 @@ def main(args):
                              args.recalc, args.ll, args.ul)
 
     # Get statements from file or from database that contain any gene from
-    # provided list as set
-    if args.statements_in:  # Get statments from file
-        stmts_all = set(ac.load_statements(args.statements_in))
-    else:  # Use api to get statements. _NOT_ the same as querying for each ID
-        if args.geneset_file:
-            stmts_all = dnf.dbc_load_statements(gene_filter_list)
+    # provided list as set unless you're already loading a pre-calculated
+    # nested dict
+    if not (args.light_weight_stmts or args.nested_dict_in):
+        if args.statements_in:  # Get statments from file
+            stmts_all = set(ac.load_statements(args.statements_in))
+        # Use api to get statements._NOT_ the same as querying for each ID
         else:
-            # if there is no gene set file, restrict to gene ids in
-            # correlation data
-            stmts_all = dnf.dbc_load_statements(list(all_hgnc_ids))
+            if args.geneset_file:
+                stmts_all = dnf.dbc_load_statements(gene_filter_list)
+            else:
+                # if there is no gene set file, restrict to gene ids in
+                # correlation data
+                stmts_all = dnf.dbc_load_statements(list(all_hgnc_ids))
 
-    # Dump statements to pickle file if output name has been given
-    if args.statements_out:
-        logger.info('Dumping read raw statements')
-        ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
+        # Dump statements to pickle file if output name has been given
+        if args.statements_out:
+            logger.info('Dumping read raw statements')
+            ac.dump_statements(stmts=stmts_all, fname=args.statements_out)
 
     # Get nested dicts from statements
     if args.light_weight_stmts:
