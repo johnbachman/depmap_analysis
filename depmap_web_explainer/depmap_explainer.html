@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/styles.css">
+    <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.default.css">
+    
+    <!--For usage and documentation see:
+        https://github.com/selectize/selectize.js/blob/master/docs/usage.md
+    -->
+    <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
+
+    <title>
+        INDRA evidence network
+    </title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+</head>
+<!-- <script type="text/javascript">
+    var subj_input = document.getElementById('select_subj');
+</script>
+ -->
+<body>
+    <h2>INDRA Evidence Network</h2>
+    <p>Click on the dropdown button to access a searchable dropdown menu of HGNC gene names.</p>
+    <!-- <br>Maybe have the actual lookup on the backend?<br>Load text as json? -->
+    <div class='dropdown' style='width: 520px; top: 36px; left: 0px; visibility: visible;'>
+    <!-- <h2>Selection</h2> -->
+    <div class="control-group">
+        <label for="select_subj"></label>
+            <select id="select_subj" class="demo-default" placeholder="Select a gene...">           
+            </select>
+        </div>
+    </div>
+    <h3>Selection</h3>
+    <div id="my_output">
+    </div>
+
+    <!-- Script here so everything else can load
+         Eventually put this script somewhere else -->
+    <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js">
+    </script>
+</body>
+</html>
