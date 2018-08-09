@@ -10,34 +10,51 @@
     -->
     <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
 
+    <script type="text/javascript" src="populate_dropdown_from_remote_json.js">
+    </script>
+
+    <!-- <script type="text/javascript" src="get_evidence_from_db.js"></script> -->
+
     <title>
         INDRA evidence network
     </title>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <!-- <script type="text/javascript">
-    var subj_input = document.getElementById('select_subj');
+    var subj_input = document.getElementById("select_first_gene");
 </script>
  -->
 <body>
     <h2>INDRA Evidence Network</h2>
     <p>Click on the dropdown button to access a searchable dropdown menu of HGNC gene names.</p>
-    <!-- <br>Maybe have the actual lookup on the backend?<br>Load text as json? -->
-    <div class='dropdown' style='width: 520px; top: 36px; left: 0px; visibility: visible;'>
-    <!-- <h2>Selection</h2> -->
+    <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
     <div class="control-group">
-        <label for="select_subj"></label>
-            <select id="select_subj" class="demo-default" placeholder="Select a gene...">           
+        <label for="select_first_gene"></label>
+            <select id="select_first_gene" class="demo-default" placeholder="Select a gene...">           
+            </select>
+        </div>
+    </div>
+    <p>Select a gene correlated with the first one</p>
+    <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
+    <div class="control-group">
+        <label for="select_second_gene"></label>
+            <select id="select_second_gene" class="demo-default" placeholder="Select a gene...">           
             </select>
         </div>
     </div>
     <h3>Selection</h3>
-    <div id="my_output">
+    <div id="my_outputA">
     </div>
+    <div id="my_outputB">
+    </div>
+    <h4>Correlation A - B</h4>
+    <div id="show_correlation">
+    </div>
+    <h3>Explanations</h3>
+    <h4>A -> B</h4>
+    <div id="expl_A_to_B"></div>
+    <h4>B -> A</h4>
+    <div id="expl_B_to_A"></div>
 
-    <!-- Script here so everything else can load
-         Eventually put this script somewhere else -->
-    <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js">
-    </script>
 </body>
 </html>
