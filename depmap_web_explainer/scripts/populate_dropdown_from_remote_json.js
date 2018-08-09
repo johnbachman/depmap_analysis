@@ -197,7 +197,7 @@ $(function(){
 
                                     // Ouput for all evidence of of current stmt
                                     let AB_output_element_ev = document.createElement("div")
-                                    AB_output_element_ev.textContent = "\"" + stmt.evidence[j].text.italics() + "\""
+                                    AB_output_element_ev.textContent = "\"" + stmt.evidence[j].text + "\""
                                     output_AB.appendChild(AB_output_element_ev)
                                 }
                             }
