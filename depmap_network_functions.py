@@ -1,4 +1,6 @@
+import os
 import csv
+import json
 import logging
 import numpy as np
 import pandas as pd
@@ -22,7 +24,36 @@ db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
-def filter_corr_data(corr, clusters, cl_limit):
+def _dump_it_to_json(fname, pyobj):
+    with open(fname, 'w') as json_out:
+        json.dump(pyobj, json_out)
+
+
+def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
+                                     path_prefix='neighbor_lookup/'):
+    """Dumps one json dict per node in a undirected nx graph where entry is a
+    json array containing all neighbors
+
+    expl_undir_graph : nx.Graph
+    path_prefix : directory to put jsons in. Must be specified or the default
+    'neighbor_lookup/' is used.
+
+    """
+    if not os.path.isdir(path_prefix):
+        dnf_logger.info('Could not find path "%s", creating new directory.' %
+                        path_prefix)
+        os.mkdir(path_prefix)
+
+    dnf_logger.info('Dumping node neighbor dicts to "%s '
+                    'neighbors_to_NODENAME.json"' % path_prefix)
+    for node in expl_undir_graph.nodes_iter():
+        nnnl = list(expl_undir_graph[node])
+        _dump_it_to_json(fname=path_prefix+'neighbors_to_%s.json' % node,
+                         pyobj=nnnl)
+    dnf_logger.info('Finished dumping node neighbor dicts to %s' % path_prefix)
+
+
+def _filter_corr_data(corr, clusters, cl_limit):
     # To get gene names where clustering coefficient is above limit.
     # Clusters has to come from an already produced graph.
     # The filtered correlations can then be used to produce a new graph.
@@ -68,13 +99,25 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
     return nx_muldir
 
 
-def nx_directed_graph_from_nested_dict(nest_d):
-    """Returns a directed multigraph where each edge links a statement with
-    u=subj, v=obj, attr_dict={'stmts': stmt_list} where
-    stmt_list = nest_d[subj][obj]
+def nx_directed_graph_from_nested_dict_3layer(nest_d):
+    """Returns a directed graph where each edge links a statement with
+    u=subj, v=obj, attr_dict={'connection_type': [stmt hashes/X]
+
+    The nested dict should have two or three layers:
+
+    Two layers:
+
+        d[subj][obj] = [stmts/stmt hashes]
+
+    Three layers:
+
+        d[subj][obj] = {direct: [stmts/stmt hashes],
+                        x_is_intermediary: [X],
+                        x_is_downstream: [X],
+                        x_is_upstream: [X]}
 
     nest_d : defaultdict(dict)
-        Nested dict of statements: nest_d[subj][obj]
+        Nested dict of statements: nest_d[subj][obj][type]
 
     Returns
     -------
@@ -82,8 +125,7 @@ def nx_directed_graph_from_nested_dict(nest_d):
         An nx directed multigraph linking agents with statements
     """
 
-    dnf_logger.info('Building directed simple graph from nested dict of '
-                    'statements')
+    dnf_logger.info('Building directed simple graph from nested dict.')
     nx_dir_g = nx.DiGraph()
 
     for subj in nest_d:
@@ -91,10 +133,15 @@ def nx_directed_graph_from_nested_dict(nest_d):
             for obj in nest_d[subj]:
                 # Check if subj-obj connection exists in dict
                 if subj is not obj and nest_d.get(subj).get(obj):
-                    # Add edge
-                    nx_dir_g.add_edge(u=subj,
-                                      v=obj,
-                                      attr_dict={'stmts': nest_d[subj][obj]})
+                    # Add edge;
+                    # If already dictionary set as attr_dict
+                    inner_obj = nest_d[subj][obj]
+                    if type(inner_obj) is list:
+                        nx_dir_g.add_edge(u=subj,
+                                          v=obj,
+                                          attr_dict={'stmts': inner_obj})
+                    elif type(inner_obj) is defaultdict:
+                        nx_dir_g.add_edge(u=subj, v=obj, attr_dict=inner_obj)
     return nx_dir_g
 
 
@@ -224,28 +271,33 @@ def _read_gene_set_file(gf, data):
 
 
 def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
-                     recalc=False, lower_limit=0.3, upper_limit=1.0):
+                     unique_depmap_pair_file, recalc=False, lower_limit=0.3,
+                     upper_limit=1.0):
     # Open data file
-    dnf_logger.info("Reading CERES data from %s" % ceres_file)
+    dnf_logger.info('Reading CERES data from %s' % ceres_file)
     data = pd.read_csv(ceres_file, index_col=0, header=0)
     data = data.T
 
     if geneset_file:
         # Read gene set to look at
         gene_filter_list = _read_gene_set_file(gf=geneset_file, data=data)
+    else:
+        gene_filter_list = []  # Evaluates to False
 
     # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
     if not geneset_file or (geneset_file and not strict):
         # Calculate the full correlations, or load from cached
         if recalc:
-            dnf_logger.info("Calculating correlations (may take a long time)")
+            dnf_logger.info('Calculating correlations (may take a long time)')
             corr = data.corr()
             corr.to_hdf('correlations.h5', 'correlations')
         else:
-            dnf_logger.info("Loading correlations from %s" % corr_file)
+            dnf_logger.info('Loading correlations from %s' % corr_file)
             corr = pd.read_hdf(corr_file, 'correlations')
         # No gene set file, leave 'corr' intact and unstack
         if not geneset_file:
+            dnf_logger.info('Unstacking unfiltered correlation data (may take '
+                            'a long time)')
             fcorr_list = corr.unstack()
 
         # Gene set file present: filter and unstack
@@ -259,31 +311,43 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
 
     # Remove self correlation, correlations below ll, sort on magnitude,
     # leave correlation intact
-    dnf_logger.info("Removing self correlations")
-    flarge_corr = fcorr_list[fcorr_list != 1.0] # Self correlations
-    dnf_logger.info("Filtering correlations to %.1f < C < %.1f" %
-                (lower_limit, upper_limit))
+    dnf_logger.info('Removing self correlations')
+    flarge_corr = fcorr_list[fcorr_list != 1.0]  # Self correlations
+    dnf_logger.info('Filtering correlations to %.1f < C < %.1f' %
+                    (lower_limit, upper_limit))
     flarge_corr = flarge_corr[flarge_corr.abs() > lower_limit]
     if upper_limit < 1.0:
         flarge_corr = flarge_corr[flarge_corr.abs() < upper_limit]
 
     # Sort by absolute value
-    dnf_logger.info("Sorting correlations by absolute value")
+    dnf_logger.info('Sorting correlations by absolute value')
     fsort_corrs = flarge_corr[
         flarge_corr.abs().sort_values(ascending=False).index]
 
     # Compile set of correlations to be explained without duplicates A-B, B-A
-    dnf_logger.info("Compiling deduplicated set of correlations")
+    dnf_logger.info('Compiling deduplicated set of correlations')
     all_hgnc_ids = set()
     uniq_pairs = []
-    with open(outbasename+'_all_correlations.csv', 'w', newline='') as csvf:
-        wrtr = csv.writer(csvf, delimiter=',')
-        for pair in fsort_corrs.items():
-            (id1, id2), correlation = pair
-            if (id2, id1, correlation) not in uniq_pairs:
-                uniq_pairs.append((id1, id2, correlation))
+    if unique_depmap_pair_file:
+        dnf_logger.info('Loading correlation pairs from %s' %
+                        unique_depmap_pair_file)
+        with open(unique_depmap_pair_file, 'r') as f:
+            for line in f.readlines():
+                id1, id2, correlation = line.strip().split(',')
+                uniq_pairs.append((id1, id2, float(correlation)))
                 all_hgnc_ids.update([id1, id2])
-                wrtr.writerow([id1, id2, correlation])
+    else:
+        with open(outbasename+'_all_correlations.csv', 'w', newline='') as csvf:
+            dnf_logger.info('Using filtered correlation dataframe to output '
+                            'correlation pairs to %s' %
+                            outbasename+'_all_correlations.csv')
+            wrtr = csv.writer(csvf, delimiter=',')
+            for pair in fsort_corrs.items():
+                (id1, id2), correlation = pair
+                if (id2, id1, correlation) not in uniq_pairs:
+                    uniq_pairs.append((id1, id2, correlation))
+                    all_hgnc_ids.update([id1, id2])
+                    wrtr.writerow([id1, id2, correlation])
     return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
 
 
@@ -309,8 +373,6 @@ def agent_name_set(stmt):
     return ags
 
 
-# ToDo: Mabye create a nested dict class instead that has a lookup method to
-# ToDo: return evidence etc?
 def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     """Returns a nested dict of
 
