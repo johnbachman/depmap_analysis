@@ -1,24 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <!-- CSS -->
+<!--     <link href="static/style.css" rel="stylesheet" type="text/css" /> -->
+
+    <!-- LINKS -->
     <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/styles.css">
     <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.default.css">
-    
-    <!--For usage and documentation see:
-        https://github.com/selectize/selectize.js/blob/master/docs/usage.md
-    -->
-    <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
+<!--     <link rel="stylesheet" href="static/bower_components/bootstrap/dist/css/bootstrap.css" />
+    <link rel="stylesheet" href="static/bower_components/bootstrap-select/dist/css/bootstrap-select.css" />
+    <link rel="stylesheet" href="static/bower_components/seiyria-bootstrap-slider/dist/css/bootstrap-slider.css" /> -->
 
-    <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js">
-    </script>
+    <!-- SCRIPTS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<!--     <script src="static/bower_components/bootstrap/dist/js/bootstrap.js"></script>
+    <script src="static/bower_components/bootstrap-select/dist/js/bootstrap-select.js"></script>
+    <script src="static/bower_components/seiyria-bootstrap-slider/dist/bootstrap-slider.js"></script> -->
+    <!--Selectize usage and documentation: https://github.com/selectize/selectize.js/blob/master/docs/usage.md -->
+    <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
+    <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js"></script>
 
     <title>
         INDRA evidence network
     </title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-
+<!-- <script type="text/javascript">
+    var subj_input = document.getElementById("select_first_gene");
+</script>
+ -->
 <body>
     <h2>INDRA Evidence Network</h2>
     <p>Click on the dropdown button to access a searchable dropdown menu of HGNC gene names.</p>
@@ -42,14 +53,21 @@
     </div>
     <div id="my_outputB">
     </div>
-    <h4>Correlation A - B</h4>
+    <h4>A, B, correlation</h4>
     <div id="show_correlation">
     </div>
     <h3>Explanations</h3>
     <h4>A -> B</h4>
     <div id="expl_A_to_B"></div>
+    <h4>A -> X -> B</h4>
+    <div id="expl_A_to_X_to_B"></div>
     <h4>B -> A</h4>
     <div id="expl_B_to_A"></div>
-
+    <h4>B -> X -> A</h4>
+    <div id="expl_B_to_X_to_A"></div>
+    <h4>Shared target</h4>
+    <div id="expl_x_is_downstream"></div>
+    <h4>Shared regulator</h4>
+    <div id="expl_x_is_upstream"></div>
 </body>
 </html>
