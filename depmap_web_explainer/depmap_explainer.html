@@ -6,7 +6,12 @@
 <!--     <link href="static/style.css" rel="stylesheet" type="text/css" /> -->
 
     <!-- LINKS -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+     <script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.bootstrap3.css">
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
 
@@ -16,18 +21,8 @@
     <!-- Latest compiled and minified JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous">
     
-    <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/styles.css">
-    <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.default.css">
-    <!-- <link rel="stylesheet" href="static/bower_components/bootstrap/dist/css/bootstrap.css" />
-    <link rel="stylesheet" href="static/bower_components/bootstrap-select/dist/css/bootstrap-select.css" />
-    <link rel="stylesheet" href="static/bower_components/seiyria-bootstrap-slider/dist/css/bootstrap-slider.css" /> -->
 
     <!-- SCRIPTS -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-<!--     <script src="static/bower_components/bootstrap/dist/js/bootstrap.js"></script>
-    <script src="static/bower_components/bootstrap-select/dist/js/bootstrap-select.js"></script>
-    <script src="static/bower_components/seiyria-bootstrap-slider/dist/bootstrap-slider.js"></script> -->
-    <!--Selectize usage and documentation: https://github.com/selectize/selectize.js/blob/master/docs/usage.md -->
     <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
     <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js"></script>
 
@@ -46,14 +41,17 @@
         <h1>INDRA Evidence Network</h1>
     </div>
 
-    <p>Click on the dropdown button to access a searchable dropdown menu of HGNC gene names.</p>
-    <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
-    <div class="control-group">
-        <label for="select_first_gene"></label>
+    <div class="panel panel-default">
+        <div class="panel-heading">Select correlation to explain</div>
+        <p>Click on the dropdown button to access a searchable dropdown menu of HGNC gene names.</p>
+        <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
+        <div class="control-group">
+            <label for="select_first_gene"></label>
             <select id="select_first_gene" class="demo-default" placeholder="Select a gene...">           
             </select>
         </div>
-    </div>
+        </div>
+
     <p>Select a gene correlated with the first one</p>
     <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
     <div class="control-group">
@@ -70,19 +68,119 @@
     <h4>A, B, correlation</h4>
     <div id="show_correlation">
     </div>
-    <h3>Explanations</h3>
-    <h4>A -> B</h4>
-    <div id="expl_A_to_B"></div>
-    <h4>A -> X -> B</h4>
-    <div id="expl_A_to_X_to_B"></div>
-    <h4>B -> A</h4>
-    <div id="expl_B_to_A"></div>
-    <h4>B -> X -> A</h4>
-    <div id="expl_B_to_X_to_A"></div>
-    <h4>Shared target</h4>
-    <div id="expl_x_is_downstream"></div>
-    <h4>Shared regulator</h4>
-    <div id="expl_x_is_upstream"></div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h4 class="panel-title">Explanations</h4>
+        </div>
+            <div class="panel-group">
+
+                <div class="panel panel-default">
+
+                    <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" href="#collapseAB">
+                            A &rarr; B
+                           <span class="badge badge-default float-right">10</span>
+                        </a>
+                    </h4>
+
+                   </div>
+
+                    <div id="collapseAB" class="panel-collapse collapse">
+                        <div id="expl_A_to_B">&nbsp;</div>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+
+                    <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" href="#collapseAXB">
+                            A &rarr; X &rarr; B
+                           <span class="badge badge-default float-right">0</span>
+                        </a>
+                    </h4>
+
+                   </div>
+
+                    <div id="collapseAXB" class="panel-collapse collapse">
+                        <div id="expl_A_to_X_to_B">&nbsp;</div>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+
+                    <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" href="#collapseBA">
+                            B &rarr; A
+                           <span class="badge badge-default float-right">3</span>
+                        </a>
+                    </h4>
+
+                   </div>
+
+                    <div id="collapseBA" class="panel-collapse collapse">
+                        <div id="expl_B_to_A">&nbsp;</div>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+
+                    <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" href="#collapseBXA">
+                            B &rarr; X &rarr; A
+                           <span class="badge badge-default float-right">8</span>
+                        </a>
+                    </h4>
+
+                   </div>
+
+                    <div id="collapseBXA" class="panel-collapse collapse">
+                        <div id="expl_B_to_X_to_A">&nbsp;</div>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+
+                    <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" href="#collapsest">
+                            Shared target (A &rarr; X &larr; B)
+                           <span class="badge badge-default float-right">15</span>
+                        </a>
+                    </h4>
+
+                   </div>
+
+                    <div id="collapsest" class="panel-collapse collapse">
+                        <div id="expl_x_is_downstream">&nbsp;</div>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+
+                    <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" href="#collapsesr">
+                            Shared regulator (A &larr; X &rarr; B)
+                           <span class="badge badge-default float-right">5</span>
+                        </a>
+                    </h4>
+
+                   </div>
+
+                    <div id="collapsesr" class="panel-collapse collapse">
+                        <div id="expl_x_is_upstream">&nbsp;</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+ </div>
 </body>
 </div>
 </html>
