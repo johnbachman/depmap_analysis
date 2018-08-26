@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
 
     <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     
 
     <!-- SCRIPTS -->
@@ -47,8 +47,7 @@
         <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
         <div class="control-group">
             <label for="select_first_gene"></label>
-            <select id="select_first_gene" class="demo-default" placeholder="Select a gene...">           
-            </select>
+            <select id="select_first_gene" class="demo-default" placeholder="Select a gene..."></select>
         </div>
         </div>
 
@@ -56,8 +55,7 @@
     <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
     <div class="control-group">
         <label for="select_second_gene"></label>
-            <select id="select_second_gene" class="demo-default" placeholder="Select a gene...">           
-            </select>
+            <select id="select_second_gene" class="demo-default" placeholder="Select a gene..."></select>
         </div>
     </div>
     <h3>Selection</h3>
@@ -72,17 +70,16 @@
 
     <div class="panel panel-default">
         <div class="panel-heading">
-            <h4 class="panel-title">Explanations</h4>
+            <h4 id="explanations" class="panel-title">Explanations</h4>
         </div>
             <div class="panel-group">
 
                 <div class="panel panel-default">
-
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseAB">
                             A &rarr; B
-                           <span class="badge badge-default float-right">10</span>
+                           <span id="collapseAB_ev_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -116,7 +113,7 @@
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseBA">
                             B &rarr; A
-                           <span class="badge badge-default float-right">3</span>
+                           <span class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -133,7 +130,7 @@
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseBXA">
                             B &rarr; X &rarr; A
-                           <span class="badge badge-default float-right">8</span>
+                           <span class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -150,7 +147,7 @@
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapsest">
                             Shared target (A &rarr; X &larr; B)
-                           <span class="badge badge-default float-right">15</span>
+                           <span class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -167,7 +164,7 @@
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapsesr">
                             Shared regulator (A &larr; X &rarr; B)
-                           <span class="badge badge-default float-right">5</span>
+                           <span class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
