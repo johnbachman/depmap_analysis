@@ -9,11 +9,13 @@ import itertools as itt
 from math import ceil, log10
 from collections import Mapping
 from collections import defaultdict
+from collections import OrderedDict
 from sqlalchemy.exc import StatementError
 from pandas.core.series import Series as pd_Series_class
 from pandas.core.frame import DataFrame as pd_DataFrame_class
 from indra.db import util as dbu
 from indra.db import client as dbc
+from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.preassembler import Preassembler as pa
 from indra.preassembler import hierarchy_manager as hm
@@ -349,6 +351,124 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
                     all_hgnc_ids.update([id1, id2])
                     wrtr.writerow([id1, id2, correlation])
     return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
+
+
+def get_directed(stmts, undirected=None):
+    """Given a statement list, sort statements based on directionality of each
+    statement.
+
+    The statements can be either of regular INDRA statements or statement
+    type-statement hash pairs or statement JSONs.
+
+    stmts : list[stmts]
+        A list of INDRA statements.
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+        Default: ['Complex', 'SelfModification', 'parent']
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+    if not undirected:
+        undirected = ['Complex', 'SelfModification', 'parent']
+
+    # check type of stmt list
+    if stmts:
+        # if (type, hash)
+        if type(stmts[0]) == tuple:
+            dir_stmts, undir_stmts = get_directed_type_hash(stmts, undirected)
+        # if normal statements
+        elif type(stmts[0]) == Statement:  # ToDo how to check if INDRA stmt?
+            # dir_stmts, undir_stmts = \
+            #     get_directed_actual_statements(stmts, undirected)
+            pass
+        # if json statements
+        elif type(stmts[0]) == OrderedDict:
+            dir_stmts, undir_stmts = get_directed_json(stmts, undirected)
+
+    return dir_stmts, undir_stmts
+
+
+def get_directed_type_hash(stmts, undirected):
+    """Given a list of type, statement-hash tuples, sort statements based on
+    directionality of each statement.
+
+    stmts : [(type, hash)]
+         A list of statement-type, statement-hash tuples.
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+
+    for stmt in stmts:
+        type, hsh = stmt
+        if type in undirected:
+            undir_stmts.append((type, hsh))
+        else:
+            dir_stmts.append((type, hsh))
+
+    return dir_stmts, undir_stmts
+
+
+def get_directed_actual_statements(stmts, undirected):
+    """Given a list of INDRA statements, sort statements based on
+    directionality of each statement.
+
+    stmts : list[:py:class:`indra.statements.Statement`]
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+
+    for stmt in stmts:
+        if stmt.to_json()['type'] in undirected:
+            undir_stmts.append(stmt)
+        else:
+            dir_stmts.append(stmt)
+
+    return dir_stmts, undir_stmts
+
+
+def get_directed_json(stmts, undirected):
+    """
+
+    stmts : list[json statements]
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+
+    for stmt in stmts:
+        if stmt['type'] in undirected:
+            undir_stmts.append(stmt)
+        else:
+            dir_stmts.append(stmt)
+
+    return dir_stmts, undir_stmts
 
 
 def agent_name_set(stmt):
