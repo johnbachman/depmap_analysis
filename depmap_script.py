@@ -151,9 +151,16 @@ def main(args):
     npairs = len(uniq_pairs)
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
-    # connection type)
+    # connection type).
     #
-    # d[subj][obj] = {direct: [stmts/stmt hashes],
+    # directed: any A->B or B->A
+    # undirected: any of complex, selfmodification, parent
+    # x_is_intermediary: A->X->B or B->X->A
+    # x_is_downstream: A->X<-B
+    # x_is_upstream: A<-X->B
+    #
+    # d[subj][obj] = {directed: [stmts/stmt hashes],
+    #                 undirected: [stmts/stmt hashes],
     #                 x_is_intermediary: [X],
     #                 x_is_downstream: [X],
     #                 x_is_upstream: [X]}
@@ -195,8 +202,11 @@ def main(args):
                 # Get the statements
                 stmts = nested_dict_statements[subj][obj]
 
-                # Put in the explained nested dict
-                explained_nested_dict[subj][obj]['direct'] = stmts
+                # check if directed, put in the explained nested dict
+                dir_stmts, undir_stmts = dnf.get_directed(stmts)
+
+                explained_nested_dict[subj][obj]['directed'] = dir_stmts
+                explained_nested_dict[subj][obj]['undirected'] = undir_stmts
 
                 logger.info('Found direct connection between %s and %s' % (
                     subj, obj))
