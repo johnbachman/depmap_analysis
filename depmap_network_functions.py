@@ -354,8 +354,7 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
 
 
 def get_directed(stmts, undirected=None):
-    """Given a statement list, sort statements based on directionality of each
-    statement.
+    """Given a statement list, sort statements based on directionality.
 
     The statements can be either of regular INDRA statements or statement
     type-statement hash pairs or statement JSONs.
@@ -365,6 +364,7 @@ def get_directed(stmts, undirected=None):
     undirected : [statement types]
         A list of name strings considered to be undirected.
         Default: ['Complex', 'SelfModification', 'parent']
+
     Returns
     -------
     dir_stmts, undir_stmts : ([stmts], [stmts])
@@ -382,25 +382,24 @@ def get_directed(stmts, undirected=None):
         if type(stmts[0]) == tuple:
             dir_stmts, undir_stmts = get_directed_type_hash(stmts, undirected)
         # if normal statements
-        elif type(stmts[0]) == Statement:  # ToDo how to check if INDRA stmt?
-            # dir_stmts, undir_stmts = \
-            #     get_directed_actual_statements(stmts, undirected)
-            pass
+        elif isinstance(stmts[0], Statement):
+            dir_stmts, undir_stmts = \
+                get_directed_actual_statements(stmts, undirected)
         # if json statements
-        elif type(stmts[0]) == OrderedDict:
+        elif isinstance(stmts[0], OrderedDict):
             dir_stmts, undir_stmts = get_directed_json(stmts, undirected)
 
     return dir_stmts, undir_stmts
 
 
 def get_directed_type_hash(stmts, undirected):
-    """Given a list of type, statement-hash tuples, sort statements based on
-    directionality of each statement.
+    """Given a list of type-hash tuples, sort statements on directionality.
 
     stmts : [(type, hash)]
-         A list of statement-type, statement-hash tuples.
+         A list of type-string, hash tuples.
     undirected : [statement types]
         A list of name strings considered to be undirected.
+
     Returns
     -------
     dir_stmts, undir_stmts : ([stmts], [stmts])
@@ -421,8 +420,7 @@ def get_directed_type_hash(stmts, undirected):
 
 
 def get_directed_actual_statements(stmts, undirected):
-    """Given a list of INDRA statements, sort statements based on
-    directionality of each statement.
+    """Given a list of INDRA statements, sort statements on directionality.
 
     stmts : list[:py:class:`indra.statements.Statement`]
     undirected : [statement types]
@@ -447,7 +445,7 @@ def get_directed_actual_statements(stmts, undirected):
 
 
 def get_directed_json(stmts, undirected):
-    """
+    """Given a list of json statements, sort statements on directionality.
 
     stmts : list[json statements]
     undirected : [statement types]
