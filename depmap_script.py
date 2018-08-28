@@ -12,10 +12,6 @@ from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 
-# Temp fix because indra doesn't import when script is run from terminal
-import sys
-sys.path.append('~/repos/indra/')
-
 logger = logging.getLogger('depmap_script')
 
 # 1. no geneset -> use corr from full DepMap data, no filtering needed
@@ -128,7 +124,7 @@ def main(args):
     # Get undirected graph from nested dict
     undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
         nest_d=nested_dict_statements)
-    undir_node_set = set(undir_nx_graph.nodes())
+    undir_node_set = set(undir_nx_graph.nodes)
 
     # Get directed simple graph
     if args.directed_graph_in:
@@ -141,7 +137,7 @@ def main(args):
         if args.directed_graph_out:
             with open(args.directed_graph_out, 'wb') as pklout:
                 pkl.dump(obj=nx_dir_graph, file=pklout)
-    dir_node_set = set(nx_dir_graph.nodes())
+    dir_node_set = set(nx_dir_graph.nodes)
 
     # Loop through the unique pairs
     dir_expl_count, im_expl_count = 0, 0
@@ -204,12 +200,12 @@ def main(args):
 
                 # check if directed, put in the explained nested dict
                 dir_stmts, undir_stmts = dnf.get_directed(stmts)
-
                 explained_nested_dict[subj][obj]['directed'] = dir_stmts
                 explained_nested_dict[subj][obj]['undirected'] = undir_stmts
 
-                logger.info('Found direct connection between %s and %s' % (
-                    subj, obj))
+                if args.verbosity:
+                    logger.info('Found direct connection between %s and %s' %
+                                (subj, obj))
                 direct = True
                 dir_expl_count += 1
                 found.add(True)
@@ -227,8 +223,9 @@ def main(args):
                 if dir_path_nodes:
                     found.add(True)
                     im_found = True
-                    logger.info('Found directed path of length 2 '
-                                'between %s and %s' % (subj, obj))
+                    if args.verbosity:
+                        logger.info('Found directed path of length 2 '
+                                    'between %s and %s' % (subj, obj))
                     explained_nested_dict[subj][obj]['x_is_intermediary']\
                         = dir_path_nodes
                     stmt_tuple = (subj, obj, correlation, 'pathway',
@@ -254,8 +251,9 @@ def main(args):
                 im_found = True
                 stmt_tuple = (id1, id2, correlation, 'shared_target',
                               downstream_share)
-                logger.info('Found downstream share: %s and %s share %i '
-                            'targets' % (id1, id2, len(downstream_share)))
+                if args.verbosity:
+                    logger.info('Found downstream share: %s and %s share %i '
+                                'targets' % (id1, id2, len(downstream_share)))
                 explained_nested_dict[id1][id2]['x_is_downstream'] = \
                     downstream_share
                 explained_nested_dict[id2][id1]['x_is_downstream'] = \
@@ -269,9 +267,10 @@ def main(args):
                 im_found = True
                 stmt_tuple = (id1, id2, correlation, 'shared_upstream',
                               upstream_share)
-                logger.info('Found upstream share: %s and %s are both directly '
-                            'downstream of %i nodes' %
-                            (id1, id2, len(upstream_share)))
+                if args.verbosity:
+                    logger.info('Found upstream share: %s and %s are both'
+                                'directly downstream of %i nodes' %
+                                (id1, id2, len(upstream_share)))
                 explained_nested_dict[id1][id2]['x_is_upstream'] = \
                     upstream_share
                 explained_nested_dict[id2][id1]['x_is_upstream'] = \
@@ -291,9 +290,12 @@ def main(args):
         # Make sure the connection types we didn't find are empty lists
         if any(found):
             for s, o in itt.permutations((id1, id2), r=2):
-                # Direct
-                if not _entry_exist(explained_nested_dict[s], o, 'direct'):
-                    explained_nested_dict[s][o]['direct'] = []
+                # Directed
+                if not _entry_exist(explained_nested_dict[s], o, 'directed'):
+                    explained_nested_dict[s][o]['directed'] = []
+                # Undirected
+                if not _entry_exist(explained_nested_dict[s], o, 'undirected'):
+                    explained_nested_dict[s][o]['undirected'] = []
                 # x_is_intermediary
                 if not _entry_exist(explained_nested_dict[s], o,
                                     'x_is_intermediary'):
@@ -311,22 +313,25 @@ def main(args):
         # therefore "not any" is only True when no connection was found
         if not any(found):
             unexplained.append((id1, id2, correlation))
-            if args.verbosity > 1:
+            if args.verbosity and args.verbosity > 1:
                 logger.info('No explainable path found between %s and '
                             '%s.' % (id1, id2))
 
-    logger.info('Total unexplained: %i. Total explained: %i (%i direct and %i '
-                'mediated by an intermediate node). Total number of pairs '
-                'checked: %i' %
-                (len(unexplained), len(explained_pairs), dir_expl_count,
-                 im_expl_count, npairs))
+    logger.info('-'*56)
+    logger.info('Summary:')
+    logger.info('> Total unexplained: %i' % len(unexplained))
+    logger.info('> Total explained: %i,' % len(explained_pairs))
+    logger.info('> with %i direct and %i mediated by an intermediate node.' %
+                (dir_expl_count, im_expl_count))
+    logger.info('> Total number of pairs checked: %i' % npairs)
+    logger.info('-'*56)
 
     # Here create directed graph from explained nested dict
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
         nest_d=explained_nested_dict)
 
     # 'explained_nodes' are used to produce first drop down
-    explained_nodes = nx_expl_dir_graph.nodes()
+    explained_nodes = list(nx_expl_dir_graph.nodes)
     logger.info('Dumping json "explainable_ids.json" for first dropdown.')
     _dump_it_to_json('explainable_ids.json', explained_nodes)
 
