@@ -46,9 +46,10 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
                         path_prefix)
         os.mkdir(path_prefix)
 
-    dnf_logger.info('Dumping node neighbor dicts to "%s '
+    dnf_logger.info('Dumping node neighbor dicts to "%s'
                     'neighbors_to_NODENAME.json"' % path_prefix)
-    for node in expl_undir_graph.nodes_iter():
+
+    for node in expl_undir_graph.nodes:
         nnnl = list(expl_undir_graph[node])
         _dump_it_to_json(fname=path_prefix+'neighbors_to_%s.json' % node,
                          pyobj=nnnl)
@@ -95,9 +96,9 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
                     for stmt in dds_list:
                         # One edge per statement
                         # Could instead add stmt attributes like
-                        # evidence.text, suppoerted by, suppors, uuic, etc
-                        nx_muldir.add_edge(
-                            u=subj, v=obj, attr_dict={'stmt': stmt})
+                        # evidence.text, supported by, suppors, uuic, etc
+                        nx_muldir.add_edge(u_of_edge=subj, v_of_edge=obj,
+                                           attr_dict={'stmt': stmt})
     return nx_muldir
 
 
@@ -139,11 +140,13 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
                     # If already dictionary set as attr_dict
                     inner_obj = nest_d[subj][obj]
                     if type(inner_obj) is list:
-                        nx_dir_g.add_edge(u=subj,
-                                          v=obj,
+                        nx_dir_g.add_edge(u_of_edge=subj,
+                                          v_of_edge=obj,
                                           attr_dict={'stmts': inner_obj})
                     elif type(inner_obj) is defaultdict:
-                        nx_dir_g.add_edge(u=subj, v=obj, attr_dict=inner_obj)
+                        nx_dir_g.add_edge(u_of_edge=subj,
+                                          v_of_edge=obj,
+                                          attr_dict=inner_obj)
     return nx_dir_g
 
 
@@ -934,7 +937,7 @@ def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
     Returns
     -------
     set
-        set of common parents in uri(?) format  # ToDo Format name is uri?
+        set of common parents in uri format
     """
     return find_parent(ho, ns1, id1, type) & find_parent(ho, ns2, id2, type)
 
