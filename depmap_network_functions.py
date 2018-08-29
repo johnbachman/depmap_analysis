@@ -413,11 +413,12 @@ def get_directed_type_hash(stmts, undirected):
     dir_stmts, undir_stmts = [], []
 
     for stmt in stmts:
-        type, hsh = stmt
-        if type in undirected:
-            undir_stmts.append((type, hsh))
+        ctype, hsh = stmt
+        hash_string = str(hsh)
+        if ctype in undirected:
+            undir_stmts.append((ctype, hash_string))
         else:
-            dir_stmts.append((type, hsh))
+            dir_stmts.append((ctype, hash_string))
 
     return dir_stmts, undir_stmts
 
