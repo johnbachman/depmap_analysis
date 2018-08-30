@@ -26,6 +26,16 @@ db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
+def nest_dict():
+    """Returns a nested dictionary of arbitrary depth
+
+    Returns
+    -------
+    defaultdict(nest_dict)
+    """
+    return defaultdict(nest_dict)
+
+
 def _dump_it_to_json(fname, pyobj):
     with open(fname, 'w') as json_out:
         json.dump(pyobj, json_out)
