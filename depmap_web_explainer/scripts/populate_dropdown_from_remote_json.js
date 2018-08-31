@@ -519,27 +519,38 @@ $(function(){
                     stmt_json = stmts[hash_list[k]]
                     ev_len = stmt_json.evidence.length
 
+                    // Container for english text and button
+                    let text_and_button_container = document.createElement("div")
+
                     // Output for Plain English
                     let output_element_pe = document.createElement("h4")
-                    // output_element_pe.style = "display:inline-block; margin-right:10px;"; // For placement of text and buttons
+                    output_element_pe.style = "display:inline-block; margin-right:10px;"; // For placement of text and buttons
                     output_element_pe.textContent = (k+1) + ": " + eng_plain + ' (' + ev_len + ' sources)'
-                    output_pointer.appendChild(output_element_pe)
+                    text_and_button_container.appendChild(output_element_pe)
 
                     // EVIDENCE BUTTON
                     let ev_button_div = document.createElement("div");
-                    // ev_button_div.style = "display:inline-block; margin-right:10px;";
-                    let ev_button_output_text = document.createElement("div");
-                    ev_button_output_text.id = sid;
-                    // ev_button_output_text.style = "display:inline-block; margin-right: 10px;";
-                    ev_button_output_text.textContent = "Click on the button far to the right :) "
+                    ev_button_div.innerHTML = null;
+                    ev_button_div.style = "display:inline-block; margin-right:10px;";
+
+                    // Source out container
+                    let ev_button_output_text = document.createElement("span");
+                    ev_button_output_text.id = sid; // Output identifier
+                    ev_button_output_text.style = "display:inline-block; margin-right: 10px;";
+                    ev_button_output_text.textContent = ""
+
+                    // Actual button
                     let ev_button = document.createElement("button");
                     ev_button.classList.add("btn", "btn-default", "btn-evidence", "pull-right");
                     ev_button.textContent = "clickme"; // BUTTON TEXT
                     ev_button.dataset.index = k // Store index
                     ev_button.dataset.id = sid; // Button identifier
+
+                    // Append all containers
                     ev_button_div.appendChild(ev_button)
                     ev_button_div.appendChild(ev_button_output_text)
-                    output_pointer.appendChild(ev_button_div)
+                    text_and_button_container.appendChild(ev_button_div)
+                    output_pointer.appendChild(text_and_button_container)
 
                 }
 
