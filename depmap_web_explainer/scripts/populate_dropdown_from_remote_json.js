@@ -653,11 +653,24 @@ $(function(){
 
     // Use this function for s-X-o (same for all four) the query needs to be over two json lookups: SUBJ_is_subj and OBJ_is_obj
     function output_intermediary_new(output_pointer, x_counter_pointer, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
-        var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id
-        dropdown_div = document.createElement("div");
-        dropdown_div.id = rand_id;
-        dropdown_div.style = "width: 520px; top: 36px; left: 0px; visibility: visible;"
+        var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer the dropdown to
+        let dropdown_div = document.createElement("div");
+        dropdown_div.class = "dropdown";
+        dropdown_div.style = "width: 520px; top: 36px; left: 0px; visibility: visible;";
+        let dropdown_ctrl_group = document.createElement("div");
+        dropdown_ctrl_group.class = "control-group";
+        let dropdown_label = document.createElement("label");
+        dropdown_label.for = rand_id;
+        let dropdown_select = document.createElement("select");
+        dropdown_select.id = rand_id;
+        dropdown_select.class = "demo-default";
+        dropdown_select.placeholder = "Select gene X...";
+
+        dropdown_ctrl_group.appendChild(dropdown_label)
+        dropdown_ctrl_group.appendChild(dropdown_select)
+        dropdown_div.appendChild(dropdown_ctrl_group)
         output_pointer.appendChild(dropdown_div)
+        
         var items = x_array.map(function(x) { return { item: x }; })
 
         // Update the count of X in the badge
