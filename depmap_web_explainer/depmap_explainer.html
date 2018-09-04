@@ -51,21 +51,27 @@
         </div>
         </div>
 
-    <p>Select a gene correlated with the first one</p>
-    <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
-    <div class="control-group">
-        <label for="select_second_gene"></label>
-            <select id="select_second_gene" class="demo-default" placeholder="Select a gene..."></select>
+    <div class="panel panel-default">
+        <p>Select a gene correlated with the first one</p>
+        <div class="dropdown" style="width: 520px; top: 36px; left: 0px; bottom-margin: 1000px; visibility: visible;">
+        <div class="control-group">
+            <label for="select_second_gene"></label>
+                <select id="select_second_gene" class="demo-default" placeholder="Select a gene..."></select>
+            </div>
+        </div>
+        
+        <div id="output_A_B">
+            <h3>Selection</h3>
+            <div id="my_outputA">
+            </div>
+            <div id="my_outputB">
+            </div>
+            <h4>A, B, correlation</h4>
+            <div id="show_correlation">
+            </div>
         </div>
     </div>
-    <h3>Selection</h3>
-    <div id="my_outputA">
-    </div>
-    <div id="my_outputB">
-    </div>
-    <h4>A, B, correlation</h4>
-    <div id="show_correlation">
-    </div>
+
     </div>
 
     <div class="panel panel-default">
@@ -78,7 +84,7 @@
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseAcB">
-                            Complex A B
+                            Complex <div id="A_complex" style="display:inline-block;">A</div> <div id="B_complex" style="display:inline-block;">B</div>
                            <span id="collapseAcB_ev_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
@@ -94,8 +100,8 @@
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseAB">
-                            A &rarr; B
-                           <span id="collapseAB_ev_count" class="badge badge-default float-right">0</span>
+                            <div id="A_AtoB" style="display:inline-block;">A</div> &rarr; <div id="B_AtoB" style="display:inline-block;">B</div>
+                            <span id="collapseAB_ev_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -111,8 +117,8 @@
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseAXB">
-                            A &rarr; X &rarr; B
-                           <span id="collapseAXB_ev_count" class="badge badge-default float-right">0</span>
+                            <div id="A_AXB" style="display:inline-block;">A</div> &rarr; <div id="X_AXB" style="display:inline-block;">X</div> &rarr; <div id="B_AXB" style="display:inline-block;">B</div>
+                            <span id="collapseAXB_ev_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -128,8 +134,8 @@
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseBA">
-                            B &rarr; A
-                           <span id="collapseBA_ev_count" class="badge badge-default float-right">0</span>
+                            <div id="B_BtoA" style="display:inline-block;">B</div> &rarr; <div id="A_BtoA" style="display:inline-block;">A</div>
+                            <span id="collapseBA_ev_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -145,8 +151,8 @@
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapseBXA">
-                            B &rarr; X &rarr; A
-                           <span id="collapseBXA_ev_count" class="badge badge-default float-right">0</span>
+                            <div id="B_BXA" style="display:inline-block;">B</div> &rarr; <div id="X_BXA" style="display:inline-block;">X</div> &rarr; <div id="A_BXA" style="display:inline-block;">A</div>
+                            <span id="collapseBXA_ev_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
 
@@ -162,7 +168,7 @@
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapse_st">
-                            Shared target (A &rarr; X &larr; B)
+                            Shared target (<div id="A_ABtoX" style="display:inline-block;">A</div> &rarr; <div id="X_ABtoX" style="display:inline-block;">X</div> &larr; <div id="B_ABtoX" style="display:inline-block;">B</div>)
                            <span id="collapse_st_X_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
@@ -179,7 +185,7 @@
                     <div class="panel-heading">
                     <h4 class="panel-title">
                         <a data-toggle="collapse" href="#collapse_sr">
-                            Shared regulator (A &larr; X &rarr; B)
+                            Shared regulator (<div id="A_XtoAB" style="display:inline-block;">A</div> &larr; <div id="X_XtoAB" style="display:inline-block;">X</div> &rarr; <div id="B_XtoAB" style="display:inline-block;">B</div>)
                            <span id="collapse_sr_X_count" class="badge badge-default float-right">0</span>
                         </a>
                     </h4>
