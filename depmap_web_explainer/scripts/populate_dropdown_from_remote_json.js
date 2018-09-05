@@ -55,6 +55,13 @@ $(function(){
         return $.ajax({url: url, dataType: "json"});
     };
 
+    // MOUSE HOVER LOAD PAGE
+    $(".tiptext").mouseover(function() {
+        $(this).children(".description").show();
+    }).mouseout(function() {
+        $(this).children(".description").hide();
+    });
+
     $select_second_gene = $("#select_second_gene").selectize({
         valueField: "second_item",
         labelField: "second_item",
@@ -653,8 +660,11 @@ $(function(){
 
                         let source_api_text = "Source api: " + _api
 
-                        // Output for source link
-                        let output_element_pmid = document.createElement("a")
+                        // Output for source link and MOUSE HOVER LOAD PAGE
+                        let output_element_link = document.createElement("a")
+                        output_element_link.class = "tiptext"
+                        let output_element_link_hover = document.createElement("iframe")
+                        output_element_link_hover.class = "description"
 
                         // Ouput for evidence text or other when no text is present
                         let output_element_ev = document.createElement("div")
@@ -673,26 +683,31 @@ $(function(){
 
                         // if PMID
                         if (_pmid) {
-                            output_element_pmid.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
-                            output_element_pmid.textContent = "[See on PubMed] " + source_api_text;
+                            // output_element_link.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
+                            output_element_link_hover.src = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
+                            output_element_link.textContent = "[See on PubMed] " + source_api_text;
                         // no PMID
                         } else {
                             // if BIOPAX
                             if (_api == "biopax" & _id) {
-                                output_element_pmid.href = _id;
-                                output_element_pmid.textContent = "[See on pathway commons] " + source_api_text;
+                                // output_element_link.href = _id;
+                                output_element_link_hover.src = _id;
+                                output_element_link.textContent = "[See on pathway commons] " + source_api_text;
                             else if (_api == "signor") {
-                                output_element_pmid.href = "https://signor.uniroma2.it/";
-                                output_element_pmid.textContent = "[See on SIGNOR (don't know search query address for gene names)] " + source_api_text;
+                                // output_element_link.href = "https://signor.uniroma2.it/";
+                                output_element_link_hover.src = "https://signor.uniroma2.it/";
+                                output_element_link.textContent = "[See on SIGNOR (don't know search query address for gene names)] " + source_api_text;
                             }
                             // if this shows up there is a source you haven't handled yet.
                             } else {
                                 console.log('Unhandled source; Check statement json')
-                                // output_element_pmid.href = null;
-                                output_element_pmid.textContent = "[No source] " + source_api_text;
+                                // output_element_link.href = null;
+                                output_element_link.textContent = "[No source] " + source_api_text;
                             }
                         }
-                        ev_output_div.appendChild(output_element_pmid)
+
+                        output_element_link.appendChild(output_element_link_hover)
+                        ev_output_div.appendChild(output_element_link)
                         ev_output_div.appendChild(output_element_ev)
                     }
                 });
