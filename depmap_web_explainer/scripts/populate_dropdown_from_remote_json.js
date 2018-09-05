@@ -19,6 +19,15 @@ $(function(){
     var geneB = "B"
     // var uuid_stmtjson_dict = {}; // used for buttons to be able to access resolved evidence etc
 
+    function sortByCol(arr, colIndex){
+        arr.sort(sortFunction)
+        function sortFunction(a, b) {
+            a = a[colIndex]
+            b = b[colIndex]
+            return (a === b) ? 0 : (a < b) ? -1 : 1
+        }
+    }
+
     function isNumeric(n) {
         return !isNaN(parseFloat(n)) && isFinite(n);
     }
@@ -570,8 +579,9 @@ $(function(){
             // Loop hashes for stmt jsons and store uuid and plain english query response
             for (let hash of hash_list) {
                 stmt_json = stmts[hash]
-                stmt_uuid_array.push(stmt_json.id)
-                uuid_stmtjson_dict[stmt_json.id] = stmt_json // store stmt_json in global uuid_stmtjson dict
+                uuid = stmt_json.id
+                stmt_uuid_array.push(uuid)
+                uuid_stmtjson_dict[uuid] = stmt_json // store stmt_json in global uuid_stmtjson dict
                 stmt_hash_array.push(hash)
                 json_stmt_array = {"statements": [stmt_json]}
                 eng_res_array.push(getEnglishByJson(json_stmt_array))
@@ -591,16 +601,28 @@ $(function(){
 
                 // Update the count in the badge; For A-X-B, create new badge and send that pointer to here at the level of the A-X-B functions
                 ev_counter_pointer.textContent = number_of_statements // EVIDENCE SOURCE COUNT
-                
-                // Loop response array for plain english
-                for (let k = 0; k < number_of_statements; k++) {
 
+                uuid_hash_type_plain_array = [];
+                
+                // Loop to add uuid, hash, type, plain english
+                for (let k = 0; k < number_of_statements; k++) {
                     // Get uuid, english output
                     uuid = stmt_uuid_array[k]
-                    hash = stmt_hash_array[k] // 
-                    eng_res = eng_array[k]
-                    eng_plain = eng_res.sentences[uuid]
-                    // console.log(("< < New button added for uuid " + uuid + ", hash: " + hash + " > >"))
+                    hash = stmt_hash_array[k]
+                    type = uuid_stmtjson_dict[uuid].type
+                    eng_plain = eng_array[k].sentences[uuid]
+                    uuid_hash_type_plain_array.push([uuid, hash, type, eng_plain])
+                }
+
+                // Sort on type: see https://stackoverflow.com/questions/16096872/how-to-sort-2-dimensional-array-by-column-value
+                sortByCol(uuid_hash_type_plain_array, 2)
+
+                // Loop for plain english output
+                for (let k = 0; k < number_of_statements; k++) {
+                    uuid = uuid_hash_type_plain_array[k][0]
+                    hash = uuid_hash_type_plain_array[k][1]
+                    type = uuid_hash_type_plain_array[k][2]
+                    eng_plain = uuid_hash_type_plain_array[k][3]
 
                     // Count evidence
                     ev_len = uuid_stmtjson_dict[uuid].evidence.length
@@ -611,7 +633,7 @@ $(function(){
                     // Output for Plain English
                     let output_element_pe = document.createElement("h4")
                     output_element_pe.style = "display:inline-block; margin-right:10px;"; // For placement of text and buttons
-                    output_element_pe.textContent = (k+1) + ": " + eng_plain
+                    output_element_pe.textContent = (k+1) + ". " + type + ": " + eng_plain
                     text_and_button_container.appendChild(output_element_pe)
 
                     // EVIDENCE BUTTON
