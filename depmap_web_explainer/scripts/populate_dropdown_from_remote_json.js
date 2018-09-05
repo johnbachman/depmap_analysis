@@ -9,6 +9,16 @@ $(function(){
     var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
     var indra_english_asmb = "http://api.indra.bio:8000/assemblers/english";
 
+    function isNumeric(n) {
+        return !isNaN(parseFloat(n)) && isFinite(n);
+    }
+
+    function isInt(value) {
+      return !isNaN(value) && 
+             parseInt(Number(value)) == value && 
+             !isNaN(parseInt(value, 10));
+    }
+
     function getEnglishByJson(json_stmt_array) {
         eng_stmt = $.ajax({
             url: indra_english_asmb,
@@ -64,15 +74,16 @@ $(function(){
             // Append the element to the div object
             output_text.appendChild(thingy)
 
+            // SET ADDRESSES TO AWS S3 DATA
             // Query of evidence for A->B
             // s3 bucket prefix string
             // Examples:
             // https://s3.amazonaws.com/depmap-public/indra_db_20180730_hash_json/41137subj_CSDE1.json
             // https://s3.amazonaws.com/depmap-public/correlation_pairs_above_03/correlates_with_A1BG.json
-            // https://s3.amazonaws.com/depmap-public/Q3_depmap_20180730_db_explained/A1BG_is_subj.json
+            // https://s3.amazonaws.com/depmap-public/Q3_depmap_20180730_db_explained_improved/A1BG_is_subj.json
 
             let s3_prefix = "https://s3.amazonaws.com/depmap-public/";
-            let s3_subj_expl = "Q3_depmap_20180730_db_explained/";
+            let s3_subj_expl = "Q3_depmap_20180730_db_explained_improved/";
             let s3_subj_interactions = "indra_db_20180730_hash_json/41137subj_"; // Object lookup of given subject
             let s3_obj_interactions = "indra_db_20180730_hash_json/41137obj_"; // Subject lookup of given object
             let s3_correlations = "correlation_pairs_above_03/correlates_with_";
@@ -106,7 +117,13 @@ $(function(){
                     correlation_output_element.appendChild(linkText);
                     correlation_output_element.title = "Link to depmap plot for " + geneA + " vs " + geneB
                     correlation_output_element.href = depmap1 + geneA + depmap2 + geneB + depmap3
-                    correlation_output_element.textContent = geneA + ", " + geneB + ", " + correlation_AB
+                    if (isNumeric(correlation_AB)) {
+                        correlation_output_element.textContent = geneA + ", " + geneB + ", " + parseFloat(correlation_AB).toFixed(4).toString() // DECIMAL PLACES IN CORRELATION
+                    } else {
+                        // When we don't have the correation; If it happens, you probably need to update the correlation jsons
+                        console.log('Correlation is not a valid number!')
+                        correlation_output_element.textContent = geneA + ", " + geneB + ", (not available)"
+                    }
                     correlation_output.appendChild(correlation_output_element)
                 },
                 error: function() {
@@ -120,8 +137,9 @@ $(function(){
 
             // To be used so we can query common up/downstream on B-X-A when A->B gives back a result but not B->A;
             // Should also use it for avoiding double output.
+            var AcB_d_output = false
             var AB_im_output = false
-            var BA_im_output = false
+            // var BA_im_output = false
 
             // Query and output all subj:A -> obj:B
             var geneA_is_subj_promise = $.ajax({
@@ -147,43 +165,70 @@ $(function(){
                     // where n = number of interaction types (7 in above example) and [0/1] will give
                     // "type"/statement hash.
 
-                    // if connection direct
-                    if (connection_type_list.direct.length > 0) {
+                    // OUTPUT EXPLANATIONS
+
+                    // if connection undirected
+                    if (connection_type_list.undirected.length > 0) {
+                        AcB_d_output = true
+
+                        // Reference and initialize the output pointer
+                        var output_AcB = $("#expl_A_complex_B")[0];
+                        output_AcB.innerHTML = null;
+
+                        // Get reference to the text badge so we can output evidence count
+                        var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
+
+                        output_directs(output_AcB, AcB_ev_count, connection_type_list.undirected)
+                    }
+
+                    // if connection directed
+                    if (connection_type_list.directed.length > 0) {
                         // Reference and initialize the output pointer
                         var output_AB = $("#expl_A_to_B")[0];
                         output_AB.innerHTML = null;
 
-                        output_directs(output_AB, connection_type_list.direct)
-                    } else {
+                        // Get reference to the text badge so we can output evidence count
+                        var AB_ev_count = document.getElementById("collapseAB_ev_count");
 
-                        // 'x_is_intermediary'; This is for A->X->B; B->X->A is/shouble be below in 'geneB_is_subj_promise'
-                        if (connection_type_list.x_is_intermediary.length > 0) {
-                            var output_AXB = $("#expl_A_to_X_to_B")[0];
-                            output_AXB.innerHTML = null;
+                        output_directs(output_AB, AB_ev_count, connection_type_list.directed)
+                    }
 
-                            // output_intermediary(output_pointer, X_array, subj, obj, SUBJ_is_subj_address, OBJ_is_obj_address)
-                            output_intermediary(output_AXB, connection_type_list.x_is_intermediary, geneA, geneB, geneA_is_subj_address, geneB_is_obj_address)
-                        }
+                    // 'x_is_intermediary'; This is for A->X->B; B->X->A is/should be below in 'geneB_is_subj_promise'
+                    if (connection_type_list.x_is_intermediary.length > 0) {
+                        var output_AXB = $("#expl_A_to_X_to_B")[0];
+                        output_AXB.innerHTML = null;
 
-                        // 'x_is_downstream'
-                        if (connection_type_list.x_is_downstream.length > 0) {
-                            AB_im_output = true
-                            var output_ABx = $('#expl_x_is_downstream')[0];
-                            output_ABx.innerHTML = null;
+                        // Get pointer to evidence counter
+                        var AXB_ev_count = document.getElementById("collapseAXB_ev_count");
 
-                            // args : output_pointer, X_array, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address
-                            output_x_is_downstream(output_ABx, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address)
-                        }
+                        // output_intermediary(output_pointer, ev_counter_pointer, X_array, subj, obj, SUBJ_is_subj_address, OBJ_is_obj_address)
+                        output_intermediary(output_AXB, AXB_ev_count, connection_type_list.x_is_intermediary, geneA, geneB, geneA_is_subj_address, geneB_is_obj_address)
+                    }
 
-                        // 'x_is_upstream':
-                        if (connection_type_list.x_is_upstream.length > 0) {
-                            AB_im_output = true
-                            var output_xAB = $('#expl_x_is_upstream')[0];
-                            output_xAB.innerHTML = null;
+                    // 'x_is_downstream'
+                    if (connection_type_list.x_is_downstream.length > 0) {
+                        AB_im_output = true
+                        var output_ABx = $('#expl_x_is_downstream')[0];
+                        output_ABx.innerHTML = null;
 
-                            // args : output_pointer, X_array, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address
-                            output_x_is_upstream(output_xAB, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address)
-                        }
+                        // evidence count pointer
+                        var ABx_ev_count = document.getElementById("collapse_st_X_count");
+
+                        // args : output_pointer, ev_counter_pointer, X_array, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address
+                        output_x_is_downstream(output_ABx, ABx_ev_count, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address)
+                    }
+
+                    // 'x_is_upstream':
+                    if (connection_type_list.x_is_upstream.length > 0) {
+                        AB_im_output = true
+                        var output_xAB = $('#expl_x_is_upstream')[0];
+                        output_xAB.innerHTML = null;
+
+                        // evidence count pointer
+                        var xAB_ev_count = document.getElementById("collapse_sr_X_count");
+
+                        // args : output_pointer, ev_counter_pointer, X_array, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address
+                        output_x_is_upstream(output_xAB, xAB_ev_count, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address)
                     }
                 },
                 error: function() {
@@ -203,42 +248,71 @@ $(function(){
                     let obj = geneA
                     connection_type_list = res[obj]
 
-                    if (connection_type_list.direct.length > 0) {
+                    // if connection undirected and not already printed
+                    if (!AcB_d_output) {
+                        if (connection_type_list.undirected.length > 0) {
+                            AcB_d_output = true
+
+                            // Reference and initialize the output pointer
+                            var output_AcB = $("#expl_A_complex_B")[0];
+                            output_AcB.innerHTML = null;
+
+                            // Get reference to the text badge so we can output evidence count
+                            var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
+
+                            output_directs(output_AcB, AcB_ev_count, connection_type_list.undirected)
+                        }
+                    }
+
+                    // if connection directed
+                    if (connection_type_list.directed.length > 0) {
                         var output_BA = $("#expl_B_to_A")[0];
                         output_BA.innerHTML = null;
 
-                        // args : output_pointer, type_hash_array
-                        output_directs(output_BA, connection_type_list.direct)
-                    } else {
-                        // 'x_is_intermediary'; B->X->A
-                        if (connection_type_list.x_is_intermediary.length > 0) {
-                            var output_AXB = $("#expl_B_to_X_to_A")[0];
-                            output_BXA.innerHTML = null;
+                        // Evidence counter
+                        var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
 
-                            // output_intermediary(output_pointer, X_array, subj, obj, SUBJ_is_subj_address, OBJ_is_obj_address)
-                            output_intermediary(output_BXA, connection_type_list.x_is_intermediary, geneB, geneA, geneB_is_subj_address, geneA_is_obj_address)
+                        // args : output_pointer, ev_counter_pointer, type_hash_array
+                        output_directs(output_BA, AcB_ev_count, connection_type_list.directed)
+                    }
+
+                    // 'x_is_intermediary'; B->X->A
+                    if (connection_type_list.x_is_intermediary.length > 0) {
+                        var output_BXA = $("#expl_B_to_X_to_A")[0];
+                        output_BXA.innerHTML = null;
+
+                        // Get pointer to evidence counter
+                        var BXA_ev_count = document.getElementById("collapseBXA_ev_count");
+
+                        // output_intermediary(output_pointer, ev_counter_pointer, X_array, subj, obj, SUBJ_is_subj_address, OBJ_is_obj_address)
+                        output_intermediary(output_BXA, BXA_ev_count, connection_type_list.x_is_intermediary, geneB, geneA, geneB_is_subj_address, geneA_is_obj_address)
+                    }
+
+                    // Check if any output already is up for xAB or ABx
+                    if (!AB_im_output) {
+
+                        // 'x_is_downstream'
+                        if (connection_type_list.x_is_downstream.length > 0) {
+                            var output_ABx = $('#expl_x_is_downstream')[0];
+                            output_ABx.innerHTML = null;
+
+                            // evidence count pointer
+                            var ABx_ev_count = document.getElementById("collapse_st_X_count");
+
+                            // args : output_pointer, ev_counter_pointer, X_array, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address
+                            output_x_is_downstream(output_ABx, ABx_ev_count, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address)
                         }
 
-                        // Check if any output already is up for xAB or ABx
-                        if (!AB_im_output) {
+                        // 'x_is_upstream':
+                        if (connection_type_list.x_is_upstream.length > 0) {
+                            var output_xAB = $('#expl_x_is_upstream')[0];
+                            output_xAB.innerHTML = null;
 
-                            // 'x_is_downstream'
-                            if (connection_type_list.x_is_downstream.length > 0) {
-                                var output_ABx = $('#expl_x_is_downstream')[0];
-                                output_ABx.innerHTML = null;
+                            // evidence count pointer
+                            var xAB_ev_count = document.getElementById("collapse_sr_X_count");
 
-                                // args : output_pointer, X_array, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address
-                                output_x_is_downstream(output_ABx, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address)
-                            }
-
-                            // 'x_is_upstream':
-                            if (connection_type_list.x_is_upstream.length > 0) {
-                                var output_xAB = $('#expl_x_is_upstream')[0];
-                                output_xAB.innerHTML = null;
-
-                                // args : output_pointer, X_array, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address
-                                output_x_is_upstream(output_xAB, connection_type_list.x_is_upstream.length, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address)
-                            }
+                            // args : output_pointer, ev_counter_pointer, X_array, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address
+                            output_x_is_upstream(output_xAB, xAB_ev_count, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address)
                         }
                     }
                 },
@@ -289,7 +363,7 @@ $(function(){
                 direction: "asc" 
             },
 
-            dropdownParent: "body",
+            // dropdownParent: "body",
 
             // Updates the current selection 
             onChange: function(value) {
@@ -345,11 +419,12 @@ $(function(){
     });
 
     // Function for quering and outputting plain english description and statement evidence with PMIDs
-    function output_directs(output_pointer, type_hash_array){
-        // console.log(type_hash_array)
+    function output_directs(output_pointer, ev_counter_pointer, type_hash_array){
 
         // Create array to store each statement hash
         let hash_list = [];
+
+        // debugger; // type_hash_array
 
         // type_hash_array contains [["type1", hash1], ["type2", hash2], ...]
         for (let i = 0; i < type_hash_array.length; i++) {
@@ -365,11 +440,14 @@ $(function(){
             // console.log(stmt_response)
 
             // Get statements array
-            var stmts = stmt_response.statements.statements
-            // console.log(stmts)
+            var stmts = stmt_response.statements
+
+            // Check error for 'Object.keys(stmts).map(function(x) {return Number(x)})': 
+            // jQuery.Deferred exception: Cannot convert undefined or null to object TypeError: Cannot convert undefined or null to object at Function.keys
+            // debugger;
+
             // Generating new hash list here in case the respones are not exactly corresponding to the hash query
             var hash_list = Object.keys(stmts).map(function(x) {return Number(x)})
-            // console.log(hash_list)
 
             // We could send an array of statement jsons, but then we 
             // would have to keep track of which uuid is with which statement
@@ -403,6 +481,16 @@ $(function(){
                 output_element_stmt_count.textContent = "Found " + eng_array.length + " statements."
                 output_pointer.appendChild(output_element_stmt_count)
 
+                // Update the count in the badge if it is a 'real' pointer (the A-X-B won't have evidence counter for now)
+                ev_counter_pointer.textContent = eng_array.length
+                // cur_count = ev_counter_pointer.textContent
+                // if (isInt(cur_count)) {
+                //     ev_counter_pointer.textContent = parseInt(Number(cur_count)) + eng_array.length
+                // } else {
+                //     console.log('Could not interpret badge count as integer!')
+                //     ev_counter_pointer.textContent = eng_array.length
+                // }
+                
                 // Loop response array for plain english
                 for (let k = 0; k < eng_array.length; k++) {
                     // Get uuid, english output
@@ -411,7 +499,7 @@ $(function(){
                     eng_plain = eng_res.sentences[sid]
 
                     // Output for Plain English
-                    let output_element_pe = document.createElement("div")
+                    let output_element_pe = document.createElement("b")
                     output_element_pe.textContent = (k+1) + ": " + eng_plain
                     output_pointer.appendChild(output_element_pe)
 
@@ -421,7 +509,7 @@ $(function(){
                     ev_button_output_text.id = sid;
                     ev_button = document.createElement("button");
                     ev_button.classList.add("btn", "btn-default", "btn-evidence", "pull-right");
-                    ev_button.textContent = "[evidence button]";
+                    ev_button.textContent = ""; // BUTTON TEXT
                     ev_button.dataset.index = k // Store index
                     ev_button.dataset.id = sid; // Button identifier
                     ev_button_div.appendChild(ev_button)
@@ -429,6 +517,7 @@ $(function(){
                     output_pointer.appendChild(ev_button_div)
 
                 }
+
                 $(".btn-evidence").on("click", function(b){
                     // Loop through the evidence for the statement the button is linked to
                     n = b.currentTarget.dataset.index
@@ -439,6 +528,8 @@ $(function(){
                     var stmt_json = stmts[hash]
                     var ev_output_div = $("#"+btn_id)[0];
                     ev_output_div.innerHTML = null;
+
+                    // debugger; // stmt_json & stmts & hash
 
                     for (let k = 0; k < stmt_json.evidence.length; k++) {
 
@@ -461,14 +552,23 @@ $(function(){
         })
     } // Closes the output_directs function bracket
 
-    // Use this function for s->X->o (same for both ways, so make to calls) the query needs to be over two jsons: SUBJ_is_subj and OBJ_is_obj
-    function output_intermediary(output_pointer, X_array, subj, obj, SUBJ_is_subj_address, OBJ_is_obj_address){
+    // Use this function for s->X->o (same for both ways, so make two calls) the query needs to be over two jsons: SUBJ_is_subj and OBJ_is_obj
+    function output_intermediary(output_pointer, x_counter_pointer, x_array, subj, obj, SUBJ_is_subj_address, OBJ_is_obj_address){
         var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id
         dropdown_div = document.createElement("div");
         dropdown_div.id = rand_id;
         dropdown_div.style = "width: 520px; top: 36px; left: 0px; visibility: visible;"
         output_pointer.appendChild(dropdown_div)
-        var items = X_array.map(function(x) { return { item: x }; })
+        var items = x_array.map(function(x) { return { item: x }; })
+
+        // Update the count of X in the badge
+        cur_count = x_counter_pointer.textContent
+        if (isInt(cur_count)) {
+            x_counter_pointer.textContent = x_array.length
+        } else {
+            console.log('Could not interpret badge count as integer!')
+            x_counter_pointer.textContent = cur_count
+        }
 
         // Create dropdown with all X
         $select_intermediate = $("#"+rand_id).selectize({
@@ -496,18 +596,18 @@ $(function(){
                     // Get the the hash arrays
                     S_is_subj_lookup = two_jsons_ar[0];
                     O_is_obj_lookup = two_jsons_ar[1];
+                    // debugger; // S_is_subj_lookup & O_is_obj_lookup
 
+                    console.log('x_value')
+                    console.log(x_value)
+                    console.log('S_is_subj_lookup[x_value]')
+                    console.log(S_is_subj_lookup[x_value])
+                    console.log('O_is_obj_lookup[x_value]')
+                    console.log(O_is_obj_lookup[x_value])
 
-                    // console.log('x_value')
-                    // console.log(x_value)
-                    // console.log('S_is_subj_lookup[x_value]')
-                    // console.log(S_is_subj_lookup[x_value])
-                    // console.log('O_is_obj_lookup[x_value]')
-                    // console.log(O_is_obj_lookup[x_value])
-
-                    // Loop each selection?
-                    output_directs(output_pointer, S_is_subj_lookup[x_value])
-                    output_directs(output_pointer, O_is_obj_lookup[x_value])
+                    // args : output_pointer, ev_counter_pointer, type_hash_array
+                    output_directs(output_pointer, x_counter_pointer, S_is_subj_lookup[x_value])
+                    output_directs(output_pointer, x_counter_pointer, O_is_obj_lookup[x_value])
 
                 });
             }
@@ -516,13 +616,22 @@ $(function(){
     } // Closes the output_intermediary function bracket
 
     // Here we need 'A_is_obj' and 'B_is_obj'
-    function output_x_is_upstream(output_pointer, X_array, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address){
+    function output_x_is_upstream(output_pointer, x_counter_pointer, x_array, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address){
         var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id
         dropdown_div = document.createElement("div");
         dropdown_div.id = rand_id;
         dropdown_div.style = "width: 520px; top: 36px; left: 0px; visibility: visible;"
         output_pointer.appendChild(dropdown_div)
-        var items = X_array.map(function(x) { return { item: x }; })
+        var items = x_array.map(function(x) { return { item: x }; })
+
+        // Update the count of X in the badge
+        cur_count = x_counter_pointer.textContent
+        if (isInt(cur_count)) {
+            x_counter_pointer.textContent = x_array.length
+        } else {
+            console.log('Could not interpret badge count as integer!')
+            x_counter_pointer.textContent = cur_count
+        }
 
         $select_upstream_x = $("#"+rand_id).selectize({
             options: items,
@@ -548,21 +657,41 @@ $(function(){
                 Promise.all(two_promises).then(function(two_jsons_ar){
                     A_is_obj_lookup = two_jsons_ar[0];
                     B_is_obj_lookup = two_jsons_ar[1];
-                    output_directs(output_pointer, A_is_obj_lookup[x_value])
-                    output_directs(output_pointer, B_is_obj_lookup[x_value])
+                    // debugger; // S_is_subj_lookup & O_is_obj_lookup
+
+                    console.log('x_value')
+                    console.log(x_value)
+                    console.log('A_is_obj_lookup[x_value]')
+                    console.log(A_is_obj_lookup[x_value])
+                    console.log('B_is_obj_lookup[x_value]')
+                    console.log(B_is_obj_lookup[x_value])
+
+                    // Here ev_counter_pointer should be pointer to evidence count ouput for each of the two queries; just use given pointer for now? <--- TODO
+                    // args : output_pointer, ev_counter_pointer, type_hash_array
+                    output_directs(output_pointer, x_counter_pointer, A_is_obj_lookup[x_value]);
+                    output_directs(output_pointer, x_counter_pointer, B_is_obj_lookup[x_value]);
                 });
             }
         })
     }
 
     // Here we need 'A_is_subj' and 'B_is_subj'
-    function output_x_is_downstream(output_pointer, X_array, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address){
-        var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id
+    function output_x_is_downstream(output_pointer, x_counter_pointer, x_array, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address){
+        var rand_id = Number(Math.random()*10**17).toString(); // Create a random id
         dropdown_div = document.createElement("div");
         dropdown_div.id = rand_id;
         dropdown_div.style = "width: 520px; top: 36px; left: 0px; visibility: visible;"
         output_pointer.appendChild(dropdown_div)
-        var items = X_array.map(function(x) { return { item: x }; })
+        var items = x_array.map(function(x) { return { item: x }; })
+
+        // Update the count of X in the badge
+        cur_count = x_counter_pointer.textContent
+        if (isInt(cur_count)) {
+            x_counter_pointer.textContent = x_array.length
+        } else {
+            console.log('Could not interpret badge count as integer!')
+            x_counter_pointer.textContent = cur_count
+        }
 
         $select_downstream_x = $("#"+rand_id).selectize({
             options: items,
@@ -588,8 +717,21 @@ $(function(){
                 Promise.all(two_promises).then(function(two_jsons_ar){
                     A_is_subj_lookup = two_jsons_ar[0];
                     B_is_subj_lookup = two_jsons_ar[1];
-                    output_directs(output_pointer, A_is_subj_lookup[x_value])
-                    output_directs(output_pointer, B_is_subj_lookup[x_value])
+                    // debugger; // S_is_subj_lookup & O_is_obj_lookup
+
+                    console.log('x_value')
+                    console.log(x_value)
+                    console.log('A_is_subj_lookup[x_value]')
+                    console.log(A_is_subj_lookup[x_value])
+                    console.log('B_is_subj_lookup[x_value]')
+                    console.log(B_is_subj_lookup[x_value])
+
+                    // Put a count on the evidence button??
+                    // Pointer to evidence button??
+
+                    // args : output_pointer, ev_counter_pointer, type_hash_array
+                    output_directs(output_pointer, x_counter_pointer, A_is_subj_lookup[x_value]);
+                    output_directs(output_pointer, x_counter_pointer, B_is_subj_lookup[x_value]);
                 });
             }
         })

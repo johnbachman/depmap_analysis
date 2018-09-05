@@ -9,11 +9,13 @@ import itertools as itt
 from math import ceil, log10
 from collections import Mapping
 from collections import defaultdict
+from collections import OrderedDict
 from sqlalchemy.exc import StatementError
 from pandas.core.series import Series as pd_Series_class
 from pandas.core.frame import DataFrame as pd_DataFrame_class
 from indra.db import util as dbu
 from indra.db import client as dbc
+from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.preassembler import Preassembler as pa
 from indra.preassembler import hierarchy_manager as hm
@@ -44,9 +46,10 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
                         path_prefix)
         os.mkdir(path_prefix)
 
-    dnf_logger.info('Dumping node neighbor dicts to "%s '
+    dnf_logger.info('Dumping node neighbor dicts to "%s'
                     'neighbors_to_NODENAME.json"' % path_prefix)
-    for node in expl_undir_graph.nodes_iter():
+
+    for node in expl_undir_graph.nodes:
         nnnl = list(expl_undir_graph[node])
         _dump_it_to_json(fname=path_prefix+'neighbors_to_%s.json' % node,
                          pyobj=nnnl)
@@ -93,9 +96,9 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
                     for stmt in dds_list:
                         # One edge per statement
                         # Could instead add stmt attributes like
-                        # evidence.text, suppoerted by, suppors, uuic, etc
-                        nx_muldir.add_edge(
-                            u=subj, v=obj, attr_dict={'stmt': stmt})
+                        # evidence.text, supported by, suppors, uuic, etc
+                        nx_muldir.add_edge(u_of_edge=subj, v_of_edge=obj,
+                                           attr_dict={'stmt': stmt})
     return nx_muldir
 
 
@@ -137,11 +140,13 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
                     # If already dictionary set as attr_dict
                     inner_obj = nest_d[subj][obj]
                     if type(inner_obj) is list:
-                        nx_dir_g.add_edge(u=subj,
-                                          v=obj,
+                        nx_dir_g.add_edge(u_of_edge=subj,
+                                          v_of_edge=obj,
                                           attr_dict={'stmts': inner_obj})
                     elif type(inner_obj) is defaultdict:
-                        nx_dir_g.add_edge(u=subj, v=obj, attr_dict=inner_obj)
+                        nx_dir_g.add_edge(u_of_edge=subj,
+                                          v_of_edge=obj,
+                                          attr_dict=inner_obj)
     return nx_dir_g
 
 
@@ -349,6 +354,123 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
                     all_hgnc_ids.update([id1, id2])
                     wrtr.writerow([id1, id2, correlation])
     return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
+
+
+def get_directed(stmts, undirected=None):
+    """Given a statement list, sort statements based on directionality.
+
+    The statements can be either of regular INDRA statements or statement
+    type-statement hash pairs or statement JSONs.
+
+    stmts : list[stmts]
+        A list of INDRA statements.
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+        Default: ['Complex', 'SelfModification', 'parent']
+
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+    if not undirected:
+        undirected = ['Complex', 'SelfModification', 'parent']
+
+    # check type of stmt list
+    if stmts:
+        # if (type, hash)
+        if type(stmts[0]) == tuple:
+            dir_stmts, undir_stmts = get_directed_type_hash(stmts, undirected)
+        # if normal statements
+        elif isinstance(stmts[0], Statement):
+            dir_stmts, undir_stmts = \
+                get_directed_actual_statements(stmts, undirected)
+        # if json statements
+        elif isinstance(stmts[0], OrderedDict):
+            dir_stmts, undir_stmts = get_directed_json(stmts, undirected)
+
+    return dir_stmts, undir_stmts
+
+
+def get_directed_type_hash(stmts, undirected):
+    """Given a list of type-hash tuples, sort statements on directionality.
+
+    stmts : [(type, hash)]
+         A list of type-string, hash tuples.
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+
+    for stmt in stmts:
+        ctype, hsh = stmt
+        hash_string = str(hsh)
+        if ctype in undirected:
+            undir_stmts.append((ctype, hash_string))
+        else:
+            dir_stmts.append((ctype, hash_string))
+
+    return dir_stmts, undir_stmts
+
+
+def get_directed_actual_statements(stmts, undirected):
+    """Given a list of INDRA statements, sort statements on directionality.
+
+    stmts : list[:py:class:`indra.statements.Statement`]
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+
+    for stmt in stmts:
+        if stmt.to_json()['type'] in undirected:
+            undir_stmts.append(stmt)
+        else:
+            dir_stmts.append(stmt)
+
+    return dir_stmts, undir_stmts
+
+
+def get_directed_json(stmts, undirected):
+    """Given a list of json statements, sort statements on directionality.
+
+    stmts : list[json statements]
+    undirected : [statement types]
+        A list of name strings considered to be undirected.
+
+    Returns
+    -------
+    dir_stmts, undir_stmts : ([stmts], [stmts])
+        Two lists of statements, one containiing all undirected statements
+        and one contaning all directed statements.
+    """
+
+    dir_stmts, undir_stmts = [], []
+
+    for stmt in stmts:
+        if stmt['type'] in undirected:
+            undir_stmts.append(stmt)
+        else:
+            dir_stmts.append(stmt)
+
+    return dir_stmts, undir_stmts
 
 
 def agent_name_set(stmt):
@@ -816,7 +938,7 @@ def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
     Returns
     -------
     set
-        set of common parents in uri(?) format  # ToDo Format name is uri?
+        set of common parents in uri format
     """
     return find_parent(ho, ns1, id1, type) & find_parent(ho, ns2, id2, type)
 

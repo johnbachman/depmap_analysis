@@ -106,9 +106,12 @@ venv.bak/
 # user added files and directories
 .idea/
 JS/test_html
+depmap_web_explainer/dev/
+input_data/
+output_data/
+networkx_testing.py
 *.csv
-correlations.h5
-pure_ceres_scores.dat
+*.csv#
 dep_map_script_log*
 *.txt
 *.dat
