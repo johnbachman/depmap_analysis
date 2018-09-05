@@ -69,29 +69,6 @@ $(function(){
         onChange: function(value) {
             geneB = value
 
-            // Hardcoded all places we want to change "B" to the actual selection
-            let Bname_complex = document.getElementById("B_complex");
-            Bname_complex.textContent = geneB;
-
-            let Bname_AB = document.getElementById("B_AtoB");
-            Bname_AB.textContent = geneB;
-
-            let Bname_AXB = document.getElementById("B_AXB")
-            Bname_AXB.textContent = geneB;
-            
-            let Bname_BtoA = document.getElementById("B_BtoA")
-            Bname_BtoA.textContent = geneB;
-            
-            let Bname_BXA = document.getElementById("B_BXA")
-            Bname_BXA.textContent = geneB;
-            
-            let Bname_ABtoX = document.getElementById("B_ABtoX")
-            Bname_ABtoX.textContent = geneB;
-            
-            let Bname_XtoAB = document.getElementById("B_XtoAB")
-            Bname_XtoAB.textContent = geneB;
-
-
             // Refer to the div (or other object) where the output text should be
             let output_text = $("#my_outputB")[0];
 
@@ -206,7 +183,14 @@ $(function(){
                         var debug_string = 'output_AcB' // Kept for now in anticipation of future debugging needs
                         // console.log(debug_string)
 
+                        // Flag found so we don't make same call again for B->A
                         AcB_d_output = true
+
+                        // Set names COMPLEX
+                        let Aname_complex = document.getElementById("A_complex")
+                        Aname_complex.textContent = geneA
+                        let Bname_complex = document.getElementById("B_complex");
+                        Bname_complex.textContent = geneB;
 
                         // Reference and initialize the output pointer
                         var output_AcB = $("#expl_A_complex_B")[0];
@@ -224,6 +208,12 @@ $(function(){
                         var debug_string = 'output_AB'
                         // console.log(debug_string)
 
+                        // Set names DIRECTed
+                        let Aname_AtoB = document.getElementById("A_AtoB")
+                        Aname_AtoB.textContent = geneA
+                        let Bname_AtoB = document.getElementById("B_AtoB");
+                        Bname_AtoB.textContent = geneB;
+
                         // Reference and initialize the output pointer
                         var output_AB = $("#expl_A_to_B")[0];
                         output_AB.innerHTML = null;
@@ -238,6 +228,12 @@ $(function(){
                     if (connection_type_list.x_is_intermediary.length > 0) {
                         var debug_string = 'output_AXB'
                         // console.log(debug_string)
+
+                        // Set names
+                        let Aname_AXB = document.getElementById("A_AXB")
+                        Aname_AXB.textContent = geneA
+                        let Bname_AXB = document.getElementById("B_AXB")
+                        Bname_AXB.textContent = geneB;
 
                         var output_AXB = $("#expl_A_to_X_to_B")[0];
                         output_AXB.innerHTML = null;
@@ -254,7 +250,14 @@ $(function(){
                         var debug_string = 'output_ABx'
                         // console.log(debug_string)
 
+                        // Set names
+                        let Aname_ABtoX = document.getElementById("A_ABtoX")
+                        Aname_ABtoX.textContent = geneA
+                        let Bname_ABtoX = document.getElementById("B_ABtoX")
+                        Bname_ABtoX.textContent = geneB;
+
                         AB_im_output = true
+
                         var output_ABx = $('#expl_x_is_downstream')[0];
                         output_ABx.innerHTML = null;
 
@@ -270,7 +273,15 @@ $(function(){
                         var debug_string = 'output_xAB'
                         // console.log(debug_string)
 
+                        // Flag found so we don't make same call again for B->A
                         AB_im_output = true
+
+                        // Set names
+                        let Aname_A_XtoAB = document.getElementById("A_XtoAB")
+                        Aname_A_XtoAB.textContent = geneA
+                        let Bname_XtoAB = document.getElementById("B_XtoAB")
+                        Bname_XtoAB.textContent = geneB;
+
                         var output_xAB = $('#expl_x_is_upstream')[0];
                         output_xAB.innerHTML = null;
 
@@ -306,6 +317,12 @@ $(function(){
 
                             AcB_d_output = true
 
+                            // Set names COMPLEX
+                            let Aname_complex = document.getElementById("A_complex")
+                            Aname_complex.textContent = geneA
+                            let Bname_complex = document.getElementById("B_complex");
+                            Bname_complex.textContent = geneB;
+
                             // Reference and initialize the output pointer
                             var output_AcB = $("#expl_A_complex_B")[0];
                             output_AcB.innerHTML = null;
@@ -322,6 +339,12 @@ $(function(){
                         var debug_string = 'output_BA'
                         // console.log(debug_string)
 
+                        // Set names DIRECTed
+                        let Aname_BtoA = document.getElementById("A_BtoA")
+                        Aname_BtoA.textContent = geneA
+                        let Bname_BtoA = document.getElementById("B_BtoA")
+                        Bname_BtoA.textContent = geneB;
+
                         var output_BA = $("#expl_B_to_A")[0];
                         output_BA.innerHTML = null;
 
@@ -337,6 +360,12 @@ $(function(){
                     if (connection_type_list.x_is_intermediary.length > 0) {
                         var debug_string = 'output_BXA'
                         // console.log(debug_string)
+
+                        // Set names
+                        let Aname_BXA = document.getElementById("A_BXA")
+                        Aname_BXA.textContent = geneA
+                        let Bname_BXA = document.getElementById("B_BXA")
+                        Bname_BXA.textContent = geneB;
 
                         var output_BXA = $("#expl_B_to_X_to_A")[0];
                         output_BXA.innerHTML = null;
@@ -356,6 +385,12 @@ $(function(){
                             var debug_string = 'output_BAx'
                             // console.log(debug_string)
 
+                            // Set names
+                            let Aname_ABtoX = document.getElementById("A_ABtoX")
+                            Aname_ABtoX.textContent = geneA
+                            let Bname_ABtoX = document.getElementById("B_ABtoX")
+                            Bname_ABtoX.textContent = geneB;
+
                             var output_ABx = $('#expl_x_is_downstream')[0];
                             output_ABx.innerHTML = null;
 
@@ -370,6 +405,12 @@ $(function(){
                         if (connection_type_list.x_is_upstream.length > 0) {
                             var debug_string = 'output_xBA'
                             // console.log(debug_string)
+
+                            // Set names
+                            let Aname_A_XtoAB = document.getElementById("A_XtoAB")
+                            Aname_A_XtoAB.textContent = geneA
+                            let Bname_XtoAB = document.getElementById("B_XtoAB")
+                            Bname_XtoAB.textContent = geneB;
 
                             var output_xAB = $('#expl_x_is_upstream')[0];
                             output_xAB.innerHTML = null;
@@ -435,28 +476,6 @@ $(function(){
             onChange: function(value) {
                 geneB = "B"
                 geneA = value
-
-                // Update all gene_A names
-                let Aname_complex = document.getElementById("A_complex")
-                Aname_complex.textContent = geneA
-
-                let Aname_AtoB = document.getElementById("A_AtoB")
-                Aname_AtoB.textContent = geneA
-
-                let Aname_AXB = document.getElementById("A_AXB")
-                Aname_AXB.textContent = geneA
-
-                let Aname_BtoA = document.getElementById("A_BtoA")
-                Aname_BtoA.textContent = geneA
-
-                let Aname_BXA = document.getElementById("A_BXA")
-                Aname_BXA.textContent = geneA
-
-                let Aname_ABtoX = document.getElementById("A_ABtoX")
-                Aname_ABtoX.textContent = geneA
-
-                let Aname_A_XtoAB = document.getElementById("A_XtoAB")
-                Aname_A_XtoAB.textContent = geneA
 
                 select_second_gene.disable();
                 select_second_gene.clearOptions();
