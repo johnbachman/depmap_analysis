@@ -1,22 +1,294 @@
-from indra.preassembler import hierarchy_manager as hm
-from indra.preassembler import Preassembler as pa
+import csv
+import logging
+import numpy as np
+import pandas as pd
+import networkx as nx
+import itertools as itt
+from math import ceil, log10
+from collections import Mapping
+from collections import defaultdict
+from sqlalchemy.exc import StatementError
+from pandas.core.series import Series as pd_Series_class
+from pandas.core.frame import DataFrame as pd_DataFrame_class
+from indra.db import util as dbu
+from indra.db import client as dbc
 from indra.tools import assemble_corpus as ac
+from indra.preassembler import Preassembler as pa
+from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
-from collections import defaultdict
-from math import ceil, log10
-import itertools as itt
-import logging
-from indra.db import client as dbc
-from indra.db import util as dbu
-from sqlalchemy.exc import StatementError
-import pdb
+
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
+def filter_corr_data(corr, clusters, cl_limit):
+    # To get gene names where clustering coefficient is above limit.
+    # Clusters has to come from an already produced graph.
+    # The filtered correlations can then be used to produce a new graph.
+    # The usage of this would be to get a nicer plot that conecntrates on the
+    # clusters instead of plotting _everything_, making it hard to see the
+    # forest for all the trees.
+
+    filtered_genes = [k for k in clusters if clusters[k] > cl_limit]
+    filtered_correlations = corr[filtered_genes].unstack()
+    return filtered_correlations
+
+
+def nx_directed_multigraph_from_nested_dict(nest_d):
+    """Returns a directed multigraph where each edge links a statement with
+    u=subj, v=obj, edge_key=stmt,
+
+    nest_d : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+
+    Returns
+    -------
+    nx_muldigraph : nx.MultiDiGraph
+        An nx directed multigraph linking agents with statements
+    """
+
+    dnf_logger.info('Building directed multigraph from nested dict of '
+                    'statements')
+    nx_muldir = nx.MultiDiGraph()
+
+    for subj in nest_d:
+        if nest_d.get(subj):
+            for obj in nest_d[subj]:
+                # Check if subj-obj connection exists in dict
+                if subj is not obj and nest_d.get(subj).get(obj):
+                    # Get list of statements
+                    dds_list = nest_d[subj][obj]
+                    for stmt in dds_list:
+                        # One edge per statement
+                        # Could instead add stmt attributes like
+                        # evidence.text, suppoerted by, suppors, uuic, etc
+                        nx_muldir.add_edge(
+                            u=subj, v=obj, attr_dict={'stmt': stmt})
+    return nx_muldir
+
+
+def nx_directed_graph_from_nested_dict(nest_d):
+    """Returns a directed multigraph where each edge links a statement with
+    u=subj, v=obj, attr_dict={'stmts': stmt_list} where
+    stmt_list = nest_d[subj][obj]
+
+    nest_d : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+
+    Returns
+    -------
+    nx_muldigraph : nx.MultiDiGraph
+        An nx directed multigraph linking agents with statements
+    """
+
+    dnf_logger.info('Building directed simple graph from nested dict of '
+                    'statements')
+    nx_dir_g = nx.DiGraph()
+
+    for subj in nest_d:
+        if nest_d.get(subj):
+            for obj in nest_d[subj]:
+                # Check if subj-obj connection exists in dict
+                if subj is not obj and nest_d.get(subj).get(obj):
+                    # Add edge
+                    nx_dir_g.add_edge(u=subj,
+                                      v=obj,
+                                      attr_dict={'stmts': nest_d[subj][obj]})
+    return nx_dir_g
+
+
+def nx_undirected_graph_from_nested_dict(nest_d):
+    """Returns an undirected graph built from a nested dict of statements
+
+    nest_d : defaultdict(dict)
+        A nested dict with two or more layers
+
+    Returns
+    -------
+    nx_undir : networkx.classes.graph.Graph
+        An undirected networkx graph
+    """
+
+    nx_undir = nx.Graph()
+
+    # Create queue from nested dict
+    ndq = list(nest_d.items())
+
+    dnf_logger.info('Building undirected graph from nested dict of statements')
+    # Run until queue is empty
+    while ndq:
+        # get node u and dict d from top of queue
+        u, d = ndq.pop()
+        # Loop nodes nd and (possible) dicts nd of dict d
+        for nu, nd in d.items():
+            # Add edge u-nu if it's not a self-loop
+            if u is not nu:
+                nx_undir.add_edge(u, nu)
+            # If nd has deeper layers, put that to the queue
+            if isinstance(nd, Mapping):
+                ndq.append((nu, nd))
+
+    return nx_undir
+
+
+def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
+                                 edge_attr='correlation', use_abs_corr=False):
+    """Return a graph from a pandas sereis containing correlaton between gene A
+    and gene B, using the correlation as edge weight
+
+    corr_sr : pandas Series or DataFrame
+        Pandas Series/DataFrame containing A, B corr
+
+    source : str
+        which column to identify as source node (output is still undirected)
+
+    target : str
+        which column to identify as target nodes (output is still undirected)
+
+    edge_attr : int or str
+        Column to use for edge attributes
+    absolute : Bool
+        Use absolute value as edge weight. Otherwise magnitude is used.
+
+    Returns
+    -------
+    corr_weight_graph : nx.Graph
+        An undirected, weighted, networkx graph
+    """
+
+    # check if corr_sr is series or dataframe
+    if type(corr_sr) == pd_Series_class:
+        dnf_logger.info('Converting Pandas Series to Pandas DataFrame')
+        corr_df = pd.DataFrame(corr_sr).reset_index()
+    else:
+        corr_df = corr_sr
+
+    corr_df = corr_df.rename(
+        columns={'level_0': source, 'level_1': target, 0: edge_attr})
+
+    if use_abs_corr:
+        dnf_logger.info('Using absolute correlation values')
+        corr_df = corr_df.apply(lambda c: c.abs() if np.issubdtype(
+            c.dtype, np.number) else c)
+
+    if type(edge_attr) is list or type(edge_attr) is bool:
+        dnf_logger.warning('More than one attribute might be added to edges. '
+                           'Resulting networkx graph might not be usable as '
+                           'simple weighted graph.')
+    dnf_logger.info('Creating weighted undirected graph from network data')
+    corr_weight_graph = nx.from_pandas_dataframe(df=corr_df,
+                                                 source=source,
+                                                 target=target,
+                                                 edge_attr=edge_attr)
+    return corr_weight_graph
+
+
+def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
+    """Return a graph from a list of edges, using the correlation as weight
+
+    corr_list : list or iterator
+        Edge tuples
+
+    absolute : Bool
+        Use absolute value as edge weight. Otherwise magnitude is used.
+
+    Returns
+    -------
+    corr_weight_graph : nx.Graph
+        An undirected, weighted, networkx graph
+    """
+    corr_weight_graph = nx.Graph()
+
+    if use_abs_corr:
+        dnf_logger.info('Using absolute correlation values')
+        corr_list = map(lambda t: (t[0], t[1], abs(t[2])), corr_list)
+
+    dnf_logger.info('Converting tuples to an edge bunch')
+    edge_bunch = map(lambda t: (t[0], t[1], {'weight': t[2]}), corr_list)
+
+    dnf_logger.info('Creating weighted undirected graph from network data')
+    corr_weight_graph.add_edges_from(ebunch=edge_bunch)
+
+    return corr_weight_graph
+
+
+def _read_gene_set_file(gf, data):
+    gset = []
+    with open(gf, 'rt') as f:
+        for g in f.readlines():
+            gn = g.upper().strip()
+            if gn in data:
+                gset.append(gn)
+    return gset
+
+
+def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
+                     recalc=False, lower_limit=0.3, upper_limit=1.0):
+    # Open data file
+    dnf_logger.info("Reading CERES data from %s" % ceres_file)
+    data = pd.read_csv(ceres_file, index_col=0, header=0)
+    data = data.T
+
+    if geneset_file:
+        # Read gene set to look at
+        gene_filter_list = _read_gene_set_file(gf=geneset_file, data=data)
+
+    # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
+    if not geneset_file or (geneset_file and not strict):
+        # Calculate the full correlations, or load from cached
+        if recalc:
+            dnf_logger.info("Calculating correlations (may take a long time)")
+            corr = data.corr()
+            corr.to_hdf('correlations.h5', 'correlations')
+        else:
+            dnf_logger.info("Loading correlations from %s" % corr_file)
+            corr = pd.read_hdf(corr_file, 'correlations')
+        # No gene set file, leave 'corr' intact and unstack
+        if not geneset_file:
+            fcorr_list = corr.unstack()
+
+        # Gene set file present: filter and unstack
+        elif geneset_file and not strict:
+            fcorr_list = corr[gene_filter_list].unstack()
+
+    # 3. Strict: both genes in interaction must be from loaded set;
+    #    Filter data, then calculate correlations and then unstack
+    elif geneset_file and strict:
+        fcorr_list = data[gene_filter_list].corr().unstack()
+
+    # Remove self correlation, correlations below ll, sort on magnitude,
+    # leave correlation intact
+    dnf_logger.info("Removing self correlations")
+    flarge_corr = fcorr_list[fcorr_list != 1.0] # Self correlations
+    dnf_logger.info("Filtering correlations to %.1f < C < %.1f" %
+                (lower_limit, upper_limit))
+    flarge_corr = flarge_corr[flarge_corr.abs() > lower_limit]
+    if upper_limit < 1.0:
+        flarge_corr = flarge_corr[flarge_corr.abs() < upper_limit]
+
+    # Sort by absolute value
+    dnf_logger.info("Sorting correlations by absolute value")
+    fsort_corrs = flarge_corr[
+        flarge_corr.abs().sort_values(ascending=False).index]
+
+    # Compile set of correlations to be explained without duplicates A-B, B-A
+    dnf_logger.info("Compiling deduplicated set of correlations")
+    all_hgnc_ids = set()
+    uniq_pairs = []
+    with open(outbasename+'_all_correlations.csv', 'w', newline='') as csvf:
+        wrtr = csv.writer(csvf, delimiter=',')
+        for pair in fsort_corrs.items():
+            (id1, id2), correlation = pair
+            if (id2, id1, correlation) not in uniq_pairs:
+                uniq_pairs.append((id1, id2, correlation))
+                all_hgnc_ids.update([id1, id2])
+                wrtr.writerow([id1, id2, correlation])
+    return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
+
+
 def agent_name_set(stmt):
-    """Returns the list of agent names in a statement.
+    """Return the list of agent names in a statement.
 
     stmt : :py:class:`indra.statements.Statement`
 
@@ -37,15 +309,29 @@ def agent_name_set(stmt):
     return ags
 
 
-def _uniq_evidence_count(stmt):
-    """Count the number of evidences listed.
+# ToDo: Mabye create a nested dict class instead that has a lookup method to
+# ToDo: return evidence etc?
+def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
+    """Returns a nested dict of
 
-    stmt : indra statement
-
-    Returns
+    :param hash_pair_dataframe:
+    :return:
     """
+    nest_hash_dict = defaultdict(dict)
 
-    return
+    # Row should be a mini dataframe with keys:
+    # agent_1=subj, agent_2=obj, type, hash
+    for index, row in hash_pair_dataframe.iterrows():
+        (subj, obj, stmt_type, stmt_hash) = row
+        if nest_hash_dict.get(subj) and nest_hash_dict.get(subj).get(obj):
+            # Entry subj-obj already exists and should be a list
+            nest_hash_dict[subj][obj].append((stmt_type, stmt_hash))
+        else:
+            nest_hash_dict[subj][obj] = [(stmt_type, stmt_hash)]
+        # # Add reverse direction if type is complex or selfmodification
+        # if type.lower() in ['complex', 'selfmodification']:
+        #     nest_hash_dict[obj][subj][stmt_type] = stmt_hash
+    return nest_hash_dict
 
 
 def nested_dict_gen(stmts):
@@ -75,7 +361,7 @@ def nested_dict_gen(stmts):
         if len(agent_list) > 1:
 
             # Is complex or selfmodification
-            if st.to_json()['type'].lower in ['complex', 'selfmodification']:
+            if st.to_json()['type'].lower() in ['complex', 'selfmodification']:
                 for agent, other_agent in itt.permutations(agent_list, r=2):
                     try:
                         nested_stmt_dicts[agent][other_agent].append(st)
@@ -112,6 +398,13 @@ def nested_dict_gen(stmts):
     return nested_stmt_dicts
 
 
+def dedupl_nested_dict_gen(stmts):
+    ddstmt_list = deduplicate_stmt_list(stmts=stmts, ignore_str='parent')
+    nd = nested_dict_gen(ddstmt_list)
+
+    return nd
+
+
 def deduplicate_stmt_list(stmts, ignore_str):
     """Takes a list of statements list[stmts] and runs
     indra.preassembler.Preassembler.combine_duplicate_stmts() while also
@@ -125,8 +418,10 @@ def deduplicate_stmt_list(stmts, ignore_str):
          List of preassembled statments possibly including a non-statements
     """
     # subjects should be the outer keys and objects should be the inner
-
+    
     if ignore_str in stmts:
+        dnf_logger.info('Deduplicating statements and accounting for custom '
+                        'string %s' % ignore_str)
         only_stmt_list = [s for s in stmts if type(s) is not str]
         stmts = pa_filter_unique_evidence(only_stmt_list)
         stmts += [ignore_str]
@@ -170,8 +465,7 @@ def _old_str_output(subj, obj, corr, stmts, ignore_str='parent'):
     else:
         types = relation_types(stmts)
 
-    cp_stmts = stmts.copy()
-    dedupl_stmts = deduplicate_stmt_list(cp_stmts, ignore_str)
+    dedupl_stmts = stmts.copy()
 
     types_set = set(types)
     types_sstmt = []
@@ -228,15 +522,14 @@ def str_output(subj, obj, corr, stmts, ignore_str='parent'):
     output = ''
 
     # Build up a string that shows explanations for each connection
-    output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr) + \
-             'https://depmap.org/portal/interactive/?xDataset=Avana&xFeature' \
-             '={}&yDataset=Avana&yFeature={}&colorDataset=lineage' \
-             '&colorFeature=all&filterDataset=context&filterFeature=' \
-             '&regressionLine=false&statisticsTable=false&associationTable=' \
-             'true&plotOnly=false\n'.format(subj, obj)
+    output += 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr) + \
+              'https://depmap.org/portal/interactive/?xDataset=Avana&xFeature' \
+              '={}&yDataset=Avana&yFeature={}&colorDataset=lineage' \
+              '&colorFeature=all&filterDataset=context&filterFeature=' \
+              '&regressionLine=false&statisticsTable=false&associationTable=' \
+              'true&plotOnly=false\n'.format(subj, obj)
 
-    cp_stmts = stmts.copy()
-    pa_stmts = deduplicate_stmt_list(stmts=cp_stmts, ignore_str=ignore_str)
+    pa_stmts = stmts.copy()
 
     for stmt in pa_stmts:
         output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -\n'
@@ -298,8 +591,7 @@ def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
     #          '&regressionLine=false&statisticsTable=false&associationTable=' \
     #          'true&plotOnly=false}}{{here}}'.format(subj, obj) + '\n\n'
 
-    cp_stmts = stmts.copy()
-    pa_stmts = deduplicate_stmt_list(stmts=cp_stmts, ignore_str=ignore_str)
+    pa_stmts = stmts.copy()
 
     # HERE: insert subsection A->B
     output += r'\subsection{{{A} $\rightarrow$ {B}}}'.format(A=subj, B=obj)+'\n'
