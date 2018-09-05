@@ -105,6 +105,7 @@ venv.bak/
 
 # user added files and directories
 .idea/
+JS/test_html
 *.csv
 correlations.h5
 pure_ceres_scores.dat
