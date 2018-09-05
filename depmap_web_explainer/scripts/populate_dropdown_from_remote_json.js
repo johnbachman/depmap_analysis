@@ -619,6 +619,7 @@ $(function(){
                     btn_id = b.currentTarget.dataset.id // BUTTON ID == UUID
                     // console.log("< < Executing new button click " + btn_id + " > >")
                     var stmt_json = uuid_stmtjson_dict[btn_id]
+                    console.log(stmt_json)
 
                     var ev_output_div = $("#"+btn_id)[0];
                     ev_output_div.innerHTML = null; // Delete what's already in there
@@ -627,23 +628,52 @@ $(function(){
                         // console.log("< < In stmt_json.evidence loop > >")
 
                         _pmid = stmt_json.evidence[k].pmid
+                        _api = stmt_json.evidence[k].source_api
+                        _id = stmt_json.evidence[k].source_id
+                        _text = stmt_json.evidence[k].text
 
-                        // Output for pmid link
+                        let source_api_text = "Source api: " + _api
+
+                        // Output for source link
                         let output_element_pmid = document.createElement("a")
 
-                        if (!_pmid) {
-                            output_element_pmid.href = ""
-                            output_element_pmid.textContent = "[No PubMed source]"
-                        } else {
-                            output_element_pmid.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid
-                            output_element_pmid.textContent = "[See on PubMed]"
-                        }
-                        ev_output_div.appendChild(output_element_pmid)
-
-                        // Ouput for all evidence of of current stmt
+                        // Ouput for evidence text or other when no text is present
                         let output_element_ev = document.createElement("div")
                         output_element_ev.innerHTML = null;
-                        output_element_ev.textContent = "\"" + stmt_json.evidence[k].text + "\""
+                        if (_text) {
+                            output_element_ev.textContent = "\"" + _text + "\""
+                        } else {
+                            output_element_ev.textContent = "Follow link to source."
+                        }
+
+                        // Source output cases:
+                        // PMID: link to https://www.ncbi.nlm.nih.gov/pubmed/
+                        // BIOPAX: link to stmt_json.evidence[k].source_id; link text: "See on pathway commons"
+                        // BEL: (should have PMID?)
+                        // SIGNOR: https://signor.uniroma2.it/relation_result.php?id=P15056#BRAF_MAP2K1
+
+                        // if PMID
+                        if (_pmid) {
+                            output_element_pmid.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
+                            output_element_pmid.textContent = "[See on PubMed] " + source_api_text;
+                        // no PMID
+                        } else {
+                            // if BIOPAX
+                            if (_api == "biopax" & _id) {
+                                output_element_pmid.href = _id;
+                                output_element_pmid.textContent = "[See on pathway commons] " + source_api_text;
+                            else if (_api == "signor") {
+                                output_element_pmid.href = "https://signor.uniroma2.it/";
+                                output_element_pmid.textContent = "[See on SIGNOR (don't know search query address for gene names)] " + source_api_text;
+                            }
+                            // if this shows up there is a source you haven't handled yet.
+                            } else {
+                                console.log('Unhandled source; Check statement json')
+                                // output_element_pmid.href = null;
+                                output_element_pmid.textContent = "[No source] " + source_api_text;
+                            }
+                        }
+                        ev_output_div.appendChild(output_element_pmid)
                         ev_output_div.appendChild(output_element_ev)
                     }
                 });
