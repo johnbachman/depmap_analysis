@@ -715,11 +715,10 @@ $(function(){
                                 // output_element_link.href = _id;
                                 output_element_link_hover.src = _id;
                                 output_element_link.textContent = "[See on pathway commons] " + source_api_text;
-                            else if (_api == "signor") {
+                            } else if (_api == "signor") {
                                 // output_element_link.href = "https://signor.uniroma2.it/";
                                 output_element_link_hover.src = "https://signor.uniroma2.it/";
                                 output_element_link.textContent = "[See on SIGNOR (don't know search query address for gene names)] " + source_api_text;
-                            }
                             // if this shows up there is a source you haven't handled yet.
                             } else {
                                 console.log('Unhandled source; Check statement json')
