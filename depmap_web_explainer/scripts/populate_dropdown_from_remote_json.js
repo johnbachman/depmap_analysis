@@ -674,6 +674,7 @@ $(function(){
                     btn_id = b.currentTarget.dataset.id // BUTTON ID == UUID
                     // console.log("< < Executing new button click " + btn_id + " > >")
                     var stmt_json = uuid_stmtjson_dict[btn_id]
+                    console.log(('stmt_json for button ' + btn_id))
                     console.log(stmt_json)
 
                     var ev_output_div = $("#"+btn_id)[0];
@@ -692,8 +693,6 @@ $(function(){
                         // Output for source link and MOUSE HOVER LOAD PAGE
                         let output_element_link = document.createElement("a")
                         output_element_link.class = "tiptext"
-                        let output_element_link_hover = document.createElement("iframe")
-                        output_element_link_hover.class = "description"
 
                         // Ouput for evidence text or other when no text is present
                         let output_element_ev = document.createElement("div")
@@ -708,23 +707,24 @@ $(function(){
                         // PMID: link to https://www.ncbi.nlm.nih.gov/pubmed/
                         // BIOPAX: link to stmt_json.evidence[k].source_id; link text: "See on pathway commons"
                         // BEL: (should have PMID?)
-                        // SIGNOR: https://signor.uniroma2.it/relation_result.php?id=P15056#BRAF_MAP2K1
+                        // SIGNOR: https://signor.uniroma2.it/relation_result.php?id=P15056#BRAF_MAP2K1 <-- how do we link if we don't know the id (P15056)?
 
                         // if PMID
                         if (_pmid) {
-                            // output_element_link.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
-                            output_element_link_hover.src = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
+                            output_element_link.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
+                            // HERE GRAB META DATA AND PUT INTO THE POPUP (currently the popup is jsut the link title)
+                            output_element_link.title = "Meta Data for article " + _pmid
                             output_element_link.textContent = "[See on PubMed] " + source_api_text;
                         // no PMID
                         } else {
                             // if BIOPAX
                             if (_api == "biopax" & _id) {
-                                // output_element_link.href = _id;
-                                output_element_link_hover.src = _id;
+                                output_element_link.href = _id;
+                                output_element_link.title = "Meta Data for PathwayCommons source"
                                 output_element_link.textContent = "[See on pathway commons] " + source_api_text;
                             } else if (_api == "signor") {
-                                // output_element_link.href = "https://signor.uniroma2.it/";
-                                output_element_link_hover.src = "https://signor.uniroma2.it/";
+                                output_element_link.href = "https://signor.uniroma2.it/";
+                                output_element_link.title = "Meta Data for SIGNOR source"
                                 output_element_link.textContent = "[See on SIGNOR (don't know search query address for gene names)] " + source_api_text;
                             // if this shows up there is a source you haven't handled yet.
                             } else {
@@ -734,7 +734,6 @@ $(function(){
                             }
                         }
 
-                        output_element_link.appendChild(output_element_link_hover)
                         ev_output_div.appendChild(output_element_link)
                         ev_output_div.appendChild(output_element_ev)
                     }
