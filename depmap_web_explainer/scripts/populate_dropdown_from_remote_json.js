@@ -11,6 +11,7 @@ $(function(){
     var select_second_gene, $select_second_gene
     var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
     var indra_english_asmb = "http://api.indra.bio:8000/assemblers/english";
+    var pubmed_fetch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
 
     // set globally accessible variables
     var old_geneA = "A"
@@ -58,6 +59,21 @@ $(function(){
             data: JSON.stringify(indra_query),
             });
         return stmts_db;
+    };
+
+    function getPubMedMETAxmlByPMID(pmid) {
+        params_dict = {'db': 'pubmed',
+            'retmode': 'xml',
+            'rettype': 'docsum',
+            'id': pmid
+        };
+        PubMedMETAxml = $.ajax({
+            url: pubmed_fetch,
+            type: "POST",
+            dataType: "xml",
+            data: params_dict,
+        });
+        return PubMedMETAxml
     };
 
     function grabJSON (url, callback) {
@@ -712,9 +728,15 @@ $(function(){
                         // if PMID
                         if (_pmid) {
                             output_element_link.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
-                            // HERE GRAB META DATA AND PUT INTO THE POPUP (currently the popup is jsut the link title)
-                            output_element_link.title = "Meta Data for article " + _pmid
                             output_element_link.textContent = "[See on PubMed] " + source_api_text;
+
+                            // HERE GRAB META DATA AND PUT INTO THE POPUP
+                            let pubmed_promise = getPubMedMETAxmlByPMID(_pmid);
+                            pubmed_promise.then(responseXML) {
+                                output_element_link.title = "Meta Data for article " + _pmid
+                            }
+                                
+                            }
                         // no PMID
                         } else {
                             // if BIOPAX
