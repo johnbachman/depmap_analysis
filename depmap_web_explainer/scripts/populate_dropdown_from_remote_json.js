@@ -601,6 +601,13 @@ $(function(){
 
                 // Update the count in the badge for A-B. A-X-B updates their badges at the level of the A-X-B functions
                 ev_counter_pointer.textContent = "Statements: " + number_of_statements.toString() // EVIDENCE SOURCE COUNT
+                if (number_of_statements == 0) {
+                    // No statements found, gray out
+                    ev_counter_pointer.style = "background-color:#6E6E6E;"
+                } else {
+                    // Statements found, set to black
+                    ev_counter_pointer.style = "background-color:#000000;"
+                }
 
                 uuid_hash_type_plain_array = [];
                 
@@ -760,6 +767,14 @@ $(function(){
 
         // Update the count of X in the badge
         x_counter_pointer.textContent = "X: " + x_array.length.toString()
+        if (x_array.length == 0) {
+            // No X found, gray out
+            x_counter_pointer.style = "background-color:#6E6E6E;"
+        } else {
+            // X found, set to black
+            x_counter_pointer.style = "background-color:#000000;"
+        }
+        
 
         // Create dropdown with all X
         $select_intermediate = $("#"+rand_id).selectize({
