@@ -599,8 +599,8 @@ $(function(){
                 output_element_stmt_count.style = "background-color:#F2F2F2;"
                 output_pointer.appendChild(output_element_stmt_count)
 
-                // Update the count in the badge; For A-X-B, create new badge and send that pointer to here at the level of the A-X-B functions
-                ev_counter_pointer.textContent = number_of_statements // EVIDENCE SOURCE COUNT
+                // Update the count in the badge for A-B. A-X-B updates their badges at the level of the A-X-B functions
+                ev_counter_pointer.textContent = "Statements: " + number_of_statements.toString() // EVIDENCE SOURCE COUNT
 
                 uuid_hash_type_plain_array = [];
                 
@@ -759,13 +759,7 @@ $(function(){
         var items = x_array.map(function(x) { return { item: x }; })
 
         // Update the count of X in the badge
-        cur_count = x_counter_pointer.textContent
-        if (isInt(cur_count)) {
-            x_counter_pointer.textContent = x_array.length
-        } else {
-            console.log('Could not interpret badge count as integer!')
-            x_counter_pointer.textContent = cur_count
-        }
+        x_counter_pointer.textContent = "X: " + x_array.length.toString()
 
         // Create dropdown with all X
         $select_intermediate = $("#"+rand_id).selectize({
