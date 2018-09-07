@@ -147,7 +147,7 @@ def main(args):
     npairs = len(uniq_pairs)
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
-    # connection type).
+    # connection type or correlation).
     #
     # directed: any A->B or B->A
     # undirected: any of complex, selfmodification, parent
@@ -155,7 +155,8 @@ def main(args):
     # x_is_downstream: A->X<-B
     # x_is_upstream: A<-X->B
     #
-    # d[subj][obj] = {directed: [stmts/stmt hashes],
+    # d[subj][obj] = {correlation: float,
+    #                 directed: [stmts/stmt hashes],
     #                 undirected: [stmts/stmt hashes],
     #                 x_is_intermediary: [X],
     #                 x_is_downstream: [X],
@@ -287,9 +288,13 @@ def main(args):
         if im_found:
             im_expl_count += 1
 
-        # Make sure the connection types we didn't find are empty lists
+        # Make sure the connection types we didn't find are empty lists.
+        # Also add correlation so it can be queried for at the same time as the
+        # items for the second drop down.
         if any(found):
             for s, o in itt.permutations((id1, id2), r=2):
+                # Correlation
+                explained_nested_dict[s][o]['correlation'] = correlation
                 # Directed
                 if not _entry_exist(explained_nested_dict[s], o, 'directed'):
                     explained_nested_dict[s][o]['directed'] = []
