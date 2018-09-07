@@ -789,7 +789,7 @@ $(function(){
                                 SO = pmid_meta_dict.SO
                                 title = pmid_meta_dict.Title
 
-                                // Authors, Title, Journal Name, SO
+                                // Authors, Title, Journal Name, SO; For formatting see https://stackoverflow.com/questions/2011142/how-to-change-the-style-of-the-title-attribute-inside-an-anchor-tag
                                 output_element_link.title = authors + ", \"" + title + "\", " + journal + ", " + SO
                             });
                         // no PMID
