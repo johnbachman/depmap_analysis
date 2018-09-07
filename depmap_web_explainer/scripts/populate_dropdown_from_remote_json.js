@@ -127,14 +127,16 @@ $(function(){
     });
 
     $select_second_gene = $("#select_second_gene").selectize({
-        valueField: "second_item",
+        // valueField: "second_item",
+        valueField: "correlation",
         labelField: "second_item",
         searchField: ["second_item"],
 
         // A single field or an array of fields to sort by.
         sortField: {
-            field: "second_item",
-            direction: "asc" 
+            // field: "second_item",
+            field: "correlation",
+            direction: "asc"
         },
 
         onChange: function(value) {
@@ -202,7 +204,7 @@ $(function(){
                     if (isNumeric(correlation_AB)) {
                         correlation_output_element.textContent = geneA + ", " + geneB + ", " + parseFloat(correlation_AB).toFixed(4).toString() // DECIMAL PLACES IN CORRELATION
                     } else {
-                        // When we don't have the correation; If it happens, you probably need to update the correlation jsons
+                        // When we don't have the correlation; If it happens, you probably need to update the correlation jsons
                         console.log('Correlation is not a valid number!')
                         correlation_output_element.textContent = geneA + ", " + geneB + ", (not available)"
                     }
@@ -578,7 +580,8 @@ $(function(){
                     var second_json = $.ajax({
                         url: second_dd_address,
                         success: function(results) {
-                            var second_items = results.map(function(x) { return {second_item: x }; })
+                            // var second_items = results.map(function(x) { return {second_item: x}; })
+                            var second_items = results.map(function(x) { return {second_item: x[0] + ": " + parseFloat(x[1]).toFixed(3).toString() , correlation: parseFloat(x[1]).toFixed(5) }; })
                             select_second_gene.enable();
                             callback(second_items);
                         },
