@@ -174,7 +174,7 @@ $(function(){
 
             // Get the current selections
             geneA = document.getElementById("select_first_gene").value;
-            geneB = document.getElementById("select_second_gene").value;
+            geneB = document.getElementById("select_second_gene").textContent.split(":")[0];
 
             // Set adresses
             var geneA_is_subj_expl_address = s3_prefix + s3_subj_expl + geneA + "_is_subj.json";
@@ -581,7 +581,7 @@ $(function(){
                         url: second_dd_address,
                         success: function(results) {
                             // var second_items = results.map(function(x) { return {second_item: x}; })
-                            var second_items = results.map(function(x) { return {second_item: x[0] + ": " + parseFloat(x[1]).toFixed(3).toString() , correlation: parseFloat(x[1]).toFixed(5) }; })
+                            var second_items = results.map(function(x) { return {second_item: x[0] + ": " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: x[1] }; })
                             select_second_gene.enable();
                             callback(second_items);
                         },
