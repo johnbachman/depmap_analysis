@@ -48,9 +48,11 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
 
     dnf_logger.info('Dumping node neighbor dicts to "%s'
                     'neighbors_to_NODENAME.json"' % path_prefix)
-
     for node in expl_undir_graph.nodes:
-        nnnl = list(expl_undir_graph[node])
+        nnnl = []
+        for other_node in expl_undir_graph[node]:
+            inner_dict = expl_undir_graph[node][other_node]
+            nnnl.append([other_node, inner_dict['attr_dict']['correlation']])
         _dump_it_to_json(fname=path_prefix+'neighbors_to_%s.json' % node,
                          pyobj=nnnl)
     dnf_logger.info('Finished dumping node neighbor dicts to %s' % path_prefix)
@@ -114,7 +116,9 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
 
     Three layers:
 
-        d[subj][obj] = {direct: [stmts/stmt hashes],
+        d[subj][obj] = {correlation: float
+                        directed: [stmts/stmt hashes],
+                        undirected: [stmts/stmt hashes],
                         x_is_intermediary: [X],
                         x_is_downstream: [X],
                         x_is_upstream: [X]}
