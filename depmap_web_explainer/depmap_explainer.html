@@ -6,13 +6,9 @@
 <!--     <link href="static/style.css" rel="stylesheet" type="text/css" /> -->
 
     <!-- LINKS -->
-     <script
-  src="https://code.jquery.com/jquery-3.3.1.min.js"
-  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-  crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.bootstrap3.css">
-
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
 
     <!-- Optional theme -->
@@ -38,22 +34,21 @@
 <body>
     <div class="container">
     <div class="jumbotron">
-        <h1>INDRA Evidence Network</h1>
+        <!-- <h1>INDRA Evidence Network</h1> -->
+        <h1>INDRA DepMap Explainer</h1>
     </div>
 
     <div class="panel panel-default">
-        <div class="panel-heading">Select correlation to explain</div>
-        <p>Click on the dropdown button to access a searchable dropdown menu of HGNC gene names.</p>
-        <div class="dropdown" style="width: 520px; top: 36px; left: 0px; visibility: visible;">
+        <div class="panel-heading"><h3>Gene Selection</h3></div>
+        <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.</p>
+        <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
         <div class="control-group">
             <label for="select_first_gene"></label>
             <select id="select_first_gene" class="demo-default" placeholder="Select a gene..."></select>
         </div>
         </div>
 
-    <div class="panel panel-default">
-        <p>Select a gene correlated with the first one</p>
-        <div class="dropdown" style="width: 520px; top: 36px; left: 0px; bottom-margin: 1000px; visibility: visible;">
+        <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
         <div class="control-group">
             <label for="select_second_gene"></label>
                 <select id="select_second_gene" class="demo-default" placeholder="Select a gene..."></select>
@@ -61,22 +56,16 @@
         </div>
         
         <div id="output_A_B">
-            <h3>Selection</h3>
-            <div id="my_outputA">
-            </div>
-            <div id="my_outputB">
-            </div>
-            <h4>A, B, correlation</h4>
-            <div id="show_correlation">
-            </div>
+            <h4>Selection</h4>
+            <div id="my_outputA">Gene A:</div>
+            <div id="my_outputB">Gene B:</div>
+            <h4 id="show_correlation">Link to depmap plot for geneA vs geneB (<i>correlation</i>)</h4>
         </div>
-    </div>
-
     </div>
 
     <div class="panel panel-default">
         <div class="panel-heading">
-            <h4 id="explanations" class="panel-title">Explanations</h4>
+            <h3 id="explanations" class="panel-title">Explanations</h3>
         </div>
             <div class="panel-group">
 
