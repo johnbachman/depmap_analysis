@@ -202,11 +202,11 @@ $(function(){
                     correlation_output_element.title = "Link to depmap plot for " + geneA + " vs " + geneB
                     correlation_output_element.href = depmap1 + geneA + depmap2 + geneB + depmap3
                     if (isNumeric(correlation_AB)) {
-                        correlation_output_element.textContent = geneA + ", " + geneB + ", " + parseFloat(correlation_AB).toFixed(4).toString() // DECIMAL PLACES IN CORRELATION
+                        correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " (" + parseFloat(correlation_AB).toFixed(3).toString() + ")" // DECIMAL PLACES IN CORRELATION
                     } else {
                         // When we don't have the correlation; If it happens, you probably need to update the correlation jsons
                         console.log('Correlation is not a valid number!')
-                        correlation_output_element.textContent = geneA + ", " + geneB + ", (not available)"
+                        correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " not available."
                     }
                     correlation_output.appendChild(correlation_output_element)
                 },
