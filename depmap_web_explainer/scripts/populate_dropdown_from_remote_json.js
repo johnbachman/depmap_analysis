@@ -140,7 +140,7 @@ $(function(){
         },
 
         onChange: function(value) {
-            geneB = value
+            geneB = document.getElementById("select_second_gene").textContent.split(":")[0];
 
             // Refer to the div (or other object) where the output text should be
             let output_text = $("#my_outputB")[0];
@@ -153,7 +153,7 @@ $(function(){
 
             // Get the text from the selected item dropdown 
             // thingy.textContent = "Subject: " + subj_input.options[subj_input.selectedIndex].text
-            thingy.textContent = "Gene B: " + value
+            thingy.textContent = "Gene B: " + geneB;
 
             // Append the element to the div object
             output_text.appendChild(thingy)
