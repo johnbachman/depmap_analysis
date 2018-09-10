@@ -827,7 +827,7 @@ $(function(){
         var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer the dropdown to
         let dropdown_div = document.createElement("div");
         dropdown_div.class = "dropdown";
-        dropdown_div.style = "width: 520px; top: 36px; left: 0px; visibility: visible;";
+        dropdown_div.style = "width: 360px; top: 36px; left: 0px; visibility: visible;";
         let dropdown_ctrl_group = document.createElement("div");
         dropdown_ctrl_group.class = "control-group";
         let dropdown_label = document.createElement("label");
@@ -889,14 +889,14 @@ $(function(){
                     let SX_output_div = document.createElement("div")
                     let SX_output_header = document.createElement("h4")
                     SX_output_header.style = "background-color:#F2F2F2;"
-                    SX_output_header.textContent = geneA + ", " + x_value + ";"
+                    SX_output_header.textContent = geneA + ", " + x_value
                     SX_output_div.appendChild(SX_output_header)
                     output_pointer.appendChild(SX_output_div)
 
                     let XO_output_div = document.createElement("div")
                     let XO_output_header = document.createElement("h4")
                     XO_output_header.style = "background-color:#F2F2F2;"
-                    XO_output_header.textContent = x_value + ", " + geneB + ";"
+                    XO_output_header.textContent = x_value + ", " + geneB
                     XO_output_div.appendChild(XO_output_header)
                     output_pointer.appendChild(XO_output_div)
 
