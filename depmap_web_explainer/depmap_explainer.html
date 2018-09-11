@@ -40,7 +40,7 @@
 
     <div class="panel panel-default">
         <div class="panel-heading"><h3>Gene Selection</h3></div>
-        <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.</p>
+        <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. <br> The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.</p>
         <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
         <div class="control-group">
             <label for="select_first_gene"></label>
@@ -125,12 +125,12 @@
                         <a data-toggle="collapse" href="#collapseAXB">
                             <div id="A_AXB" style="display:inline-block;">A</div> &rarr; <div id="X_AXB" style="display:inline-block;">X</div> &rarr; <div id="B_AXB" style="display:inline-block;">B</div>
                             <span id="collapseAXB_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                            <div id="AXB_dropdown"></div>
                         </a>
                     </h4>
                     </div>
                     <div id="collapseAXB" class="panel-collapse collapse">
                         <div id="expl_A_to_X_to_B">&nbsp;
+                            <div id="AXB_dropdown"></div>
                             <div id="AX_output_AXB"></div>
                             <div id="XB_output_AXB"></div>
                         </div>
@@ -144,14 +144,15 @@
                         <a data-toggle="collapse" href="#collapseBXA">
                             <div id="B_BXA" style="display:inline-block;">B</div> &rarr; <div id="X_BXA" style="display:inline-block;">X</div> &rarr; <div id="A_BXA" style="display:inline-block;">A</div>
                             <span id="collapseBXA_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                            <div id="BXA_dropdown"></div>
-                            <div id="BX_output_BXA"></div>
-                            <div id="XA_output_BXA"></div>
                         </a>
                     </h4>
                     </div>
                     <div id="collapseBXA" class="panel-collapse collapse">
-                        <div id="expl_B_to_X_to_A">&nbsp;</div>
+                        <div id="expl_B_to_X_to_A">&nbsp;
+                            <div id="BXA_dropdown"></div>
+                            <div id="BX_output_BXA"></div>
+                            <div id="XA_output_BXA"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -162,14 +163,15 @@
                         <a data-toggle="collapse" href="#collapse_st">
                             Shared target (<div id="A_ABtoX" style="display:inline-block;">A</div> &rarr; <div id="X_ABtoX" style="display:inline-block;">X</div> &larr; <div id="B_ABtoX" style="display:inline-block;">B</div>)
                             <span id="collapse_st_X_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                            <div id="ABtoX_dropdown"></div>
-                            <div id="AX_output_ABtoX"></div>
-                            <div id="XB_output_ABtoX"></div>
                         </a>
                     </h4>
                     </div>
                     <div id="collapse_st" class="panel-collapse collapse">
-                        <div id="expl_x_is_downstream">&nbsp;</div>
+                        <div id="expl_x_is_downstream">&nbsp;
+                            <div id="ABtoX_dropdown"></div>
+                            <div id="AX_output_ABtoX"></div>
+                            <div id="XB_output_ABtoX"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -180,14 +182,15 @@
                         <a data-toggle="collapse" href="#collapse_sr">
                             Shared regulator (<div id="A_XtoAB" style="display:inline-block;">A</div> &larr; <div id="X_XtoAB" style="display:inline-block;">X</div> &rarr; <div id="B_XtoAB" style="display:inline-block;">B</div>)
                             <span id="collapse_sr_X_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                            <div id="XtoAB_dropdown"></div>
-                            <div id="AX_output_XtoAB"></div>
-                            <div id="XB_output_XtoAB"></div>
                         </a>
                     </h4>
                     </div>
                     <div id="collapse_sr" class="panel-collapse collapse">
-                        <div id="expl_x_is_upstream">&nbsp;</div>
+                        <div id="expl_x_is_upstream">&nbsp;
+                            <div id="XtoAB_dropdown"></div>
+                            <div id="AX_output_XtoAB"></div>
+                            <div id="XB_output_XtoAB"></div>
+                        </div>
                     </div>
                 </div>
 
