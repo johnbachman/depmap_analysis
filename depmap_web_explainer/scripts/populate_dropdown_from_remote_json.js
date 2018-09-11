@@ -634,7 +634,7 @@ $(function(){
                         url: second_dd_address,
                         success: function(results) {
                             // var second_items = results.map(function(x) { return {second_item: x}; })
-                            var second_items = results.map(function(x) { return {second_item: x[0] + ": " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: x[1] }; })
+                            var second_items = results.map(function(x) { return {second_item: x[0] + ": " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: Math.abs(x[1]) }; })
                             select_second_gene.enable();
                             callback(second_items);
                         },
