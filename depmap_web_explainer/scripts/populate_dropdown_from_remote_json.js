@@ -9,7 +9,8 @@ $(function(){
     var first_select_list = "https://s3.amazonaws.com/depmap-public/explainable_ids_1534216288.json";
     var select_first_gene, $select_first_gene
     var select_second_gene, $select_second_gene
-    var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
+    var indra_server_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hashes";
+    // var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
     var indra_english_asmb = "http://api.indra.bio:8000/assemblers/english";
     var pubmed_fetch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
 
@@ -300,7 +301,7 @@ $(function(){
                         output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, debug_string)
                     }
 
-                    // 'x_is_intermediary'; This is for A->X->B; B->X->A is/should be below in 'geneB_is_subj_promise'
+                    // 'x_is_intermediary'; This is for A->X->B
                     if (connection_type_list.x_is_intermediary.length > 0) {
                         var debug_string = 'output_AXB'
                         // console.log(debug_string)
@@ -674,6 +675,8 @@ $(function(){
         stmts_promise.then(function(stmt_response){
             // Get statements array (is a dict of json structures, hashes are keys)
             var stmts = stmt_response.statements
+            var subj = stmts[0].subj.name
+            var obj = stmts[0].obj.name
 
             // We could send an array of statement jsons, but then we 
             // would have to keep track of which uuid is with which statement
@@ -705,9 +708,9 @@ $(function(){
 
                 // Output statement count
                 let output_element_stmt_count = document.createElement("h4")
-                output_element_stmt_count.textContent = "Found " + number_of_statements + " statements."
+                output_element_stmt_count.textContent = "Found " + number_of_statements + " statements with " + subj + " as subject and " + obj + " as object.";
                 output_element_stmt_count.style = "background-color:#F2F2F2;"
-                source_output_pointer.appendChild(output_element_stmt_count)
+                source_output_pointer.appendChild(output_element_stmt_count);
 
                 // Update the count in the badge for A-B. A-X-B updates their badges at the level of the A-X-B functions
                 ev_counter_pointer.textContent = "Statements: " + number_of_statements.toString() // EVIDENCE SOURCE COUNT
@@ -877,27 +880,24 @@ $(function(){
 
     // Use this function for s-X-o (same for all four) the query needs to be over two json lookups: SUBJ_is_subj and OBJ_is_obj
     function output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
-        // let dropdown_div = dd_div;
-        // dd_id = dropdown_div.id;
-        let dropdown_div = document.createElement("div")
-        dd_id = output_pointer.id;
-        console.log(("dd_id: " + dd_id))
-        dropdown_div.id = dd_id;
+        let dropdown_div = dd_div;
+        var dd_id = dropdown_div.id;
+        var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer to the dropdown
         dropdown_div.class = "dropdown";
         dropdown_div.style = "width: 360px; top: 36px; left: 0px; visibility: visible;";
         let dropdown_ctrl_group = document.createElement("div");
         dropdown_ctrl_group.class = "control-group";
         let dropdown_label = document.createElement("label");
-        dropdown_label.for = dd_id;
+        dropdown_label.for = rand_id;
         let dropdown_select = document.createElement("select");
-        dropdown_select.id = dd_id;
+        dropdown_select.id = rand_id;
         dropdown_select.class = "demo-default";
         dropdown_select.placeholder = "Select gene X...";
 
         dropdown_ctrl_group.appendChild(dropdown_label)
         dropdown_ctrl_group.appendChild(dropdown_select)
         dropdown_div.appendChild(dropdown_ctrl_group)
-        output_pointer.appendChild(dropdown_div)
+        // output_pointer.appendChild(dropdown_div)
         
         var items = x_array.map(function(x) { return { item: x }; })
 
@@ -913,7 +913,7 @@ $(function(){
         
 
         // Create dropdown with all X
-        $select_intermediate = $("#"+dd_id).selectize({
+        $select_intermediate = $("#"+rand_id).selectize({
             options: items,
             valueField: "item",
             labelField: "item",
@@ -925,7 +925,8 @@ $(function(){
                 direction: "asc" 
             },
 
-            // On select: Query A-X and B-X and output the english statements and their evidence
+            // On select/change: Query A-X and B-X and output the english statements and their evidence
+            // Also clear the output area so that a fresh one can be sent once a new X is selected
             onChange: function(x_value) {
                 if (!x_value.length) return;
                 two_promises = [];
@@ -942,24 +943,29 @@ $(function(){
                     let SX_fake_x_counter = document.createElement("div")
                     let XO_fake_x_counter = document.createElement("div")
 
-                    // Create <div>s for both outputs
+                    // null the output area and create new <div>s for both outputs
+                    // A-X OUTPUT
+                    SX_output_pointer.innerHTML = null;
                     let SX_output_div = document.createElement("div")
                     let SX_output_header = document.createElement("h4")
                     SX_output_header.style = "background-color:#F2F2F2;"
                     SX_output_header.textContent = geneA + ", " + x_value
                     SX_output_div.appendChild(SX_output_header)
-                    output_pointer.appendChild(SX_output_div)
-
+                    SX_output_pointer.appendChild(SX_output_div)
+                    output_pointer.appendChild(SX_output_pointer)
+                    // X-B OUTPUT
+                    XO_output_pointer.innerHTML = null;
                     let XO_output_div = document.createElement("div")
                     let XO_output_header = document.createElement("h4")
                     XO_output_header.style = "background-color:#F2F2F2;"
                     XO_output_header.textContent = x_value + ", " + geneB
                     XO_output_div.appendChild(XO_output_header)
-                    output_pointer.appendChild(XO_output_div)
+                    XO_output_pointer.appendChild(XO_output_div)
+                    output_pointer.appendChild(XO_output_pointer)
 
                     // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string)
-                    output_directs(SX_output_div, SX_output_pointer, SX_fake_x_counter, geneA_lookup[x_value], debug_string)
-                    output_directs(XO_output_div, XO_output_pointer, XO_fake_x_counter, geneB_lookup[x_value], debug_string)
+                    output_directs(SX_output_pointer, SX_output_div, SX_fake_x_counter, geneA_lookup[x_value], debug_string)
+                    output_directs(XO_output_pointer, XO_output_div, XO_fake_x_counter, geneB_lookup[x_value], debug_string)
 
                 });
             }
