@@ -52,12 +52,15 @@ $(function(){
     };
 
     function getStatementByHash(indra_query) {
+        var api_key = document.getElementById("api_key_input").value;
+        console.log(("api key: " + api_key))
         stmts_db = $.ajax({
             url: indra_server_addr,
             type: "POST",
             dataType: "json",
             contentType: "application/json",
             data: JSON.stringify(indra_query),
+            headers: {"x-api-key": api_key},
             });
         return stmts_db;
     };
@@ -966,11 +969,8 @@ $(function(){
                     // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string)
                     output_directs(SX_output_pointer, SX_output_div, SX_fake_x_counter, geneA_lookup[x_value], debug_string)
                     output_directs(XO_output_pointer, XO_output_div, XO_fake_x_counter, geneB_lookup[x_value], debug_string)
-
                 });
             }
         })
-
     } // Closes the output_intermediary_new function bracket
-
 }); // This closes the load everything bracket
