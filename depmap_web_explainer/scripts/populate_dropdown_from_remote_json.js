@@ -21,6 +21,15 @@ $(function(){
     var geneB = "B"
     // var uuid_stmtjson_dict = {}; // used for buttons to be able to access resolved evidence etc
 
+    function allAreComplex(stmts) {
+        for (hash of Object.keys(stmts)) {
+            if (stmts[hash].type != "Complex") {
+                return false;
+            }
+        }
+        return true;
+    }
+
     function sortByCol(arr, colIndex){
         arr.sort(sortFunction)
         function sortFunction(a, b) {
@@ -54,13 +63,13 @@ $(function(){
     function getStatementByHash(indra_query) {
         var api_key = document.getElementById("api_key_input").value;
         console.log(("api key: " + api_key))
+        _url = indra_server_addr + "?api-key=" + api_key;
         stmts_db = $.ajax({
-            url: indra_server_addr,
+            url: _url,
             type: "POST",
             dataType: "json",
             contentType: "application/json",
             data: JSON.stringify(indra_query),
-            headers: {"x-api-key": api_key},
             });
         return stmts_db;
     };
@@ -277,8 +286,8 @@ $(function(){
                         // Get reference to the text badge so we can output evidence count
                         var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
 
-                        // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string)
-                        output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, debug_string)
+                        // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
+                        output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
                     }
 
                     // if connection directed
@@ -300,8 +309,8 @@ $(function(){
                         // Get reference to the text badge so we can output evidence count
                         var AB_ev_count = document.getElementById("collapseAB_ev_count");
 
-                        // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string)
-                        output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, debug_string)
+                        // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
+                        output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
                     }
 
                     // 'x_is_intermediary'; This is for A->X->B
@@ -433,8 +442,8 @@ $(function(){
                             // Get reference to the text badge so we can output evidence count
                             var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
 
-                            // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string)
-                            output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, debug_string)
+                            // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
+                            output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string)
                         }
                     }
 
@@ -457,8 +466,8 @@ $(function(){
                         collapseAB_ev_count
                         var BA_ev_count = document.getElementById("collapseBA_ev_count");
 
-                        // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string)
-                        output_directs(output_BA, output_BA_BA, BA_ev_count, connection_type_list.directed, debug_string)
+                        // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
+                        output_directs(output_BA, output_BA_BA, BA_ev_count, connection_type_list.directed, geneB, geneA, debug_string)
                     }
 
                     // 'x_is_intermediary'; B->X->A
@@ -659,13 +668,11 @@ $(function(){
     });
 
     // Function for quering and outputting plain english description and statement evidence with PMIDs
-    function output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string){
+    function output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string){
         // console.log("< < Entering new output_directs call > >")
 
         // Create array to store each statement hash
         var hash_list = [];
-
-        // debugger; // type_hash_array
 
         // type_hash_array contains [["type1", hash1], ["type2", hash2], ...]
         for (let i = 0; i < type_hash_array.length; i++) {
@@ -676,10 +683,18 @@ $(function(){
         let stmts_promise = getStatementByHash(hash_query)
         
         stmts_promise.then(function(stmt_response){
-            // Get statements array (is a dict of json structures, hashes are keys)
+            console.log("stmt_response");
+            console.log(stmt_response);
+
+            // statements is a dict keyed by hashes: {hash: stmt_json, ...}
             var stmts = stmt_response.statements
-            var subj = stmts[0].subj.name
-            var obj = stmts[0].obj.name
+
+            var subj_obj_string = ""
+            if (allAreComplex(stmts) & hash_list.length > 0) {
+                subj_obj_string = " statements with " + subj + " and " + obj + " in a complex.";
+            } else {
+                subj_obj_string = " statements with " + subj + " as subject and " + obj + " as object.";
+            }
 
             // We could send an array of statement jsons, but then we 
             // would have to keep track of which uuid is with which statement
@@ -711,7 +726,7 @@ $(function(){
 
                 // Output statement count
                 let output_element_stmt_count = document.createElement("h4")
-                output_element_stmt_count.textContent = "Found " + number_of_statements + " statements with " + subj + " as subject and " + obj + " as object.";
+                output_element_stmt_count.textContent = "Found " + number_of_statements + subj_obj_string;
                 output_element_stmt_count.style = "background-color:#F2F2F2;"
                 source_output_pointer.appendChild(output_element_stmt_count);
 
@@ -881,7 +896,7 @@ $(function(){
         })
     } // Closes the output_directs function bracket
 
-    // Use this function for s-X-o (same for all four) the query needs to be over two json lookups: SUBJ_is_subj and OBJ_is_obj
+    // Use this function for A-X-B (same for all four) the query needs to be over two json lookups: SUBJ_is_subj and OBJ_is_obj
     function output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
         let dropdown_div = dd_div;
         var dd_id = dropdown_div.id;
@@ -952,7 +967,7 @@ $(function(){
                     let SX_output_div = document.createElement("div")
                     let SX_output_header = document.createElement("h4")
                     SX_output_header.style = "background-color:#F2F2F2;"
-                    SX_output_header.textContent = geneA + ", " + x_value
+                    SX_output_header.textContent = geneA + ", " + x_value;
                     SX_output_div.appendChild(SX_output_header)
                     SX_output_pointer.appendChild(SX_output_div)
                     output_pointer.appendChild(SX_output_pointer)
@@ -961,14 +976,14 @@ $(function(){
                     let XO_output_div = document.createElement("div")
                     let XO_output_header = document.createElement("h4")
                     XO_output_header.style = "background-color:#F2F2F2;"
-                    XO_output_header.textContent = x_value + ", " + geneB
+                    XO_output_header.textContent = x_value + ", " + geneB;
                     XO_output_div.appendChild(XO_output_header)
                     XO_output_pointer.appendChild(XO_output_div)
                     output_pointer.appendChild(XO_output_pointer)
 
-                    // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, debug_string)
-                    output_directs(SX_output_pointer, SX_output_div, SX_fake_x_counter, geneA_lookup[x_value], debug_string)
-                    output_directs(XO_output_pointer, XO_output_div, XO_fake_x_counter, geneB_lookup[x_value], debug_string)
+                    // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
+                    output_directs(SX_output_pointer, SX_output_div, SX_fake_x_counter, geneA_lookup[x_value], geneA, x_value, debug_string)
+                    output_directs(XO_output_pointer, XO_output_div, XO_fake_x_counter, geneB_lookup[x_value], x_value, geneB, debug_string)
                 });
             }
         })
