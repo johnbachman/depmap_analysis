@@ -31,7 +31,7 @@
                 return;
             // nothing entered
             } else {
-                console.log("You entered a key!")
+                console.log("document.getElementById(\"api_key_input\").value: " + document.getElementById("api_key_input").value);
                 ensure_user.textContent = "Key stored: " + key_value;
             }
         }
@@ -53,7 +53,7 @@
         <div class="panel-heading"><h4>API key</h4></div>
         <form name="apiKeyForm" action="javascript:keySubmit(api_key_input.value)">
             If no key is provided, evidence text output might be limited. Links to source material will always be provided.<br>
-            <input type="text" name="api_key" id="api_key_input" value="Enter key here..." style="width: 360px;">
+            <input type="text" name="api_key" id="api_key_input" placeholder="Enter key here..." style="width: 360px;">
             <input type="submit" name="store_button" value="submit key">
             <div id="ensure_user_on_api_key">No key given.</div>
         </form>
@@ -61,7 +61,7 @@
 
     <div class="panel panel-default">
         <div class="panel-heading"><h3>Gene Selection</h3></div>
-        <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>.<br><br>The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.</p>
+        <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.<br><br><i>NOTE: Complexes are treated as undirected connections (i.e. there is no subject and object) and may appear in the output for intermediary connections of the type A-X-B.</i></p>
         <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
         <div class="control-group">
             <label for="select_first_gene"></label>
