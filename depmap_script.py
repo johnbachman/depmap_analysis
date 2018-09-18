@@ -1,9 +1,10 @@
+import os
 import csv
 import json
 import logging
 import pandas as pd
 import pickle as pkl
-from time import time
+from time import time, strftime
 import networkx as nx
 import argparse as ap
 import itertools as itt
@@ -44,6 +45,16 @@ def _dump_it_to_csv(fname, pyobj, separator=','):
         wrtr.writerows(pyobj)
 
 
+def _pickle_open(file_path_to_pickle):
+    with open(file_path_to_pickle, 'rb') as pi:
+        return pkl.load(file=pi)
+
+
+def _json_open(file_path_to_json):
+    with open(file_path_to_json, 'r') as jo:
+        return json.load(fp=jo)
+
+
 def _is_float(n):
     if type(n) is float64 or type(n) is float:
         return True
@@ -77,6 +88,14 @@ def main(args):
                              args.unique_depmap_pairs, args.recalc, args.ll,
                              args.ul)
 
+    # Get dict of {hash: belief score}
+    belief_dict = None  # ToDo use api to query belief scores if not loaded
+    if args.belief_score_dict:
+        if args.belief_score_dict.endswith('.json'):
+            belief_dict = _json_open(args.belief_score_dict)
+        elif args.belief_score_dict.endswith('.pkl'):
+            belief_dict = _pickle_open(args.belief_score_dict)
+
     # Get statements from file or from database that contain any gene from
     # provided list as set unless you're already loading a pre-calculated
     # nested dict and/or precalculated directed graph.
@@ -84,7 +103,7 @@ def main(args):
     if not (args.light_weight_stmts or args.nested_dict_in):
         if args.statements_in:  # Get statments from file
             stmts_all = set(ac.load_statements(args.statements_in))
-        # Use api to get statements._NOT_ the same as querying for each ID
+        # Use api to get statements. _NOT_ the same as querying for each ID
         else:
             if args.geneset_file:
                 stmts_all = dnf.dbc_load_statements(gene_filter_list)
@@ -106,14 +125,15 @@ def main(args):
         with open(args.nested_dict_in, 'rb') as rpkl:
             nested_dict_statements = pkl.load(rpkl)
     else:
-        nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all)
+        nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
+                                                            belief_dict)
         if args.nested_dict_out:
-            with open(args.nested_dict_out, 'wb') as wpkl:
-                pkl.dump(obj=nested_dict_statements, file=wpkl)
+            _dump_it_to_pickle(fname=args.nested_dict_out,
+                               pyobj=nested_dict_statements)
 
     # Get undirected graph from nested dict
     undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
-        nest_d=nested_dict_statements)
+        nest_d=nested_dict_statements, belief_dict=belief_dict)
     undir_node_set = set(undir_nx_graph.nodes)
 
     # Get directed simple graph
@@ -122,11 +142,11 @@ def main(args):
             nx_dir_graph = pkl.load(rpkl)
     else:
         nx_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
-            nest_d=nested_dict_statements)
+            nest_d=nested_dict_statements, belief_dict=belief_dict)
         # Save as pickle file
         if args.directed_graph_out:
-            with open(args.directed_graph_out, 'wb') as pklout:
-                pkl.dump(obj=nx_dir_graph, file=pklout)
+            _dump_it_to_pickle(fname=args.directed_graph_out,
+                               pyobj=nx_dir_graph)
     dir_node_set = set(nx_dir_graph.nodes)
 
     # Loop through the unique pairs
@@ -146,11 +166,11 @@ def main(args):
     # x_is_upstream: A<-X->B
     #
     # d[subj][obj] = {correlation: float,
-    #                 directed: [stmts/stmt hashes],
-    #                 undirected: [stmts/stmt hashes],
-    #                 x_is_intermediary: [X],
-    #                 x_is_downstream: [X],
-    #                 x_is_upstream: [X]}
+    #                 directed: [(stmt/stmt hash, belief score)],
+    #                 undirected: [(stmt/stmt hash, belief score)],
+    #                 x_is_intermediary: [(X, belief score)],
+    #                 x_is_downstream: [(X, belief score)],
+    #                 x_is_upstream: [(X, belief score)]}
     #
     # Then in javascript you can for example do:
     # if SUBJ_is_subj_dict.obj.direct.length <-- should return zero if []
@@ -365,8 +385,11 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', action="count",
                         help='increase output verbosity (e.g., -vv is more '
                              'than -v)')
+    parser.add_argument('-b', '--belief-score-dict', help='Load a dict with '
+        'stmt hash: belief score to be incorporated in the explainable '
+        'network dict.')
     parser.add_argument('-dgi', '--directed-graph-in', help='Load a'
-        'precalculated directed graph of indra subjec/object network.')
+        'precalculated directed graph of indra subject/object network.')
     parser.add_argument('-dgo', '--directed-graph-out', help='Save the '
         'calculated directed graph of the indra statement network.')
     parser.add_argument('-ndi', '--nested-dict-in', help='Load precalculated '
@@ -392,7 +415,9 @@ if __name__ == '__main__':
 
     with open('dep_map_script_log{}.log'.format(str(int(time()))), 'w',
               newline='\n') as f:
+        f.write('Created on {}\n'.format(strftime('%Y %b %d, %H:%M:%S')))
+        f.write('Execution path: {}\n\n'.format(os.getcwd()))
         f.write('Command line option - value\n')
         for arg in vars(a):
-            f.write('{} - {}\n'.format(arg, getattr(a, arg)))
+            f.write('{} : {}\n'.format(arg, getattr(a, arg)))
     main(a)
