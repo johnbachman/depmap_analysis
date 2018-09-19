@@ -193,8 +193,11 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d, belief_dict):
     return nx_dir_g
 
 
-def nx_undirected_graph_from_nested_dict(nest_d, belief_dict):
+def nx_undirected_graph_from_nested_dict(nest_d):
     """Returns an undirected graph built from a nested dict of statements
+
+    Use this function to build a simple undirected graph. Suitable when the
+    goal is to generate a node-edge graph for plain visualization.
 
     nest_d : defaultdict(dict)
         A nested dict with two or more layers
@@ -202,21 +205,8 @@ def nx_undirected_graph_from_nested_dict(nest_d, belief_dict):
     Returns
     -------
     nx_undir : networkx.classes.graph.Graph
-        An undirected networkx graph
+        An undirected, unweighted networkx graph
     """
-
-    if not belief_dict:
-        dnf_logger.warning('API belief score checkup is not implemented yet')
-        pass  # ToDo connect to API, calculate belief or use stmt belief
-
-    # Flag to check if the statement dict has belief score in it or not
-    has_belief = False
-    for k1, d1 in nest_d.items():
-        for k2, v in d1.items():
-            if len(v) == 3:
-                has_belief = True
-            break
-
 
     nx_undir = nx.Graph()
 
@@ -233,8 +223,6 @@ def nx_undirected_graph_from_nested_dict(nest_d, belief_dict):
             # Add edge u-v if it's not a self-loop
             if u is not v:
                 nx_undir.add_edge(u, v)
-                if belief_dict and not has_belief:
-                    pdb.set_trace()  # ToDo get hash --> get belief score
             # If nd has deeper layers, put that to the queue
             if isinstance(nd, Mapping):
                 ndq.append((v, nd))
