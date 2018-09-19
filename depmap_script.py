@@ -12,6 +12,7 @@ from numpy import float64
 from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
+from depmap_network_functions import nest_dict
 
 logger = logging.getLogger('depmap_script')
 
