@@ -132,9 +132,9 @@ def main(args):
                                pyobj=nested_dict_statements)
 
     # Get undirected graph from nested dict
-    undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
-        nest_d=nested_dict_statements, belief_dict=belief_dict)
-    undir_node_set = set(undir_nx_graph.nodes)
+    # undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
+    #     nest_d=nested_dict_statements)
+    # undir_node_set = set(undir_nx_graph.nodes)
 
     # Get directed simple graph
     if args.directed_graph_in:
