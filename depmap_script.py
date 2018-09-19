@@ -239,10 +239,29 @@ def main(args):
                     if args.verbosity:
                         logger.info('Found directed path of length 2 '
                                     'between %s and %s' % (subj, obj))
+                    # Add rank score to [X]
+                    dir_path_nodes_wb = []
+                    for x_node in dir_path_nodes:
+                        ax_stmts = nested_dict_statements[subj][x_node]
+                        xb_stmts = nested_dict_statements[x_node][obj]
+                        ax_score = 0
+                        xb_score = 0
+
+                        for typ, hsh, bs in ax_stmts:
+                            ax_score = max(bs, ax_score)
+                        for typ, hsh, bs in xb_stmts:
+                            xb_score = max(bs, xb_score)
+
+                        # Score by weighting by number of statements of the
+                        x_rank = (len(ax_stmts)*ax_score +
+                                  len(xb_stmts*xb_score)) / \
+                                 (len(ax_stmts) + len(xb_stmts))
+                        dir_path_nodes_wb = [(x_node, x_rank)]
+
                     explained_nested_dict[subj][obj]['x_is_intermediary']\
-                        = dir_path_nodes
+                        = dir_path_nodes_wb
                     stmt_tuple = (subj, obj, correlation, 'pathway',
-                                  dir_path_nodes)
+                                  dir_path_nodes_wb)
                     explained_pairs.append(stmt_tuple)
                     if correlation < 0:
                         explained_neg_pairs.append(stmt_tuple)
