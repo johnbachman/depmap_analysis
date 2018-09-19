@@ -116,17 +116,74 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
     return nx_muldir
 
 
-def nx_directed_graph_from_nested_dict_3layer(nest_d, belief_dict):
-    """Returns a directed graph where each edge links a statement with
-    u=subj, v=obj, attr_dict={'connection_type': [stmt hashes/X]
+def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
+    """Returns a directed graph from a two layered nested dictionary
 
-    The nested dict should have two or three layers:
-
-    Two layers:
+    Nested dictionary
 
         d[subj][obj] = [stmts/stmt hashes]
 
-    Three layers:
+
+
+    :param nest_d:
+    :param belief_dict:
+    :return:
+    """
+
+    dnf_logger.info('Building directed simple graph from two layered nested '
+                    'dict.')
+    nx_dir_g = nx.DiGraph()
+
+    if not belief_dict:
+        dnf_logger.info('No Belief Score dictionary provided')
+        dnf_logger.warning('API belief score checkup is not implemented yet')
+        pass  # ToDo connect to API, calculate belief or use stmt belief
+
+    # Flag to check if the statement dict has belief score in it or not
+    has_belief = False
+    for k1, d1 in nest_d.items():
+        for k2, v in d1.items():
+            for tups in v:
+                # Has to be (type, hash) or (type, hash, belief score)
+                try:
+                    assert len(tups) == 2 or len(tups) == 3
+                except AssertionError:
+                    pdb.set_trace()  # Check what tups is
+                if len(tups) == 3:
+                    has_belief = True
+                break
+
+    for subj in nest_d:
+        if nest_d.get(subj):
+            for obj in nest_d[subj]:
+                # Check if subj-obj connection exists in dict
+                if subj is not obj and nest_d.get(subj).get(obj):
+                    # Add edge
+                    inner_obj = nest_d[subj][obj]
+                    inner_obj_b = []
+                    if not has_belief:
+                        for typ, hsh in inner_obj:
+                            try:
+                                bs = belief_dict[str(hsh)]
+                            except KeyError:
+                                dnf_logger.warning('No entry found in belief '
+                                                   'dict for hash %s' %
+                                                   str(hsh))
+                                bs = 1
+                            t = (typ, hsh, bs)
+                            inner_obj_b.append(t)
+                    else:
+                        inner_obj_b = inner_obj
+                    nx_dir_g.add_edge(u_of_edge=subj,
+                                      v_of_edge=obj,
+                                      attr_dict={'stmts': inner_obj_b})
+    return nx_dir_g
+
+
+def nx_directed_graph_from_nested_dict_3layer(nest_d):
+    """Returns a directed graph from a three layered nested dictionary
+
+    Form of nested dictionary
 
         d[subj][obj] = {correlation: float
                         directed: [stmts/stmt hashes],
@@ -136,60 +193,28 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d, belief_dict):
                         x_is_upstream: [X]}
 
     nest_d : defaultdict(dict)
-        Nested dict of statements: nest_d[subj][obj][type]
+        Nested dict of statements: nest_d[subj][obj] = {attr_dict}
 
     Returns
     -------
-    nx_muldigraph : nx.MultiDiGraph
-        An nx directed multigraph linking agents with statements
+    nx_digraph : nx.DiGraph
+        An nx directed graph linking agents with statements and
     """
 
-    dnf_logger.info('Building directed simple graph from nested dict.')
+    dnf_logger.info('Building directed simple graph from three layered nested '
+                    'dict.')
     nx_dir_g = nx.DiGraph()
-
-    if not belief_dict:
-        dnf_logger.warning('API belief score checkup is not implemented yet')
-        pass  # ToDo connect to API, calculate belief or use stmt belief
-
-    # Flag to check if the statement dict has belief score in it or not
-    has_belief = False
-    for k1, d1 in nest_d.items():
-        for k2, v in d1.items():
-            # Has to be (type, hash) or (type, hash, belief score)
-            assert len(v) == 2 or len(v) == 3
-            if len(v) == 3:
-                has_belief = True
-            break
-
 
     for subj in nest_d:
         if nest_d.get(subj):
             for obj in nest_d[subj]:
                 # Check if subj-obj connection exists in dict
                 if subj is not obj and nest_d.get(subj).get(obj):
-                    # Add edge;
-                    # If list, it's a (type, hash)
+                    # Add edge
                     inner_obj = nest_d[subj][obj]
-                    if type(inner_obj) is list:
-                        inner_obj_b = []
-                        if not has_belief:
-                            for typ, hsh in inner_obj:
-                                try:
-                                    bs = belief_dict[hsh]
-                                except KeyError:
-                                    bs = 1
-                                t = (typ, hsh, bs)
-                                inner_obj_b.append(t)
-                        else:
-                            inner_obj_b = inner_obj
-                        nx_dir_g.add_edge(u_of_edge=subj,
-                                          v_of_edge=obj,
-                                          attr_dict={'stmts': inner_obj_b})
-                    # If already dictionary set as attr_dict
-                    elif type(inner_obj) is defaultdict:
-                        nx_dir_g.add_edge(u_of_edge=subj,
-                                          v_of_edge=obj,
-                                          attr_dict=inner_obj)
+                    nx_dir_g.add_edge(u_of_edge=subj,
+                                      v_of_edge=obj,
+                                      attr_dict=inner_obj)
     return nx_dir_g
 
 
@@ -590,9 +615,10 @@ def nested_dict_gen(stmts, belief_dict):
     for st in stmts:
         # NOTE: If statement is complex, it migth have more than two agents
         # and the agents won't be distinguishable as subject,object
-
-        bs = belief_dict[st]
-
+        try:
+            bs = belief_dict[str(st)]
+        except KeyError:
+            bs = 1
         agent_list = agent_name_set(stmt=st)
 
         # It takes two agents to tango
@@ -626,8 +652,7 @@ def nested_dict_gen(stmts, belief_dict):
                             nested_stmt_dicts[agent][other_agent].append(
                                 ('parent', bs))
                     except KeyError:
-                        nested_stmt_dicts[agent][other_agent] = [('parent',
-                                                                  bs)]
+                        nested_stmt_dicts[agent][other_agent] = [('parent', bs)]
 
         # Ignore when we only have one agent
         else:
