@@ -142,7 +142,8 @@ def main(args):
         with open(args.directed_graph_in, 'rb') as rpkl:
             nx_dir_graph = pkl.load(rpkl)
     else:
-        nx_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
+        # Create directed graph from statement dict
+        nx_dir_graph = dnf.nx_directed_graph_from_nested_dict_2layer(
             nest_d=nested_dict_statements, belief_dict=belief_dict)
         # Save as pickle file
         if args.directed_graph_out:
@@ -333,14 +334,14 @@ def main(args):
                 logger.info('No explainable path found between %s and '
                             '%s.' % (id1, id2))
 
-    logger.info('-'*56)
+    logger.info('-'*63)
     logger.info('Summary:')
     logger.info('> Total unexplained: %i' % len(unexplained))
     logger.info('> Total explained: %i,' % len(explained_pairs))
     logger.info('> with %i direct and %i mediated by an intermediate node.' %
                 (dir_expl_count, im_expl_count))
     logger.info('> Total number of pairs checked: %i' % npairs)
-    logger.info('-'*56)
+    logger.info('-'*63)
 
     # Here create directed graph from explained nested dict
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
