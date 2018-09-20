@@ -123,10 +123,16 @@ def main(args):
         hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
         nested_dict_statements = dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
-        with open(args.nested_dict_in, 'rb') as rpkl:
-            nested_dict_statements = pkl.load(rpkl)
+        nested_dict_statements = _pickle_open(args.nested_dict_in)
     else:
-        nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
+        if belief_dict is None:
+            logger.warning('belief dict must be provided through the `-b ('
+                           '--belief-score-dict)` argument if no nested dict '
+                           'of statements is provided through the `-ndi ('
+                           '--nested-dict-in)` argument.')
+            raise ValueError
+        else:
+            nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
                                                             belief_dict)
         if args.nested_dict_out:
             _dump_it_to_pickle(fname=args.nested_dict_out,
