@@ -83,7 +83,7 @@ def _filter_corr_data(corr, clusters, cl_limit):
     return filtered_correlations
 
 
-def rank_nodes(node_list, nested_dict_stmts, subj, obj):
+def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
     """Returns a list of tuples of nodes and their rank score
 
     The provided node list should contain the set of nodes that connects subj
@@ -96,28 +96,64 @@ def rank_nodes(node_list, nested_dict_stmts, subj, obj):
     node_list : list[nodes]
     nested_dict_stmts : defaultdict(dict)
         Nested dict of statements: nest_d[subj][obj]
-    :param subj:
-    :param obj:
+    gene_a : str
+        HGNC name of gene A in an A-X-B connection
+    gene_b : str
+        HGNC name of gene B in an A-X-B connection
+    x_type : str
+        One of 'x_is_intermediary', 'x_is_downstream' or 'x_is_upstream'
+
+    -------
     Returns
     dir_path_nodes_wb : list[(node, rank)]
+        A list of node, rank tuples.
     """
 
-    dir_path_nodes_wb = []
-    for x_node in node_list:
-        ax_stmts = nested_dict_stmts[subj][x_node]
-        xb_stmts = nested_dict_stmts[x_node][obj]
-        ax_score = 0
-        xb_score = 0
+    def _calc_rank(nest_dict_stmts, subj_ax, obj_ax, subj_xb, obj_xb):
+        ax_stmts = nest_dict_stmts[subj_ax][obj_ax]
+        xb_stmts = nest_dict_stmts[subj_xb][obj_xb]
+        ax_score_list = []
+        xb_score_list = []
 
         # The statment with the highest belief score should
-        # represent the edge (multiple stmts per edge)
+        # represent the edge (potentially multiple stmts per edge)
         for typ, hsh, bs in ax_stmts:
-            ax_score = max(bs, ax_score)
+            ax_score_list.append(bs)
         for typ, hsh, bs in xb_stmts:
-            xb_score = max(bs, xb_score)
+            xb_score_list.append(bs)
 
-        x_rank = ax_score * xb_score
-        dir_path_nodes_wb.append((x_node, x_rank))
+        # Rank by multiplying the best two belief scores for each edge
+        rank = max(ax_score_list) * max(xb_score_list)
+
+        # No belief score should be zero, thus rank should never be zero
+        try:
+            assert rank != 0
+        except AssertionError:
+            pdb.set_trace()  # Check why rank == 0
+        return rank
+
+    dir_path_nodes_wb = []
+    if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_a, obj_ax=gene_x,
+                                subj_xb=gene_x, obj_xb=gene_b)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+
+    elif x_type is 'x_is_downstream':  # A->X<-B
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_a, obj_ax=gene_x,
+                                subj_xb=gene_b, obj_xb=gene_x)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+    elif x_type is 'x_is_upstream':  # A<-X->B
+
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_x, obj_ax=gene_a,
+                                subj_xb=gene_x, obj_xb=gene_b)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+
     return dir_path_nodes_wb
 
 
