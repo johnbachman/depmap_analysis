@@ -116,6 +116,8 @@ dep_map_script_log*
 *.png
 
 # user added directories
+neighbor_lookup/
+pre_release_Q3_depmap_20180730_db_explained_improved/
 .idea/
 JS/test_html
 depmap_web_explainer/dev/
