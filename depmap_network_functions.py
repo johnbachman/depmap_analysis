@@ -639,7 +639,7 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     return nest_hash_dict
 
 
-def nested_dict_gen(stmts, belief_dict):
+def nested_dict_gen(stmts, belief_dict=None):
     """Generates a nested dict of the form dict[key1][key2] = [statement list]
     from INDRA statements.
 
@@ -651,6 +651,12 @@ def nested_dict_gen(stmts, belief_dict):
     stmts_dict : collections.defaultdict
          dict of the form dict[subj][obj] = list[stmts]
     """
+
+    if belief_dict is None:
+        dnf_logger.warning('No belief score dict is provided! Please provide a '
+                           'belief score dict through the `-b ('
+                           '--belief-score-dict)` argument.')
+        raise ValueError
 
     nested_stmt_dicts = defaultdict(dict)
 
