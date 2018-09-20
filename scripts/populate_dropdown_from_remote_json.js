@@ -917,7 +917,7 @@ $(function(){
         dropdown_div.appendChild(dropdown_ctrl_group)
         // output_pointer.appendChild(dropdown_div)
         
-        var items = x_array.map(function(x) { return { item: x }; })
+        var items = x_array.map(function(x) { return { item: x[0], rank: x[1] }; })
 
         // Update the count of X in the badge
         x_counter_pointer.textContent = "X: " + x_array.length.toString()
@@ -933,13 +933,13 @@ $(function(){
         // Create dropdown with all X
         $select_intermediate = $("#"+rand_id).selectize({
             options: items,
-            valueField: "item",
+            valueField: "rank",
             labelField: "item",
             searchField: ["item"],
 
             // A single field or an array of fields to sort by.
             sortField: {
-                field: "item",
+                field: "rank",
                 direction: "asc" 
             },
 
