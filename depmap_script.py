@@ -21,16 +21,6 @@ logger = logging.getLogger('depmap_script')
 #    the loaded data set
 
 
-def nest_dict():
-    """Returns a nested dictionary of arbitrary depth
-
-    Returns
-    -------
-    defaultdict(nest_dict)
-    """
-    return defaultdict(nest_dict)
-
-
 def _entry_exist(nest_dict, outer_key, inner_key):
     if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
         return True
@@ -170,7 +160,7 @@ def main(args):
     # 2. dir -> undir graph -> jsons to check all corr neighbors -> 2nd dropdown
     # 3. jsons to check if connection is direct or intermediary
 
-    explained_nested_dict = nest_dict()
+    explained_nested_dict = dnf.nest_dict()
 
     # Open files to write text/latex output
     # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \

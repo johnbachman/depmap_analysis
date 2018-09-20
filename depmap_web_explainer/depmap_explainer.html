@@ -22,25 +22,46 @@
     <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
     <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js"></script>
 
+    <script type="text/javascript">
+        // Check the API key input
+        function keySubmit (key_value) {
+            var ensure_user = document.getElementById("ensure_user_on_api_key")
+            // Default value still there or nothing entered 
+            if (key_value == "No key given." | !key_value) {
+                return;
+            // nothing entered
+            } else {
+                console.log("document.getElementById(\"api_key_input\").value: " + document.getElementById("api_key_input").value);
+                ensure_user.textContent = "Key stored: " + key_value;
+            }
+        }
+    </script>
+
     <title>
-        INDRA evidence network
+        INDRA DepMap Explainer
     </title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<!-- <script type="text/javascript">
-    var subj_input = document.getElementById("select_first_gene");
-</script>
- -->
+
 <body>
     <div class="container">
     <div class="jumbotron">
-        <!-- <h1>INDRA Evidence Network</h1> -->
         <h1>INDRA DepMap Explainer</h1>
     </div>
 
     <div class="panel panel-default">
+        <div class="panel-heading"><h4>API key</h4></div>
+        <form name="apiKeyForm" action="javascript:keySubmit(api_key_input.value)">
+            If no key is provided, evidence text output might be limited. Links to source material will always be provided.<br>
+            <input type="text" name="api_key" id="api_key_input" placeholder="Enter key here..." style="width: 360px;">
+            <input type="submit" name="store_button" value="submit key">
+            <div id="ensure_user_on_api_key">No key given.</div>
+        </form>
+    </div>
+
+    <div class="panel panel-default">
         <div class="panel-heading"><h3>Gene Selection</h3></div>
-        <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. <br> The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.</p>
+        <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.<br><br><i>NOTE: Complexes are treated as undirected connections (i.e. there is no subject and object) and may appear in the output for intermediary connections of the type A-X-B.</i></p>
         <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
         <div class="control-group">
             <label for="select_first_gene"></label>
