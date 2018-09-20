@@ -132,11 +132,6 @@ def main(args):
             _dump_it_to_pickle(fname=args.nested_dict_out,
                                pyobj=nested_dict_statements)
 
-    # Get undirected graph from nested dict
-    # undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
-    #     nest_d=nested_dict_statements)
-    # undir_node_set = set(undir_nx_graph.nodes)
-
     # Get directed simple graph
     if args.directed_graph_in:
         with open(args.directed_graph_in, 'rb') as rpkl:
@@ -170,9 +165,9 @@ def main(args):
     # d[subj][obj] = {correlation: float,
     #                 directed: [(stmt/stmt hash, belief score)],
     #                 undirected: [(stmt/stmt hash, belief score)],
-    #                 x_is_intermediary: [(X, belief score)],
-    #                 x_is_downstream: [(X, belief score)],
-    #                 x_is_upstream: [(X, belief score)]}
+    #                 x_is_intermediary: [(X, belief rank)],
+    #                 x_is_downstream: [(X, belief rank)],
+    #                 x_is_upstream: [(X, belief rank)]}
     #
     # Then in javascript you can for example do:
     # if SUBJ_is_subj_dict.obj.direct.length <-- should return zero if []
@@ -239,24 +234,12 @@ def main(args):
                     if args.verbosity:
                         logger.info('Found directed path of length 2 '
                                     'between %s and %s' % (subj, obj))
-                    # Add rank score to [X]
-                    dir_path_nodes_wb = []
-                    for x_node in dir_path_nodes:
-                        ax_stmts = nested_dict_statements[subj][x_node]
-                        xb_stmts = nested_dict_statements[x_node][obj]
-                        ax_score = 0
-                        xb_score = 0
 
-                        for typ, hsh, bs in ax_stmts:
-                            ax_score = max(bs, ax_score)
-                        for typ, hsh, bs in xb_stmts:
-                            xb_score = max(bs, xb_score)
-
-                        # Score by weighting by number of statements of the
-                        x_rank = (len(ax_stmts)*ax_score +
-                                  len(xb_stmts*xb_score)) / \
-                                 (len(ax_stmts) + len(xb_stmts))
-                        dir_path_nodes_wb = [(x_node, x_rank)]
+                    dir_path_nodes_wb = dnf.rank_nodes(
+                        node_list=dir_path_nodes,
+                        nested_dict_stmts=nested_dict_statements,
+                        subj=subj,
+                        obj=obj)
 
                     explained_nested_dict[subj][obj]['x_is_intermediary']\
                         = dir_path_nodes_wb
@@ -281,15 +264,20 @@ def main(args):
             if downstream_share:
                 found.add(True)
                 im_found = True
+                downstream_share_wb = dnf.rank_nodes(
+                    node_list=downstream_share,
+                    nested_dict_stmts=nested_dict_statements,
+                    subj=id1,
+                    obj=id2)
                 stmt_tuple = (id1, id2, correlation, 'shared_target',
-                              downstream_share)
+                              downstream_share_wb)
                 if args.verbosity:
                     logger.info('Found downstream share: %s and %s share %i '
                                 'targets' % (id1, id2, len(downstream_share)))
                 explained_nested_dict[id1][id2]['x_is_downstream'] = \
-                    downstream_share
+                    downstream_share_wb
                 explained_nested_dict[id2][id1]['x_is_downstream'] = \
-                    downstream_share
+                    downstream_share_wb
                 explained_pairs.append(stmt_tuple)
                 if correlation < 0:
                     explained_neg_pairs.append(stmt_tuple)
@@ -297,16 +285,21 @@ def main(args):
             if upstream_share:
                 found.add(True)
                 im_found = True
+                upstream_share_wb = dnf.rank_nodes(
+                    node_list=upstream_share,
+                    nested_dict_stmts=nested_dict_statements,
+                    subj=id1,
+                    obj=id2)
                 stmt_tuple = (id1, id2, correlation, 'shared_upstream',
-                              upstream_share)
+                              upstream_share_wb)
                 if args.verbosity:
                     logger.info('Found upstream share: %s and %s are both'
                                 'directly downstream of %i nodes' %
                                 (id1, id2, len(upstream_share)))
                 explained_nested_dict[id1][id2]['x_is_upstream'] = \
-                    upstream_share
+                    upstream_share_wb
                 explained_nested_dict[id2][id1]['x_is_upstream'] = \
-                    upstream_share
+                    upstream_share_wb
                 explained_pairs.append(stmt_tuple)
                 if correlation < 0:
                     explained_neg_pairs.append(stmt_tuple)
@@ -316,6 +309,7 @@ def main(args):
         else:
             found.add(False)
 
+        # Count intermediate connections found
         if im_found:
             im_expl_count += 1
 
