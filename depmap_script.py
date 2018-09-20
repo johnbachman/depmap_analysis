@@ -220,7 +220,6 @@ def main(args):
                 if args.verbosity:
                     logger.info('Found direct connection between %s and %s' %
                                 (subj, obj))
-                direct = True
                 dir_expl_count += 1
                 found.add(True)
                 stmt_tuple = (subj, obj, correlation, 'direct', [])
@@ -244,8 +243,9 @@ def main(args):
                     dir_path_nodes_wb = dnf.rank_nodes(
                         node_list=dir_path_nodes,
                         nested_dict_stmts=nested_dict_statements,
-                        subj=subj,
-                        obj=obj)
+                        gene_a=subj,
+                        gene_b=obj,
+                        x_type='x_is_intermediary')
 
                     explained_nested_dict[subj][obj]['x_is_intermediary']\
                         = dir_path_nodes_wb
@@ -273,8 +273,9 @@ def main(args):
                 downstream_share_wb = dnf.rank_nodes(
                     node_list=downstream_share,
                     nested_dict_stmts=nested_dict_statements,
-                    subj=id1,
-                    obj=id2)
+                    gene_a=id1,
+                    gene_b=id2,
+                    x_type='x_is_downstream')
                 stmt_tuple = (id1, id2, correlation, 'shared_target',
                               downstream_share_wb)
                 if args.verbosity:
@@ -294,8 +295,9 @@ def main(args):
                 upstream_share_wb = dnf.rank_nodes(
                     node_list=upstream_share,
                     nested_dict_stmts=nested_dict_statements,
-                    subj=id1,
-                    obj=id2)
+                    gene_a=id1,
+                    gene_b=id2,
+                    x_type='x_is_upstream')
                 stmt_tuple = (id1, id2, correlation, 'shared_upstream',
                               upstream_share_wb)
                 if args.verbosity:
