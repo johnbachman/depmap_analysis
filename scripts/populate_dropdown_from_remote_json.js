@@ -149,7 +149,7 @@ $(function(){
         sortField: {
             // field: "second_item",
             field: "correlation",
-            direction: "asc"
+            direction: "desc"
         },
 
         onChange: function(value) {
@@ -181,7 +181,8 @@ $(function(){
             // https://s3.amazonaws.com/depmap-public/Q3_depmap_20180730_db_explained_improved/A1BG_is_subj.json
 
             let s3_prefix = "https://s3.amazonaws.com/depmap-public/";
-            let s3_subj_expl = "Q3_depmap_20180730_db_explained_improved/";
+            // let s3_subj_expl = "Q3_depmap_20180730_db_explained_improved/";
+            let s3_subj_expl = "pre_release_Q3_depmap_20180730_db_explained_improved/";
             let s3_indra_db = "indra_db_20180730_hash_json/"; // INDRA DB LOOKUP
             let s3_correlations = "correlation_pairs_above_03/correlates_with_";
 
@@ -646,7 +647,7 @@ $(function(){
                         url: second_dd_address,
                         success: function(results) {
                             // var second_items = results.map(function(x) { return {second_item: x}; })
-                            var second_items = results.map(function(x) { return {second_item: x[0] + ": " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: Math.abs(x[1]) }; })
+                            var second_items = results.map(function(x) { return {second_item: x[0] + ": correlation " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: Math.abs(x[1]) }; })
                             select_second_gene.enable();
                             callback(second_items);
                         },
@@ -917,7 +918,7 @@ $(function(){
         dropdown_div.appendChild(dropdown_ctrl_group)
         // output_pointer.appendChild(dropdown_div)
         
-        var items = x_array.map(function(x) { return { item: x[0], rank: x[1] }; })
+        var items = x_array.map(function(x) { return { x_value: x[0], item: x[0] + ": rank " + parseFloat(x[1]).toFixed(3).toString(), rank: x[1] }; })
 
         // Update the count of X in the badge
         x_counter_pointer.textContent = "X: " + x_array.length.toString()
@@ -933,14 +934,14 @@ $(function(){
         // Create dropdown with all X
         $select_intermediate = $("#"+rand_id).selectize({
             options: items,
-            valueField: "rank",
+            valueField: "x_value",
             labelField: "item",
             searchField: ["item"],
 
             // A single field or an array of fields to sort by.
             sortField: {
                 field: "rank",
-                direction: "asc" 
+                direction: "desc"
             },
 
             // On select/change: Query A-X and B-X and output the english statements and their evidence
