@@ -4,7 +4,8 @@ import logging
 import pickle as pkl
 import argparse as ap
 from time import time
-import depmap_network_functions as dnf
+from collections import defaultdict
+from depmap_network_functions import nest_dict
 
 logger = logging.getLogger('jsonDump')
 
@@ -17,10 +18,10 @@ def _dump_it_to_json(fname, pyobj):
 parser = ap.ArgumentParser()
 parser.add_argument('-p', '--pickle-file', required=True,
                     help='Pickle file containing a nested dict '
-                         'd[subj][obj][[type, hash], ...]')
+                         'd[subj][obj][[type, hash, belief score], ...]')
 parser.add_argument('-o', '--output-name',
                     help='Output base name of json files. With no input, the '
-                         'default is "indra_db_<time stamp>".',
+                         'default is "./output/indra_db_<time stamp>".',
                     default='./output/indra_db_{}_'.format(int(time())))
 
 args = parser.parse_args()
@@ -31,9 +32,9 @@ if not args.output_name.endswith('.json'):
 else:
     outbasename = args.output_name
 
-os.makedirs('./output', exist_ok=True)
-outbasename = './output/'+outbasename
-logger.info('Using baseame %s' % outbasename)
+if '/' not in outbasename:
+    os.makedirs('./output', exist_ok=True)
+logger.info('Using basename %s' % outbasename)
 
 with open(args.pickle_file, 'rb') as pr:
     nest_dict = pkl.load(file=pr)
