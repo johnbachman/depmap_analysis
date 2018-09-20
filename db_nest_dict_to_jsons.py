@@ -4,8 +4,7 @@ import logging
 import pickle as pkl
 import argparse as ap
 from time import time
-from collections import defaultdict
-from depmap_network_functions import nest_dict
+import depmap_network_functions as dnf
 
 logger = logging.getLogger('jsonDump')
 
@@ -23,12 +22,11 @@ parser.add_argument('-o', '--output-name',
                     help='Output base name of json files. With no input, the '
                          'default is "./output/indra_db_<time stamp>".',
                     default='./output/indra_db_{}_'.format(int(time())))
-
 args = parser.parse_args()
 stamp = int(time())
 
-if not args.output_name.endswith('.json'):
-    outbasename = args.output_name[-5:]  # Removes .json from basename
+if args.output_name.endswith('.json'):
+    outbasename = args.output_name[:-5]  # Removes .json from basename
 else:
     outbasename = args.output_name
 
@@ -40,7 +38,7 @@ with open(args.pickle_file, 'rb') as pr:
     nest_dict = pkl.load(file=pr)
 
 # Create nested dict
-nest_dict_out = nest_dict()
+nest_dict_out = dnf.nest_dict()
 
 # Convert hash to strings
 for s, inner_d in nest_dict.items():
@@ -48,9 +46,14 @@ for s, inner_d in nest_dict.items():
         type_hash_list = inner_d[o]
         t_h_list_out = []
 
-        for tp, hsh in type_hash_list:
-            hash_string = str(hsh)
-            t_h_list_out.append((tp, hash_string))
+        try:
+            for tp, hsh, bs in type_hash_list:
+                hash_string = str(hsh)
+                t_h_list_out.append((tp, hash_string, bs))
+        except ValueError:
+            for tp, hsh in type_hash_list:
+                hash_string = str(hsh)
+                t_h_list_out.append((tp, hash_string))
 
         nest_dict_out[s][o] = t_h_list_out
 
