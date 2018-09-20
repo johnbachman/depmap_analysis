@@ -83,6 +83,44 @@ def _filter_corr_data(corr, clusters, cl_limit):
     return filtered_correlations
 
 
+def rank_nodes(node_list, nested_dict_stmts, subj, obj):
+    """Returns a list of tuples of nodes and their rank score
+
+    The provided node list should contain the set of nodes that connects subj
+    and obj through an intermediate node found in nested_dict_stmts.
+
+    nested_dict_stmts
+
+        d[subj][obj] = [stmts/stmt hashes]
+
+    node_list : list[nodes]
+    nested_dict_stmts : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+    :param subj:
+    :param obj:
+    Returns
+    dir_path_nodes_wb : list[(node, rank)]
+    """
+
+    dir_path_nodes_wb = []
+    for x_node in node_list:
+        ax_stmts = nested_dict_stmts[subj][x_node]
+        xb_stmts = nested_dict_stmts[x_node][obj]
+        ax_score = 0
+        xb_score = 0
+
+        # The statment with the highest belief score should
+        # represent the edge (multiple stmts per edge)
+        for typ, hsh, bs in ax_stmts:
+            ax_score = max(bs, ax_score)
+        for typ, hsh, bs in xb_stmts:
+            xb_score = max(bs, xb_score)
+
+        x_rank = ax_score * xb_score
+        dir_path_nodes_wb.append((x_node, x_rank))
+    return dir_path_nodes_wb
+
+
 def nx_directed_multigraph_from_nested_dict(nest_d):
     """Returns a directed multigraph where each edge links a statement with
     u=subj, v=obj, edge_key=stmt,
@@ -123,11 +161,15 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
 
         d[subj][obj] = [stmts/stmt hashes]
 
+    nest_d : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+    belief_dict : dict()
+        dict with {hash: belief score} as key: value pairs
 
-
-    :param nest_d:
-    :param belief_dict:
-    :return:
+    Returns
+    -------
+    nx_digraph : nx.DiGraph
+        An nx directed graph with statements
     """
 
     dnf_logger.info('Building directed simple graph from two layered nested '
@@ -185,7 +227,7 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
 
     Form of nested dictionary
 
-        d[subj][obj] = {correlation: float
+        d[subj][obj] = {correlation: float,
                         directed: [stmts/stmt hashes],
                         undirected: [stmts/stmt hashes],
                         x_is_intermediary: [X],
@@ -198,7 +240,7 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
     Returns
     -------
     nx_digraph : nx.DiGraph
-        An nx directed graph linking agents with statements and
+        An nx directed graph with statements and/or connecting nodes as edges
     """
 
     dnf_logger.info('Building directed simple graph from three layered nested '
