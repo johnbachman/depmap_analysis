@@ -21,6 +21,35 @@ $(function(){
     var geneB = "B"
     // var uuid_stmtjson_dict = {}; // used for buttons to be able to access resolved evidence etc
 
+    // Output pointers
+    var output_AcB = $("#expl_A_complex_B")[0];
+    var output_ABcomplex = $("#AB_output_complex")[0];
+    var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
+
+    var output_AB = $("#expl_A_to_B")[0];
+    var output_AB_AB = $("#AB_output_AB")[0];
+    var AB_ev_count = document.getElementById("collapseAB_ev_count");
+
+    // BA
+
+    var output_AXB = $("#expl_A_to_X_to_B")[0];
+    var AXB_dd_div = $("#AXB_dropdown")[0];
+    var output_AX_AXB = $("#AX_output_AXB")[0];
+    var output_XB_AXB = $("#XB_output_AXB")[0];
+    var AXB_ev_count = document.getElementById("collapseAXB_ev_count");
+
+    // BXA
+
+    // ABx
+    var output_ABx = $('#expl_x_is_downstream')[0];
+    var ABtox_dd_div = $("#ABtoX_dropdown")[0];
+    var output_AX_ABtoX = $("#AX_output_ABtoX")[0];
+    var output_XB_ABtoX = $("#XB_output_ABtoX")[0];
+    var ABx_ev_count = document.getElementById("collapse_st_X_count");
+
+    // xAB
+
+
     function allAreComplex(stmts) {
         for (hash of Object.keys(stmts)) {
             if (stmts[hash].type != "Complex") {
@@ -171,6 +200,38 @@ $(function(){
             // Append the element to the div object
             output_text.appendChild(thingy)
 
+            // WIPE CLEAN OUTPUT AREAS AND SET COUNT BADGES TO zero HERE
+
+            // Complex AB
+            output_ABcomplex.innerHTML = null;
+            AcB_ev_count.textContent = 0;
+            // A->B
+            output_AB_AB.innerHTML = null;
+            AB_ev_count.textContent = 0;
+            // B->A
+            .innerHTML = null;
+            .textContent = 0;
+            // A->X->B
+            AXB_dd_div.innerHTML = null;
+            output_AX_AXB.innerHTML = null;
+            output_XB_AXB.innerHTML = null;
+            AXB_ev_count.textContent = 0;
+            // B->X->A
+            .innerHTML = null;
+            .innerHTML = null;
+            .innerHTML = null;
+            .textContent = 0;
+            // A<-X->B
+            .innerHTML = null;
+            .innerHTML = null;
+            .innerHTML = null;
+            .textContent = 0;
+            // A->X<-B
+            ABtox_dd_div.innerHTML = null;
+            output_AX_ABtoX.innerHTML = null;
+            output_XB_ABtoX.innerHTML = null;
+            ABx_ev_count.textContent = 0;
+
             // SET ADDRESSES TO AWS S3 DATA
             // Query of evidence for A->B
             // s3 bucket prefix string
@@ -279,13 +340,13 @@ $(function(){
                         let Bname_complex = document.getElementById("B_complex");
                         Bname_complex.textContent = geneB;
 
-                        // Reference and initialize the output pointer
-                        var output_AcB = $("#expl_A_complex_B")[0];
-                        var output_ABcomplex = $("#AB_output_complex")[0];
-                        output_ABcomplex.innerHTML = null;  
+                        // // Reference and initialize the output pointer
+                        // var output_AcB = $("#expl_A_complex_B")[0];
+                        // var output_ABcomplex = $("#AB_output_complex")[0];
+                        // output_ABcomplex.innerHTML = null;
 
                         // Get reference to the text badge so we can output evidence count
-                        var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
+                        // var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
 
                         // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
                         output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
@@ -303,12 +364,12 @@ $(function(){
                         Bname_AtoB.textContent = geneB;
 
                         // Reference and initialize the output pointer
-                        var output_AB = $("#expl_A_to_B")[0];
-                        var output_AB_AB = $("#AB_output_AB")[0];
-                        output_AB_AB.innerHTML = null;
+                        // var output_AB = $("#expl_A_to_B")[0];
+                        // var output_AB_AB = $("#AB_output_AB")[0];
+                        // output_AB_AB.innerHTML = null;
 
                         // Get reference to the text badge so we can output evidence count
-                        var AB_ev_count = document.getElementById("collapseAB_ev_count");
+                        // var AB_ev_count = document.getElementById("collapseAB_ev_count");
 
                         // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
                         output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
@@ -327,18 +388,18 @@ $(function(){
 
                         // Get pointers
                         // Full box
-                        var output_AXB = $("#expl_A_to_X_to_B")[0];
-                        // x dropdown
-                        var AXB_dd_div = $("#AXB_dropdown")[0];
-                        AXB_dd_div.innerHTML = null;
-                        // AX interactions
-                        var output_AX_AXB = $("#AX_output_AXB")[0];
-                        output_AX_AXB.innerHTML = null;
-                        // XB interactions
-                        var output_XB_AXB = $("#XB_output_AXB")[0];
-                        output_XB_AXB.innerHTML = null;
-                        // Get pointer to evidence counter
-                        var AXB_ev_count = document.getElementById("collapseAXB_ev_count");
+                        // var output_AXB = $("#expl_A_to_X_to_B")[0];
+                        // // x dropdown
+                        // var AXB_dd_div = $("#AXB_dropdown")[0];
+                        // AXB_dd_div.innerHTML = null;
+                        // // AX interactions
+                        // var output_AX_AXB = $("#AX_output_AXB")[0];
+                        // output_AX_AXB.innerHTML = null;
+                        // // XB interactions
+                        // var output_XB_AXB = $("#XB_output_AXB")[0];
+                        // output_XB_AXB.innerHTML = null;
+                        // // Get pointer to evidence counter
+                        // var AXB_ev_count = document.getElementById("collapseAXB_ev_count");
 
                         // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                         output_intermediary_new(output_AXB, output_AX_AXB, output_XB_AXB, AXB_ev_count, AXB_dd_div, connection_type_list.x_is_intermediary, geneA, geneB, geneA_is_subj_address, geneB_is_obj_address, debug_string)
@@ -440,6 +501,7 @@ $(function(){
                             var output_AcB = $("#expl_A_complex_B")[0];
                             var output_ABcomplex = $("#AB_output_complex")[0];
                             output_ABcomplex.innerHTML = null;
+
                             // Get reference to the text badge so we can output evidence count
                             var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
 
@@ -637,7 +699,8 @@ $(function(){
                 // Set second query address example:
                 // https://s3.amazonaws.com/depmap-public/prior_filtered_neighbor_lookup/neighbors_to_BRCA1.json
                 // https://s3.amazonaws.com/depmap-public/neighbor_lookup/neighbors_to_A1BG.json
-                s3_prefix = "https://s3.amazonaws.com/depmap-public/neighbor_lookup/neighbors_to_";
+                // s3_prefix = "https://s3.amazonaws.com/depmap-public/neighbor_lookup/neighbors_to_"; // OLD
+                s3_prefix = "https://s3.amazonaws.com/depmap-public/neighbor_lookup_2018sep19/neighbors_to_"; // NEW
                 var second_dd_address = s3_prefix + value + ".json"
 
                 // Query for next dropdown
