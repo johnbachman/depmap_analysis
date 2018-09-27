@@ -841,6 +841,7 @@ $(function(){
                         // BIOPAX: link to stmt_json.evidence[k].source_id; link text: "See on pathway commons"
                         // BEL: (should have PMID?)
                         // SIGNOR: https://signor.uniroma2.it/relation_result.php?id=P15056#BRAF_MAP2K1 <-- how do we link if we don't know the id (P15056)?
+                        // Check if json with SIGNOR provides alternative ids to search with...
 
                         // if PMID
                         if (_pmid) {
@@ -850,8 +851,6 @@ $(function(){
                             // HERE GRAB META DATA AND PUT INTO THE POPUP
                             let pubmed_promise = getPubMedMETAxmlByPMID(_pmid);
                             pubmed_promise.then(function(responseXML) {
-                                // console.log('responseXML')
-                                // console.log(responseXML)
                                 docsum_xml = responseXML.getElementsByTagName('DocSum')[0]
                                 pmid_meta_dict = pmidXML2dict(docsum_xml)
                                 console.log(pmid_meta_dict)
@@ -873,14 +872,17 @@ $(function(){
                         // no PMID
                         } else {
                             // if BIOPAX
-                            if (_api == "biopax" & _id) {
-                                output_element_link.href = _id;
+                            if (_api == "biopax" & _id.length > 0) {
+                                // Example for biopax source without pmid: A: A1BG B: IL18 pick X: FOXA1 in shared regulator
+                                // output_element_link.href = _id;  // LINK BROKEN
+                                output_element_link.href = "http://apps.pathwaycommons.org/search?type=Pathway&q=" + subj + "%2C%20" + obj; // Links to search for one of the two ids
                                 output_element_link.title = "Meta Data for PathwayCommons source"
                                 output_element_link.textContent = "[See on pathway commons] " + source_api_text;
                             } else if (_api == "signor") {
-                                output_element_link.href = "https://signor.uniroma2.it/";
+                                // Example of SIGNOR source without PMID: 
+                                output_element_link.href = "https://signor.uniroma2.it/"; // Don't know URL for searching by signor ID
                                 output_element_link.title = "Meta Data for SIGNOR source"
-                                output_element_link.textContent = "[See on SIGNOR (don't know search query address for gene names)] " + source_api_text;
+                                output_element_link.textContent = "[Search this on SIGNOR: " + _id + "] " + source_api_text;
                             // if this shows up there is a source you haven't handled yet.
                             } else {
                                 console.log('Unhandled source; Check statement json')
