@@ -149,7 +149,7 @@ $(function(){
         sortField: {
             // field: "second_item",
             field: "correlation",
-            direction: "asc"
+            direction: "desc"
         },
 
         onChange: function(value) {
@@ -181,7 +181,8 @@ $(function(){
             // https://s3.amazonaws.com/depmap-public/Q3_depmap_20180730_db_explained_improved/A1BG_is_subj.json
 
             let s3_prefix = "https://s3.amazonaws.com/depmap-public/";
-            let s3_subj_expl = "Q3_depmap_20180730_db_explained_improved/";
+            // let s3_subj_expl = "Q3_depmap_20180730_db_explained_improved/";
+            let s3_subj_expl = "pre_release_Q3_depmap_20180730_db_explained_improved/";
             let s3_indra_db = "indra_db_20180730_hash_json/"; // INDRA DB LOOKUP
             let s3_correlations = "correlation_pairs_above_03/correlates_with_";
 
@@ -646,7 +647,7 @@ $(function(){
                         url: second_dd_address,
                         success: function(results) {
                             // var second_items = results.map(function(x) { return {second_item: x}; })
-                            var second_items = results.map(function(x) { return {second_item: x[0] + ": " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: Math.abs(x[1]) }; })
+                            var second_items = results.map(function(x) { return {second_item: x[0] + ": correlation " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: Math.abs(x[1]) }; })
                             select_second_gene.enable();
                             callback(second_items);
                         },
@@ -840,6 +841,7 @@ $(function(){
                         // BIOPAX: link to stmt_json.evidence[k].source_id; link text: "See on pathway commons"
                         // BEL: (should have PMID?)
                         // SIGNOR: https://signor.uniroma2.it/relation_result.php?id=P15056#BRAF_MAP2K1 <-- how do we link if we don't know the id (P15056)?
+                        // Check if json with SIGNOR provides alternative ids to search with...
 
                         // if PMID
                         if (_pmid) {
@@ -849,8 +851,6 @@ $(function(){
                             // HERE GRAB META DATA AND PUT INTO THE POPUP
                             let pubmed_promise = getPubMedMETAxmlByPMID(_pmid);
                             pubmed_promise.then(function(responseXML) {
-                                // console.log('responseXML')
-                                // console.log(responseXML)
                                 docsum_xml = responseXML.getElementsByTagName('DocSum')[0]
                                 pmid_meta_dict = pmidXML2dict(docsum_xml)
                                 console.log(pmid_meta_dict)
@@ -872,14 +872,17 @@ $(function(){
                         // no PMID
                         } else {
                             // if BIOPAX
-                            if (_api == "biopax" & _id) {
-                                output_element_link.href = _id;
+                            if (_api == "biopax" & _id.length > 0) {
+                                // Example for biopax source without pmid: A: A1BG B: IL18 pick X: FOXA1 in shared regulator
+                                // output_element_link.href = _id;  // LINK BROKEN
+                                output_element_link.href = "http://apps.pathwaycommons.org/search?type=Pathway&q=" + subj + "%2C%20" + obj; // Links to search for one of the two ids
                                 output_element_link.title = "Meta Data for PathwayCommons source"
                                 output_element_link.textContent = "[See on pathway commons] " + source_api_text;
                             } else if (_api == "signor") {
-                                output_element_link.href = "https://signor.uniroma2.it/";
+                                // Example of SIGNOR source without PMID: 
+                                output_element_link.href = "https://signor.uniroma2.it/"; // Don't know URL for searching by signor ID
                                 output_element_link.title = "Meta Data for SIGNOR source"
-                                output_element_link.textContent = "[See on SIGNOR (don't know search query address for gene names)] " + source_api_text;
+                                output_element_link.textContent = "[Search this on SIGNOR: " + _id + "] " + source_api_text;
                             // if this shows up there is a source you haven't handled yet.
                             } else {
                                 console.log('Unhandled source; Check statement json')
@@ -917,7 +920,7 @@ $(function(){
         dropdown_div.appendChild(dropdown_ctrl_group)
         // output_pointer.appendChild(dropdown_div)
         
-        var items = x_array.map(function(x) { return { item: x }; })
+        var items = x_array.map(function(x) { return { x_value: x[0], item: x[0] + ": rank " + parseFloat(x[1]).toFixed(3).toString(), rank: x[1] }; })
 
         // Update the count of X in the badge
         x_counter_pointer.textContent = "X: " + x_array.length.toString()
@@ -933,14 +936,14 @@ $(function(){
         // Create dropdown with all X
         $select_intermediate = $("#"+rand_id).selectize({
             options: items,
-            valueField: "item",
+            valueField: "x_value",
             labelField: "item",
             searchField: ["item"],
 
             // A single field or an array of fields to sort by.
             sortField: {
-                field: "item",
-                direction: "asc" 
+                field: "rank",
+                direction: "desc"
             },
 
             // On select/change: Query A-X and B-X and output the english statements and their evidence

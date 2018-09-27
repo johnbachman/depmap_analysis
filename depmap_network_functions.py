@@ -22,6 +22,8 @@ from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 
+import pdb  # ToDo remove import before final commit
+
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
@@ -81,6 +83,80 @@ def _filter_corr_data(corr, clusters, cl_limit):
     return filtered_correlations
 
 
+def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
+    """Returns a list of tuples of nodes and their rank score
+
+    The provided node list should contain the set of nodes that connects subj
+    and obj through an intermediate node found in nested_dict_stmts.
+
+    nested_dict_stmts
+
+        d[subj][obj] = [stmts/stmt hashes]
+
+    node_list : list[nodes]
+    nested_dict_stmts : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+    gene_a : str
+        HGNC name of gene A in an A-X-B connection
+    gene_b : str
+        HGNC name of gene B in an A-X-B connection
+    x_type : str
+        One of 'x_is_intermediary', 'x_is_downstream' or 'x_is_upstream'
+
+    -------
+    Returns
+    dir_path_nodes_wb : list[(node, rank)]
+        A list of node, rank tuples.
+    """
+
+    def _calc_rank(nest_dict_stmts, subj_ax, obj_ax, subj_xb, obj_xb):
+        ax_stmts = nest_dict_stmts[subj_ax][obj_ax]
+        xb_stmts = nest_dict_stmts[subj_xb][obj_xb]
+        ax_score_list = []
+        xb_score_list = []
+
+        # The statment with the highest belief score should
+        # represent the edge (potentially multiple stmts per edge)
+        for typ, hsh, bs in ax_stmts:
+            ax_score_list.append(bs)
+        for typ, hsh, bs in xb_stmts:
+            xb_score_list.append(bs)
+
+        # Rank by multiplying the best two belief scores for each edge
+        rank = max(ax_score_list) * max(xb_score_list)
+
+        # No belief score should be zero, thus rank should never be zero
+        try:
+            assert rank != 0
+        except AssertionError:
+            pdb.set_trace()  # Check why rank == 0
+        return rank
+
+    dir_path_nodes_wb = []
+    if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_a, obj_ax=gene_x,
+                                subj_xb=gene_x, obj_xb=gene_b)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+
+    elif x_type is 'x_is_downstream':  # A->X<-B
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_a, obj_ax=gene_x,
+                                subj_xb=gene_b, obj_xb=gene_x)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+    elif x_type is 'x_is_upstream':  # A<-X->B
+
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_x, obj_ax=gene_a,
+                                subj_xb=gene_x, obj_xb=gene_b)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+
+    return dir_path_nodes_wb
+
+
 def nx_directed_multigraph_from_nested_dict(nest_d):
     """Returns a directed multigraph where each edge links a statement with
     u=subj, v=obj, edge_key=stmt,
@@ -114,19 +190,80 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
     return nx_muldir
 
 
-def nx_directed_graph_from_nested_dict_3layer(nest_d):
-    """Returns a directed graph where each edge links a statement with
-    u=subj, v=obj, attr_dict={'connection_type': [stmt hashes/X]
+def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
+    """Returns a directed graph from a two layered nested dictionary
 
-    The nested dict should have two or three layers:
-
-    Two layers:
+    Nested dictionary
 
         d[subj][obj] = [stmts/stmt hashes]
 
-    Three layers:
+    nest_d : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+    belief_dict : dict()
+        dict with {hash: belief score} as key: value pairs
 
-        d[subj][obj] = {correlation: float
+    Returns
+    -------
+    nx_digraph : nx.DiGraph
+        An nx directed graph with statements
+    """
+
+    dnf_logger.info('Building directed simple graph from two layered nested '
+                    'dict.')
+    nx_dir_g = nx.DiGraph()
+
+    if not belief_dict:
+        dnf_logger.info('No Belief Score dictionary provided')
+        dnf_logger.warning('API belief score checkup is not implemented yet')
+        pass  # ToDo connect to API, calculate belief or use stmt belief
+
+    # Flag to check if the statement dict has belief score in it or not
+    has_belief = False
+    for k1, d1 in nest_d.items():
+        for k2, v in d1.items():
+            for tups in v:
+                # Has to be (type, hash) or (type, hash, belief score)
+                try:
+                    assert len(tups) == 2 or len(tups) == 3
+                except AssertionError:
+                    pdb.set_trace()  # Check what tups is
+                if len(tups) == 3:
+                    has_belief = True
+                break
+
+    for subj in nest_d:
+        if nest_d.get(subj):
+            for obj in nest_d[subj]:
+                # Check if subj-obj connection exists in dict
+                if subj is not obj and nest_d.get(subj).get(obj):
+                    # Add edge
+                    inner_obj = nest_d[subj][obj]
+                    inner_obj_b = []
+                    if not has_belief:
+                        for typ, hsh in inner_obj:
+                            try:
+                                bs = belief_dict[str(hsh)]
+                            except KeyError:
+                                dnf_logger.warning('No entry found in belief '
+                                                   'dict for hash %s' %
+                                                   str(hsh))
+                                bs = 1
+                            t = (typ, hsh, bs)
+                            inner_obj_b.append(t)
+                    else:
+                        inner_obj_b = inner_obj
+                    nx_dir_g.add_edge(u_of_edge=subj,
+                                      v_of_edge=obj,
+                                      attr_dict={'stmts': inner_obj_b})
+    return nx_dir_g
+
+
+def nx_directed_graph_from_nested_dict_3layer(nest_d):
+    """Returns a directed graph from a three layered nested dictionary
+
+    Form of nested dictionary
+
+        d[subj][obj] = {correlation: float,
                         directed: [stmts/stmt hashes],
                         undirected: [stmts/stmt hashes],
                         x_is_intermediary: [X],
@@ -134,15 +271,16 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
                         x_is_upstream: [X]}
 
     nest_d : defaultdict(dict)
-        Nested dict of statements: nest_d[subj][obj][type]
+        Nested dict of statements: nest_d[subj][obj] = {attr_dict}
 
     Returns
     -------
-    nx_muldigraph : nx.MultiDiGraph
-        An nx directed multigraph linking agents with statements
+    nx_digraph : nx.DiGraph
+        An nx directed graph with statements and/or connecting nodes as edges
     """
 
-    dnf_logger.info('Building directed simple graph from nested dict.')
+    dnf_logger.info('Building directed simple graph from three layered nested '
+                    'dict.')
     nx_dir_g = nx.DiGraph()
 
     for subj in nest_d:
@@ -150,22 +288,19 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
             for obj in nest_d[subj]:
                 # Check if subj-obj connection exists in dict
                 if subj is not obj and nest_d.get(subj).get(obj):
-                    # Add edge;
-                    # If already dictionary set as attr_dict
+                    # Add edge
                     inner_obj = nest_d[subj][obj]
-                    if type(inner_obj) is list:
-                        nx_dir_g.add_edge(u_of_edge=subj,
-                                          v_of_edge=obj,
-                                          attr_dict={'stmts': inner_obj})
-                    elif type(inner_obj) is defaultdict:
-                        nx_dir_g.add_edge(u_of_edge=subj,
-                                          v_of_edge=obj,
-                                          attr_dict=inner_obj)
+                    nx_dir_g.add_edge(u_of_edge=subj,
+                                      v_of_edge=obj,
+                                      attr_dict=inner_obj)
     return nx_dir_g
 
 
 def nx_undirected_graph_from_nested_dict(nest_d):
     """Returns an undirected graph built from a nested dict of statements
+
+    Use this function to build a simple undirected graph. Suitable when the
+    goal is to generate a node-edge graph for plain visualization.
 
     nest_d : defaultdict(dict)
         A nested dict with two or more layers
@@ -173,7 +308,7 @@ def nx_undirected_graph_from_nested_dict(nest_d):
     Returns
     -------
     nx_undir : networkx.classes.graph.Graph
-        An undirected networkx graph
+        An undirected, unweighted networkx graph
     """
 
     nx_undir = nx.Graph()
@@ -187,13 +322,13 @@ def nx_undirected_graph_from_nested_dict(nest_d):
         # get node u and dict d from top of queue
         u, d = ndq.pop()
         # Loop nodes nd and (possible) dicts nd of dict d
-        for nu, nd in d.items():
-            # Add edge u-nu if it's not a self-loop
-            if u is not nu:
-                nx_undir.add_edge(u, nu)
+        for v, nd in d.items():
+            # Add edge u-v if it's not a self-loop
+            if u is not v:
+                nx_undir.add_edge(u, v)
             # If nd has deeper layers, put that to the queue
             if isinstance(nd, Mapping):
-                ndq.append((nu, nd))
+                ndq.append((v, nd))
 
     return nx_undir
 
@@ -347,7 +482,7 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
     dnf_logger.info('Compiling deduplicated set of correlations')
     all_hgnc_ids = set()
     uniq_pairs = []
-    if unique_depmap_pair_file:
+    if unique_depmap_pair_file:  # This saves a lot of fime
         dnf_logger.info('Loading correlation pairs from %s' %
                         unique_depmap_pair_file)
         with open(unique_depmap_pair_file, 'r') as f:
@@ -370,7 +505,7 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
     return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
 
 
-def get_directed(stmts, undirected=None):
+def get_directed(stmts, undirected_types=None):
     """Given a statement list, sort statements based on directionality.
 
     The statements can be either of regular INDRA statements or statement
@@ -390,29 +525,30 @@ def get_directed(stmts, undirected=None):
     """
 
     dir_stmts, undir_stmts = [], []
-    if not undirected:
-        undirected = ['Complex', 'SelfModification', 'parent']
+    if not undirected_types:
+        undirected_types = ['Complex', 'SelfModification', 'parent']
 
     # check type of stmt list
     if stmts:
         # if (type, hash)
         if type(stmts[0]) == tuple:
-            dir_stmts, undir_stmts = get_directed_type_hash(stmts, undirected)
+            dir_stmts, undir_stmts = get_directed_type_hash(stmts,
+                                                            undirected_types)
         # if normal statements
         elif isinstance(stmts[0], Statement):
             dir_stmts, undir_stmts = \
-                get_directed_actual_statements(stmts, undirected)
+                get_directed_actual_statements(stmts, undirected_types)
         # if json statements
         elif isinstance(stmts[0], OrderedDict):
-            dir_stmts, undir_stmts = get_directed_json(stmts, undirected)
+            dir_stmts, undir_stmts = get_directed_json(stmts, undirected_types)
 
     return dir_stmts, undir_stmts
 
 
-def get_directed_type_hash(stmts, undirected):
+def get_directed_type_hash(stmts, undirected_types):
     """Given a list of type-hash tuples, sort statements on directionality.
 
-    stmts : [(type, hash)]
+    stmts : [(type, hash)] or [(type, hash, belief)]
          A list of type-string, hash tuples.
     undirected : [statement types]
         A list of name strings considered to be undirected.
@@ -427,17 +563,24 @@ def get_directed_type_hash(stmts, undirected):
     dir_stmts, undir_stmts = [], []
 
     for stmt in stmts:
-        ctype, hsh = stmt
-        hash_string = str(hsh)
-        if ctype in undirected:
-            undir_stmts.append((ctype, hash_string))
+        if len(stmt) == 2:
+            ctype, hsh = stmt
+            hash_string = str(hsh)
+            tup = (ctype, hash_string)
+        elif len(stmt) == 3:
+            ctype, hsh, bs = stmt
+            hash_string = str(hsh)
+            tup = (ctype, hash_string, bs)
+
+        if ctype in undirected_types:
+            undir_stmts.append(tup)
         else:
-            dir_stmts.append((ctype, hash_string))
+            dir_stmts.append(tup)
 
     return dir_stmts, undir_stmts
 
 
-def get_directed_actual_statements(stmts, undirected):
+def get_directed_actual_statements(stmts, undirected_types):
     """Given a list of INDRA statements, sort statements on directionality.
 
     stmts : list[:py:class:`indra.statements.Statement`]
@@ -454,7 +597,7 @@ def get_directed_actual_statements(stmts, undirected):
     dir_stmts, undir_stmts = [], []
 
     for stmt in stmts:
-        if stmt.to_json()['type'] in undirected:
+        if stmt.to_json()['type'] in undirected_types:
             undir_stmts.append(stmt)
         else:
             dir_stmts.append(stmt)
@@ -462,7 +605,7 @@ def get_directed_actual_statements(stmts, undirected):
     return dir_stmts, undir_stmts
 
 
-def get_directed_json(stmts, undirected):
+def get_directed_json(stmts, undirected_types):
     """Given a list of json statements, sort statements on directionality.
 
     stmts : list[json statements]
@@ -479,7 +622,7 @@ def get_directed_json(stmts, undirected):
     dir_stmts, undir_stmts = [], []
 
     for stmt in stmts:
-        if stmt['type'] in undirected:
+        if stmt['type'] in undirected_types:
             undir_stmts.append(stmt)
         else:
             dir_stmts.append(stmt)
@@ -532,7 +675,7 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     return nest_hash_dict
 
 
-def nested_dict_gen(stmts):
+def nested_dict_gen(stmts, belief_dict=None):
     """Generates a nested dict of the form dict[key1][key2] = [statement list]
     from INDRA statements.
 
@@ -545,14 +688,21 @@ def nested_dict_gen(stmts):
          dict of the form dict[subj][obj] = list[stmts]
     """
 
+    if belief_dict is None:
+        dnf_logger.warning('No belief score dict is provided! Please provide a '
+                           'belief score dict through the `-b ('
+                           '--belief-score-dict)` argument.')
+        raise ValueError
+
     nested_stmt_dicts = defaultdict(dict)
 
-    count = 0
     for st in stmts:
-        count += 1
         # NOTE: If statement is complex, it migth have more than two agents
         # and the agents won't be distinguishable as subject,object
-
+        try:
+            bs = belief_dict[str(st)]
+        except KeyError:
+            bs = 1
         agent_list = agent_name_set(stmt=st)
 
         # It takes two agents to tango
@@ -562,9 +712,9 @@ def nested_dict_gen(stmts):
             if st.to_json()['type'].lower() in ['complex', 'selfmodification']:
                 for agent, other_agent in itt.permutations(agent_list, r=2):
                     try:
-                        nested_stmt_dicts[agent][other_agent].append(st)
+                        nested_stmt_dicts[agent][other_agent].append((st, bs))
                     except KeyError:  # If pair does not exist yet
-                        nested_stmt_dicts[agent][other_agent] = [st]
+                        nested_stmt_dicts[agent][other_agent] = [(st, bs)]
 
             # Non-complex interaction
             else:
@@ -572,20 +722,21 @@ def nested_dict_gen(stmts):
                 obj = agent_list[1]
 
                 try:
-                    nested_stmt_dicts[subj][obj].append(st)
+                    nested_stmt_dicts[subj][obj].append((st, bs))
                 except KeyError:
-                    nested_stmt_dicts[subj][obj] = [st]
+                    nested_stmt_dicts[subj][obj] = [(st, bs)]
 
             # Check common parent (same familiy or complex)
             for agent, other_agent in itt.permutations(agent_list, r=2):
                 if has_common_parent(id1=agent, id2=other_agent):
+                    bs = None
                     try:
                         if 'parent' not in \
                                 nested_stmt_dicts[agent][other_agent]:
                             nested_stmt_dicts[agent][other_agent].append(
-                                'parent')
+                                ('parent', bs))
                     except KeyError:
-                        nested_stmt_dicts[agent][other_agent] = ['parent']
+                        nested_stmt_dicts[agent][other_agent] = [('parent', bs)]
 
         # Ignore when we only have one agent
         else:
@@ -596,9 +747,9 @@ def nested_dict_gen(stmts):
     return nested_stmt_dicts
 
 
-def dedupl_nested_dict_gen(stmts):
+def dedupl_nested_dict_gen(stmts, belief_dict):
     ddstmt_list = deduplicate_stmt_list(stmts=stmts, ignore_str='parent')
-    nd = nested_dict_gen(ddstmt_list)
+    nd = nested_dict_gen(ddstmt_list, belief_dict)
 
     return nd
 

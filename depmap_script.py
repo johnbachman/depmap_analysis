@@ -1,9 +1,10 @@
+import os
 import csv
 import json
 import logging
 import pandas as pd
 import pickle as pkl
-from time import time
+from time import time, strftime
 import networkx as nx
 import argparse as ap
 import itertools as itt
@@ -11,6 +12,7 @@ from numpy import float64
 from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
+from depmap_network_functions import nest_dict
 
 logger = logging.getLogger('depmap_script')
 
@@ -42,6 +44,16 @@ def _dump_it_to_csv(fname, pyobj, separator=','):
     with open(fname, 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=separator)
         wrtr.writerows(pyobj)
+
+
+def _pickle_open(file_path_to_pickle):
+    with open(file_path_to_pickle, 'rb') as pi:
+        return pkl.load(file=pi)
+
+
+def _json_open(file_path_to_json):
+    with open(file_path_to_json, 'r') as jo:
+        return json.load(fp=jo)
 
 
 def _is_float(n):
@@ -77,6 +89,14 @@ def main(args):
                              args.unique_depmap_pairs, args.recalc, args.ll,
                              args.ul)
 
+    # Get dict of {hash: belief score}
+    belief_dict = None  # ToDo use api to query belief scores if not loaded
+    if args.belief_score_dict:
+        if args.belief_score_dict.endswith('.json'):
+            belief_dict = _json_open(args.belief_score_dict)
+        elif args.belief_score_dict.endswith('.pkl'):
+            belief_dict = _pickle_open(args.belief_score_dict)
+
     # Get statements from file or from database that contain any gene from
     # provided list as set unless you're already loading a pre-calculated
     # nested dict and/or precalculated directed graph.
@@ -84,7 +104,7 @@ def main(args):
     if not (args.light_weight_stmts or args.nested_dict_in):
         if args.statements_in:  # Get statments from file
             stmts_all = set(ac.load_statements(args.statements_in))
-        # Use api to get statements._NOT_ the same as querying for each ID
+        # Use api to get statements. _NOT_ the same as querying for each ID
         else:
             if args.geneset_file:
                 stmts_all = dnf.dbc_load_statements(gene_filter_list)
@@ -103,30 +123,33 @@ def main(args):
         hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
         nested_dict_statements = dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
-        with open(args.nested_dict_in, 'rb') as rpkl:
-            nested_dict_statements = pkl.load(rpkl)
+        nested_dict_statements = _pickle_open(args.nested_dict_in)
     else:
-        nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all)
+        if belief_dict is None:
+            logger.warning('belief dict must be provided through the `-b ('
+                           '--belief-score-dict)` argument if no nested dict '
+                           'of statements is provided through the `-ndi ('
+                           '--nested-dict-in)` argument.')
+            raise ValueError
+        else:
+            nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
+                                                            belief_dict)
         if args.nested_dict_out:
-            with open(args.nested_dict_out, 'wb') as wpkl:
-                pkl.dump(obj=nested_dict_statements, file=wpkl)
-
-    # Get undirected graph from nested dict
-    undir_nx_graph = dnf.nx_undirected_graph_from_nested_dict(
-        nest_d=nested_dict_statements)
-    undir_node_set = set(undir_nx_graph.nodes)
+            _dump_it_to_pickle(fname=args.nested_dict_out,
+                               pyobj=nested_dict_statements)
 
     # Get directed simple graph
     if args.directed_graph_in:
         with open(args.directed_graph_in, 'rb') as rpkl:
             nx_dir_graph = pkl.load(rpkl)
     else:
-        nx_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
-            nest_d=nested_dict_statements)
+        # Create directed graph from statement dict
+        nx_dir_graph = dnf.nx_directed_graph_from_nested_dict_2layer(
+            nest_d=nested_dict_statements, belief_dict=belief_dict)
         # Save as pickle file
         if args.directed_graph_out:
-            with open(args.directed_graph_out, 'wb') as pklout:
-                pkl.dump(obj=nx_dir_graph, file=pklout)
+            _dump_it_to_pickle(fname=args.directed_graph_out,
+                               pyobj=nx_dir_graph)
     dir_node_set = set(nx_dir_graph.nodes)
 
     # Loop through the unique pairs
@@ -146,11 +169,11 @@ def main(args):
     # x_is_upstream: A<-X->B
     #
     # d[subj][obj] = {correlation: float,
-    #                 directed: [stmts/stmt hashes],
-    #                 undirected: [stmts/stmt hashes],
-    #                 x_is_intermediary: [X],
-    #                 x_is_downstream: [X],
-    #                 x_is_upstream: [X]}
+    #                 directed: [(stmt/stmt hash, belief score)],
+    #                 undirected: [(stmt/stmt hash, belief score)],
+    #                 x_is_intermediary: [(X, belief rank)],
+    #                 x_is_downstream: [(X, belief rank)],
+    #                 x_is_upstream: [(X, belief rank)]}
     #
     # Then in javascript you can for example do:
     # if SUBJ_is_subj_dict.obj.direct.length <-- should return zero if []
@@ -197,7 +220,6 @@ def main(args):
                 if args.verbosity:
                     logger.info('Found direct connection between %s and %s' %
                                 (subj, obj))
-                direct = True
                 dir_expl_count += 1
                 found.add(True)
                 stmt_tuple = (subj, obj, correlation, 'direct', [])
@@ -217,10 +239,18 @@ def main(args):
                     if args.verbosity:
                         logger.info('Found directed path of length 2 '
                                     'between %s and %s' % (subj, obj))
+
+                    dir_path_nodes_wb = dnf.rank_nodes(
+                        node_list=dir_path_nodes,
+                        nested_dict_stmts=nested_dict_statements,
+                        gene_a=subj,
+                        gene_b=obj,
+                        x_type='x_is_intermediary')
+
                     explained_nested_dict[subj][obj]['x_is_intermediary']\
-                        = dir_path_nodes
+                        = dir_path_nodes_wb
                     stmt_tuple = (subj, obj, correlation, 'pathway',
-                                  dir_path_nodes)
+                                  dir_path_nodes_wb)
                     explained_pairs.append(stmt_tuple)
                     if correlation < 0:
                         explained_neg_pairs.append(stmt_tuple)
@@ -240,15 +270,21 @@ def main(args):
             if downstream_share:
                 found.add(True)
                 im_found = True
+                downstream_share_wb = dnf.rank_nodes(
+                    node_list=downstream_share,
+                    nested_dict_stmts=nested_dict_statements,
+                    gene_a=id1,
+                    gene_b=id2,
+                    x_type='x_is_downstream')
                 stmt_tuple = (id1, id2, correlation, 'shared_target',
-                              downstream_share)
+                              downstream_share_wb)
                 if args.verbosity:
                     logger.info('Found downstream share: %s and %s share %i '
                                 'targets' % (id1, id2, len(downstream_share)))
                 explained_nested_dict[id1][id2]['x_is_downstream'] = \
-                    downstream_share
+                    downstream_share_wb
                 explained_nested_dict[id2][id1]['x_is_downstream'] = \
-                    downstream_share
+                    downstream_share_wb
                 explained_pairs.append(stmt_tuple)
                 if correlation < 0:
                     explained_neg_pairs.append(stmt_tuple)
@@ -256,16 +292,22 @@ def main(args):
             if upstream_share:
                 found.add(True)
                 im_found = True
+                upstream_share_wb = dnf.rank_nodes(
+                    node_list=upstream_share,
+                    nested_dict_stmts=nested_dict_statements,
+                    gene_a=id1,
+                    gene_b=id2,
+                    x_type='x_is_upstream')
                 stmt_tuple = (id1, id2, correlation, 'shared_upstream',
-                              upstream_share)
+                              upstream_share_wb)
                 if args.verbosity:
                     logger.info('Found upstream share: %s and %s are both'
                                 'directly downstream of %i nodes' %
                                 (id1, id2, len(upstream_share)))
                 explained_nested_dict[id1][id2]['x_is_upstream'] = \
-                    upstream_share
+                    upstream_share_wb
                 explained_nested_dict[id2][id1]['x_is_upstream'] = \
-                    upstream_share
+                    upstream_share_wb
                 explained_pairs.append(stmt_tuple)
                 if correlation < 0:
                     explained_neg_pairs.append(stmt_tuple)
@@ -275,6 +317,7 @@ def main(args):
         else:
             found.add(False)
 
+        # Count intermediate connections found
         if im_found:
             im_expl_count += 1
 
@@ -312,14 +355,14 @@ def main(args):
                 logger.info('No explainable path found between %s and '
                             '%s.' % (id1, id2))
 
-    logger.info('-'*56)
+    logger.info('-'*63)
     logger.info('Summary:')
     logger.info('> Total unexplained: %i' % len(unexplained))
     logger.info('> Total explained: %i,' % len(explained_pairs))
     logger.info('> with %i direct and %i mediated by an intermediate node.' %
                 (dir_expl_count, im_expl_count))
     logger.info('> Total number of pairs checked: %i' % npairs)
-    logger.info('-'*56)
+    logger.info('-'*63)
 
     # Here create directed graph from explained nested dict
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
@@ -365,8 +408,11 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', action="count",
                         help='increase output verbosity (e.g., -vv is more '
                              'than -v)')
+    parser.add_argument('-b', '--belief-score-dict', help='Load a dict with '
+        'stmt hash: belief score to be incorporated in the explainable '
+        'network dict.')
     parser.add_argument('-dgi', '--directed-graph-in', help='Load a'
-        'precalculated directed graph of indra subjec/object network.')
+        'precalculated directed graph of indra subject/object network.')
     parser.add_argument('-dgo', '--directed-graph-out', help='Save the '
         'calculated directed graph of the indra statement network.')
     parser.add_argument('-ndi', '--nested-dict-in', help='Load precalculated '
@@ -392,7 +438,9 @@ if __name__ == '__main__':
 
     with open('dep_map_script_log{}.log'.format(str(int(time()))), 'w',
               newline='\n') as f:
+        f.write('Created on {}\n'.format(strftime('%Y %b %d, %H:%M:%S')))
+        f.write('Execution path: {}\n\n'.format(os.getcwd()))
         f.write('Command line option - value\n')
         for arg in vars(a):
-            f.write('{} - {}\n'.format(arg, getattr(a, arg)))
+            f.write('{} : {}\n'.format(arg, getattr(a, arg)))
     main(a)
