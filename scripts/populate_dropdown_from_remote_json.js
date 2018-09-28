@@ -711,8 +711,23 @@ $(function(){
             for (let hash of hash_list) {
                 stmt_json = stmts[hash]
                 uuid = stmt_json.id
-                stmt_uuid_array.push(uuid)
-                uuid_stmtjson_dict[uuid] = stmt_json // store stmt_json in global uuid_stmtjson dict
+                uuid_twin = uuid;
+                
+                // Check if entry for this uuid does NOT exists
+                if (uuid_stmtjson_dict[uuid] === undefined) {
+                    uuid_stmtjson_dict[uuid] = stmt_json // store stmt_json in global uuid_stmtjson dict
+                // If it already exists, that means there is another button with this UUID and we need to tweak the uuid entry
+                } else {
+                    // Run a while loop here and keep try adding uuids until the entry doen't exist like this:
+                    i=1;
+                    uuid_twin = uuid + "_duplicate_json_" + i; // Added string
+                    while (uuid_stmtjson_dict[uuid_twin] !== undefined) {
+                        i++;
+                        uuid_twin = uuid + "_duplicate_json_" + i;
+                    }
+                    uuid_stmtjson_dict[uuid_twin] = stmt_json;
+                }
+                stmt_uuid_array.push(uuid_twin)
                 stmt_hash_array.push(hash)
                 json_stmt_array = {"statements": [stmt_json]}
                 eng_res_array.push(getEnglishByJson(json_stmt_array))
