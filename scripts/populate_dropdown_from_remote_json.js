@@ -90,6 +90,8 @@ $(function(){
 
     function resetNamesOutput() {
         console.log("Names reset");
+
+        // Names for "A" and "B"
         Aname_complex.textContent = "A";
         Bname_complex.textContent = "B";
         Aname_AtoB.textContent = "A";
@@ -104,6 +106,8 @@ $(function(){
         Bname_ABtoX.textContent = "B";
         Aname_A_XtoAB.textContent = "A";
         Bname_XtoAB.textContent = "B";
+
+        // Clean up the output areas so old output doesn't stick around
 
         // Complex AB
         output_ABcomplex.innerHTML = null;
@@ -293,9 +297,7 @@ $(function(){
             // Append the element to the div object
             output_text.appendChild(thingy)
 
-            // WIPE CLEAN OUTPUT AREAS, RESET NAMES TO "A", "B" AND SET COUNT BADGES TO zero HERE
-
-            // Names
+            // Reset Output and Names
             resetNamesOutput();
 
             // SET ADDRESSES TO AWS S3 DATA
