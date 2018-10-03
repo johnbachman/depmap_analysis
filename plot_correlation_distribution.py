@@ -264,7 +264,10 @@ expl_correlation_AXB_hist_norm = expl_correlation_AXB_hist / sum(
 
 # pylab.plot(binedges[:-1], correlations_ll03_hist,
 #            label='all corr > 0.3')
-pylab.plot(binedges[:-1], expl_correlation_hist, label='explained')
+a_expl, mu_expl, sigma_expl = _get_partial_gaussian_stats(binedges,
+                                                 expl_correlation_hist)
+pylab.plot(binedges[:-1], expl_correlation_hist, label='explained mu={:.2f}, '
+                                                       'sig={:.2f}')
 pylab.plot(binedges[:-1], expl_correlation_direct_hist, label='direct')
 pylab.plot(binedges[:-1], expl_correlation_intermediate_hist,
            label='intermediate')
