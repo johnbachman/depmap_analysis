@@ -4,6 +4,7 @@ import scipy as sp
 import pandas as pd
 import pickle as pkl
 import matplotlib.pyplot as plt
+from scipy import interpolate
 from collections import defaultdict
 from scipy.optimize import curve_fit
 
@@ -50,7 +51,7 @@ def _entry_exist(nested_dict, outer_key, inner_key):
         return False
 
 
-def _get_gaussian_stats(bin_edges, hist, ):
+def _get_gaussian_stats(bin_edges, hist):
     a0 = max(hist) / 2.0
     sigma0 = 0.125*(bin_edges[-1]-bin_edges[0])  # (bin distance)/8
     bin_positions = (bin_edges[:-1] + bin_edges[1:]) / 2.0
@@ -61,6 +62,27 @@ def _get_gaussian_stats(bin_edges, hist, ):
     mu = coeff[1]
     sigma = coeff[2]
     return a, mu, sigma
+
+
+def _get_partial_gaussian_stats(bin_edges, hist):
+    bin_positions = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+    # Get log of nonzero x, y pairs
+    log_hist = []
+    saved_positions = []
+    for x, y in zip(bin_positions, hist):
+        if y > 0:
+            log_hist.append(np.log(y))
+            saved_positions.append(x)
+
+    log_hist = np.array(log_hist)
+    saved_positions = np.array(saved_positions)
+
+    interp_log_gaussian = interpolate.interp1d(x=saved_positions,
+                                           y=log_hist,
+                                           kind='quadratic')
+    interp_gaussian = np.exp(interp_log_gaussian(bin_positions))
+
+    return _get_gaussian_stats(bin_edges, interp_gaussian)
 
 
 read_correlation_file = input('Do you want to read the full correlation file? ')
