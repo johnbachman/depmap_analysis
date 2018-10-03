@@ -424,12 +424,13 @@ def _read_gene_set_file(gf, data):
     return gset
 
 
-def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
-                     unique_depmap_pair_file, recalc=False, lower_limit=0.3,
-                     upper_limit=1.0):
+def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
+                     outbasename, unique_depmap_pair_file, recalc=False,
+                     lower_limit=0.2, upper_limit=1.0):
+
     # Open data file
-    dnf_logger.info('Reading CERES data from %s' % ceres_file)
-    data = pd.read_csv(ceres_file, index_col=0, header=0)
+    dnf_logger.info('Reading DepMap data from %s' % depmap_data_file)
+    data = pd.read_csv(depmap_data_file, index_col=0, header=0)
     data = data.T
 
     if geneset_file:
@@ -444,10 +445,13 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
         if recalc:
             dnf_logger.info('Calculating correlations (may take a long time)')
             corr = data.corr()
-            corr.to_hdf('correlations.h5', 'correlations')
+            corr.to_hdf(outbasename+'correlations.h5', 'correlations')
         else:
-            dnf_logger.info('Loading correlations from %s' % corr_file)
-            corr = pd.read_hdf(corr_file, 'correlations')
+            if corr_file:
+                dnf_logger.info('Loading correlations from %s' % corr_file)
+                corr = pd.read_hdf(corr_file, 'correlations')
+            else:
+                dnf_logger.error('No correlation file provdided or calculated!')
         # No gene set file, leave 'corr' intact and unstack
         if not geneset_file:
             dnf_logger.info('Unstacking unfiltered correlation data (may take '
@@ -493,7 +497,7 @@ def get_correlations(ceres_file, geneset_file, corr_file, strict, outbasename,
     else:
         with open(outbasename+'_all_correlations.csv', 'w', newline='') as csvf:
             dnf_logger.info('Using filtered correlation dataframe to output '
-                            'correlation pairs to %s' %
+                            'unique correlation pairs to %s' %
                             outbasename+'_all_correlations.csv')
             wrtr = csv.writer(csvf, delimiter=',')
             for pair in fsort_corrs.items():
