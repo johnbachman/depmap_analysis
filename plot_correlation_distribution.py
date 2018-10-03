@@ -5,6 +5,7 @@ import pandas as pd
 import pickle as pkl
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from scipy.optimize import curve_fit
 
 # run in ~/repos/depmap_analysis
 
@@ -47,6 +48,19 @@ def _entry_exist(nested_dict, outer_key, inner_key):
         return True
     else:
         return False
+
+
+def _get_gaussian_stats(bin_edges, hist, ):
+    a0 = max(hist) / 2.0
+    sigma0 = 0.125*(bin_edges[-1]-bin_edges[0])  # (bin distance)/8
+    bin_positions = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+    mu0 = bin_positions[np.argmax(bin_positions)]  # guess max
+    coeff, var_matrix = curve_fit(_my_gauss, bin_positions, hist, [a0, mu0,
+                                                                   sigma0])
+    a = coeff[0]
+    mu = coeff[1]
+    sigma = coeff[2]
+    return a, mu, sigma
 
 
 read_correlation_file = input('Do you want to read the full correlation file? ')
@@ -196,7 +210,18 @@ if read_correlation_file.strip().lower() == 'y':
     all_corr_hist = _histogram_for_large_files('input_data/corr_only.dat',
                                                bins, step, start)
     all_corr_hist_norm = all_corr_hist / sum(all_corr_hist)
+
+    # Plot in figure 1
+    pylab.figure(1)
+    # Plot data
     pylab.plot(all_corr_edges[:-1], all_corr_hist/2, label='all corr')
+
+    # Get fit, plot it
+    a, mu, sigma = _get_gaussian_stats(all_corr_edges, all_corr_hist)
+    g_fit = _my_gauss(all_corr_edges, a, mu, sigma)
+    pylab.plot(all_corr_edges, g_fit, label='Gaussian fit')
+    pylab.title('Fit parameters: mu={:.3f}, sigma={:.3f}'.format(mu, sigma))
+
 
 pylab.figure(1)
 # all_corr_ll03 = pd.read_csv(
