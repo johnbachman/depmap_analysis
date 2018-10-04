@@ -38,6 +38,43 @@ def nest_dict():
     return defaultdict(nest_dict)
 
 
+def file_iterator_generator(fname, column_list):
+    """Return a tuple generator of a csv file
+
+    fname : str
+        File path of csv file
+    column_list : list[str]
+        List of column names
+
+    Returns
+    -------
+    tuple generator
+         A generator that returns a tuple of each row
+    """
+    pair_corr_file = pd.read_csv(fname, names=column_list)
+    return (tuple(line[1]) for line in pair_corr_file.iterrows())
+
+
+def corr_matrix_to_generator(corrrelation_matrix):
+    """Returns a tuple generator of a correlation matrix
+
+    corrrelation_matrix : pandas.DataFrame
+        A pandas correlation matrix as a dataframe
+
+    Returns
+    -------
+    tuple generator
+        A generator that returns a tuple of each row
+    """
+    corr_value_matrix = corrrelation_matrix.values
+    gene_name_array = corrrelation_matrix.index.values
+    tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
+    return ((gene_name_array[i], gene_name_array[j],
+            str(corr_value_matrix[i, j]))
+            for i, j in zip(*tr_up_indices)
+            if not np.isnan(corr_value_matrix[i, j]))
+
+
 def _dump_it_to_json(fname, pyobj):
     with open(fname, 'w') as json_out:
         json.dump(pyobj, json_out)
@@ -430,9 +467,72 @@ def _read_gene_set_file(gf, data):
     return gset
 
 
+def get_gene_gene_corr_dict(tuple_generator):
+    """
+
+    :param tuple_generator:
+    :return:
+    """
+    pass
+
+
+def merge_correlation_sets(list_of_correlation_data_correlation_dict_pairs):
+    """Merge two correlation data sets to one single iterable of
+    (gene, gene, correlation_dict)
+
+    list_of_correlation_data_correlation_dict_pairs : list[(, dict)]
+    :return:
+    """
+    pass
+
+
 def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
                      outbasename, unique_corr_pair_file, recalc=False,
                      lower_limit=0.2, upper_limit=1.0):
+
+    # todo --------------------------------------------------------------------
+    # todo Separate this into subfunctions:
+    # todo 1. Load, get correlations and filter to a specific geneset (per set)
+    # todo    DONE: get_corr_df()
+    # todo 2. Filter to ll < c < ul=1 (warning if ll==0) (per set)
+    # TODO    DONE: corr_limit_filtering()
+    # todo 3. Merge correlation pairs from multiple data set: (A,B) has to be
+    # todo    in all sets.
+    # TODO    In progress: merge_correlation_sets()
+    # todo 4. Filter functions: build one for each type of filtering.
+    # todo
+    # todo
+    # todo --------------------------------------------------------------------
+
+    filtered_correlation_matrix = get_corr_df(depmap_data_file, corr_file,
+                                              geneset_file, strict, recalc,
+                                              outbasename, lower_limit,
+                                              upper_limit)
+
+    all_hgnc_ids = set(filtered_correlation_matrix.index.values)
+
+    # Return a generator object from either a loaded file or a pandas dataframe
+    if unique_corr_pair_file:
+        dnf_logger.info('Loading unique correlation pairs from %s' %
+                        unique_corr_pair_file)
+        uniq_pair_gen = file_iterator_generator(unique_corr_pair_file,
+                                                ['gene1', 'gene2', 'corr'])
+    else:
+        if lower_limit == 0:
+            fname = outbasename + '_all_unique_correlation_pairs.csv'
+        else:
+            fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
+                    str(lower_limit).replace('.', '')
+
+        uniq_pair_gen = corr_matrix_to_generator(filtered_correlation_matrix)
+        dnf_logger.info('Saving unique correlation pairs to %s. '
+                        '(May take a while)' % fname)
+        _dump_it_to_csv(fname, uniq_pair_gen)
+    return uniq_pair_gen, all_hgnc_ids
+
+
+def get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
+                outbasename, lower_limit, upper_limit):
 
     # Open data file
     dnf_logger.info('Reading DepMap data from %s' % depmap_data_file)
@@ -458,66 +558,42 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
                 corr = pd.read_hdf(corr_file, 'correlations')
             else:
                 dnf_logger.error('No correlation file provdided or calculated!')
-        # No gene set file, leave 'corr' intact and unstack
+        # No gene set file, leave 'corr' intact
         if not geneset_file:
-            dnf_logger.info('Unstacking unfiltered correlation data (may take '
-                            'a long time)')
-            fcorr_list = corr.unstack()
+            corr_matrix_df = corr
 
         # Gene set file present: filter and unstack
         elif geneset_file and not strict:
-            fcorr_list = corr[gene_filter_list].unstack()
+            corr_matrix_df = corr[gene_filter_list]
 
     # 3. Strict: both genes in interaction must be from loaded set;
     #    Filter data, then calculate correlations and then unstack
     elif geneset_file and strict:
-        fcorr_list = data[gene_filter_list].corr().unstack()
+        corr_matrix_df = data[gene_filter_list].corr()
 
     # Remove self correlation, correlations below ll, sort on magnitude,
     # leave correlation intact
     dnf_logger.info('Removing self correlations')
-    flarge_corr = fcorr_list[fcorr_list != 1.0]  # Self correlations
+    corr_matrix_df = corr_matrix_df[corr_matrix_df != 1.0]  # Self correlations
+
+    # Filter low correlations
+    if lower_limit > 0:
+        return corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit)
+    # No filtering
+    else:
+        dnf_logger.warning('No filtering requested. Be aware of large RAM '
+                          'usage.')
+        return corr_matrix_df
+
+
+def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
     dnf_logger.info('Filtering correlations to %.1f < C < %.1f' %
                     (lower_limit, upper_limit))
-    flarge_corr = flarge_corr[flarge_corr.abs() > lower_limit]
+    corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() > lower_limit]
     if upper_limit < 1.0:
-        flarge_corr = flarge_corr[flarge_corr.abs() < upper_limit]
+        corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() < upper_limit]
 
-    # Sort by absolute value
-    dnf_logger.info('Sorting correlations by absolute value')
-    fsort_corrs = flarge_corr[
-        flarge_corr.abs().sort_values(ascending=False).index]
-
-    # Compile set of correlations to be explained without A-B/B-A duplicates
-    dnf_logger.info('Compiling deduplicated set of correlations')
-    all_hgnc_ids = set(fsort_corrs.index.values)
-
-    # Return a generator object from either a loaded file or a pandas dataframe
-    if unique_corr_pair_file:
-        dnf_logger.info('Loading unique correlation pairs from %s' %
-                        unique_corr_pair_file)
-        pair_corr_file = pd.read_csv(unique_corr_pair_file,
-                                     names=['gene1', 'gene2', 'corr'])
-        uniq_pair_gen = (tuple(line[1]) for line in pair_corr_file.iterrows())
-
-    else:
-        if lower_limit == 0:
-            fname = outbasename + '_all_unique_correlation_pairs.csv'
-        else:
-            fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
-                    str(lower_limit).replace('.', '')
-
-        corr_value_matrix = fsort_corrs.values
-        gene_name_array = fsort_corrs.index.values
-        tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
-        uniq_pair_gen = ((gene_name_array[i], gene_name_array[j],
-                          str(corr_value_matrix[i, j]))
-                         for i, j in zip(*tr_up_indices)
-                         if not np.isnan(corr_value_matrix[i, j]))
-        dnf_logger.info('Saving unique correlation pairs to %s. '
-                        '(May take a while)' % fname)
-        _dump_it_to_csv(fname, uniq_pair_gen)
-    return gene_filter_list, uniq_pair_gen, all_hgnc_ids, fsort_corrs
+    return corr_matrix_df
 
 
 def get_directed(stmts, undirected_types=None):
