@@ -43,6 +43,12 @@ def _dump_it_to_json(fname, pyobj):
         json.dump(pyobj, json_out)
 
 
+def _dump_it_to_csv(fname, iterable, separator=','):
+    with open(fname, 'w', newline='') as csvf:
+        wrtr = csv.writer(csvf, delimiter=separator)
+        wrtr.writerows(iterable)
+
+
 def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
                                      path_prefix='neighbor_lookup/'):
     """Dumps one json dict per node in a undirected nx graph where entry is a
@@ -425,7 +431,7 @@ def _read_gene_set_file(gf, data):
 
 
 def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
-                     outbasename, unique_depmap_pair_file, recalc=False,
+                     outbasename, unique_corr_pair_file, recalc=False,
                      lower_limit=0.2, upper_limit=1.0):
 
     # Open data file
@@ -482,31 +488,36 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
     fsort_corrs = flarge_corr[
         flarge_corr.abs().sort_values(ascending=False).index]
 
-    # Compile set of correlations to be explained without duplicates A-B, B-A
+    # Compile set of correlations to be explained without A-B/B-A duplicates
     dnf_logger.info('Compiling deduplicated set of correlations')
-    all_hgnc_ids = set()
-    uniq_pairs = []
-    if unique_depmap_pair_file:  # This saves a lot of fime
-        dnf_logger.info('Loading correlation pairs from %s' %
-                        unique_depmap_pair_file)
-        with open(unique_depmap_pair_file, 'r') as f:
-            for line in f.readlines():
-                id1, id2, correlation = line.strip().split(',')
-                uniq_pairs.append((id1, id2, float(correlation)))
-                all_hgnc_ids.update([id1, id2])
+    all_hgnc_ids = set(fsort_corrs.index.values)
+
+    # Return a generator object from either a loaded file or a pandas dataframe
+    if unique_corr_pair_file:
+        dnf_logger.info('Loading unique correlation pairs from %s' %
+                        unique_corr_pair_file)
+        pair_corr_file = pd.read_csv(unique_corr_pair_file,
+                                     names=['gene1', 'gene2', 'corr'])
+        uniq_pair_gen = (tuple(line[1]) for line in pair_corr_file.iterrows())
+
     else:
-        with open(outbasename+'_all_correlations.csv', 'w', newline='') as csvf:
-            dnf_logger.info('Using filtered correlation dataframe to output '
-                            'unique correlation pairs to %s' %
-                            outbasename+'_all_correlations.csv')
-            wrtr = csv.writer(csvf, delimiter=',')
-            for pair in fsort_corrs.items():
-                (id1, id2), correlation = pair
-                if (id2, id1, correlation) not in uniq_pairs:
-                    uniq_pairs.append((id1, id2, correlation))
-                    all_hgnc_ids.update([id1, id2])
-                    wrtr.writerow([id1, id2, correlation])
-    return gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs
+        if lower_limit == 0:
+            fname = outbasename + '_all_unique_correlation_pairs.csv'
+        else:
+            fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
+                    str(lower_limit).replace('.', '')
+
+        corr_value_matrix = fsort_corrs.values
+        gene_name_array = fsort_corrs.index.values
+        tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
+        uniq_pair_gen = ((gene_name_array[i], gene_name_array[j],
+                          str(corr_value_matrix[i, j]))
+                         for i, j in zip(*tr_up_indices)
+                         if not np.isnan(corr_value_matrix[i, j]))
+        dnf_logger.info('Saving unique correlation pairs to %s. '
+                        '(May take a while)' % fname)
+        _dump_it_to_csv(fname, uniq_pair_gen)
+    return gene_filter_list, uniq_pair_gen, all_hgnc_ids, fsort_corrs
 
 
 def get_directed(stmts, undirected_types=None):
