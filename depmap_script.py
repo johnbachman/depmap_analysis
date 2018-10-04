@@ -77,18 +77,39 @@ def _corr_web_latex(id1, id2, fmtcorr):
 
 
 def main(args):
-
-    # Evidence list must have length above this value to be part of the
-    # text output
-    ev_fltr = 0
+    if not args.unique_depmap_crispr_pairs:
+        unique_pairs_fpath = input('\nNo file of unique pair combinations for '
+                                   'CRISPR data is provided.\nPlease provide '
+                                   'one here or press [Enter] to proceed with '
+                                   'the calculation of\nunique pairs (may take '
+                                   'a while on full data set).')
+        if unique_pairs_fpath:
+            args.unique_depmap_crispr_pairs = unique_pairs_fpath
+    if not args.unique_depmap_rnai_pairs:
+        unique_pairs_fpath = input('\nNo file of unique pair combinations for '
+                                   'RNAi data is provided.\nPlease provide '
+                                   'one here or press [Enter] to proceed with '
+                                   'the calculation of\nunique pairs (may take '
+                                   'a while on full data set).')
+        if unique_pairs_fpath:
+            args.unique_depmap_rnai_pairs = unique_pairs_fpath
 
     # Prepare data (we need uniq_pairs to look for explainable interactions)
-    gene_filter_list, uniq_pairs, all_hgnc_ids, fsort_corrs = \
-        dnf.get_correlations(args.ceres_file, args.geneset_file,
-                             args.corr_file, args.strict, args.outbasename,
-                             args.unique_depmap_pairs, args.recalc, args.ll,
-                             args.ul)
+    gene_filter_list, uniq_pairs_crispr, all_hgnc_ids_crispr = \
+        dnf.get_correlations(args.crispr_data_file, args.geneset_file,
+                             args.crispr_corr_file, args.strict,
+                             args.outbasename+'_crispr',
+                             args.unique_depmap_crispr_pairs,
+                             args.recalc_crispr, args.cll, args.cul)
 
+    gene_filter_list, uniq_pairs_rnai, all_hgnc_ids_rnai = \
+        dnf.get_correlations(args.rnai_data_file, args.geneset_file,
+                             args.rnai_corr_file, args.strict,
+                             args.outbasename+'_rnai',
+                             args.unique_depmap_rnai_pairs, args.recalc_rnai,
+                             args.rll, args.rul)
+
+    return 0  # Added during test runs
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
     if args.belief_score_dict:
@@ -390,23 +411,30 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ap.ArgumentParser()
-    parser.add_argument('-c', '--corr-file', required=True,
-                        help='Precalculated correlations in h5 format')
-    parser.add_argument('-f', '--ceres-file', required=True,
-                        help='Ceres correlation score in csv format')
+    parser.add_argument('-cc', '--crispr-corr-file',
+                        help='Precalculated CRISPR correlations in h5 format')
+    parser.add_argument('-rc', '--rnai-corr-file',
+                        help='Precalculated RNAi correlations in h5 format')
+    parser.add_argument('-cf', '--crispr-data-file', required=True,
+                        help='CRISPR gene dependency data in csv format')
+    parser.add_argument('-rf', '--rnai-data-file', required=True,
+                        help='RNAi gene dependency data in csv format')
     parser.add_argument('-g', '--geneset-file',
                         help='Filter to interactions with gene set data file.')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp')
-    parser.add_argument('-r', '--recalc', action='store_true',
+    parser.add_argument('-rec', '--recalc-crispr', action='store_true',
                         help='With \'-r\', recalculate full gene-gene '
-                             'correlation of data set.')
+                             'correlations of CRISPR data set.')
+    parser.add_argument('-rer', '--recalc-rnai', action='store_true',
+                        help='With \'-r\', recalculate full gene-gene '
+                             'correlations of RNAi data set.')
     parser.add_argument('-s', '--strict', action='store_true',
                         help='With \'-s\', the correlations are restricted to '
         'only be between loaded gene set. If no gene set is loaded, '
         'this option has no effect.')
-    parser.add_argument('-v', '--verbosity', action="count",
-                        help='increase output verbosity (e.g., -vv is more '
+    parser.add_argument('-v', '--verbosity', action='count',
+                        help='increase output verbosity (-vv is more '
                              'than -v)')
     parser.add_argument('-b', '--belief-score-dict', help='Load a dict with '
         'stmt hash: belief score to be incorporated in the explainable '
@@ -427,13 +455,20 @@ if __name__ == '__main__':
         'lightweight file [-lw] is provided.')
     parser.add_argument('-sto', '--statements-out', help='Saves the used '
         'statements read from the database')
-    parser.add_argument('-up', '--unique-depmap-pairs', help='Uses a '
+    parser.add_argument('-cup', '--unique-depmap-crispr-pairs', help='Uses a '
         'previously saved file to read the unique pairs to read over. Useful '
         'if you are running the script on the full data with no filters.')
-    parser.add_argument('-ll', type=float, default=0.3,
-                        help='Lower limit CERES correlation score filter.')
-    parser.add_argument('-ul', type=float, default=1.0,
-                        help='Upper limit CERES correlation score filter.')
+    parser.add_argument('-rup', '--unique-depmap-rnai-pairs', help='Uses a '
+        'previously saved file to read the unique pairs to read over. Useful '
+        'if you are running the script on the full data with no filters.')
+    parser.add_argument('-cll', type=float, default=0.3,
+                        help='Lower limit CRISPR correlation filter.')
+    parser.add_argument('-cul', type=float, default=1.0,
+                        help='Upper limit CRISPR correlation filter.')
+    parser.add_argument('-rll', type=float, default=0.2,
+                        help='Lower limit RNAi correlation filter.')
+    parser.add_argument('-rul', type=float, default=1.0,
+                        help='Upper limit RNAi correlation filter.')
     a = parser.parse_args()
 
     with open('dep_map_script_log{}.log'.format(str(int(time()))), 'w',
