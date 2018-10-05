@@ -38,8 +38,8 @@ def nest_dict():
     return defaultdict(nest_dict)
 
 
-def file_iterator_generator(fname, column_list):
-    """Return a tuple generator of a csv file
+def csv_file_to_generator(fname, column_list):
+    """Return a tuple generator given a csv file and specified columns
 
     fname : str
         File path of csv file
@@ -48,7 +48,7 @@ def file_iterator_generator(fname, column_list):
 
     Returns
     -------
-    tuple generator
+    tuple_generator : generator object
          A generator that returns a tuple of each row
     """
     pair_corr_file = pd.read_csv(fname, names=column_list)
@@ -56,14 +56,14 @@ def file_iterator_generator(fname, column_list):
 
 
 def corr_matrix_to_generator(corrrelation_matrix):
-    """Returns a tuple generator of a correlation matrix
+    """Return a tuple generator given a correlation matrix
 
     corrrelation_matrix : pandas.DataFrame
         A pandas correlation matrix as a dataframe
 
     Returns
     -------
-    tuple generator
+    tuple_generator : generator object
         A generator that returns a tuple of each row
     """
     corr_value_matrix = corrrelation_matrix.values
@@ -468,41 +468,102 @@ def _read_gene_set_file(gf, data):
 
 
 def get_gene_gene_corr_dict(tuple_generator):
+    """Returns a gene-gene correlation nested dict given a gene-gene nested dict
+
+    tuple_generator : generator object
+        A generator object
+
+    Returns
+    -------
+    nested_dict : defaultdict(dict)
+
     """
+    corr_nest_dict = nest_dict()
+    for gene1, gene2, corr in tuple_generator:
+        corr_nest_dict[gene1][gene2] = corr
+    return corr_nest_dict
 
-    :param tuple_generator:
-    :return:
-    """
-    pass
 
-
-def merge_correlation_sets(list_of_correlation_data_correlation_dict_pairs):
+def merge_correlation_dicts(list_correlation_dicts):
     """Merge two correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
-    list_of_correlation_data_correlation_dict_pairs : list[(, dict)]
-    :return:
+    list_correlation_dicts : list[(corr_nest_dict)]
+
+    Returns
+    -------
+    master_corr_dict : defaultdict(dict)
+        A master correlation dict containing the set of (A,B) correlations
+        that exist in all sets
     """
-    pass
+    master_corr_dict = nest_dict()
+    return master_corr_dict
+
+
+def get_combined_correlations(dict_of_data_sets):
+    # todo --------------------------------------------------------------------
+    # todo Subfunctions:
+    # todo 1. Load, get correlations and filter to a specific geneset (per set)
+    # todo    DONE: get_corr_df()
+    # todo 2. Filter to ll < c < ul=1 (warning if ll==0) (per set)
+    # todo    DONE: corr_limit_filtering()
+    # todo 3. Function to generate correlation dictionary from tuple generator
+    # todo    (per set) DONE
+    # todo 4. Merge correlation pairs from multiple data set: (A,B) has to be
+    # todo    in all sets.
+    # todo    In progress: merge_correlation_sets()
+    # todo 5. Filter functions: build one for each type of filtering.
+    # todo
+    # todo
+    # todo --------------------------------------------------------------------
+    """Return a combined dict of correlations given multiple gene data sets
+
+    The input data [needs to be a collection of the gene expression data set.
+    Need to ask user to list all sources]
+
+    The input data set dict has the following format:
+
+        dict_of_data_sets[gene_set1] = {data: (depmap filepath),
+                                        corr: (depmap corr file),
+                                        ll: lower_limit_for_correlation
+                                        ul: upper_limit
+                                        **other options}
+
+    The returned master correlation dict has the following format:
+
+        d[gene][gene] = {gene_set1: correlation,
+                         gene_set2: correlation,
+                         ...}
+
+    :param dict_of_data_sets:
+    :return master_corr_dict:
+    """
+    corr_dicts = []
+    for gene_set, data_dict in dict_of_data_sets:
+        tuple_generator, set_of_genes = get_correlations(data_dict)
+        gene_dict = get_gene_gene_corr_dict(tuple_generator)
+    #   append dict to corr_dicts
+    master_corr_dict = merge_correlation_dicts(corr_dicts)
+    return master_corr_dict
 
 
 def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
                      outbasename, unique_corr_pair_file, recalc=False,
                      lower_limit=0.2, upper_limit=1.0):
+    """ given a gene-feature matrix in csv format.
 
-    # todo --------------------------------------------------------------------
-    # todo Separate this into subfunctions:
-    # todo 1. Load, get correlations and filter to a specific geneset (per set)
-    # todo    DONE: get_corr_df()
-    # todo 2. Filter to ll < c < ul=1 (warning if ll==0) (per set)
-    # TODO    DONE: corr_limit_filtering()
-    # todo 3. Merge correlation pairs from multiple data set: (A,B) has to be
-    # todo    in all sets.
-    # TODO    In progress: merge_correlation_sets()
-    # todo 4. Filter functions: build one for each type of filtering.
-    # todo
-    # todo
-    # todo --------------------------------------------------------------------
+    :param depmap_data_file:
+    :param geneset_file:
+    :param corr_file:
+    :param strict:
+    :param outbasename:
+    :param unique_corr_pair_file:
+    :param recalc:
+    :param lower_limit:
+    :param upper_limit:
+
+    :return:
+    """
 
     filtered_correlation_matrix = get_corr_df(depmap_data_file, corr_file,
                                               geneset_file, strict, recalc,
@@ -515,8 +576,8 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
     if unique_corr_pair_file:
         dnf_logger.info('Loading unique correlation pairs from %s' %
                         unique_corr_pair_file)
-        uniq_pair_gen = file_iterator_generator(unique_corr_pair_file,
-                                                ['gene1', 'gene2', 'corr'])
+        uniq_pair_gen = csv_file_to_generator(unique_corr_pair_file,
+                                              ['gene1', 'gene2', 'corr'])
     else:
         if lower_limit == 0:
             fname = outbasename + '_all_unique_correlation_pairs.csv'
