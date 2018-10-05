@@ -491,7 +491,7 @@ def get_gene_gene_corr_dict(tuple_generator):
     return corr_nest_dict
 
 
-def merge_correlation_dicts(correlation_dicts_list):
+def merge_correlation_dicts(correlation_dicts_list, sigma_dict, settings):
     """Merge multiple correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
@@ -527,8 +527,16 @@ def merge_correlation_dicts(correlation_dicts_list):
                     other_corr = merged_corr_dict[o_gene][i_gene]
                 elif _entry_exist(other_dict, i_gene, o_gene):
                     other_corr = merged_corr_dict[i_gene][o_gene]
-                merged_corr_dict[o_gene][i_gene][other_name] = other_corr
-                merged_corr_dict[o_gene][i_gene][set_name] = corr
+
+                if pass_filter(corr1=corr, sigma1=sigma_dict['set_name'],
+                               corr2=other_corr,
+                               sigma2=sigma_dict['other_name'],
+                               margin=settings['margin'],
+                               filter_type=settings['filter_type']):
+                    merged_corr_dict[o_gene][i_gene][other_name] = other_corr
+                    merged_corr_dict[o_gene][i_gene][set_name] = corr
+                else:
+                    continue
 
     # recursive case: more than 2 dicts. Merge the shortest and another,
     # call same function with and the merged dict plus the rest of the list.
@@ -577,8 +585,9 @@ def get_combined_correlations(dict_of_data_sets):
         dict_of_data_sets[gene_set1] = {data: (depmap filepath),
                                         corr: (depmap corr file),
                                         ll: lower_limit_for_correlation
-                                        ul: upper_limit
-                                        **other options}
+                                        ul: upper_limit_for_correlation
+                                        sigma: st-dev of correlation distr
+                                        **other needed options}
 
     The returned master correlation dict has the following format:
 
@@ -599,9 +608,6 @@ def get_combined_correlations(dict_of_data_sets):
 
     # Merge the dictionaries and the set of genes
     master_corr_dict = merge_correlation_dicts(corr_dicts_list)
-
-    # Filter if filtering is set to be on
-
 
     return master_corr_dict, gene_set_intersection
 
@@ -708,6 +714,13 @@ def get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
 
 
 def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
+    """Filters a correlation matrix to values in (lower_limit, upper_limit)
+
+    :param corr_matrix_df:
+    :param lower_limit:
+    :param upper_limit:
+    :return:
+    """
     dnf_logger.info('Filtering correlations to %.1f < C < %.1f' %
                     (lower_limit, upper_limit))
     corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() > lower_limit]
@@ -715,6 +728,23 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
         corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() < upper_limit]
 
     return corr_matrix_df
+
+
+def pass_filter(corr1, sigma1, corr2, sigma2, margin, filter_type='sigma-diff'):
+    """
+
+    :param corr1:
+    :param sigma1:
+    :param corr2:
+    :param sigma2:
+    :param margin:
+    :param filter_type:
+    :return: bool
+    """
+    if filter_type == 'sigma-diff':
+        return abs(corr1/sigma1 - corr2/sigma2) > margin
+    else:
+        return True
 
 
 def get_directed(stmts, undirected_types=None):
