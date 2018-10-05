@@ -13,8 +13,8 @@ from collections import OrderedDict
 from sqlalchemy.exc import StatementError
 from pandas.core.series import Series as pd_Series_class
 from pandas.core.frame import DataFrame as pd_DataFrame_class
-from indra.db import util as dbu
-from indra.db import client as dbc
+from indra_db import util as dbu
+from indra_db import client as dbc
 from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.preassembler import Preassembler as pa
@@ -28,14 +28,21 @@ db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
-def nest_dict():
+def _entry_exist(nest_dict, outer_key, inner_key):
+    if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
+        return True
+    else:
+        return False
+
+
+def create_nested_dict():
     """Returns a nested dictionary of arbitrary depth
 
     Returns
     -------
-    defaultdict(nest_dict)
+    defaultdict(create_nested_dict)
     """
-    return defaultdict(nest_dict)
+    return defaultdict(create_nested_dict)
 
 
 def csv_file_to_generator(fname, column_list):
@@ -478,26 +485,70 @@ def get_gene_gene_corr_dict(tuple_generator):
     nested_dict : defaultdict(dict)
 
     """
-    corr_nest_dict = nest_dict()
+    corr_nest_dict = create_nested_dict()
     for gene1, gene2, corr in tuple_generator:
         corr_nest_dict[gene1][gene2] = corr
     return corr_nest_dict
 
 
-def merge_correlation_dicts(list_correlation_dicts):
-    """Merge two correlation data sets to one single iterable of
+def merge_correlation_dicts(correlation_dicts_list):
+    """Merge multiple correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
-    list_correlation_dicts : list[(corr_nest_dict)]
+    correlation_dicts_list : list[(gene_set_name, corr_nest_dict)]
 
     Returns
     -------
-    master_corr_dict : defaultdict(dict)
+    merged_corr_dict : defaultdict(dict)
         A master correlation dict containing the set of (A,B) correlations
-        that exist in all sets
+        that exist in all sets. The structure is d[g][g] = {set_name: corr, ...}
     """
-    master_corr_dict = nest_dict()
-    return master_corr_dict
+
+    # Since we're merging to an intersection, we only need to loop one of the
+    # dictionaries and compare it to the other. Check which one is the
+    # smallest and loop that one. Assuming len(dict) gives the nested dict
+    # with the shortest iteration.
+
+    # Get two dicts from the list
+    name_dict_tuple = next(d for d in correlation_dicts_list if len(
+        d[1]) == min([len(i[1]) for i in correlation_dicts_list]))
+    correlation_dicts_list.remove(name_dict_tuple)
+    set_name, shortest_dict = name_dict_tuple
+    other_name, other_dict = correlation_dicts_list.pop()
+
+    merged_corr_dict = create_nested_dict()
+    dnf_logger.info('Merging correlation dicts %s and %s' %
+                    (set_name, other_name))
+    for o_gene, d in shortest_dict:
+        for i_gene, corr in d:
+            if not not _entry_exist(merged_corr_dict, o_gene, i_gene):
+                # Check both directions
+                if _entry_exist(other_dict, o_gene, i_gene):
+                    other_corr = merged_corr_dict[o_gene][i_gene]
+                elif _entry_exist(other_dict, i_gene, o_gene):
+                    other_corr = merged_corr_dict[i_gene][o_gene]
+                merged_corr_dict[o_gene][i_gene][other_name] = other_corr
+                merged_corr_dict[o_gene][i_gene][set_name] = corr
+
+    # recursive case: more than 2 dicts. Merge the shortest and another,
+    # call same function with and the merged dict plus the rest of the list.
+    # if correlation_dicts_list:
+    #     return merge_correlation_dicts_recursive(
+    #         correlation_dicts_list.append(('master', merged_corr_dict)))
+
+    # base case: 2 dicts in list. Return merged dict.
+    # else:
+    return merged_corr_dict
+
+
+def merge_correlation_dicts_recursive(correlation_dicts_list):
+    """ This should be the recursive version of correlation_dicts_list(). Call
+    this function from correlation_dicts_list()
+
+    :param correlation_dicts_list:
+    :return: pass
+    """
+    pass
 
 
 def get_combined_correlations(dict_of_data_sets):
@@ -511,7 +562,7 @@ def get_combined_correlations(dict_of_data_sets):
     # todo    (per set) DONE
     # todo 4. Merge correlation pairs from multiple data set: (A,B) has to be
     # todo    in all sets.
-    # todo    In progress: merge_correlation_sets()
+    # todo    DONE: merge_correlation_dicts()
     # todo 5. Filter functions: build one for each type of filtering.
     # todo
     # todo
@@ -538,19 +589,28 @@ def get_combined_correlations(dict_of_data_sets):
     :param dict_of_data_sets:
     :return master_corr_dict:
     """
-    corr_dicts = []
-    for gene_set, data_dict in dict_of_data_sets:
+    corr_dicts_list = []
+    gene_set_intersection = set()
+    for gene_set_name, data_dict in dict_of_data_sets:
         tuple_generator, set_of_genes = get_correlations(data_dict)
-        gene_dict = get_gene_gene_corr_dict(tuple_generator)
-    #   append dict to corr_dicts
-    master_corr_dict = merge_correlation_dicts(corr_dicts)
-    return master_corr_dict
+        corr_dict = get_gene_gene_corr_dict(tuple_generator)
+        corr_dicts_list.append((gene_set_name, corr_dict))
+        gene_set_intersection.intersection_update(set_of_genes)
+
+    # Merge the dictionaries and the set of genes
+    master_corr_dict = merge_correlation_dicts(corr_dicts_list)
+
+    # Filter if filtering is set to be on
+
+
+    return master_corr_dict, gene_set_intersection
 
 
 def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
                      outbasename, unique_corr_pair_file, recalc=False,
                      lower_limit=0.2, upper_limit=1.0):
-    """ given a gene-feature matrix in csv format.
+    # todo make function take dict as input
+    """ given a gene-feature data matrix in csv format.
 
     :param depmap_data_file:
     :param geneset_file:
