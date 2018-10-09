@@ -14,12 +14,10 @@ from sqlalchemy.exc import StatementError
 from scipy import interpolate as interpol
 from scipy.optimize import curve_fit as opt_curve_fit
 from pandas.core.series import Series as pd_Series_class
-from pandas.core.frame import DataFrame as pd_DataFrame_class
 from indra_db import util as dbu
 from indra_db import client as dbc
 from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
-from indra.preassembler import Preassembler as pa
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
@@ -237,7 +235,7 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
                         # One edge per statement
                         # Could instead add stmt attributes like
                         # evidence.text, supported by, suppors, uuic, etc
-                        nx_muldir.add_edge(u_of_edge=subj, v_of_edge=obj,
+                        nx_muldir.add_edge(u_for_edge=subj, v_for_edge=obj,
                                            attr_dict={'stmt': stmt})
     return nx_muldir
 
@@ -461,7 +459,7 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     edge_bunch = map(lambda t: (t[0], t[1], {'weight': t[2]}), corr_list)
 
     dnf_logger.info('Creating weighted undirected graph from network data')
-    corr_weight_graph.add_edges_from(ebunch=edge_bunch)
+    corr_weight_graph.add_edges_from(ebunch_to_add=edge_bunch)
 
     return corr_weight_graph
 
@@ -508,8 +506,8 @@ def histogram_for_large_files(fpath, number_of_bins, binsize, first):
     return home_brewed_histo
 
 
-def _manually_add_to_hito(hist, start, binsize, value):
-    hist[_map2index(start, binsize, value)]
+def _manually_add_to_histo(hist, start, binsize, value):
+    hist[_map2index(start, binsize, value)] += 1
 
 
 def _my_gauss(x, a, x0, sigma):
@@ -640,18 +638,17 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
         for i_gene, corr in d:
             if not not _entry_exist(merged_corr_dict, o_gene, i_gene):
                 # Check both directions
-                other_corr=None
+                other_corr = None
                 if _entry_exist(other_dict, o_gene, i_gene):
                     other_corr = merged_corr_dict[o_gene][i_gene]
                 elif _entry_exist(other_dict, i_gene, o_gene):
                     other_corr = merged_corr_dict[i_gene][o_gene]
 
-                if other_corr and pass_filter(corr1=corr,
-                                              sigma1=sigma_dict['sigma'],
-                                              corr2=other_corr,
-                                              sigma2=other_sigma_dict['sigma'],
-                                              margin=settings['margin'],
-                                              filter_type=settings['filter_type']):
+                if other_corr and pass_filter(
+                        corr1=corr, sigma1=sigma_dict['sigma'],
+                        corr2=other_corr, sigma2=other_sigma_dict['sigma'],
+                        margin=settings['margin'],
+                        filter_type=settings['filter_type']):
                     merged_corr_dict[o_gene][i_gene][set_name] = corr
                     merged_corr_dict[o_gene][i_gene][other_name] = other_corr
                 else:
@@ -668,21 +665,21 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
     return merged_corr_dict
 
 
-def merge_correlation_dicts_recursive(correlation_dicts_list):
-    """ This should be the recursive version of correlation_dicts_list(). Call
-    this function from correlation_dicts_list()
-
-    :param correlation_dicts_list:
-    :return: pass
-    """
-    pass
+# def merge_correlation_dicts_recursive(correlation_dicts_list):
+#     """ This should be the recursive version of correlation_dicts_list(). Call
+#     this function from correlation_dicts_list()
+#
+#     :param correlation_dicts_list:
+#     :return: pass
+#     """
+#     pass
 
 
 def get_combined_correlations(dict_of_data_sets):
     # todo --------------------------------------------------------------------
     # todo Subfunctions:
     # todo 1. Load, get correlations and filter to a specific geneset (per set)
-    # todo    DONE: get_corr_df()
+    # todo    DONE: _get_corr_df()
     # todo 2. Filter to ll < c < ul=1 (warning if ll==0) (per set)
     # todo    DONE: corr_limit_filtering()
     # todo 3. Function to generate correlation dictionary from tuple generator
@@ -722,8 +719,16 @@ def get_combined_correlations(dict_of_data_sets):
                          gene_set2: correlation,
                          ...}
 
-    :param dict_of_data_sets:
-    :return master_corr_dict:
+    dict_of_data_sets: dict()
+        Dictionary containing the filepaths and settings for the data set
+
+    Returns
+    -------
+    master_corr_dict: defaultdict(dict)
+        A nested dict containing a lookup of the filtered set of
+        gene-gene-correlations
+     gene_set_intersection: set()
+        The set of HGNC gene names in the master correlation lookup
     """
     corr_dicts_list = []
     gene_set_intersection = set()
@@ -796,13 +801,17 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
 
     Returns
     -------
-    todo Add description of function return
+    uniq_pair_gen: generator
+        Generator of gene,gene,correlation tuples from file or correlation
+        calculation
+    all_hgnc_ids: set()
+        The set of all genes in the correlation
     """
 
-    filtered_correlation_matrix = get_corr_df(depmap_data_file, corr_file,
-                                              geneset_file, strict, recalc,
-                                              outbasename, lower_limit,
-                                              upper_limit)
+    filtered_correlation_matrix = _get_corr_df(depmap_data_file, corr_file,
+                                               geneset_file, strict, recalc,
+                                               outbasename, lower_limit,
+                                               upper_limit)
 
     all_hgnc_ids = set(filtered_correlation_matrix.index.values)
 
@@ -826,8 +835,8 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
     return uniq_pair_gen, all_hgnc_ids
 
 
-def get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
-                outbasename, lower_limit, upper_limit):
+def _get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
+                 outbasename, lower_limit, upper_limit):
 
     # Open data file
     dnf_logger.info('Reading DepMap data from %s' % depmap_data_file)
@@ -841,6 +850,7 @@ def get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
         gene_filter_list = []  # Evaluates to False
 
     # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
+    corr_matrix_df = None
     if not geneset_file or (geneset_file and not strict):
         # Calculate the full correlations, or load from cached
         if recalc:
@@ -853,6 +863,7 @@ def get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
                 corr = pd.read_hdf(corr_file, 'correlations')
             else:
                 dnf_logger.error('No correlation file provdided or calculated!')
+                raise FileNotFoundError
         # No gene set file, leave 'corr' intact
         if not geneset_file:
             corr_matrix_df = corr
@@ -865,6 +876,8 @@ def get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
     #    Filter data, then calculate correlations and then unstack
     elif geneset_file and strict:
         corr_matrix_df = data[gene_filter_list].corr()
+
+    assert corr_matrix_df is not None
 
     # Remove self correlation, correlations below ll, sort on magnitude,
     # leave correlation intact
@@ -884,10 +897,18 @@ def get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
 def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
     """Filters a correlation matrix to values in (lower_limit, upper_limit)
 
-    :param corr_matrix_df:
-    :param lower_limit:
-    :param upper_limit:
-    :return:
+    corr_matrix_df: pandas.DataFrame
+        A pandas correlation matrix as a pandas data frame
+    lower_limit: float
+        Lowest correlation magnitude to consider
+    upper_limit: float
+        Highest correlation magnitude to consider (good for picking a sample
+        in the middle of the correlation distribution)
+
+    Returns
+    -------
+    corr_matrix_df: pandas.DataFrame
+        A filtered correlation dataframe matrix
     """
     dnf_logger.info('Filtering correlations to %.1f < C < %.1f' %
                     (lower_limit, upper_limit))
@@ -902,14 +923,24 @@ def pass_filter(corr1, sigma1, corr2, sigma2, margin, filter_type='sigma-diff'):
     """Filter for passing correlation scores based on their difference in
     standard deviation
 
-    todo add parameter descriptions below
-    :param corr1:
-    :param sigma1:
-    :param corr2:
-    :param sigma2:
-    :param margin:
-    :param filter_type:
-    :return: bool
+    corr1: float
+        Correlation from first data set
+    sigma1: float
+        Standard deviation of first dataset
+    corr2: float
+        Correlation from second data set
+    sigma2: float
+        Standard deviation of second dataset
+    margin: float
+        How far off the correlations can be to pass as "similar"
+    filter_type:
+        The filter type to use ("sigma-diff" is currently the only one)
+
+    Returns
+    -------
+    bool
+        If True, the correlations are similar enough as measured by their
+        similarity in the standard deviation.
     """
     if filter_type == 'sigma-diff':
         return abs(corr1/sigma1 - corr2/sigma2) > margin
@@ -995,8 +1026,9 @@ def get_directed_type_hash(stmts, undirected_types):
 def get_directed_actual_statements(stmts, undirected_types):
     """Given a list of INDRA statements, sort statements on directionality.
 
-    stmts : list[:py:class:`indra.statements.Statement`]
-    undirected : [statement types]
+    stmts: list[:py:class:`indra.statements.Statement`]
+        List of INDRA statements
+    undirected: [statement types]
         A list of name strings considered to be undirected.
 
     Returns
@@ -1020,8 +1052,9 @@ def get_directed_actual_statements(stmts, undirected_types):
 def get_directed_json(stmts, undirected_types):
     """Given a list of json statements, sort statements on directionality.
 
-    stmts : list[json statements]
-    undirected : [statement types]
+    stmts: list[json statements]
+        A list of INDRA statements in json format
+    undirected: [statement types]
         A list of name strings considered to be undirected.
 
     Returns
@@ -1045,12 +1078,13 @@ def get_directed_json(stmts, undirected_types):
 def agent_name_set(stmt):
     """Return the list of agent names in a statement.
 
-    stmt : :py:class:`indra.statements.Statement`
+    stmt: :py:class:`indra.statements.Statement`
+        INDRA statement
 
     Returns
     -------
-    ags : list[agent names]
-
+    ags: list[agent names]
+        List of agent names in statement
     """
     ags = []
     try:
@@ -1067,8 +1101,13 @@ def agent_name_set(stmt):
 def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     """Returns a nested dict of
 
-    :param hash_pair_dataframe:
-    :return:
+    hash_pair_dataframe: pandas.DataFrame
+        A padnas dataframe containing indra statements/statement hashes
+
+    Returns
+    -------
+    nest_hash_dict: defaultdict(dict)
+        A nested dict of d[subj][obj] = [statement hashes]
     """
     nest_hash_dict = defaultdict(dict)
 
@@ -1076,7 +1115,7 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     # agent_1=subj, agent_2=obj, type, hash
     for index, row in hash_pair_dataframe.iterrows():
         (subj, obj, stmt_type, stmt_hash) = row
-        if nest_hash_dict.get(subj) and nest_hash_dict.get(subj).get(obj):
+        if _entry_exist(nest_hash_dict, subj, obj):
             # Entry subj-obj already exists and should be a list
             nest_hash_dict[subj][obj].append((stmt_type, stmt_hash))
         else:
@@ -1087,7 +1126,7 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     return nest_hash_dict
 
 
-def nested_dict_gen(stmts, belief_dict=None):
+def nested_dict_of_stmts(stmts, belief_dict=None):
     """Generates a nested dict of the form dict[key1][key2] = [statement list]
     from INDRA statements.
 
@@ -1160,10 +1199,22 @@ def nested_dict_gen(stmts, belief_dict=None):
 
 
 def dedupl_nested_dict_gen(stmts, belief_dict):
-    ddstmt_list = deduplicate_stmt_list(stmts=stmts, ignore_str='parent')
-    nd = nested_dict_gen(ddstmt_list, belief_dict)
+    """De-duplicate a list of statments
 
-    return nd
+    stmts: list[:py:class:`indra.statements.Statement`]
+        List of INDRA statements
+    belief_dict : dict()
+        dict with {hash: belief score} as key: value pairs
+
+    Returns
+    -------
+    nested_dict_stmts: defaultdict(dict)
+        A nested dict of deduplicated statement
+    """
+    ddstmt_list = deduplicate_stmt_list(stmts=stmts, ignore_str='parent')
+    nested_dict_stmts = nested_dict_of_stmts(ddstmt_list, belief_dict)
+
+    return nested_dict_stmts
 
 
 def deduplicate_stmt_list(stmts, ignore_str):
@@ -1172,6 +1223,7 @@ def deduplicate_stmt_list(stmts, ignore_str):
     taking care of non-statements
 
     stmts : list[:py:class:`indra.statements.Statement`]
+        List of INDRA statements
 
     Returns
     -------
@@ -1196,6 +1248,7 @@ def pa_filter_unique_evidence(stmts):
     the number of statements.
 
     stmts : list[:py:class:`indra.statements.Statement`]
+        List of INDRA statements
 
     Returns
     -------
@@ -1466,7 +1519,7 @@ def dbc_load_statements(hgnc_ids):
 
 
 def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
-                id=None, type='all'):
+                id_=None, type_='all'):
     """A wrapper function for he.get_parents to make the functionality more
     clear.
 
@@ -1476,9 +1529,9 @@ def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
         A HierarchyManager object. Default: entity hierarchy object
     ns : str
         namespace id. Default: HGNC
-    id : str
+    id_ : str
         id to check parents for. Default: None
-    type : str
+    type_ : str
         'all': (Default) return all parents irrespective of level;
         'immediate': return only the immediate parents;
         'top': return only the highest level parents
@@ -1488,11 +1541,11 @@ def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
     set
         set of parents of database id in namespace ns
     """
-    return ho.get_parents(ho.get_uri(ns, id), type)
+    return ho.get_parents(ho.get_uri(ns, id_), type_)
 
 
 def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
-                  id1=None, ns2='HGNC', id2=None, type='all'):
+                  id1=None, ns2='HGNC', id2=None, type_='all'):
     """Returns the set of common parents.
 
     Parameters
@@ -1507,7 +1560,7 @@ def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
         namespace id. Default: HGNC
     id2 : str
         Second id to check parents for. Default: None
-    type : str
+    type_ : str
         'all': (Default) return all parents irrespective of level;
         'immediate': return only the immediate parents;
         'top': return only the highest level parents
@@ -1517,7 +1570,7 @@ def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
     set
         set of common parents in uri format
     """
-    return find_parent(ho, ns1, id1, type) & find_parent(ho, ns2, id2, type)
+    return find_parent(ho, ns1, id1, type_) & find_parent(ho, ns2, id2, type_)
 
 
 def has_common_parent(ho=hm.hierarchies['entity'], ns1='HGNC', id1=None,
@@ -1636,6 +1689,7 @@ def relation_type(indra_stmt):
     Parameters
     ----------
     indra_stmt : :py:class:`indra.statements.Statement`
+        INDRA statment
 
     Returns
     -------
