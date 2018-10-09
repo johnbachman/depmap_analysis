@@ -675,22 +675,7 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
 #     pass
 
 
-def get_combined_correlations(dict_of_data_sets):
-    # todo --------------------------------------------------------------------
-    # todo Subfunctions:
-    # todo 1. Load, get correlations and filter to a specific geneset (per set)
-    # todo    DONE: _get_corr_df()
-    # todo 2. Filter to ll < c < ul=1 (warning if ll==0) (per set)
-    # todo    DONE: corr_limit_filtering()
-    # todo 3. Function to generate correlation dictionary from tuple generator
-    # todo    (per set) DONE
-    # todo 4. Merge correlation pairs from multiple data set: (A,B) has to be
-    # todo    in all sets.
-    # todo    DONE: merge_correlation_dicts()
-    # todo 5. Filter functions: build one for each type of filtering.
-    # todo
-    # todo
-    # todo --------------------------------------------------------------------
+def get_combined_correlations(dict_of_data_sets, filter_settings):
     """Return a combined dict of correlations given multiple gene data sets
 
     The input data [needs to be a collection of the gene expression data set.
@@ -713,6 +698,20 @@ def get_combined_correlations(dict_of_data_sets):
                          strict: Bool,
                          recalc: Bool}
 
+    The filter settings should contain the following:
+
+        filter_settings = {'margin':      diff in terms of standard deviations
+                                          between correlations,
+                           'filter_type': Type of filtering
+                                          (Default: 'sigma-diff'),
+                           'nbins':       Number of bins to use when binning
+                                          the correlation data,
+                           'binsize':     Bin size when binning the
+                                          correlation data,
+                           'hist_range':  Upper and lower edges when
+                                          binning the correlation data
+                                          (Default: -1.0, 1.0)}
+
     The returned master correlation dict has the following format:
 
         d[gene][gene] = {gene_set1: correlation,
@@ -721,6 +720,8 @@ def get_combined_correlations(dict_of_data_sets):
 
     dict_of_data_sets: dict()
         Dictionary containing the filepaths and settings for the data set
+    filter_settings: dict
+        Dictionary with filter settings
 
     Returns
     -------
@@ -732,14 +733,6 @@ def get_combined_correlations(dict_of_data_sets):
     """
     corr_dicts_list = []
     gene_set_intersection = set()
-
-    # todo `filter_settings` should come from the main script
-    # The diff in standard deviations between distributions being compared
-    filter_settings = {'margin': 1.0,
-                       'filter_type': 'sigma-diff',
-                       'nbins': 201,
-                       'binsize': 0.01,
-                       'hist_range': (-1.0, 1.0)}
 
     for gene_set_name, dataset_dict in dict_of_data_sets:
 
