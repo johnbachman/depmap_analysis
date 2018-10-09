@@ -11,6 +11,8 @@ from collections import Mapping
 from collections import defaultdict
 from collections import OrderedDict
 from sqlalchemy.exc import StatementError
+from scipy import interpolate as interpol
+from scipy.optimize import curve_fit as opt_curve_fit
 from pandas.core.series import Series as pd_Series_class
 from pandas.core.frame import DataFrame as pd_DataFrame_class
 from indra_db import util as dbu
@@ -474,28 +476,140 @@ def _read_gene_set_file(gf, data):
     return gset
 
 
-def get_gene_gene_corr_dict(tuple_generator):
+def _map2index(start, binsize, value):
+    offset = int(abs(start//binsize))
+    return offset + int(float(value) // binsize)
+
+
+def histogram_for_large_files(fpath, number_of_bins, binsize, first):
+    """Returns a histogram for very large files
+
+    fpath: str(filename)
+        filepath to file with data to be binned
+    number_of_bins: int
+        the number fo bins to use
+    binsize: float
+        the size of bins
+    first: float
+        The left most (min(x)) edge of the bin edges
+
+    Returns
+    -------
+    home_brewed_histo: np.array
+        A histrogram of the data in fpath according to number of bins,
+        binsize and first.
+    """
+    home_brewed_histo = np.zeros(number_of_bins, dtype=int)
+    with open(file=fpath) as fo:
+        for line in fo:
+            flt = line.strip()
+            home_brewed_histo[_map2index(start=first, binsize=binsize,
+                                         value=flt)] += 1
+    return home_brewed_histo
+
+
+def _manually_add_to_hito(hist, start, binsize, value):
+    hist[_map2index(start, binsize, value)]
+
+
+def _my_gauss(x, a, x0, sigma):
+    return a*np.exp(-(x-x0)**2/(2*sigma**2))
+
+
+def get_gaussian_stats(bin_edges, hist):
+    """Assuming a gaussian histogram, return scale (a), mean (mu) and sigma.
+
+    We assume the guassian has the form:
+
+        f(x,A,mu,sigma) = A*np.exp(-(x-mu)**2/(2*sigma**2))
+
+    bin_edges: np.array
+         edges for the bins as numpy array of length n+1
+    hist: np.array
+        histogram as numpy array of length n
+
+    Returns
+    -------
+    a, mu, sigma: tuple(floats)
+        a: scaling of the gaussian
+        mu: mean of the distribution
+        sigma: standard deviation
+    """
+    a0 = max(hist) / 2.0
+    sigma0 = 0.125*(bin_edges[-1]-bin_edges[0])  # (bin distance)/8
+    bin_positions = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+    mu0 = bin_positions[np.argmax(bin_positions)]  # position of guess max
+    coeff, var_matrix = opt_curve_fit(_my_gauss, bin_positions, hist,
+                                      [a0, mu0, sigma0])
+    a = coeff[0]
+    mu = coeff[1]
+    sigma = coeff[2]
+    return a, mu, sigma
+
+
+def _get_partial_gaussian_stats(bin_edges, hist):
+    bin_positions = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+    # Get log of nonzero x, y pairs
+    log_hist = []
+    saved_positions = []
+    for x, y in zip(bin_positions, hist):
+        if y > 0:
+            log_hist.append(np.log(y))
+            saved_positions.append(x)
+
+    log_hist = np.array(log_hist)
+    saved_positions = np.array(saved_positions)
+
+    interp_log_gaussian = interpol.interp1d(x=saved_positions,
+                                           y=log_hist,
+                                           kind='quadratic')
+    interp_gaussian = np.exp(interp_log_gaussian(bin_positions))
+
+    return get_gaussian_stats(bin_edges, interp_gaussian)
+
+
+def get_gene_gene_corr_dict_wstats(tuple_generator, nbins, binsize, hist_range):
     """Returns a gene-gene correlation nested dict given a gene-gene nested dict
 
     tuple_generator : generator object
         A generator object
+    nbins: int
+        number of bins in histogram
+    binsize: float
+        size of bins in histogram
+    hist_range: tuple(float, float)
+        Tuple of floats with start-stop
 
     Returns
     -------
     nested_dict : defaultdict(dict)
-
+        Dict with gene-gene-correlation
     """
     corr_nest_dict = create_nested_dict()
-    for gene1, gene2, corr in tuple_generator:
+    home_brewed_histo = np.zeros(nbins, dtype=int)
+    edges = np.arange(hist_range[0], hist_range[1] + binsize, step=binsize)
+    for gene1, gene2, c in tuple_generator:
+        corr = None
+        if isinstance(c, str):
+            corr = float(c)
+        elif isinstance(c, float):
+            corr = c
         corr_nest_dict[gene1][gene2] = corr
-    return corr_nest_dict
+        home_brewed_histo[_map2index(hist_range[0], binsize, corr)] += 1
+    a, mu, sigma = get_gaussian_stats(bin_edges=edges, hist=home_brewed_histo)
+    sigma_dict = {'a': a,
+                  'mu': mu,
+                  'sigma': sigma}
+    return corr_nest_dict, sigma_dict
 
 
-def merge_correlation_dicts(correlation_dicts_list, sigma_dict, settings):
+def merge_correlation_dicts(correlation_dicts_list, settings):
     """Merge multiple correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
-    correlation_dicts_list : list[(gene_set_name, corr_nest_dict)]
+    correlation_dicts_list: list[(gene_set_name, corr_nest_dict)]
+        List of name-corr_dict-distr_stats_dict tuples
+    settings:
 
     Returns
     -------
@@ -506,35 +620,40 @@ def merge_correlation_dicts(correlation_dicts_list, sigma_dict, settings):
 
     # Since we're merging to an intersection, we only need to loop one of the
     # dictionaries and compare it to the other. Check which one is the
-    # smallest and loop that one. Assuming len(dict) gives the nested dict
-    # with the shortest iteration.
+    # smallest and loop that one (assuming len(dict) gives the nested dict
+    # with the shortest iteration).
 
-    # Get two dicts from the list
-    name_dict_tuple = next(d for d in correlation_dicts_list if len(
+    # Get shortest dict from tuple list
+    name_dict_sigma_tuple = next(d for d in correlation_dicts_list if len(
         d[1]) == min([len(i[1]) for i in correlation_dicts_list]))
-    correlation_dicts_list.remove(name_dict_tuple)
-    set_name, shortest_dict = name_dict_tuple
-    other_name, other_dict = correlation_dicts_list.pop()
+    # Remove the tuple with the shortest dict  from the list
+    correlation_dicts_list.remove(name_dict_sigma_tuple)
+    set_name, shortest_dict, sigma_dict = name_dict_sigma_tuple
+    # Pop the list to get the oter tuple to merge with
+    other_name, other_dict, other_sigma_dict = correlation_dicts_list.pop()
 
     merged_corr_dict = create_nested_dict()
     dnf_logger.info('Merging correlation dicts %s and %s' %
                     (set_name, other_name))
+    # Loop shortest correlation lookup dict
     for o_gene, d in shortest_dict:
         for i_gene, corr in d:
             if not not _entry_exist(merged_corr_dict, o_gene, i_gene):
                 # Check both directions
+                other_corr=None
                 if _entry_exist(other_dict, o_gene, i_gene):
                     other_corr = merged_corr_dict[o_gene][i_gene]
                 elif _entry_exist(other_dict, i_gene, o_gene):
                     other_corr = merged_corr_dict[i_gene][o_gene]
 
-                if pass_filter(corr1=corr, sigma1=sigma_dict['set_name'],
-                               corr2=other_corr,
-                               sigma2=sigma_dict['other_name'],
-                               margin=settings['margin'],
-                               filter_type=settings['filter_type']):
-                    merged_corr_dict[o_gene][i_gene][other_name] = other_corr
+                if other_corr and pass_filter(corr1=corr,
+                                              sigma1=sigma_dict['sigma'],
+                                              corr2=other_corr,
+                                              sigma2=other_sigma_dict['sigma'],
+                                              margin=settings['margin'],
+                                              filter_type=settings['filter_type']):
                     merged_corr_dict[o_gene][i_gene][set_name] = corr
+                    merged_corr_dict[o_gene][i_gene][other_name] = other_corr
                 else:
                     continue
 
@@ -582,12 +701,20 @@ def get_combined_correlations(dict_of_data_sets):
 
     The input data set dict has the following format:
 
-        dict_of_data_sets[gene_set1] = {data: (depmap filepath),
-                                        corr: (depmap corr file),
-                                        ll: lower_limit_for_correlation
-                                        ul: upper_limit_for_correlation
-                                        sigma: st-dev of correlation distr
-                                        **other needed options}
+        dict_of_data_sets[gene_set1] = dataset1_dict
+
+        dataset1_dict = {data: (depmap filepath),
+                         corr: (depmap corr file),
+                         filter_gene_set: list[genes to filter on]
+                         unique_pair_corr_file: filepath,
+                         ll: lower_limit_for_correlation,
+                         ul: upper_limit_for_correlation,
+                         sigma: st-dev of correlation distr,
+                         filter_margin: float,
+                         merge_filter_type: str,
+                         outbasename: str,
+                         strict: Bool,
+                         recalc: Bool}
 
     The returned master correlation dict has the following format:
 
@@ -600,35 +727,76 @@ def get_combined_correlations(dict_of_data_sets):
     """
     corr_dicts_list = []
     gene_set_intersection = set()
-    for gene_set_name, data_dict in dict_of_data_sets:
-        tuple_generator, set_of_genes = get_correlations(data_dict)
-        corr_dict = get_gene_gene_corr_dict(tuple_generator)
-        corr_dicts_list.append((gene_set_name, corr_dict))
+
+    # todo `filter_settings` should come from the main script
+    # The diff in standard deviations between distributions being compared
+    filter_settings = {'margin': 1.0,
+                       'filter_type': 'sigma-diff',
+                       'nbins': 201,
+                       'binsize': 0.01,
+                       'hist_range': (-1.0, 1.0)}
+
+    for gene_set_name, dataset_dict in dict_of_data_sets:
+
+        # Get tuple generator and the accompanied set of genes
+        tuple_generator, set_of_genes = get_correlations(
+            depmap_data_file=dataset_dict['data'],
+            geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
+            corr_file=dataset_dict['corr'],
+            strict=dataset_dict['strict'],
+            outbasename=dataset_dict['outbasename'],
+            unique_pair_corr_file=dataset_dict['unique_pair_corr_file'],
+            recalc=dataset_dict['recalc'],
+            lower_limit=dataset_dict['lower_limit'],
+            upper_limit=dataset_dict['upper_limit'])
+
+        # Generate correlation dict and get the statistics of the distribution
+        corr_dict, sigma_dict = get_gene_gene_corr_dict_wstats(
+            tuple_generator=tuple_generator,
+            nbins=filter_settings['nbins'],
+            binsize=filter_settings['binsize'],
+            hist_range=filter_settings['hist_range'])
+
+        # Append correlation dict and stats to list
+        corr_dicts_list.append((gene_set_name, corr_dict, sigma_dict))
         gene_set_intersection.intersection_update(set_of_genes)
 
     # Merge the dictionaries and the set of genes
-    master_corr_dict = merge_correlation_dicts(corr_dicts_list)
+    master_corr_dict = merge_correlation_dicts(corr_dicts_list,
+                                               settings=filter_settings)
 
     return master_corr_dict, gene_set_intersection
 
 
 def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
-                     outbasename, unique_corr_pair_file, recalc=False,
+                     outbasename, unique_pair_corr_file, recalc=False,
                      lower_limit=0.2, upper_limit=1.0):
-    # todo make function take dict as input
+    # todo make function take gene set data dict as input?
     """ given a gene-feature data matrix in csv format.
 
-    :param depmap_data_file:
-    :param geneset_file:
-    :param corr_file:
-    :param strict:
-    :param outbasename:
-    :param unique_corr_pair_file:
-    :param recalc:
-    :param lower_limit:
-    :param upper_limit:
+    depmap_data_file: str
+        Filepath to depmap data file to process
+    geneset_file: str
+        Filepath to a geneset to filter data to.
+    corr_file: str
+        Filepath to pre-calculated correlations of depmap_data_file.
+    strict: Bool
+        If True, all genes in correlations have to exist in geneset_file
+    outbasename: str
+        Basename to use for output files
+    unique_pair_corr_file: str
+        Filepath to csvfile with unique tuples of gene,gene,corr.
+    recalc: Bool
+        If True, recalculate correlations (has to be True if corr_file is None).
+    lower_limit: float
+        Lowest correlation magnitude to consider
+    upper_limit: float
+        Highest correlation magnitude to consider (good for picking a sample
+        in the middle of the correlation distribution).
 
-    :return:
+    Returns
+    -------
+    todo Add description of function return
     """
 
     filtered_correlation_matrix = get_corr_df(depmap_data_file, corr_file,
@@ -639,10 +807,10 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
     all_hgnc_ids = set(filtered_correlation_matrix.index.values)
 
     # Return a generator object from either a loaded file or a pandas dataframe
-    if unique_corr_pair_file:
+    if unique_pair_corr_file:
         dnf_logger.info('Loading unique correlation pairs from %s' %
-                        unique_corr_pair_file)
-        uniq_pair_gen = csv_file_to_generator(unique_corr_pair_file,
+                        unique_pair_corr_file)
+        uniq_pair_gen = csv_file_to_generator(unique_pair_corr_file,
                                               ['gene1', 'gene2', 'corr'])
     else:
         if lower_limit == 0:
@@ -731,8 +899,10 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
 
 
 def pass_filter(corr1, sigma1, corr2, sigma2, margin, filter_type='sigma-diff'):
-    """
+    """Filter for passing correlation scores based on their difference in
+    standard deviation
 
+    todo add parameter descriptions below
     :param corr1:
     :param sigma1:
     :param corr2:
