@@ -12,7 +12,7 @@ from numpy import float64
 from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
-from depmap_network_functions import nest_dict
+from depmap_network_functions import create_nested_dict
 
 logger = logging.getLogger('depmap_script')
 
@@ -21,13 +21,6 @@ logger = logging.getLogger('depmap_script')
 #    the loaded list
 # 3. geneset loaded, strict -> each correlation can only contain genes from
 #    the loaded data set
-
-
-def _entry_exist(nest_dict, outer_key, inner_key):
-    if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
-        return True
-    else:
-        return False
 
 
 def _dump_it_to_pickle(fname, pyobj):
@@ -95,21 +88,55 @@ def main(args):
             args.unique_depmap_rnai_pairs = unique_pairs_fpath
 
     # Prepare data (we need uniq_pairs to look for explainable interactions)
-    gene_filter_list, uniq_pairs_crispr, all_hgnc_ids_crispr = \
-        dnf.get_correlations(args.crispr_data_file, args.geneset_file,
-                             args.crispr_corr_file, args.strict,
-                             args.outbasename+'_crispr',
-                             args.unique_depmap_crispr_pairs,
-                             args.recalc_crispr, args.cll, args.cul)
+    # uniq_pairs_crispr, all_hgnc_ids_crispr = \
+    #     dnf.get_correlations(args.crispr_data_file, args.geneset_file,
+    #                          args.crispr_corr_file, args.strict,
+    #                          args.outbasename+'_crispr',
+    #                          args.unique_depmap_crispr_pairs,
+    #                          args.recalc_crispr, args.cll, args.cul)
+    #
+    # uniq_pairs_rnai, all_hgnc_ids_rnai = \
+    #     dnf.get_correlations(args.rnai_data_file, args.geneset_file,
+    #                          args.rnai_corr_file, args.strict,
+    #                          args.outbasename+'_rnai',
+    #                          args.unique_depmap_rnai_pairs, args.recalc_rnai,
+    #                          args.rll, args.rul)
+    filter_settings = {'margin': 1.0,
+                       'filter_type': 'sigma-diff',
+                       'nbins': 201,
+                       'binsize': 0.01,
+                       'hist_range': (-1.0, 1.0)}
 
-    gene_filter_list, uniq_pairs_rnai, all_hgnc_ids_rnai = \
-        dnf.get_correlations(args.rnai_data_file, args.geneset_file,
-                             args.rnai_corr_file, args.strict,
-                             args.outbasename+'_rnai',
-                             args.unique_depmap_rnai_pairs, args.recalc_rnai,
-                             args.rll, args.rul)
+    args_dict = dnf.create_nested_dict()
+    args_dict['crispr']['data'] = args.crispr_data_file
+    args_dict['crispr']['corr'] = args.crispr_corr_file
+    args_dict['crispr']['filter_gene_set'] = (args.geneset_file if
+                                              args.geneset_file else [])
+    args_dict['crispr']['unique_pair_corr_file'] = \
+        args.unique_depmap_crispr_pairs
+    args_dict['crispr']['ll'] = args.cll
+    args_dict['crispr']['ul'] = args.cul
+    args_dict['crispr']['outbasename'] = args.outbasename+'_crispr'
+    args_dict['crispr']['strict'] = args.strict
+    args_dict['crispr']['recalc'] = args.recalc_crispr
 
-    return 0  # Added during test runs
+    args_dict['rnai']['data'] = args.rnai_data_file
+    args_dict['rnai']['corr'] = args.rnai_corr_file
+    args_dict['rnai']['filter_gene_set'] = (args.geneset_file if
+                                            args.geneset_file else [])
+    args_dict['rnai']['unique_pair_corr_file'] = args.unique_depmap_rnai_pairs
+    args_dict['rnai']['ll'] = args.rll
+    args_dict['rnai']['ul'] = args.rul
+    args_dict['rnai']['outbasename'] = args.outbasename+'_rnai'
+    args_dict['rnai']['strict'] = args.strict
+    args_dict['rnai']['recalc'] = args.recalc_rnai
+    master_corr_dict, all_hgnc_ids = dnf.get_combined_correlations(
+        dict_of_data_sets=args_dict, filter_settings=filter_settings)
+
+    # Added to cancel test runs after getting master correlation dict
+    logger.info('Test Done')
+    return
+
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
     if args.belief_score_dict:
@@ -118,6 +145,7 @@ def main(args):
         elif args.belief_score_dict.endswith('.pkl'):
             belief_dict = _pickle_open(args.belief_score_dict)
 
+    # LOADING INDRA STATEMENTS
     # Get statements from file or from database that contain any gene from
     # provided list as set unless you're already loading a pre-calculated
     # nested dict and/or precalculated directed graph.
@@ -173,7 +201,7 @@ def main(args):
                                pyobj=nx_dir_graph)
     dir_node_set = set(nx_dir_graph.nodes)
 
-    # Loop through the unique pairs
+    # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
     dir_expl_count, im_expl_count = 0, 0
     explained_pairs = []  # Saves all explanations
     explained_neg_pairs = []  # Saves all explanations with correlation < 0
@@ -189,7 +217,7 @@ def main(args):
     # x_is_downstream: A->X<-B
     # x_is_upstream: A<-X->B
     #
-    # d[subj][obj] = {correlation: float,
+    # d[subj][obj] = {correlation: {gene_set1: corr, gene_set2: corr, ...},
     #                 directed: [(stmt/stmt hash, belief score)],
     #                 undirected: [(stmt/stmt hash, belief score)],
     #                 x_is_intermediary: [(X, belief rank)],
@@ -204,7 +232,7 @@ def main(args):
     # 2. dir -> undir graph -> jsons to check all corr neighbors -> 2nd dropdown
     # 3. jsons to check if connection is direct or intermediary
 
-    explained_nested_dict = dnf.nest_dict()
+    explained_nested_dict = dnf.create_nested_dict()
 
     # Open files to write text/latex output
     # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
@@ -229,7 +257,7 @@ def main(args):
         # nested_dict_statements.get(id1).get(id2) raises AttributeError
         # if nested_dict_statements.get(id1) returns {}
         for subj, obj in itt.permutations((id1, id2), r=2):
-            if _entry_exist(nested_dict_statements, subj, obj):
+            if dnf._entry_exist(nested_dict_statements, subj, obj):
                 # Get the statements
                 stmts = nested_dict_statements[subj][obj]
 
@@ -350,21 +378,21 @@ def main(args):
                 # Correlation
                 explained_nested_dict[s][o]['correlation'] = correlation
                 # Directed
-                if not _entry_exist(explained_nested_dict[s], o, 'directed'):
+                if not dnf._entry_exist(explained_nested_dict[s], o, 'directed'):
                     explained_nested_dict[s][o]['directed'] = []
                 # Undirected
-                if not _entry_exist(explained_nested_dict[s], o, 'undirected'):
+                if not dnf._entry_exist(explained_nested_dict[s], o, 'undirected'):
                     explained_nested_dict[s][o]['undirected'] = []
                 # x_is_intermediary
-                if not _entry_exist(explained_nested_dict[s], o,
+                if not dnf._entry_exist(explained_nested_dict[s], o,
                                     'x_is_intermediary'):
                     explained_nested_dict[s][o]['x_is_intermediary'] = []
                 # x_is_upstream
-                if not _entry_exist(explained_nested_dict[s], o,
+                if not dnf._entry_exist(explained_nested_dict[s], o,
                                     'x_is_upstream'):
                     explained_nested_dict[s][o]['x_is_upstream'] = []
                 # x_is_downstream
-                if not _entry_exist(explained_nested_dict[s], o,
+                if not dnf._entry_exist(explained_nested_dict[s], o,
                                     'x_is_downstream'):
                     explained_nested_dict[s][o]['x_is_downstream'] = []
 
