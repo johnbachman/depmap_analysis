@@ -734,7 +734,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     corr_dicts_list = []
     gene_set_intersection = set()
 
-    for gene_set_name, dataset_dict in dict_of_data_sets:
+    for gene_set_name, dataset_dict in dict_of_data_sets.items():
+        dnf_logger.info('Processing set "%s"' % gene_set_name)
 
         # Get tuple generator and the accompanied set of genes
         tuple_generator, set_of_genes = get_correlations(
