@@ -62,10 +62,10 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(corrrelation_matrix):
+def corr_matrix_to_generator(corrrelation_df_matrix):
     """Return a tuple generator given a correlation matrix
 
-    corrrelation_matrix : pandas.DataFrame
+    corrrelation_df_matrix : pandas.DataFrame
         A pandas correlation matrix as a dataframe
 
     Returns
@@ -73,8 +73,8 @@ def corr_matrix_to_generator(corrrelation_matrix):
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
-    corr_value_matrix = corrrelation_matrix.values
-    gene_name_array = corrrelation_matrix.index.values
+    corr_value_matrix = corrrelation_df_matrix.values
+    gene_name_array = corrrelation_df_matrix.index.values
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     return ((gene_name_array[i], gene_name_array[j],
             str(corr_value_matrix[i, j]))
@@ -167,9 +167,9 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
 
         # The statment with the highest belief score should
         # represent the edge (potentially multiple stmts per edge)
-        for typ, hsh, bs in ax_stmts:
+        for typ, hsh_a, bs in ax_stmts:
             ax_score_list.append(bs)
-        for typ, hsh, bs in xb_stmts:
+        for typ, hsh_b, bs in xb_stmts:
             xb_score_list.append(bs)
 
         # Rank by multiplying the best two belief scores for each edge
@@ -179,7 +179,9 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
         try:
             assert rank != 0
         except AssertionError:
-            pdb.set_trace()  # Check why rank == 0
+            dnf_logger.warning('Combined rank == 0 for hashes %s and %s' %
+                               (hsh_a, hsh_b))
+            pdb.set_trace()
         return rank
 
     dir_path_nodes_wb = []
@@ -586,18 +588,24 @@ def get_gene_gene_corr_dict_wstats(tuple_generator, nbins, binsize, hist_range):
     corr_nest_dict = create_nested_dict()
     home_brewed_histo = np.zeros(nbins, dtype=int)
     edges = np.arange(hist_range[0], hist_range[1] + binsize, step=binsize)
+    dnf_logger.info('Generating correlation lookup and statistics')
+    mean = 0
     for gene1, gene2, c in tuple_generator:
-        corr = None
-        if isinstance(c, str):
-            corr = float(c)
-        elif isinstance(c, float):
-            corr = c
+        corr = float(c)
+
+        mean = (mean + corr)/2
         corr_nest_dict[gene1][gene2] = corr
         home_brewed_histo[_map2index(hist_range[0], binsize, corr)] += 1
+
+    try:
+        assert sum(home_brewed_histo) > 0
+    except AssertionError:
+        pdb.set_trace()  # Why is sum(home_brewed_histo) == 0
     a, mu, sigma = get_gaussian_stats(bin_edges=edges, hist=home_brewed_histo)
     sigma_dict = {'a': a,
-                  'mu': mu,
-                  'sigma': sigma}
+                  'gauss_mean': mu,
+                  'gauss_sigma': sigma,
+                  'real_mean': mean}
     return corr_nest_dict, sigma_dict
 
 
@@ -633,24 +641,31 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
     merged_corr_dict = create_nested_dict()
     dnf_logger.info('Merging correlation dicts %s and %s' %
                     (set_name, other_name))
+
     # Loop shortest correlation lookup dict
-    for o_gene, d in shortest_dict:
-        for i_gene, corr in d:
-            if not not _entry_exist(merged_corr_dict, o_gene, i_gene):
+    for o_gene, d in shortest_dict.items():
+        for i_gene, corr in d.items():
+            if not _entry_exist(merged_corr_dict, o_gene, i_gene):
                 # Check both directions
                 other_corr = None
                 if _entry_exist(other_dict, o_gene, i_gene):
-                    other_corr = merged_corr_dict[o_gene][i_gene]
+                    other_corr = other_dict[o_gene][i_gene]
                 elif _entry_exist(other_dict, i_gene, o_gene):
-                    other_corr = merged_corr_dict[i_gene][o_gene]
+                    other_corr = other_dict[i_gene][o_gene]
 
                 if other_corr and pass_filter(
-                        corr1=corr, sigma1=sigma_dict['sigma'],
-                        corr2=other_corr, sigma2=other_sigma_dict['sigma'],
+                        corr1=corr,
+                        sigma1=sigma_dict['gauss_sigma'],
+                        corr2=other_corr,
+                        sigma2=other_sigma_dict['gauss_sigma'],
                         margin=settings['margin'],
                         filter_type=settings['filter_type']):
                     merged_corr_dict[o_gene][i_gene][set_name] = corr
                     merged_corr_dict[o_gene][i_gene][other_name] = other_corr
+                    assert merged_corr_dict[o_gene][i_gene].get(set_name) is \
+                        not None
+                    assert merged_corr_dict[o_gene][i_gene].get(other_name) is \
+                        not None
                 else:
                     continue
 
@@ -746,8 +761,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             outbasename=dataset_dict['outbasename'],
             unique_pair_corr_file=dataset_dict['unique_pair_corr_file'],
             recalc=dataset_dict['recalc'],
-            lower_limit=dataset_dict['lower_limit'],
-            upper_limit=dataset_dict['upper_limit'])
+            lower_limit=dataset_dict['ll'],
+            upper_limit=dataset_dict['ul'])
+        dnf_logger.info('Created tuple generator with %i unique genes from '
+                        'set "%s"' % (len(set_of_genes), gene_set_name))
 
         # Generate correlation dict and get the statistics of the distribution
         corr_dict, sigma_dict = get_gene_gene_corr_dict_wstats(
@@ -755,6 +772,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             nbins=filter_settings['nbins'],
             binsize=filter_settings['binsize'],
             hist_range=filter_settings['hist_range'])
+        dnf_logger.info('Created correlation dictionary of length %i for set '
+                        '"%s"' % (len(corr_dict), gene_set_name))
 
         # Append correlation dict and stats to list
         corr_dicts_list.append((gene_set_name, corr_dict, sigma_dict))
@@ -763,6 +782,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     # Merge the dictionaries and the set of genes
     master_corr_dict = merge_correlation_dicts(corr_dicts_list,
                                                settings=filter_settings)
+    dnf_logger.info('Merged gene sets to master dictionary of length %i' %
+                    len(master_corr_dict))
 
     return master_corr_dict, gene_set_intersection
 
@@ -802,10 +823,15 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
         The set of all genes in the correlation
     """
 
-    filtered_correlation_matrix = _get_corr_df(depmap_data_file, corr_file,
-                                               geneset_file, strict, recalc,
-                                               outbasename, lower_limit,
-                                               upper_limit)
+    filtered_correlation_matrix = _get_corr_df(
+        depmap_data_file=depmap_data_file,
+        corr_file=corr_file,
+        geneset_file=geneset_file,
+        strict=strict,
+        recalc=recalc,
+        outbasename=outbasename,
+        lower_limit=lower_limit,
+        upper_limit=upper_limit)
 
     all_hgnc_ids = set(filtered_correlation_matrix.index.values)
 
@@ -823,9 +849,11 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
                     str(lower_limit).replace('.', '')
 
         uniq_pair_gen = corr_matrix_to_generator(filtered_correlation_matrix)
+        uniq_pair_gen_forcsv = corr_matrix_to_generator(
+            filtered_correlation_matrix)
         dnf_logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
-        _dump_it_to_csv(fname, uniq_pair_gen)
+        _dump_it_to_csv(fname, uniq_pair_gen_forcsv)
     return uniq_pair_gen, all_hgnc_ids
 
 
