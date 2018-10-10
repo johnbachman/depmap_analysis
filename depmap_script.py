@@ -91,19 +91,6 @@ def main(args):
             args.unique_depmap_rnai_pairs = unique_pairs_fpath
 
     # Prepare data (we need uniq_pairs to look for explainable interactions)
-    # uniq_pairs_crispr, all_hgnc_ids_crispr = \
-    #     dnf.get_correlations(args.crispr_data_file, args.geneset_file,
-    #                          args.crispr_corr_file, args.strict,
-    #                          args.outbasename+'_crispr',
-    #                          args.unique_depmap_crispr_pairs,
-    #                          args.recalc_crispr, args.cll, args.cul)
-    #
-    # uniq_pairs_rnai, all_hgnc_ids_rnai = \
-    #     dnf.get_correlations(args.rnai_data_file, args.geneset_file,
-    #                          args.rnai_corr_file, args.strict,
-    #                          args.outbasename+'_rnai',
-    #                          args.unique_depmap_rnai_pairs, args.recalc_rnai,
-    #                          args.rll, args.rul)
     filter_settings = {'margin': 1.0,
                        'filter_type': 'sigma-diff',
                        'nbins': 200,
@@ -483,6 +470,24 @@ if __name__ == '__main__':
                         help='RNAi gene dependency data in csv format')
     parser.add_argument('-g', '--geneset-file',
                         help='Filter to interactions with gene set data file.')
+    parser.add_argument('--margin', default=1.0,
+                        help='How large diff in terms of standard deviations '
+                             'to accept between data sets when filtering for '
+                             'correlations during merge.')
+    parser.add_argument('--filter-type', default='sigma-diff', type=str,
+                        help='Type of filtering. Currently only supports '
+                             '"sigma-diff"')
+    parser.add_argument('--bins', default=200, type=int,
+                        help='Number of bins to use when getting the '
+                             'statistics for the correlation data. '
+                             'Default is 200.')
+    parser.add_argument('--binsize', default=0.01, type=float,
+                        help='Bin size to use when binning the correlation '
+                             'data. Default is 0.01')
+    parser.add_argument('--hist-range', default=(-1.0, 1.0), type=float,
+                        nargs="+", help='LOWER_EDGE UPPER_EDGE\nTwo decimal '
+                                        'numbers denoting the upper and lower '
+                                        'edges of the histogram bins.')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
