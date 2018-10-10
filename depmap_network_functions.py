@@ -28,6 +28,23 @@ db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
 
+def rawincount(filename):
+    """Count lines in filename
+
+    filename: str
+        Path to file to count lines in
+
+    Returns
+    -------
+    line_count: int
+        The number of lines in the file 'filename'
+    """
+    f = open(filename, 'rb')
+    bufgen = itt.takewhile(lambda x: x, (f.read(1024*1024) for _ in
+                                         itt.repeat(None)))
+    return sum(buf.count(b'\n') for buf in bufgen)
+
+
 def _entry_exist(nest_dict, outer_key, inner_key):
     if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
         return True
@@ -91,6 +108,19 @@ def _dump_it_to_csv(fname, iterable, separator=','):
     with open(fname, 'w', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=separator)
         wrtr.writerows(iterable)
+
+
+def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
+    dnf_logger.info('Dumping master dict to pairs in %s' % fname)
+    with open(fname, 'w') as fo:
+        fo.write('gene1,gene2,correlation_list\n')
+        for ok, od in nest_dict.items():
+            for ik, id_ in od[ok].items():
+                corr_dict = id_[ik]
+                vals = []
+                for name in corr_dict:
+                    vals.append(corr_dict[name])
+                fo.write('%s,%s,%s\n' % (ok, ik, str(vals)))
 
 
 def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
@@ -590,12 +620,26 @@ def get_gene_gene_corr_dict_wstats(tuple_generator, nbins, binsize, hist_range):
     edges = np.arange(hist_range[0], hist_range[1] + binsize, step=binsize)
     dnf_logger.info('Generating correlation lookup and statistics')
     mean = 0
-    for gene1, gene2, c in tuple_generator:
+    t1, t2, m = 0, 0, 0
+    # see 'https://math.stackexchange.com/questions/102978/'
+    # 'incremental-computation-of-standard-deviation#103025'
+    for m, (gene1, gene2, c) in enumerate(tuple_generator):
         corr = float(c)
+        if mean == 0:
+            mean = corr
+        else:
+            mean = (mean + corr) / 2
+        if t1 == 0 and t2 == 0:
+            t1 = corr
+            t2 = corr**2
+        else:
+            t1 += corr
+            t2 += corr**2
 
-        mean = (mean + corr)/2
         corr_nest_dict[gene1][gene2] = corr
         home_brewed_histo[_map2index(hist_range[0], binsize, corr)] += 1
+    t0 = m + 1
+    real_sigma = np.sqrt(t0*t2 - t1) / t0
 
     try:
         assert sum(home_brewed_histo) > 0
@@ -605,7 +649,8 @@ def get_gene_gene_corr_dict_wstats(tuple_generator, nbins, binsize, hist_range):
     sigma_dict = {'a': a,
                   'gauss_mean': mu,
                   'gauss_sigma': sigma,
-                  'real_mean': mean}
+                  'real_mean': mean,
+                  'real_sigma': real_sigma}
     return corr_nest_dict, sigma_dict
 
 
@@ -613,7 +658,7 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
     """Merge multiple correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
-    correlation_dicts_list: list[(gene_set_name, corr_nest_dict)]
+    correlation_dicts_list: list[(gene_set_name, corr_dict, sigma_dict)]
         List of name-corr_dict-distr_stats_dict tuples
     settings:
 
@@ -748,6 +793,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     """
     corr_dicts_list = []
     gene_set_intersection = set()
+    stats_dict = dict()
 
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
         dnf_logger.info('Processing set "%s"' % gene_set_name)
@@ -774,8 +820,16 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             hist_range=filter_settings['hist_range'])
         dnf_logger.info('Created correlation dictionary of length %i for set '
                         '"%s"' % (len(corr_dict), gene_set_name))
+        dnf_logger.info('-' * 63)
+        dnf_logger.info('Statistics for set %s: ' % gene_set_name)
+        dnf_logger.info('> Gaussian mean: %f' % sigma_dict['gauss_mean'])
+        dnf_logger.info('> Gaussian sigma: %f' % sigma_dict['gauss_sigma'])
+        dnf_logger.info('> Actual sigma: %f' % sigma_dict['real_sigma'])
+        dnf_logger.info('> Actual mean: %f' % sigma_dict['real_mean'])
+        dnf_logger.info('-' * 63)
 
         # Append correlation dict and stats to list
+        stats_dict[gene_set_name] = sigma_dict
         corr_dicts_list.append((gene_set_name, corr_dict, sigma_dict))
         gene_set_intersection.intersection_update(set_of_genes)
 
@@ -785,7 +839,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     dnf_logger.info('Merged gene sets to master dictionary of length %i' %
                     len(master_corr_dict))
 
-    return master_corr_dict, gene_set_intersection
+    return master_corr_dict, gene_set_intersection, stats_dict
 
 
 def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
