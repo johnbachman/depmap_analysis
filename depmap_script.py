@@ -419,33 +419,30 @@ def main(args):
                 if args.verbosity and args.verbosity > 1:
                     logger.info('No explainable path found between %s and '
                                 '%s.' % (id1, id2))
+    long_string = ''
+    long_string += 'Summary:'+'\n'
+    long_string += '> Total unexplained: %i' % len(unexplained)+'\n'
+    long_string += '> Total explained: %i,' % len(explained_pairs)+'\n'
+    long_string += '> with %i direct and %i mediated by an intermediate ' \
+                   'node.' % (dir_expl_count, im_expl_count)+'\n'
+    long_string += '> Total number of pairs checked: %i' % npairs+'\n\n'
+    long_string += 'Statistics:'+'\n\n'
+    long_string += ' RNAi data '+'\n'
+    long_string += ' ----------'+'\n'
+    long_string += '> Gaussian mean: %f\n' % stats_dict['rnai']['gauss_mean']
+    long_string += '> Gaussian sigma: %f\n' % stats_dict['rnai']['gauss_sigma']
+    long_string += '> Actual sigma: %f\n' % stats_dict['rnai']['real_sigma']
+    long_string += '> Actual mean: %f\n\n' % stats_dict['rnai']['real_mean']
+    long_string += ' CRISPR data '+'\n'
+    long_string += ' ------------'+'\n'
+    long_string += '> Gaussian mean: %f\n' % stats_dict['crispr']['gauss_mean']
+    long_string += '> Gaussian sigma: %f\n' % stats_dict['crispr']['gauss_sigma']
+    long_string += '> Actual sigma: %f\n' % stats_dict['crispr']['real_sigma']
+    long_string += '> Actual mean: %f\n' % stats_dict['crispr']['real_mean']
+    long_string += ''+'\n'
+    long_string += '-'*63+'\n\n'
 
-    logger.info('-'*63)
-    logger.info('')
-    logger.info('Summary:')
-    logger.info('> Total unexplained: %i' % len(unexplained))
-    logger.info('> Total explained: %i,' % len(explained_pairs))
-    logger.info('> with %i direct and %i mediated by an intermediate node.' %
-                (dir_expl_count, im_expl_count))
-    logger.info('> Total number of pairs checked: %i' % npairs)
-    logger.info('')
-    logger.info('Statistics:')
-    logger.info('')
-    logger.info(' RNAi data ')
-    logger.info(' ----------')
-    logger.info('> Gaussian mean: %f' % stats_dict['rnai']['gauss_mean'])
-    logger.info('> Gaussian sigma: %f' % stats_dict['rnai']['gauss_sigma'])
-    logger.info('> Actual sigma: %f' % stats_dict['rnai']['real_sigma'])
-    logger.info('> Actual mean: %f' % stats_dict['rnai']['real_mean'])
-    logger.info('')
-    logger.info(' CRISPR data ')
-    logger.info(' ------------')
-    logger.info('> Gaussian mean: %f' % stats_dict['crispr']['gauss_mean'])
-    logger.info('> Gaussian sigma: %f' % stats_dict['crispr']['gauss_sigma'])
-    logger.info('> Actual sigma: %f' % stats_dict['crispr']['real_sigma'])
-    logger.info('> Actual mean: %f' % stats_dict['crispr']['real_mean'])
-    logger.info('')
-    logger.info('-'*63)
+    logger.info(long_string)
 
     # Here create directed graph from explained nested dict
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
@@ -469,6 +466,9 @@ def main(args):
                     pyobj=explained_neg_pairs, header=headers)
     _dump_it_to_csv(fname=args.outbasename+'_unexpl_correlations.csv',
                     pyobj=unexplained, header=headers)
+    with open(args.outbasename+'_script_summary.txt', 'w') as fo:
+        fo.write(long_string)
+    return 0
 
 
 if __name__ == '__main__':
@@ -540,4 +540,6 @@ if __name__ == '__main__':
         f.write('Command line option - value\n')
         for arg in vars(a):
             f.write('{} : {}\n'.format(arg, getattr(a, arg)))
-    main(a)
+    done = main(a)
+    if done == 0:
+        logger.info('Script finished without errors')
