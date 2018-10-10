@@ -700,9 +700,9 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
 
                 if other_corr and pass_filter(
                         corr1=corr,
-                        sigma1=sigma_dict['gauss_sigma'],
+                        sigma1=sigma_dict['real_sigma'],
                         corr2=other_corr,
-                        sigma2=other_sigma_dict['gauss_sigma'],
+                        sigma2=other_sigma_dict['real_sigma'],
                         margin=settings['margin'],
                         filter_type=settings['filter_type']):
                     merged_corr_dict[o_gene][i_gene][set_name] = corr
