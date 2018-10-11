@@ -127,12 +127,13 @@ def main(args):
         fname=args.outbasename+'_merged_corr_pairs.csv',
         nest_dict=master_corr_dict)
 
-    gene_filter_list = set(dnf._read_gene_set_file(
-            gf=args_dict['crispr']['filter_gene_set'],
-            data=args_dict['crispr']['data'])) & \
-        set(dnf._read_gene_set_file(
-            gf=args_dict['rnai']['filter_gene_set'],
-            data=args_dict['crispr']['data']))
+    if args.geneset_file:
+        gene_filter_list = set(dnf._read_gene_set_file(
+                gf=args_dict['crispr']['filter_gene_set'],
+                data=args_dict['crispr']['data'])) & \
+            set(dnf._read_gene_set_file(
+                gf=args_dict['rnai']['filter_gene_set'],
+                data=args_dict['crispr']['data']))
 
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
@@ -407,27 +408,24 @@ def main(args):
                     logger.info('No explainable path found between %s and '
                                 '%s.' % (id1, id2))
     long_string = ''
-    long_string += 'Summary:'+'\n'
-    long_string += '> Total unexplained: %i' % len(unexplained)+'\n'
-    long_string += '> Total explained: %i,' % len(explained_pairs)+'\n'
+    long_string += '-' * 63 + '\n'
+    long_string += 'Summary:' + '\n'
+    long_string += '> Total unexplained: %i' % len(unexplained) + '\n'
+    long_string += '> Total explained: %i,' % len(explained_pairs) + '\n'
     long_string += '> with %i direct and %i mediated by an intermediate ' \
-                   'node.' % (dir_expl_count, im_expl_count)+'\n'
-    long_string += '> Total number of pairs checked: %i' % npairs+'\n\n'
-    long_string += 'Statistics:'+'\n\n'
-    long_string += ' RNAi data '+'\n'
-    long_string += ' ----------'+'\n'
-    long_string += '> Gaussian mean: %f\n' % stats_dict['rnai']['gauss_mean']
-    long_string += '> Gaussian sigma: %f\n' % stats_dict['rnai']['gauss_sigma']
-    long_string += '> Actual sigma: %f\n' % stats_dict['rnai']['real_sigma']
-    long_string += '> Actual mean: %f\n\n' % stats_dict['rnai']['real_mean']
-    long_string += ' CRISPR data '+'\n'
-    long_string += ' ------------'+'\n'
-    long_string += '> Gaussian mean: %f\n' % stats_dict['crispr']['gauss_mean']
-    long_string += '> Gaussian sigma: %f\n' % stats_dict['crispr']['gauss_sigma']
-    long_string += '> Actual sigma: %f\n' % stats_dict['crispr']['real_sigma']
-    long_string += '> Actual mean: %f\n' % stats_dict['crispr']['real_mean']
-    long_string += ''+'\n'
-    long_string += '-'*63+'\n\n'
+                   'node.' % (dir_expl_count, im_expl_count) + '\n'
+    long_string += '> Total number of pairs checked: %i' % npairs + '\n\n'
+    long_string += 'Statistics:' + '\n\n'
+    long_string += ' RNAi data ' + '\n'
+    long_string += ' ----------' + '\n'
+    long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
+    long_string += '> sigma: %f\n' % stats_dict['rnai']['sigma']
+    long_string += ' CRISPR data ' + '\n'
+    long_string += ' ------------' + '\n'
+    long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
+    long_string += '> sigma: %f\n' % stats_dict['crispr']['sigma']
+    long_string += '' + '\n'
+    long_string += '-' * 63 + '\n\n'
 
     logger.info(long_string)
 
@@ -528,6 +526,8 @@ if __name__ == '__main__':
     parser.add_argument('-rup', '--unique-depmap-rnai-pairs', help='Uses a '
         'previously saved file to read the unique pairs to read over. Useful '
         'if you are running the script on the full data with no filters.')
+    parser.add_argument('-lls', action='store_true', help='Use exactly one '
+        'standard deviation of full set as lower limit.')
     parser.add_argument('-cll', type=float, default=0.3,
                         help='Lower limit CRISPR correlation filter.')
     parser.add_argument('-cul', type=float, default=1.0,
