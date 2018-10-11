@@ -63,7 +63,7 @@ def create_nested_dict():
 
 
 def csv_file_to_generator(fname, column_list):
-    # todo consider passing a file object that can be read line by line
+    # todo consider passing a file stream object that can be read line by line
     """Return a tuple generator given a csv file and specified columns
 
     fname : str
@@ -558,28 +558,24 @@ def get_stats(tuple_generator):
     -------
         mean, standard_deviation
     """
-    # 'https://math.stackexchange.com/questions/102978/'
-    # 'incremental-computation-of-standard-deviation#103025'
-    mean, t1, t2, m = 0, 0, 0, 0
-    skip = 0
+    # See:
+    # 'https://math.stackexchange.com/questions/102978/
+    # incremental-computation-of-standard-deviation#103025'
+    # OR
+    # 'https://math.stackexchange.com/questions/374881/
+    # recursive-formula-for-variance#375022'
+    t1, t2, skip = 0, 0, 0
     for m, (gene1, gene2, c) in enumerate(tuple_generator):
         corr = float(c)
         if corr == 1.0:
             skip += 1
-            continue
-        if mean == 0:
-            mean = corr
-        else:
-            mean = (mean + corr) / 2
-        if t1 == 0 and t2 == 0:
-            t1 = corr
-            t2 = corr**2
+            continue  # Ignore self correlations if they exist
         else:
             t1 += corr
             t2 += corr**2
-
     t0 = m + 1 - skip
-    std = np.sqrt(t0*t2 - t1**2) / t0
+    mean = t1 / t0
+    std = np.sqrt(t0 * t2 - t1**2) / t0
     return mean, std
 
 
@@ -628,8 +624,8 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     saved_positions = np.array(saved_positions)
 
     interp_log_gaussian = interpol.interp1d(x=saved_positions,
-                                           y=log_hist,
-                                           kind='quadratic')
+                                            y=log_hist,
+                                            kind='quadratic')
     interp_gaussian = np.exp(interp_log_gaussian(bin_positions))
 
     return get_gaussian_stats(bin_edges, interp_gaussian)
@@ -649,9 +645,13 @@ def get_gene_gene_corr_dict(tuple_generator):
     corr_nest_dict = create_nested_dict()
     dnf_logger.info('Generating correlation lookup')
     for gene1, gene2, c in tuple_generator:
-        corr = float(c)
-        corr_nest_dict[gene1][gene2] = corr
+        if gene1 == gene2:  # If self correlation were not filtered
+            continue
+        else:
+            corr = float(c)
+            corr_nest_dict[gene1][gene2] = corr
 
+    corr_nest_dict.default_factory = None
     return corr_nest_dict
 
 
@@ -691,7 +691,8 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
     # Loop shortest correlation lookup dict
     for o_gene, d in shortest_dict.items():
         for i_gene, corr in d.items():
-            if not _entry_exist(merged_corr_dict, o_gene, i_gene):
+            if o_gene is not i_gene and \
+                    not _entry_exist(merged_corr_dict, o_gene, i_gene):
                 # Check both directions
                 other_corr = None
                 if _entry_exist(other_dict, o_gene, i_gene):
@@ -712,8 +713,14 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
                         not None
                     assert merged_corr_dict[o_gene][i_gene].get(other_name) is \
                         not None
+                    assert merged_corr_dict[o_gene].get(o_gene) is None
+                    assert merged_corr_dict[i_gene].get(i_gene) is None
+                # Did not pass filter
                 else:
                     continue
+            # Entry already exists
+            else:
+                continue
 
     # recursive case: more than 2 dicts. Merge the shortest and another,
     # call same function with and the merged dict plus the rest of the list.
@@ -723,6 +730,8 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
 
     # base case: 2 dicts in list. Return merged dict.
     # else:
+
+    merged_corr_dict.default_factory = None
     return merged_corr_dict
 
 
@@ -799,7 +808,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
         dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
-        dnf_logger.info('---------------------------------')
+        dnf_logger.info('-' * 37)
 
         if dataset_dict['sigma']:
             dnf_logger.info('Using provided sigma of %f for set %s' %
@@ -829,7 +838,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         dnf_logger.info('Created tuple generator with %i unique genes from '
                         'set "%s"' % (len(set_of_genes), gene_set_name))
 
-        # Generate correlation dict and get the statistics of the distribution
+        # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
             tuple_generator=tuple_generator)
         dnf_logger.info('Created correlation dictionary of length %i for set '
