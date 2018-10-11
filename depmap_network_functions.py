@@ -210,8 +210,9 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
         try:
             assert rank != 0
         except AssertionError:
-            dnf_logger.warning('Combined rank == 0 for hashes %s and %s' %
-                               (hsh_a, hsh_b))
+            dnf_logger.warning('Combined rank == 0 for hashes %s and %s, '
+                               'implying belief score is 0 for at least one '
+                               'of the statements.' % (hsh_a, hsh_b))
             pdb.set_trace()
         return rank
 
@@ -634,17 +635,11 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     return get_gaussian_stats(bin_edges, interp_gaussian)
 
 
-def get_gene_gene_corr_dict_wstats(tuple_generator):
+def get_gene_gene_corr_dict(tuple_generator):
     """Returns a gene-gene correlation nested dict given a gene-gene nested dict
 
     tuple_generator : generator object
         A generator object
-    nbins: int
-        number of bins in histogram
-    binsize: float
-        size of bins in histogram
-    hist_range: tuple(float, float)
-        Tuple of floats with start-stop
 
     Returns
     -------
@@ -805,12 +800,19 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
         dnf_logger.info('Processing set "%s"' % gene_set_name)
 
-        # todo add option to provide sigma instead of doing calculation
-        full_set_tuple_generator = csv_file_to_generator(
-            fname=dataset_dict['data'],
-            column_list=['gene1', 'gene2', 'corr'])
-        full_mean, full_stdev = get_stats(full_set_tuple_generator)
-        sigma_dict = {'mean': full_mean, 'sigma': full_stdev}
+        if dataset_dict['sigma']:
+            dnf_logger.info('Using provided sigma of %f for set %s' %
+                            (dataset_dict['sigma'], gene_set_name))
+            sigma_dict = {'mean': dataset_dict['mean'],
+                          'sigma': dataset_dict['sigma']}
+        else:
+            dnf_logger.info('Calculating mean and standard deviation for set %s'
+                            'from %s' % (gene_set_name, dataset_dict['data']))
+            full_set_tuple_generator = csv_file_to_generator(
+                fname=dataset_dict['data'],
+                column_list=['gene1', 'gene2', 'corr'])
+            full_mean, full_stdev = get_stats(full_set_tuple_generator)
+            sigma_dict = {'mean': full_mean, 'sigma': full_stdev}
 
         # Get tuple generator and the accompanied set of genes
         tuple_generator, set_of_genes = get_correlations(
@@ -827,7 +829,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                         'set "%s"' % (len(set_of_genes), gene_set_name))
 
         # Generate correlation dict and get the statistics of the distribution
-        corr_dict = get_gene_gene_corr_dict_wstats(
+        corr_dict = get_gene_gene_corr_dict(
             tuple_generator=tuple_generator)
         dnf_logger.info('Created correlation dictionary of length %i for set '
                         '"%s"' % (len(corr_dict), gene_set_name))
