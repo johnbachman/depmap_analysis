@@ -46,6 +46,17 @@ def _dump_it_to_csv(fname, pyobj, separator=',', header=None):
         wrtr.writerows(pyobj)
 
 
+def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None):
+    if header:
+        with open(fname, 'w') as fo:
+            fo.write(separator.join(header)+'\n')
+    with open(fname, 'a') as fo:
+        for ok in nested_dict:
+            for ik in nested_dict[ok]:
+                cd = nested_dict[ok][ik]['correlations']
+                fo.write('%s,%s,%f,%f\n' % (ok, ik, cd['crispr'], cd['rnai']))
+
+
 def _pickle_open(file_path_to_pickle):
     with open(file_path_to_pickle, 'rb') as pi:
         return pkl.load(file=pi)
@@ -218,7 +229,7 @@ def main(args):
     explained_pairs = []  # Saves all explanations
     explained_neg_pairs = []  # Saves all explanations with correlation < 0
     unexplained = []  # Unexplained correlations
-    # npairs = dnf.rawincount(filename=args.outbasename+'_merged_corr_pairs.csv')
+    # npairs = dnf.rawincount(args.outbasename+'_merged_corr_pairs.csv')
     npairs = len(master_corr_dict)
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
@@ -464,6 +475,10 @@ def main(args):
     nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
     dnf.nx_undir_to_neighbor_lookup_json(expl_undir_graph=nx_expl_undir_graph)
 
+    _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
+                           nested_dict=explained_nested_dict,
+                           header=['gene1', 'gene2',
+                                   'crispr_corr', 'rnai_corr'])
     _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
                        pyobj=explained_nested_dict)
     headers = ['subj', 'obj', 'crispr_corr', 'rnai_corr', 'type', 'X']
@@ -472,7 +487,7 @@ def main(args):
     _dump_it_to_csv(fname=args.outbasename+'_expl_neg_correlations.csv',
                     pyobj=explained_neg_pairs, header=headers)
     _dump_it_to_csv(fname=args.outbasename+'_unexpl_correlations.csv',
-                    pyobj=unexplained, header=headers)
+                    pyobj=unexplained, header=headers[:-2])
     with open(args.outbasename+'_script_summary.txt', 'w') as fo:
         fo.write(long_string)
     return 0
