@@ -647,7 +647,7 @@ def get_gene_gene_corr_dict(tuple_generator):
         Dict with gene-gene-correlation
     """
     corr_nest_dict = create_nested_dict()
-    dnf_logger.info('Generating correlation lookup and statistics')
+    dnf_logger.info('Generating correlation lookup')
     for gene1, gene2, c in tuple_generator:
         corr = float(c)
         corr_nest_dict[gene1][gene2] = corr
@@ -798,7 +798,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     stats_dict = dict()
 
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
-        dnf_logger.info('Processing set "%s"' % gene_set_name)
+        dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
+        dnf_logger.info('---------------------------------')
 
         if dataset_dict['sigma']:
             dnf_logger.info('Using provided sigma of %f for set %s' %
