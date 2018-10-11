@@ -1011,7 +1011,8 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
     return corr_matrix_df
 
 
-def pass_filter(corr1, sigma1, corr2, sigma2, margin, filter_type='sigma-diff'):
+def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
+                filter_type='sigma-diff'):
     """Filter for passing correlation scores based on their difference in
     standard deviation
 
@@ -1032,10 +1033,10 @@ def pass_filter(corr1, sigma1, corr2, sigma2, margin, filter_type='sigma-diff'):
     -------
     bool
         If True, the correlations are similar enough as measured by their
-        similarity in the standard deviation.
+        difference in their distance from the mean standard deviation.
     """
     if filter_type == 'sigma-diff':
-        return abs(corr1/sigma1 - corr2/sigma2) > margin
+        return abs((mu1 + corr1)/sigma1 - (mu2 + corr2)/sigma2) > margin
     else:
         return True
 
