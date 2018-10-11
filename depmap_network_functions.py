@@ -63,6 +63,7 @@ def create_nested_dict():
 
 
 def csv_file_to_generator(fname, column_list):
+    # todo consider passing a file object that can be read line by line
     """Return a tuple generator given a csv file and specified columns
 
     fname : str
@@ -546,6 +547,41 @@ def _my_gauss(x, a, x0, sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
 
 
+def get_stats(tuple_generator):
+    """Get mean and standard deviation from large file with A,B-value pairs.
+
+    tuple_generator: tuple_generator
+        tuple_generator object that generates A, B, value tuples
+
+    Returns
+    -------
+        mean, standard_deviation
+    """
+    # 'https://math.stackexchange.com/questions/102978/'
+    # 'incremental-computation-of-standard-deviation#103025'
+    mean, t1, t2, m = 0, 0, 0, 0
+    skip = 0
+    for m, (gene1, gene2, c) in enumerate(tuple_generator):
+        corr = float(c)
+        if corr == 1.0:
+            skip += 1
+            continue
+        if mean == 0:
+            mean = corr
+        else:
+            mean = (mean + corr) / 2
+        if t1 == 0 and t2 == 0:
+            t1 = corr
+            t2 = corr**2
+        else:
+            t1 += corr
+            t2 += corr**2
+
+    t0 = m + 1 - skip
+    std = np.sqrt(t0*t2 - t1**2) / t0
+    return mean, std
+
+
 def get_gaussian_stats(bin_edges, hist):
     """Assuming a gaussian histogram, return scale (a), mean (mu) and sigma.
 
@@ -598,7 +634,7 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     return get_gaussian_stats(bin_edges, interp_gaussian)
 
 
-def get_gene_gene_corr_dict_wstats(tuple_generator, nbins, binsize, hist_range):
+def get_gene_gene_corr_dict_wstats(tuple_generator):
     """Returns a gene-gene correlation nested dict given a gene-gene nested dict
 
     tuple_generator : generator object
@@ -616,42 +652,12 @@ def get_gene_gene_corr_dict_wstats(tuple_generator, nbins, binsize, hist_range):
         Dict with gene-gene-correlation
     """
     corr_nest_dict = create_nested_dict()
-    home_brewed_histo = np.zeros(nbins, dtype=int)
-    edges = np.arange(hist_range[0], hist_range[1] + binsize, step=binsize)
     dnf_logger.info('Generating correlation lookup and statistics')
-    mean = 0
-    t1, t2, m = 0, 0, 0
-    # see 'https://math.stackexchange.com/questions/102978/'
-    # 'incremental-computation-of-standard-deviation#103025'
-    for m, (gene1, gene2, c) in enumerate(tuple_generator):
+    for gene1, gene2, c in tuple_generator:
         corr = float(c)
-        if mean == 0:
-            mean = corr
-        else:
-            mean = (mean + corr) / 2
-        if t1 == 0 and t2 == 0:
-            t1 = corr
-            t2 = corr**2
-        else:
-            t1 += corr
-            t2 += corr**2
-
         corr_nest_dict[gene1][gene2] = corr
-        home_brewed_histo[_map2index(hist_range[0], binsize, corr)] += 1
-    t0 = m + 1
-    real_sigma = np.sqrt(t0*t2 - t1) / t0
 
-    try:
-        assert sum(home_brewed_histo) > 0
-    except AssertionError:
-        pdb.set_trace()  # Why is sum(home_brewed_histo) == 0
-    a, mu, sigma = get_gaussian_stats(bin_edges=edges, hist=home_brewed_histo)
-    sigma_dict = {'a': a,
-                  'gauss_mean': mu,
-                  'gauss_sigma': sigma,
-                  'real_mean': mean,
-                  'real_sigma': real_sigma}
-    return corr_nest_dict, sigma_dict
+    return corr_nest_dict
 
 
 def merge_correlation_dicts(correlation_dicts_list, settings):
@@ -700,9 +706,9 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
 
                 if other_corr and pass_filter(
                         corr1=corr,
-                        sigma1=sigma_dict['real_sigma'],
+                        sigma1=sigma_dict['sigma'],
                         corr2=other_corr,
-                        sigma2=other_sigma_dict['real_sigma'],
+                        sigma2=other_sigma_dict['sigma'],
                         margin=settings['margin'],
                         filter_type=settings['filter_type']):
                     merged_corr_dict[o_gene][i_gene][set_name] = corr
@@ -785,11 +791,12 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
     Returns
     -------
-    master_corr_dict: defaultdict(dict)
+    master_corr_dict: defaultdict(dict(...))
         A nested dict containing a lookup of the filtered set of
         gene-gene-correlations
-     gene_set_intersection: set()
+    gene_set_intersection: set()
         The set of HGNC gene names in the master correlation lookup
+    stats_dict: dict(dict)
     """
     corr_dicts_list = []
     gene_set_intersection = set()
@@ -797,6 +804,13 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
         dnf_logger.info('Processing set "%s"' % gene_set_name)
+
+        # todo add option to provide sigma instead of doing calculation
+        full_set_tuple_generator = csv_file_to_generator(
+            fname=dataset_dict['data'],
+            column_list=['gene1', 'gene2', 'corr'])
+        full_mean, full_stdev = get_stats(full_set_tuple_generator)
+        sigma_dict = {'mean': full_mean, 'sigma': full_stdev}
 
         # Get tuple generator and the accompanied set of genes
         tuple_generator, set_of_genes = get_correlations(
@@ -813,20 +827,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                         'set "%s"' % (len(set_of_genes), gene_set_name))
 
         # Generate correlation dict and get the statistics of the distribution
-        corr_dict, sigma_dict = get_gene_gene_corr_dict_wstats(
-            tuple_generator=tuple_generator,
-            nbins=filter_settings['nbins'],
-            binsize=filter_settings['binsize'],
-            hist_range=filter_settings['hist_range'])
+        corr_dict = get_gene_gene_corr_dict_wstats(
+            tuple_generator=tuple_generator)
         dnf_logger.info('Created correlation dictionary of length %i for set '
                         '"%s"' % (len(corr_dict), gene_set_name))
-        dnf_logger.info('-' * 63)
-        dnf_logger.info('Statistics for set %s: ' % gene_set_name)
-        dnf_logger.info('> Gaussian mean: %f' % sigma_dict['gauss_mean'])
-        dnf_logger.info('> Gaussian sigma: %f' % sigma_dict['gauss_sigma'])
-        dnf_logger.info('> Actual sigma: %f' % sigma_dict['real_sigma'])
-        dnf_logger.info('> Actual mean: %f' % sigma_dict['real_mean'])
-        dnf_logger.info('-' * 63)
 
         # Append correlation dict and stats to list
         stats_dict[gene_set_name] = sigma_dict
