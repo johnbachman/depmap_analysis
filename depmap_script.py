@@ -12,7 +12,11 @@ from time import time, strftime
 from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
-from depmap_network_functions import create_nested_dict
+from depmap_network_functions import create_nested_dict as nest_dict
+# There are pickled files using "nest_dict" in their preserve import settings
+# and we can therefore not use another name when using those files
+
+import pdb  # ToDo remove import before merging PR
 
 logger = logging.getLogger('depmap_script')
 
@@ -105,8 +109,10 @@ def main(args):
     args_dict['crispr']['ul'] = (args.crispr_corr_range[1] if len(
         args.crispr_corr_range) == 2 else 1.0)
     args_dict['crispr']['outbasename'] = args.outbasename+'_crispr'
-    args_dict['crispr']['sigma'] = args.crispr_sigma
-    args_dict['crispr']['mean'] = None
+    args_dict['crispr']['sigma'] = args.crispr_mean_sigma[0] if \
+        args.crispr_mean_sigma else None
+    args_dict['crispr']['mean'] = args.crispr_mean_sigma[1] if \
+        args.crispr_mean_sigma else None
     args_dict['crispr']['strict'] = args.strict
     args_dict['crispr']['recalc'] = args.recalc_crispr
 
@@ -119,8 +125,10 @@ def main(args):
     args_dict['rnai']['ul'] = (args.rnai_corr_range[1] if len(
         args.rnai_corr_range) == 2 else 1.0)
     args_dict['rnai']['outbasename'] = args.outbasename+'_rnai'
-    args_dict['rnai']['sigma'] = args.rnai_sigma
-    args_dict['rnai']['mean'] = None
+    args_dict['rnai']['sigma'] = args.rnai_mean_sigma[0] if \
+        args.rnai_mean_sigma else None
+    args_dict['rnai']['mean'] = args.rnai_mean_sigma[1] if \
+        args.rnai_mean_sigma else None
     args_dict['rnai']['strict'] = args.strict
     args_dict['rnai']['recalc'] = args.recalc_rnai
 
@@ -210,7 +218,8 @@ def main(args):
     explained_pairs = []  # Saves all explanations
     explained_neg_pairs = []  # Saves all explanations with correlation < 0
     unexplained = []  # Unexplained correlations
-    npairs = dnf.rawincount(filename=args.outbasename+'_merged_corr_pairs.csv')
+    # npairs = dnf.rawincount(filename=args.outbasename+'_merged_corr_pairs.csv')
+    npairs = len(master_corr_dict)
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
     # connection type or correlation).
@@ -242,13 +251,20 @@ def main(args):
     # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
     #         open(args.outbasename + '_neg_conn_latex.tex', 'w') as f_neg_c:
 
-    logger.info('Looking for connections between %i pairs' % npairs)
+    logger.info('Looking for connections between %i pairs (length of dict)' %
+                len(master_corr_dict))
 
     for outer_id, do in master_corr_dict.items():
         for inner_id, corr_dict in do.items():
+            if len(corr_dict.keys()) == 0:
+                if args.verbosity:
+                    logger.info('Skipped outer_id=%s and inner_id=%s' %
+                            (outer_id, inner_id))
+                continue
             avg_corrs = []
-            for name in corr_dict:
-                avg_corrs.append(corr_dict[name])
+            for set_name in corr_dict:
+                avg_corrs.append(corr_dict[set_name])
+
             avg_corr = sum(avg_corrs)/len(avg_corrs)
             id1, id2 = outer_id, inner_id
 
@@ -357,7 +373,7 @@ def main(args):
                                   corr_dict['rnai'], 'shared_upstream',
                                   upstream_share_wb)
                     if args.verbosity:
-                        logger.info('Found upstream share: %s and %s are both'
+                        logger.info('Found upstream share: %s and %s are both '
                                     'directly downstream of %i nodes' %
                                     (id1, id2, len(upstream_share)))
                     explained_nested_dict[id1][id2]['x_is_upstream'] = \
@@ -433,7 +449,7 @@ def main(args):
     long_string += '' + '\n'
     long_string += '-' * 63 + '\n\n'
 
-    logger.info(long_string)
+    logger.info('\n' + long_string)
 
     # Here create directed graph from explained nested dict
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
@@ -536,14 +552,16 @@ if __name__ == '__main__':
                         help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
                              'denoting the range of correlations to consider '
                              'in the rnai data.')
-    parser.add_argument('-csig', '--crispr-sigma', type=float,
-                        help='Provide a value of the standard deviation for '
-                             'the crispr data instead of calculating it from '
-                             'the full data set.')
-    parser.add_argument('-rsig', '--rnai-sigma', type=float,
-                        help='Provide a value of the standard deviation for '
-                             'the rnai data instead of calculating it from '
-                             'the full data set.')
+    parser.add_argument('-cstats', '--crispr-mean-sigma', type=float, nargs=2,
+                        help='-rstats <mean> <stdev> | Provide a value of the '
+                             'mean and standard deviation for the crispr data '
+                             'instead of calculating it from the full data '
+                             'set.')
+    parser.add_argument('-rstats', '--rnai-mean-sigma', type=float, nargs=2,
+                        help='-rstats <mean> <stdev> | Provide a value of the '
+                             'mean and standard deviation for the rnai data '
+                             'instead of calculating it from the full data '
+                             'set.')
     a = parser.parse_args()
 
     with open('dep_map_script_log{}.log'.format(str(int(time()))), 'w',
