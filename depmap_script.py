@@ -4,11 +4,11 @@ import json
 import logging
 import pandas as pd
 import pickle as pkl
-from time import time, strftime
 import networkx as nx
 import argparse as ap
 import itertools as itt
 from numpy import float64
+from time import time, strftime
 from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
@@ -33,7 +33,7 @@ def _dump_it_to_json(fname, pyobj):
         json.dump(pyobj, json_out)
 
 
-def _dump_it_to_csv(fname, pyobj, separator=',', header=[]):
+def _dump_it_to_csv(fname, pyobj, separator=',', header=None):
     if header:
         with open(fname, 'w') as fo:
             fo.write(','.join(header)+'\n')
@@ -91,11 +91,8 @@ def main(args):
             args.unique_depmap_rnai_pairs = unique_pairs_fpath
 
     # Prepare data (we need uniq_pairs to look for explainable interactions)
-    filter_settings = {'margin': 1.0,
-                       'filter_type': 'sigma-diff',
-                       'nbins': 200,
-                       'binsize': 0.01,
-                       'hist_range': (-1.0, 1.0)}
+    filter_settings = {'margin': args.margin,
+                       'filter_type': args.filter_type}
 
     args_dict = dnf.create_nested_dict()
     args_dict['crispr']['data'] = args.crispr_data_file
@@ -104,9 +101,12 @@ def main(args):
                                               args.geneset_file else [])
     args_dict['crispr']['unique_pair_corr_file'] = \
         args.unique_depmap_crispr_pairs
-    args_dict['crispr']['ll'] = args.cll
-    args_dict['crispr']['ul'] = args.cul
+    args_dict['crispr']['ll'] = args.crispr_corr_range[0]
+    args_dict['crispr']['ul'] = (args.crispr_corr_range[1] if len(
+        args.crispr_corr_range) == 2 else 1.0)
     args_dict['crispr']['outbasename'] = args.outbasename+'_crispr'
+    args_dict['crispr']['sigma'] = args.crispr_sigma
+    args_dict['crispr']['mean'] = None
     args_dict['crispr']['strict'] = args.strict
     args_dict['crispr']['recalc'] = args.recalc_crispr
 
@@ -115,11 +115,15 @@ def main(args):
     args_dict['rnai']['filter_gene_set'] = (args.geneset_file if
                                             args.geneset_file else [])
     args_dict['rnai']['unique_pair_corr_file'] = args.unique_depmap_rnai_pairs
-    args_dict['rnai']['ll'] = args.rll
-    args_dict['rnai']['ul'] = args.rul
+    args_dict['rnai']['ll'] = args.rnai_corr_range[0]
+    args_dict['rnai']['ul'] = (args.rnai_corr_range[1] if len(
+        args.rnai_corr_range) == 2 else 1.0)
     args_dict['rnai']['outbasename'] = args.outbasename+'_rnai'
+    args_dict['rnai']['sigma'] = args.rnai_sigma
+    args_dict['rnai']['mean'] = None
     args_dict['rnai']['strict'] = args.strict
     args_dict['rnai']['recalc'] = args.recalc_rnai
+
     master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
         dict_of_data_sets=args_dict, filter_settings=filter_settings)
 
@@ -134,6 +138,8 @@ def main(args):
             set(dnf._read_gene_set_file(
                 gf=args_dict['rnai']['filter_gene_set'],
                 data=args_dict['crispr']['data']))
+    else:
+        gene_filter_list = None
 
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
@@ -475,17 +481,6 @@ if __name__ == '__main__':
     parser.add_argument('--filter-type', default='sigma-diff', type=str,
                         help='Type of filtering. Currently only supports '
                              '"sigma-diff"')
-    parser.add_argument('--bins', default=200, type=int,
-                        help='Number of bins to use when getting the '
-                             'statistics for the correlation data. '
-                             'Default is 200.')
-    parser.add_argument('--binsize', default=0.01, type=float,
-                        help='Bin size to use when binning the correlation '
-                             'data. Default is 0.01')
-    parser.add_argument('--hist-range', default=(-1.0, 1.0), type=float,
-                        nargs="+", help='LOWER_EDGE UPPER_EDGE\nTwo decimal '
-                                        'numbers denoting the upper and lower '
-                                        'edges of the histogram bins.')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
@@ -528,23 +523,36 @@ if __name__ == '__main__':
         'if you are running the script on the full data with no filters.')
     parser.add_argument('-lls', action='store_true', help='Use exactly one '
         'standard deviation of full set as lower limit.')
-    parser.add_argument('-cll', type=float, default=0.3,
-                        help='Lower limit CRISPR correlation filter.')
-    parser.add_argument('-cul', type=float, default=1.0,
-                        help='Upper limit CRISPR correlation filter.')
-    parser.add_argument('-rll', type=float, default=0.2,
-                        help='Lower limit RNAi correlation filter.')
-    parser.add_argument('-rul', type=float, default=1.0,
-                        help='Upper limit RNAi correlation filter.')
+    parser.add_argument('--max-pairs', type=int, help='Limit the maximum '
+        'number of gene-gene pairs to explain. If used, the pairs used will '
+        'be sampled at random.')
+    parser.add_argument('-crange', '--crispr-corr-range', default=0.3,
+                        type=float, nargs="+",
+                        help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
+                             'denoting the range of correlations to consider '
+                             'in the crispr data.')
+    parser.add_argument('-rrange', '--rnai-corr-range', default=0.2,
+                        type=float, nargs="+",
+                        help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
+                             'denoting the range of correlations to consider '
+                             'in the rnai data.')
+    parser.add_argument('-csig', '--crispr-sigma', type=float,
+                        help='Provide a value of the standard deviation for '
+                             'the crispr data instead of calculating it from '
+                             'the full data set.')
+    parser.add_argument('-rsig', '--rnai-sigma', type=float,
+                        help='Provide a value of the standard deviation for '
+                             'the rnai data instead of calculating it from '
+                             'the full data set.')
     a = parser.parse_args()
 
     with open('dep_map_script_log{}.log'.format(str(int(time()))), 'w',
               newline='\n') as f:
         f.write('Created on {}\n'.format(strftime('%Y %b %d, %H:%M:%S')))
         f.write('Execution path: {}\n\n'.format(os.getcwd()))
-        f.write('Command line option - value\n')
+        f.write('Command line option : value\n---------------------------\n')
         for arg in vars(a):
             f.write('{} : {}\n'.format(arg, getattr(a, arg)))
     done = main(a)
-    if done == 0:
+    if done == 0 or done is None:
         logger.info('Script finished without errors')
