@@ -502,15 +502,26 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = ap.ArgumentParser()
+    parser = ap.ArgumentParser(
+        description='Script to analyze and try to explain gene knockout data '
+                    'from depmap.org. Minimum Working Example for running '
+                    'script:    python depmap_script.py -cf <crispr gene '
+                    'data csv file> -rf <rnai gene data csv file> '
+                    '-o <output file name> Other good options are:    '
+                    '-cc/-rc: precalculated correlation matrices in hdf '
+                    'format    -ndi: nested dictionary of INDRA statements of '
+                    'the format  `d[gene][gene] = [stmts/stmt hashes]`  OR    '
+                    '-lw: a csv file with  `gene,gene,stmt type,stmt hash`  as '
+                    'columns.')
+    required_named = parser.add_argument_group('required arguments')
+    required_named.add_argument('-cf', '--crispr-data-file', required=True,
+                        help='CRISPR gene dependency data in csv format')
+    required_named.add_argument('-rf', '--rnai-data-file', required=True,
+                        help='RNAi gene dependency data in csv format')
     parser.add_argument('-cc', '--crispr-corr-file',
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
                         help='Precalculated RNAi correlations in h5 format')
-    parser.add_argument('-cf', '--crispr-data-file', required=True,
-                        help='CRISPR gene dependency data in csv format')
-    parser.add_argument('-rf', '--rnai-data-file', required=True,
-                        help='RNAi gene dependency data in csv format')
     parser.add_argument('-g', '--geneset-file',
                         help='Filter to interactions with gene set data file.')
     parser.add_argument('--margin', default=1.0,
