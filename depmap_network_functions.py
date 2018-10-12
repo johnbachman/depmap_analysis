@@ -825,7 +825,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         else:
             dnf_logger.info('No correlation file provided, recalculating...')
             full_corr_matrix = pd.read_csv(dataset_dict['data'],
-                index_col=0, header=0).T.corr()
+                index_col=0, header=0).corr()
             full_corr_matrix.to_hdf(
                 dataset_dict['outbasename'] + 'all_correlations.h5',
                 'correlations')
