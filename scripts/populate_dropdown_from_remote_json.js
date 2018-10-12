@@ -608,14 +608,18 @@ $(function(){
 
             // Updates the current selection of first gene
             onChange: function(value) {
+                if (!value.length) return;
+
+                // Disable and clear second dropdown
+                select_second_gene.clear();
+                select_second_gene.clearOptions();
+                select_second_gene.disable();
+
                 geneB = "B"
                 geneA = value
 
                 // Reset output and names
                 resetNamesOutput();
-
-                select_second_gene.disable();
-                select_second_gene.clearOptions();
 
                 // Refer to the div (or other object) where the output text should be
                 let output_text = $("#my_outputA")[0];
@@ -640,7 +644,6 @@ $(function(){
                 var second_dd_address = s3_prefix + value + ".json"
 
                 // Query for next dropdown
-                if (!value.length) return;
                 select_second_gene.load(function(callback) {
                     var second_json = $.ajax({
                         url: second_dd_address,
