@@ -89,7 +89,7 @@ $(function(){
     var xAB_ev_count = document.getElementById("collapse_sr_X_count");
 
     function resetNamesOutput() {
-        console.log("Names reset");
+        // console.log("Names reset");
 
         // Names for "A" and "B"
         Aname_complex.textContent = "A";
@@ -365,8 +365,8 @@ $(function(){
             // To be used so we can query common up/downstream on B-X-A when A->B gives back a result but not B->A;
             // Should also use it for avoiding double output.
             var AcB_d_output = false
-            var AB_im_output = false
-            // var BA_im_output = false
+            var AB_st_output = false
+            var AB_sr_output = false
 
             // Query and output all subj:A -> obj:B
             var geneA_is_subj_promise = $.ajax({
@@ -394,26 +394,26 @@ $(function(){
 
                     // OUTPUT EXPLANATIONS
 
-                    // if connection undirected
-                    if (connection_type_list.undirected.length > 0) {
-                        var debug_string = 'output_AcB' // Kept for now in anticipation of future debugging needs
-                        // console.log(debug_string)
+                    // if connection undirected and not already printed
+                    if (!AcB_d_output) {
+                        if (connection_type_list.undirected.length > 0) {
+                            var debug_string = 'output_AcB 1' // Kept for now in anticipation of future debugging needs
 
-                        // Flag found so we don't make same call again for B->A
-                        AcB_d_output = true
+                            // Flag found so we don't make same call again for B->A
+                            AcB_d_output = true
 
-                        // Set names COMPLEX
-                        Aname_complex.textContent = geneA;
-                        Bname_complex.textContent = geneB;
+                            // Set names COMPLEX
+                            Aname_complex.textContent = geneA;
+                            Bname_complex.textContent = geneB;
 
-                        // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                        output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
+                            // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
+                            output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
+                        }
                     }
 
                     // if connection directed
                     if (connection_type_list.directed.length > 0) {
                         var debug_string = 'output_AB'
-                        // console.log(debug_string)
 
                         // Set names DIRECTed
                         Aname_AtoB.textContent = geneA;
@@ -426,7 +426,6 @@ $(function(){
                     // 'x_is_intermediary'; This is for A->X->B
                     if (connection_type_list.x_is_intermediary.length > 0) {
                         var debug_string = 'output_AXB'
-                        // console.log(debug_string)
 
                         // Set names
                         Aname_AXB.textContent = geneA;
@@ -437,34 +436,38 @@ $(function(){
                     }
 
                     // 'x_is_downstream'
-                    if (connection_type_list.x_is_downstream.length > 0) {
-                        var debug_string = 'output_ABx'
-                        // console.log(debug_string)
+                    // Check if any output already
+                    if (!AB_st_output) {
+                        if (connection_type_list.x_is_downstream.length > 0) {
+                            var debug_string = 'output_ABx 1'
 
-                        // Set names
-                        Aname_ABtoX.textContent = geneA;
-                        Bname_ABtoX.textContent = geneB;
+                            // Set names
+                            Aname_ABtoX.textContent = geneA;
+                            Bname_ABtoX.textContent = geneB;
 
-                        AB_im_output = true
+                            AB_st_output = true;
 
-                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
-                        output_intermediary_new(output_ABx, output_AX_ABtoX, output_XB_ABtoX, ABx_ev_count, ABtox_dd_div, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            output_intermediary_new(output_ABx, output_AX_ABtoX, output_XB_ABtoX, ABx_ev_count, ABtox_dd_div, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address, debug_string)
+                        }
                     }
 
                     // 'x_is_upstream':
-                    if (connection_type_list.x_is_upstream.length > 0) {
-                        var debug_string = 'output_xAB'
-                        // console.log(debug_string)
+                    // Check if any output already
+                    if (!AB_sr_output) {
+                        if (connection_type_list.x_is_upstream.length > 0) {
+                            var debug_string = 'output_xAB 1'
 
-                        // Flag found so we don't make same call again for B->A
-                        AB_im_output = true
+                            // Flag found so we don't make same call again for B->A
+                            AB_sr_output = true;
 
-                        // Set names
-                        Aname_A_XtoAB.textContent = geneA;
-                        Bname_XtoAB.textContent = geneB;
+                            // Set names
+                            Aname_A_XtoAB.textContent = geneA;
+                            Bname_XtoAB.textContent = geneB;
 
-                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
-                        output_intermediary_new(output_xAB, output_AX_XtoAB, output_XB_XtoAB, xAB_ev_count, XtoAB_dd_div, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            output_intermediary_new(output_xAB, output_AX_XtoAB, output_XB_XtoAB, xAB_ev_count, XtoAB_dd_div, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address, debug_string)
+                        }
                     }
                 },
                 error: function() {
@@ -487,10 +490,8 @@ $(function(){
                     // if connection undirected and not already printed
                     if (!AcB_d_output) {
                         if (connection_type_list.undirected.length > 0) {
-                            var debug_string = 'output_AcB'
-                            // console.log(debug_string)
-
-                            AcB_d_output = true
+                            AcB_d_output = true;
+                            var debug_string = 'output_AcB 2'
 
                             // Set names COMPLEX
                             Aname_complex.textContent = geneA;
@@ -504,7 +505,6 @@ $(function(){
                     // if connection directed
                     if (connection_type_list.directed.length > 0) {
                         var debug_string = 'output_BA'
-                        // console.log(debug_string)
 
                         // Set names DIRECTed
                         Aname_BtoA.textContent = geneA;
@@ -517,7 +517,6 @@ $(function(){
                     // 'x_is_intermediary'; B->X->A
                     if (connection_type_list.x_is_intermediary.length > 0) {
                         var debug_string = 'output_BXA'
-                        // console.log(debug_string)
 
                         // Set names
                         Aname_BXA.textContent = geneA;
@@ -527,13 +526,12 @@ $(function(){
                         output_intermediary_new(output_BXA, output_BX_BXA, output_XB_BXA, BXA_ev_count, BXA_dd_div, connection_type_list.x_is_intermediary, geneB, geneA, geneB_is_subj_address, geneA_is_obj_address, debug_string)
                     }
 
-                    // Check if any output already is up for xAB or ABx
-                    if (!AB_im_output) {
-
+                    // Check if any output already
+                    if (!AB_st_output) {
                         // 'x_is_downstream'
                         if (connection_type_list.x_is_downstream.length > 0) {
-                            var debug_string = 'output_BAx'
-                            // console.log(debug_string)
+                            AB_st_output = true;
+                            var debug_string = 'output_BAx 2'
 
                             // Set names
                             Aname_ABtoX.textContent = geneA;
@@ -542,11 +540,15 @@ $(function(){
                             // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_ABx, output_AX_ABtoX, output_XB_ABtoX, ABx_ev_count, ABtox_dd_div, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address, debug_string)
                         }
+                    }
 
+                    // Check if any output already
+                    if (!AB_sr_output) {
                         // 'x_is_upstream':
                         if (connection_type_list.x_is_upstream.length > 0) {
-                            var debug_string = 'output_xBA'
-                            // console.log(debug_string)
+                            AB_sr_output = true;
+
+                            var debug_string = 'output_xBA 2'
 
                             // Set names
                             Aname_A_XtoAB.textContent = geneA;
@@ -686,7 +688,7 @@ $(function(){
         let stmts_promise = getStatementByHash(hash_query)
         
         stmts_promise.then(function(stmt_response){
-            console.log("stmt_response");
+            console.log('stmt_response');
             console.log(stmt_response);
 
             // statements is a dict keyed by hashes: {hash: stmt_json, ...}
@@ -870,6 +872,7 @@ $(function(){
                             pubmed_promise.then(function(responseXML) {
                                 docsum_xml = responseXML.getElementsByTagName('DocSum')[0]
                                 pmid_meta_dict = pmidXML2dict(docsum_xml)
+                                console.log('pmid_meta_dict')
                                 console.log(pmid_meta_dict)
 
                                 authorlist = pmid_meta_dict.AuthorList
@@ -918,6 +921,7 @@ $(function(){
 
     // Use this function for A-X-B (same for all four) the query needs to be over two json lookups: SUBJ_is_subj and OBJ_is_obj
     function output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
+        // console.log(('Called output_intermediary_new from ' + debug_string))
         let dropdown_div = dd_div;
         var dd_id = dropdown_div.id;
         var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer to the dropdown
