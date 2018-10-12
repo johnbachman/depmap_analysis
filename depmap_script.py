@@ -513,11 +513,21 @@ if __name__ == '__main__':
                     'the format  `d[gene][gene] = [stmts/stmt hashes]`  OR    '
                     '-lw: a csv file with  `gene,gene,stmt type,stmt hash`  as '
                     'columns.')
-    required_named = parser.add_argument_group('required arguments')
-    required_named.add_argument('-cf', '--crispr-data-file', required=True,
-                        help='CRISPR gene dependency data in csv format')
-    required_named.add_argument('-rf', '--rnai-data-file', required=True,
-                        help='RNAi gene dependency data in csv format')
+
+    either_of = parser.add_argument_group('One of the following two arguments')
+    required_args = parser.add_argument_group('Required Arguments')
+    required_args.add_argument('-cf', '--crispr-data-file', required=True,
+                               help='CRISPR gene dependency data in csv format')
+    required_args.add_argument('-rf', '--rnai-data-file', required=True,
+                               help='RNAi gene dependency data in csv format')
+    either_of.add_argument('-b', '--belief-score-dict', help='Load a dict with '
+        'stmt hash: belief score to be incorporated in the explainable '
+        'network dict.')
+    either_of.add_argument('-ndi', '--nested-dict-in',
+                           help='Load precalculated nested dict of'
+                                'statements of the form '
+                                'd[subj][obj] = [(stmt/stmt hash, belief '
+                                'score)].')
     parser.add_argument('-cc', '--crispr-corr-file',
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
@@ -546,16 +556,10 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', action='count',
                         help='increase output verbosity (-vv is more '
                              'than -v)')
-    parser.add_argument('-b', '--belief-score-dict', help='Load a dict with '
-        'stmt hash: belief score to be incorporated in the explainable '
-        'network dict.')
     parser.add_argument('-dgi', '--directed-graph-in', help='Load a'
         'precalculated directed graph of indra subject/object network.')
     parser.add_argument('-dgo', '--directed-graph-out', help='Save the '
         'calculated directed graph of the indra statement network.')
-    parser.add_argument('-ndi', '--nested-dict-in', help='Load precalculated '
-        'nested dict of statements of the form d[subj][obj] = [stmts/stmt '
-        'hashes].')
     parser.add_argument('-ndo', '--nested-dict-out', help='Save the '
         'calculated nested dict of statements')
     parser.add_argument('-lw', '--light-weight-stmts', help='A lightweight '
