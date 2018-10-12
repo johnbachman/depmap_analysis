@@ -64,7 +64,8 @@ def create_nested_dict():
 
 def csv_file_to_generator(fname, column_list):
     # todo consider passing a file stream object that can be read line by line
-    """Return a tuple generator given a csv file and specified columns
+    """Return a tuple generator given a csv file with
+    gene-gene-correlation pairs and specified columns
 
     fname : str
         File path of csv file
@@ -564,7 +565,7 @@ def get_stats(tuple_generator):
     # OR
     # 'https://math.stackexchange.com/questions/374881/
     # recursive-formula-for-variance#375022'
-    t1, t2, skip = 0, 0, 0
+    t1, t2, skip, m = 0, 0, 0, 0
     for m, (gene1, gene2, c) in enumerate(tuple_generator):
         corr = float(c)
         if corr == 1.0:
@@ -573,6 +574,14 @@ def get_stats(tuple_generator):
         else:
             t1 += corr
             t2 += corr**2
+
+    # Check that
+    try:
+        assert m != 0
+    except AssertionError as e:
+        pdb.set_trace()  # Check why loop was not executed
+        dnf_logger.error(e)
+        raise e
     t0 = m + 1 - skip
     mean = t1 / t0
     std = np.sqrt(t0 * t2 - t1**2) / t0
@@ -701,9 +710,9 @@ def merge_correlation_dicts(correlation_dicts_list, settings):
                     other_corr = other_dict[i_gene][o_gene]
 
                 if other_corr and pass_filter(
-                        corr1=corr,
+                        corr1=corr, mu1=sigma_dict['mean'],
                         sigma1=sigma_dict['sigma'],
-                        corr2=other_corr,
+                        corr2=other_corr, mu2=other_sigma_dict['mean'],
                         sigma2=other_sigma_dict['sigma'],
                         margin=settings['margin'],
                         filter_type=settings['filter_type']):
@@ -810,6 +819,19 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
         dnf_logger.info('-' * 37)
 
+        if dataset_dict['corr']:
+            dnf_logger.info('Reading pre-calculated correlation file.')
+            full_corr_matrix = pd.read_hdf(dataset_dict['corr'], 'correlations')
+        else:
+            dnf_logger.info('No correlation file provided, recalculating...')
+            full_corr_matrix = pd.read_csv(dataset_dict['data'],
+                index_col=0, header=0).T.corr()
+            full_corr_matrix.to_hdf(
+                dataset_dict['outbasename'] + 'all_correlations.h5',
+                'correlations')
+        dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
+        full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
+
         if dataset_dict['sigma']:
             dnf_logger.info('Using provided sigma of %f for set %s' %
                             (dataset_dict['sigma'], gene_set_name))
@@ -818,17 +840,15 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         else:
             dnf_logger.info('Calculating mean and standard deviation for set %s'
                             'from %s' % (gene_set_name, dataset_dict['data']))
-            full_set_tuple_generator = csv_file_to_generator(
-                fname=dataset_dict['data'],
-                column_list=['gene1', 'gene2', 'corr'])
-            full_mean, full_stdev = get_stats(full_set_tuple_generator)
+            full_mean, full_stdev = get_stats(corr_matrix_to_generator(
+                full_corr_matrix))
             sigma_dict = {'mean': full_mean, 'sigma': full_stdev}
 
         # Get tuple generator and the accompanied set of genes
         tuple_generator, set_of_genes = get_correlations(
             depmap_data_file=dataset_dict['data'],
             geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
-            corr_file=dataset_dict['corr'],
+            corr_file=full_corr_matrix,
             strict=dataset_dict['strict'],
             outbasename=dataset_dict['outbasename'],
             unique_pair_corr_file=dataset_dict['unique_pair_corr_file'],
@@ -848,6 +868,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         stats_dict[gene_set_name] = sigma_dict
         corr_dicts_list.append((gene_set_name, corr_dict, sigma_dict))
         gene_set_intersection.intersection_update(set_of_genes)
+
+    dnf_logger.info('-' * 37)
+    dnf_logger.info('-' * 37)
+    dnf_logger.info('Merging the data sets')
 
     # Merge the dictionaries and the set of genes
     master_corr_dict = merge_correlation_dicts(corr_dicts_list,
@@ -895,7 +919,7 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
 
     filtered_correlation_matrix = _get_corr_df(
         depmap_data_file=depmap_data_file,
-        corr_file=corr_file,
+        corr_matrix=corr_file,
         geneset_file=geneset_file,
         strict=strict,
         recalc=recalc,
@@ -927,7 +951,7 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
     return uniq_pair_gen, all_hgnc_ids
 
 
-def _get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
+def _get_corr_df(depmap_data_file, corr_matrix, geneset_file, strict, recalc,
                  outbasename, lower_limit, upper_limit):
 
     # Open data file
@@ -941,28 +965,17 @@ def _get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
     else:
         gene_filter_list = []  # Evaluates to False
 
-    # 1. no loaded gene list OR 2. loaded gene list but not strict -> data.corr
+    # 1. no loaded gene list OR 2. loaded gene list but not strict
+    #    -> filter correlation matrix to
     corr_matrix_df = None
     if not geneset_file or (geneset_file and not strict):
-        # Calculate the full correlations, or load from cached
-        if recalc:
-            dnf_logger.info('Calculating correlations (may take a long time)')
-            corr = data.corr()
-            corr.to_hdf(outbasename+'correlations.h5', 'correlations')
-        else:
-            if corr_file:
-                dnf_logger.info('Loading correlations from %s' % corr_file)
-                corr = pd.read_hdf(corr_file, 'correlations')
-            else:
-                dnf_logger.error('No correlation file provdided or calculated!')
-                raise FileNotFoundError
-        # No gene set file, leave 'corr' intact
+        # No gene set file, leave 'corr_matrix' intact
         if not geneset_file:
-            corr_matrix_df = corr
+            corr_matrix_df = corr_matrix
 
-        # Gene set file present: filter and unstack
+        # Gene set file present: filter
         elif geneset_file and not strict:
-            corr_matrix_df = corr[gene_filter_list]
+            corr_matrix_df = corr_matrix[gene_filter_list]
 
     # 3. Strict: both genes in interaction must be from loaded set;
     #    Filter data, then calculate correlations and then unstack
@@ -971,12 +984,7 @@ def _get_corr_df(depmap_data_file, corr_file, geneset_file, strict, recalc,
 
     assert corr_matrix_df is not None
 
-    # Remove self correlation, correlations below ll, sort on magnitude,
-    # leave correlation intact
-    dnf_logger.info('Removing self correlations')
-    corr_matrix_df = corr_matrix_df[corr_matrix_df != 1.0]  # Self correlations
-
-    # Filter low correlations
+    # Filter correlations
     if lower_limit > 0:
         return corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit)
     # No filtering
