@@ -16,7 +16,7 @@ from depmap_network_functions import create_nested_dict as nest_dict
 # There are pickled files using "nest_dict" in their preserve import settings
 # and we can therefore not use another name when using those files
 
-import pdb  # ToDo remove import before merging PR
+import pdb  # todo remove import before merging PR
 
 logger = logging.getLogger('depmap_script')
 
@@ -93,7 +93,7 @@ def main(args):
                                    'CRISPR data is provided.\nPlease provide '
                                    'one here or press [Enter] to proceed with '
                                    'the calculation of\nunique pairs (may take '
-                                   'a while on full data set).')
+                                   'a while on full data set).\n')
         if unique_pairs_fpath:
             args.unique_depmap_crispr_pairs = unique_pairs_fpath
     if not args.unique_depmap_rnai_pairs:
@@ -101,9 +101,17 @@ def main(args):
                                    'RNAi data is provided.\nPlease provide '
                                    'one here or press [Enter] to proceed with '
                                    'the calculation of\nunique pairs (may take '
-                                   'a while on full data set).')
+                                   'a while on full data set).\n')
         if unique_pairs_fpath:
             args.unique_depmap_rnai_pairs = unique_pairs_fpath
+
+    # Check if belief dict is provided
+    if not args.belief_score_dict and not args.nested_dict_in:
+        logger.error('belief dict must be provided through the `-b ('
+                     '--belief-score-dict)` argument if no nested dict '
+                     'of statements with belief score is provided through the '
+                     '`-ndi (--nested-dict-in)` argument.')
+        raise FileNotFoundError
 
     # Prepare data (we need uniq_pairs to look for explainable interactions)
     filter_settings = {'margin': args.margin,
@@ -198,11 +206,11 @@ def main(args):
         nested_dict_statements = _pickle_open(args.nested_dict_in)
     else:
         if belief_dict is None:
-            logger.warning('belief dict must be provided through the `-b ('
-                           '--belief-score-dict)` argument if no nested dict '
-                           'of statements is provided through the `-ndi ('
-                           '--nested-dict-in)` argument.')
-            raise ValueError
+            logger.error('belief dict must be provided through the `-b ('
+                         '--belief-score-dict)` argument if no nested dict '
+                         'of statements is provided through the `-ndi ('
+                         '--nested-dict-in)` argument.')
+            raise FileNotFoundError
         else:
             nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
                                                             belief_dict)
