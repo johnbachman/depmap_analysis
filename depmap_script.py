@@ -294,7 +294,7 @@ def main(args):
             # nested_dict_statements.get(id1).get(id2) raises AttributeError
             # if nested_dict_statements.get(id1) returns {}
             for subj, obj in itt.permutations((id1, id2), r=2):
-                if dnf._entry_exist(nested_dict_statements, subj, obj):
+                if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
                     # Get the statements
                     stmts = nested_dict_statements[subj][obj]
 
@@ -420,23 +420,23 @@ def main(args):
                     # Correlation
                     explained_nested_dict[s][o]['correlations'] = corr_dict
                     # Directed
-                    if not dnf._entry_exist(explained_nested_dict[s], o,
+                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                             'directed'):
                         explained_nested_dict[s][o]['directed'] = []
                     # Undirected
-                    if not dnf._entry_exist(explained_nested_dict[s], o,
+                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                             'undirected'):
                         explained_nested_dict[s][o]['undirected'] = []
                     # x_is_intermediary
-                    if not dnf._entry_exist(explained_nested_dict[s], o,
+                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                         'x_is_intermediary'):
                         explained_nested_dict[s][o]['x_is_intermediary'] = []
                     # x_is_upstream
-                    if not dnf._entry_exist(explained_nested_dict[s], o,
+                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                         'x_is_upstream'):
                         explained_nested_dict[s][o]['x_is_upstream'] = []
                     # x_is_downstream
-                    if not dnf._entry_exist(explained_nested_dict[s], o,
+                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                         'x_is_downstream'):
                         explained_nested_dict[s][o]['x_is_downstream'] = []
 
