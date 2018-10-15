@@ -95,7 +95,10 @@ def corr_matrix_to_generator(corrrelation_df_matrix):
     corr_value_matrix = corrrelation_df_matrix.values
     gene_name_array = corrrelation_df_matrix.index.values
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
-    return ((gene_name_array[i], gene_name_array[j],
+    # Only get HGNC symbols (first in tuple) since we're gonna compare to
+    # INDRA statements, which is currently done with HGNC symbols
+    # todo change to output HGNC IDs instead when switching to HGNC id in stmts
+    return ((gene_name_array[i][0], gene_name_array[j][0],
             str(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
             if not np.isnan(corr_value_matrix[i, j]))
@@ -504,7 +507,7 @@ def _read_gene_set_file(gf, data):
     with open(gf, 'rt') as f:
         for g in f.readlines():
             gn = g.upper().strip()
-            if gn in data:
+            if gn in data.index:
                 gset.append(gn)
     return gset
 
@@ -829,8 +832,36 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             full_corr_matrix.to_hdf(
                 dataset_dict['outbasename'] + 'all_correlations.h5',
                 'correlations')
+
         dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
         full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
+
+        # Check if names are 'HGNCsymb (HGNCid)' or not
+        if len(full_corr_matrix.index.values[0].split()) == 2:
+            # split 'HGNCsymb (HGNCid)' to 'HGNCsymb' '(HGNCid)' multiindexing:
+            # pandas.pydata.org/pandas-docs/stable/advanced.html
+
+            # Get new indices
+            multi_index = pd.MultiIndex.from_tuples(
+                tuples=[
+                    (t[0], t[1].strip('(').strip(')')) for t in [
+                        s.split() for s in full_corr_matrix.index.values
+                    ]
+                ],
+                names=['HGNCsymbol', 'HGNCid'])
+
+            # Add multi-index inplace as index and column name
+            full_corr_matrix.set_axis(axis=0, labels=multi_index, inplace=True)
+            full_corr_matrix.set_axis(axis=1, labels=multi_index, inplace=True)
+
+        elif len(full_corr_matrix.index.values[0].split()) == 1:
+            # leave intact? Check if there are IDs? Warning that you don't
+            # have IDs/symbols but proceed?
+            dnf_logger.warning('Only one identifier found in index column, '
+                               'assuming it is HGNC symbol.')
+        else:
+            # throw error?
+            dnf_logger.warning('Uknown index column, check your input data.')
 
         if dataset_dict['sigma']:
             dnf_logger.info('Using provided sigma of %f for set %s' %
@@ -845,10 +876,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             sigma_dict = {'mean': full_mean, 'sigma': full_stdev}
 
         # Get tuple generator and the accompanied set of genes
-        tuple_generator, set_of_genes = get_correlations(
+        tuple_generator, set_of_hgnc_syms, set_of_hgnc_ids = get_correlations(
             depmap_data_file=dataset_dict['data'],
             geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
-            corr_file=full_corr_matrix,
+            pd_corr_matrix=full_corr_matrix,
             strict=dataset_dict['strict'],
             outbasename=dataset_dict['outbasename'],
             unique_pair_corr_file=dataset_dict['unique_pair_corr_file'],
@@ -856,7 +887,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             lower_limit=dataset_dict['ll'],
             upper_limit=dataset_dict['ul'])
         dnf_logger.info('Created tuple generator with %i unique genes from '
-                        'set "%s"' % (len(set_of_genes), gene_set_name))
+                        'set "%s"' % (len(set_of_hgnc_syms), gene_set_name))
 
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
@@ -867,7 +898,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         # Append correlation dict and stats to list
         stats_dict[gene_set_name] = sigma_dict
         corr_dicts_list.append((gene_set_name, corr_dict, sigma_dict))
-        gene_set_intersection.intersection_update(set_of_genes)
+        gene_set_intersection.intersection_update(set_of_hgnc_syms)
 
     dnf_logger.info('-' * 37)
     dnf_logger.info('-' * 37)
@@ -882,7 +913,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     return master_corr_dict, gene_set_intersection, stats_dict
 
 
-def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
+def get_correlations(depmap_data_file, geneset_file, pd_corr_matrix, strict,
                      outbasename, unique_pair_corr_file, recalc=False,
                      lower_limit=0.2, upper_limit=1.0):
     # todo make function take gene set data dict as input?
@@ -892,7 +923,7 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
         Filepath to depmap data file to process
     geneset_file: str
         Filepath to a geneset to filter data to.
-    corr_file: str
+    pd_corr_matrix: str
         Filepath to pre-calculated correlations of depmap_data_file.
     strict: Bool
         If True, all genes in correlations have to exist in geneset_file
@@ -901,7 +932,7 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
     unique_pair_corr_file: str
         Filepath to csvfile with unique tuples of gene,gene,corr.
     recalc: Bool
-        If True, recalculate correlations (has to be True if corr_file is None).
+        If True, recalculate correlations (has to be True if pd_corr_matrix is None).
     lower_limit: float
         Lowest correlation magnitude to consider
     upper_limit: float
@@ -919,7 +950,7 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
 
     filtered_correlation_matrix = _get_corr_df(
         depmap_data_file=depmap_data_file,
-        corr_matrix=corr_file,
+        corr_matrix=pd_corr_matrix,
         geneset_file=geneset_file,
         strict=strict,
         recalc=recalc,
@@ -927,7 +958,8 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
         lower_limit=lower_limit,
         upper_limit=upper_limit)
 
-    all_hgnc_ids = set(filtered_correlation_matrix.index.values)
+    all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
+    all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
 
     # Return a generator object from either a loaded file or a pandas dataframe
     if unique_pair_corr_file:
@@ -943,12 +975,12 @@ def get_correlations(depmap_data_file, geneset_file, corr_file, strict,
                     str(lower_limit).replace('.', '')
 
         uniq_pair_gen = corr_matrix_to_generator(filtered_correlation_matrix)
-        uniq_pair_gen_forcsv = corr_matrix_to_generator(
-            filtered_correlation_matrix)
         dnf_logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
-        _dump_it_to_csv(fname, uniq_pair_gen_forcsv)
-    return uniq_pair_gen, all_hgnc_ids
+        # todo make saving the file an option
+        _dump_it_to_csv(fname, corr_matrix_to_generator(
+            filtered_correlation_matrix))
+    return uniq_pair_gen, all_hgnc_symb, all_hgnc_ids
 
 
 def _get_corr_df(depmap_data_file, corr_matrix, geneset_file, strict, recalc,
@@ -958,6 +990,14 @@ def _get_corr_df(depmap_data_file, corr_matrix, geneset_file, strict, recalc,
     dnf_logger.info('Reading DepMap data from %s' % depmap_data_file)
     data = pd.read_csv(depmap_data_file, index_col=0, header=0)
     data = data.T
+    multi_index = pd.MultiIndex.from_tuples(
+        tuples=[
+            (t[0], t[1].strip('(').strip(')')) for t in [
+                s.split() for s in data.index.values
+            ]
+        ],
+        names=['HGNCsymbol', 'HGNCid'])
+    data.set_axis(axis=0, labels=multi_index, inplace=True)
 
     if geneset_file:
         # Read gene set to look at
@@ -980,7 +1020,8 @@ def _get_corr_df(depmap_data_file, corr_matrix, geneset_file, strict, recalc,
     # 3. Strict: both genes in interaction must be from loaded set;
     #    Filter data, then calculate correlations and then unstack
     elif geneset_file and strict:
-        corr_matrix_df = data[gene_filter_list].corr()
+        corr_matrix_df[np.in1d(corr_matrix_df.index.get_level_values(0),
+                               gene_filter_list)].corr()
 
     assert corr_matrix_df is not None
 
