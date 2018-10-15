@@ -1044,7 +1044,7 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         difference in their distance from the mean standard deviation.
     """
     if filter_type == 'sigma-diff':
-        return abs((mu1 + corr1)/sigma1 - (mu2 + corr2)/sigma2) > margin
+        return abs((mu1 + corr1)/sigma1 - (mu2 + corr2)/sigma2) < margin
     else:
         return True
 
