@@ -580,12 +580,12 @@ if __name__ == '__main__':
     parser.add_argument('--max-pairs', type=int, help='Limit the maximum '
         'number of gene-gene pairs to explain. If used, the pairs used will '
         'be sampled at random.')
-    parser.add_argument('-crange', '--crispr-corr-range', default=0.3,
+    parser.add_argument('-crange', '--crispr-corr-range', default=[0.3],
                         type=float, nargs="+",
                         help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
                              'denoting the range of correlations to consider '
                              'in the crispr data.')
-    parser.add_argument('-rrange', '--rnai-corr-range', default=0.2,
+    parser.add_argument('-rrange', '--rnai-corr-range', default=[0.2],
                         type=float, nargs="+",
                         help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
                              'denoting the range of correlations to consider '
