@@ -774,34 +774,27 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
     The input data set dict has the following format:
 
-        dict_of_data_sets[gene_set1] = dataset1_dict
+        dict_of_data_sets[gene_set_name] = dataset_dict
 
-        dataset1_dict = {data: (depmap filepath),
-                         corr: (depmap corr file),
-                         filter_gene_set: list[genes to filter on]
-                         unique_pair_corr_file: filepath,
-                         ll: lower_limit_for_correlation,
-                         ul: upper_limit_for_correlation,
-                         sigma: st-dev of correlation distr,
-                         filter_margin: float,
-                         merge_filter_type: str,
-                         outbasename: str,
-                         strict: Bool,
-                         recalc: Bool}
+        dataset_dict = {data: (depmap filepath),
+                        corr: (depmap corr file),
+                        filter_gene_set: list[genes to filter on],
+                        ll: lower_limit_for_correlation,
+                        ul: upper_limit_for_correlation,
+                        mean: mean of correlation distr,
+                        sigma: st-dev of correlation distr,
+                        filter_margin: float,
+                        merge_filter_type: str,
+                        outbasename: str,
+                        dump_unique_pairs: Bool,
+                        strict: Bool}
 
     The filter settings should contain the following:
 
         filter_settings = {'margin':      diff in terms of standard deviations
                                           between correlations,
                            'filter_type': Type of filtering
-                                          (Default: 'sigma-diff'),
-                           'nbins':       Number of bins to use when binning
-                                          the correlation data,
-                           'binsize':     Bin size when binning the
-                                          correlation data,
-                           'hist_range':  Upper and lower edges when
-                                          binning the correlation data
-                                          (Default: -1.0, 1.0)}
+                                          (Default: 'sigma-diff')}
 
     The returned master correlation dict has the following format:
 
@@ -870,6 +863,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
             pd_corr_matrix=full_corr_matrix,
             strict=dataset_dict['strict'],
+            dump_unique_pairs=dataset_dict['dump_unique_pairs'],
             outbasename=dataset_dict['outbasename'],
             lower_limit=dataset_dict['ll'],
             upper_limit=dataset_dict['ul'])
@@ -905,8 +899,9 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     return master_corr_dict, gene_set_intersection, stats_dict
 
 
-def get_correlations(depmap_data, geneset_file, pd_corr_matrix, strict,
-                     outbasename, lower_limit=0.2, upper_limit=1.0):
+def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
+                     strict, dump_unique_pairs, outbasename,
+                     lower_limit=0.2, upper_limit=1.0):
     # todo make function take gene set data dict as input?
     """ given a gene-feature data matrix in csv format.
 
@@ -949,17 +944,17 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix, strict,
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
 
-    # Return a generator object from pandas dataframe
-    if lower_limit == 0:
-        fname = outbasename + '_all_unique_correlation_pairs.csv'
-    else:
-        fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
-                str(lower_limit).replace('.', '')
-    dnf_logger.info('Saving unique correlation pairs to %s. '
-                    '(May take a while)' % fname)
-    # todo make saving the file an option and not mandatory
-    _dump_it_to_csv(fname, corr_matrix_to_generator(
-        filtered_correlation_matrix))
+    if dump_unique_pairs:
+        if lower_limit == 0:
+            fname = outbasename + '_all_unique_correlation_pairs.csv'
+        else:
+            fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
+                    str(lower_limit).replace('.', '')
+        dnf_logger.info('Saving unique correlation pairs to %s. '
+                        '(May take a while)' % fname)
+        _dump_it_to_csv(fname, corr_matrix_to_generator(
+            filtered_correlation_matrix))
+
     return filtered_correlation_matrix, all_hgnc_symb, all_hgnc_ids
 
 
