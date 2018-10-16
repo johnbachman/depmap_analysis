@@ -534,7 +534,7 @@ if __name__ == '__main__':
                         help='Type of filtering. Currently only supports '
                              '"sigma-diff"')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
-                        help='Base name for outfiles. Default: UTC timestamp')
+                        help='Base name for outfiles. Default: UTC timestamp.')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
                         help='With \'-r\', recalculate full gene-gene '
                              'correlations of CRISPR data set.')
