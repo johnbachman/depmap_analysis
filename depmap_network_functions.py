@@ -962,7 +962,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
 
 def _get_corr_df(depmap_data, corr_matrix, geneset_file,
                  strict, lower_limit, upper_limit):
-
+    # todo make function take data dict as input or use args* + kwargs**
     multi_index_data = pd.MultiIndex.from_tuples(
         tuples=[
             (t[0], t[1].strip('(').strip(')')) for t in [
