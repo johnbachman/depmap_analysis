@@ -457,14 +457,14 @@ def main(args):
                    'node.' % (dir_expl_count, im_expl_count) + '\n'
     long_string += '> Total number of pairs checked: %i' % npairs + '\n\n'
     long_string += 'Statistics:' + '\n\n'
-    long_string += ' RNAi data ' + '\n'
-    long_string += ' ----------' + '\n'
+    long_string += '  RNAi data ' + '\n'
+    long_string += '  ----------' + '\n'
     long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
-    long_string += '> sigma: %f\n' % stats_dict['rnai']['sigma']
-    long_string += ' CRISPR data ' + '\n'
-    long_string += ' ------------' + '\n'
+    long_string += '> SD: %f\n' % stats_dict['rnai']['sigma']
+    long_string += '  CRISPR data ' + '\n'
+    long_string += '  ------------' + '\n'
     long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
-    long_string += '> sigma: %f\n' % stats_dict['crispr']['sigma']
+    long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
     long_string += '' + '\n'
     long_string += '-' * 63 + '\n\n'
 
