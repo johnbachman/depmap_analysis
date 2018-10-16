@@ -126,22 +126,6 @@ def _arg_dict(args_struct):
 
 
 def main(args):
-    if not args.unique_depmap_crispr_pairs:
-        unique_pairs_fpath = input('\nNo file of unique pair combinations for '
-                                   'CRISPR data is provided.\nPlease provide '
-                                   'one here or press [Enter] to proceed with '
-                                   'the calculation of\nunique pairs (may take '
-                                   'a while on full data set).\n')
-        if unique_pairs_fpath:
-            args.unique_depmap_crispr_pairs = unique_pairs_fpath
-    if not args.unique_depmap_rnai_pairs:
-        unique_pairs_fpath = input('\nNo file of unique pair combinations for '
-                                   'RNAi data is provided.\nPlease provide '
-                                   'one here or press [Enter] to proceed with '
-                                   'the calculation of\nunique pairs (may take '
-                                   'a while on full data set).\n')
-        if unique_pairs_fpath:
-            args.unique_depmap_rnai_pairs = unique_pairs_fpath
 
     # Check if belief dict is provided
     if not args.belief_score_dict and not args.nested_dict_in:
