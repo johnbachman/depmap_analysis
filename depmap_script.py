@@ -131,6 +131,7 @@ def main(args):
         args.crispr_mean_sigma else None
     args_dict['crispr']['mean'] = args.crispr_mean_sigma[1] if \
         args.crispr_mean_sigma else None
+    args_dict['crispr']['dump_unique_pairs'] = args.dump_unique_pairs
     args_dict['crispr']['strict'] = args.strict
 
     args_dict['rnai']['data'] = args.rnai_data_file
@@ -547,10 +548,13 @@ if __name__ == '__main__':
     parser.add_argument('-rer', '--recalc-rnai', action='store_true',
                         help='With \'-r\', recalculate full gene-gene '
                              'correlations of RNAi data set.')
-    parser.add_argument('-s', '--strict', action='store_true',
-                        help='With \'-s\', the correlations are restricted to '
-        'only be between loaded gene set. If no gene set is loaded, '
-        'this option has no effect.')
+    parser.add_argument('-s', '--strict', action='store_true', help='With '
+        '\'-s\', the correlations are restricted to only be between loaded '
+        'gene set. If no gene set is loaded, this option has no effect.')
+    parser.add_argument('--dump-unique-pairs', action='store_true', help='With '
+        '\'--dump-unique-pairs\', you can save the unique '
+        'gene-gene-correlation pairs for each data set. Default: False (no '
+        'output)')
     parser.add_argument('-v', '--verbosity', action='count',
                         help='increase output verbosity (-vv is more '
                              'than -v)')
