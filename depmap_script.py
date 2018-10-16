@@ -273,9 +273,12 @@ def main(args):
     logger.info('Looking for connections between %i pairs (length of dict)' %
                 len(master_corr_dict))
 
+    skipped = 0
+
     for outer_id, do in master_corr_dict.items():
         for inner_id, corr_dict in do.items():
             if len(corr_dict.keys()) == 0:
+                skipped += 1
                 if args.verbosity:
                     logger.info('Skipped outer_id=%s and inner_id=%s' %
                             (outer_id, inner_id))
@@ -291,8 +294,6 @@ def main(args):
             found = set()
             im_found = False  # Flag bool set for intermediate connections
 
-            # nested_dict_statements.get(id1).get(id2) raises AttributeError
-            # if nested_dict_statements.get(id1) returns {}
             for subj, obj in itt.permutations((id1, id2), r=2):
                 if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
                     # Get the statements
@@ -451,6 +452,7 @@ def main(args):
     long_string = ''
     long_string += '-' * 63 + '\n'
     long_string += 'Summary:' + '\n'
+    long_string += '> Skipped %i empty doublets in corr dict\n' % skipped
     long_string += '> Total unexplained: %i' % len(unexplained) + '\n'
     long_string += '> Total explained: %i,' % len(explained_pairs) + '\n'
     long_string += '> with %i direct and %i mediated by an intermediate ' \
@@ -534,7 +536,7 @@ if __name__ == '__main__':
                         help='Precalculated RNAi correlations in h5 format')
     parser.add_argument('-g', '--geneset-file',
                         help='Filter to interactions with gene set data file.')
-    parser.add_argument('--margin', default=1.0,
+    parser.add_argument('--margin', type=float, default=1.0,
                         help='How large diff in terms of standard deviations '
                              'to accept between data sets when filtering for '
                              'correlations during merge. Default is 1 SD.')
