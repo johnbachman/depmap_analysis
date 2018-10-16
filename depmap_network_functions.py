@@ -654,7 +654,8 @@ def get_gene_gene_corr_dict(tuple_generator):
     corr_nest_dict = create_nested_dict()
     dnf_logger.info('Generating correlation lookup')
     for gene1, gene2, c in tuple_generator:
-        if gene1 == gene2:  # If self correlation were not filtered
+        # Self correlations should be filtered at this point but as a backup
+        if gene1 == gene2:
             continue
         else:
             corr = float(c)
