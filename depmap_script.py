@@ -548,9 +548,8 @@ if __name__ == '__main__':
         '\'--dump-unique-pairs\', you can save the unique '
         'gene-gene-correlation pairs for each data set. Default: False (no '
         'output)')
-    parser.add_argument('-v', '--verbosity', action='count',
-                        help='increase output verbosity (-vv is more '
-                             'than -v)')
+    parser.add_argument('-v', '--verbosity', action='count', help='increase '
+        'output verbosity (-vv is more than -v)')
     parser.add_argument('-dgi', '--directed-graph-in', help='Load a'
         'precalculated directed graph of indra subject/object network.')
     parser.add_argument('-dgo', '--directed-graph-out', help='Save the '
@@ -572,9 +571,9 @@ if __name__ == '__main__':
         'if you are running the script on the full data with no filters.')
     parser.add_argument('-lls', action='store_true', help='Use exactly one '
         'standard deviation of full set as lower limit.')
-    parser.add_argument('--max-pairs', type=int, help='Limit the maximum '
-        'number of gene-gene pairs to explain. If used, the pairs used will '
-        'be sampled at random.')
+    parser.add_argument('--max-pairs', type=int, default=None, help='Limit the '
+        'maximum number of gene-gene pairs to explain. If used, the pairs '
+        'used will be sampled at random.')
     parser.add_argument('-crange', '--crispr-corr-range', default=0.3,
                         type=float, nargs="+",
                         help='LOWER_LIM UPPER_LIM | Two decimal numbers '
