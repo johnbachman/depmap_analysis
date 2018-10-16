@@ -88,6 +88,43 @@ def _corr_web_latex(id1, id2, fmtcorr):
     return web_text
 
 
+def _arg_dict(args_struct):
+    args_dict = dnf.create_nested_dict()
+
+    # CRISPR
+    args_dict['crispr']['data'] = args_struct.crispr_data_file
+    args_dict['crispr']['corr'] = args_struct.crispr_corr_file
+    args_dict['crispr']['filter_gene_set'] = (args_struct.geneset_file if
+                                              args_struct.geneset_file else [])
+    args_dict['crispr']['ll'] = args_struct.crispr_corr_range[0]
+    args_dict['crispr']['ul'] = (args_struct.crispr_corr_range[1] if len(
+        args_struct.crispr_corr_range) == 2 else 1.0)
+    args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
+    args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[0] if \
+        args_struct.crispr_mean_sigma else None
+    args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[1] if \
+        args_struct.crispr_mean_sigma else None
+    args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
+    args_dict['crispr']['strict'] = args_struct.strict
+
+    # RNAi
+    args_dict['rnai']['data'] = args_struct.rnai_data_file
+    args_dict['rnai']['corr'] = args_struct.rnai_corr_file
+    args_dict['rnai']['filter_gene_set'] = (args_struct.geneset_file if
+                                            args_struct.geneset_file else [])
+    args_dict['rnai']['ll'] = args_struct.rnai_corr_range[0]
+    args_dict['rnai']['ul'] = (args_struct.rnai_corr_range[1] if len(
+        args_struct.rnai_corr_range) == 2 else 1.0)
+    args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
+    args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[0] if \
+        args_struct.rnai_mean_sigma else None
+    args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[1] if \
+        args_struct.rnai_mean_sigma else None
+    args_dict['rnai']['strict'] = args_struct.strict
+
+    return args_dict
+
+
 def main(args):
     if not args.unique_depmap_crispr_pairs:
         unique_pairs_fpath = input('\nNo file of unique pair combinations for '
@@ -118,35 +155,7 @@ def main(args):
     filter_settings = {'margin': args.margin,
                        'filter_type': args.filter_type}
 
-    args_dict = dnf.create_nested_dict()
-    args_dict['crispr']['data'] = args.crispr_data_file
-    args_dict['crispr']['corr'] = args.crispr_corr_file
-    args_dict['crispr']['filter_gene_set'] = (args.geneset_file if
-                                              args.geneset_file else [])
-    args_dict['crispr']['ll'] = args.crispr_corr_range[0]
-    args_dict['crispr']['ul'] = (args.crispr_corr_range[1] if len(
-        args.crispr_corr_range) == 2 else 1.0)
-    args_dict['crispr']['outbasename'] = args.outbasename+'_crispr'
-    args_dict['crispr']['sigma'] = args.crispr_mean_sigma[0] if \
-        args.crispr_mean_sigma else None
-    args_dict['crispr']['mean'] = args.crispr_mean_sigma[1] if \
-        args.crispr_mean_sigma else None
-    args_dict['crispr']['dump_unique_pairs'] = args.dump_unique_pairs
-    args_dict['crispr']['strict'] = args.strict
-
-    args_dict['rnai']['data'] = args.rnai_data_file
-    args_dict['rnai']['corr'] = args.rnai_corr_file
-    args_dict['rnai']['filter_gene_set'] = (args.geneset_file if
-                                            args.geneset_file else [])
-    args_dict['rnai']['ll'] = args.rnai_corr_range[0]
-    args_dict['rnai']['ul'] = (args.rnai_corr_range[1] if len(
-        args.rnai_corr_range) == 2 else 1.0)
-    args_dict['rnai']['outbasename'] = args.outbasename+'_rnai'
-    args_dict['rnai']['sigma'] = args.rnai_mean_sigma[0] if \
-        args.rnai_mean_sigma else None
-    args_dict['rnai']['mean'] = args.rnai_mean_sigma[1] if \
-        args.rnai_mean_sigma else None
-    args_dict['rnai']['strict'] = args.strict
+    args_dict = _arg_dict(args)
 
     master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
         dict_of_data_sets=args_dict, filter_settings=filter_settings)
