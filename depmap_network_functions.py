@@ -813,6 +813,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
         dnf_logger.info('-' * 37)
 
+        outbasename = dataset_dict['outbasename']
+
         dnf_logger.info('Loading gene data...')
         gene_data = pd.read_csv(dataset_dict['data'],
                                 index_col=0, header=0)
@@ -828,8 +830,9 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             dnf_logger.info('No correlation file provided, recalculating...')
             full_corr_matrix = gene_data.corr()
             full_corr_matrix.to_hdf(
-                dataset_dict['outbasename'] + 'all_correlations.h5',
-                'correlations')
+                outbasename + 'all_correlations.h5',
+                'correlations'
+            )
 
         dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
         full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
@@ -846,17 +849,26 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
 
         # Get tuple generator and the accompanied set of genes
-        filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids = get_correlations(
-            depmap_data=gene_data,
-            geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
-            pd_corr_matrix=full_corr_matrix,
-            strict=dataset_dict['strict'],
-            dump_unique_pairs=dataset_dict['dump_unique_pairs'],
-            outbasename=dataset_dict['outbasename'],
-            lower_limit=dataset_dict['ll'],
-            upper_limit=dataset_dict['ul'])
+        filtered_corr_matrix,\
+            set_hgnc_syms, set_hgnc_ids,\
+            sym2id_dict, id2sym_dict = get_correlations(
+                depmap_data=gene_data,
+                geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
+                pd_corr_matrix=full_corr_matrix,
+                strict=dataset_dict['strict'],
+                dump_unique_pairs=dataset_dict['dump_unique_pairs'],
+                outbasename=outbasename,
+                lower_limit=dataset_dict['ll'],
+                upper_limit=dataset_dict['ul']
+            )
         dnf_logger.info('Created tuple generator with %i unique genes from '
                         'set "%s"' % (len(set_hgnc_syms), gene_set_name))
+
+        dnf_logger.info('Dumping json HGNC symbol/id dictionaries...')
+        _dump_it_to_json(outbasename+'_%s_sym2id_dict.json' % gene_set_name,
+                         sym2id_dict)
+        _dump_it_to_json(outbasename+'_%s_id2sym_dict.json' % gene_set_name,
+                         id2sym_dict)
 
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
@@ -923,7 +935,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
         The set of all genes in the correlation
     """
 
-    filtered_correlation_matrix = _get_corr_df(
+    filtered_correlation_matrix, sym2id_dict, id2sym_dict = _get_corr_df(
         depmap_data=depmap_data, corr_matrix=pd_corr_matrix,
         geneset_file=geneset_file, strict=strict,
         lower_limit=lower_limit, upper_limit=upper_limit
@@ -943,7 +955,9 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
         _dump_it_to_csv(fname, corr_matrix_to_generator(
             filtered_correlation_matrix))
 
-    return filtered_correlation_matrix, all_hgnc_symb, all_hgnc_ids
+    return filtered_correlation_matrix,\
+        all_hgnc_symb, all_hgnc_ids, \
+        sym2id_dict, id2sym_dict
 
 
 def _get_corr_df(depmap_data, corr_matrix, geneset_file,
@@ -963,13 +977,14 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
         # pandas.pydata.org/pandas-docs/stable/advanced.html
 
         # Get new indices
-
+        hgnc_sym2id, hgnc_id2sym = {}, {}
         tuple_list = []
         for mystr in corr_matrix.index.values:
             hgnc_symb, hgnc_id = mystr.split()
-            tuple_list.append(
-                (hgnc_symb, hgnc_id.strip('(').strip(')'))
-            )
+            hgnc_id_ = hgnc_id.strip('(').strip(')')
+            hgnc_sym2id[hgnc_symb] = hgnc_id_
+            hgnc_id2sym[hgnc_id_] = hgnc_symb
+            tuple_list.append((hgnc_symb, hgnc_id_))
 
         multi_index_corr = pd.MultiIndex.from_tuples(
             tuples=tuple_list,
@@ -1028,7 +1043,7 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
     else:
         dnf_logger.warning('No filtering requested. Be aware of large RAM '
                           'usage.')
-        return corr_matrix_df
+        return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
 
 
 def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
