@@ -22,9 +22,6 @@ from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 
-import pdb  # ToDo remove import before final merge (and also remove
-            # ToDo set_trace() in code)
-
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
 
@@ -225,8 +222,8 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
         except AssertionError:
             dnf_logger.warning('Combined rank == 0 for hashes %s and %s, '
                                'implying belief score is 0 for at least one '
-                               'of the statements.' % (hsh_a, hsh_b))
-            pdb.set_trace()
+                               'of the following statements: ' %
+                               (hsh_a, hsh_b))
         return rank
 
     dir_path_nodes_wb = []
@@ -320,10 +317,7 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
         for k2, v in d1.items():
             for tups in v:
                 # Has to be (type, hash) or (type, hash, belief score)
-                try:
-                    assert len(tups) == 2 or len(tups) == 3
-                except AssertionError:
-                    pdb.set_trace()  # Check what tups is
+                assert len(tups) == 2 or len(tups) == 3
                 if len(tups) == 3:
                     has_belief = True
                 break
@@ -587,13 +581,7 @@ def get_stats(tuple_generator):
             t1 += corr
             t2 += corr**2
 
-    # Check that
-    try:
-        assert m != 0
-    except AssertionError as e:
-        pdb.set_trace()  # Check why loop was not executed
-        dnf_logger.error(e)
-        raise e
+    assert m != 0
     t0 = m + 1 - skip
     mean = t1 / t0
     std = np.sqrt(t0 * t2 - t1**2) / t0
@@ -902,7 +890,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
                      strict, dump_unique_pairs, outbasename,
                      lower_limit=0.2, upper_limit=1.0):
-    # todo make function take gene set data dict as input?
+    # todo make function take data dict as input or use args* + kwargs**
     """ given a gene-feature data matrix in csv format.
 
     depmap_data: str
@@ -1567,7 +1555,6 @@ def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
     #     stmts_dict[str(stmt)] = stmt
     #     ev_text_list = list(set(['N/A' if ev.text is None else ev.text for ev in
     #                        stmt.evidence]))
-    #     # pdb.set_trace()
     #     if 'N/A' in ev_text_list:
     #         ev_text_list.remove('N/A')
     #     # Save tuple (len, str(stmt))
