@@ -599,8 +599,8 @@ if __name__ == '__main__':
                              'set.')
     a = parser.parse_args()
 
-    with open('dep_map_script_log{}.log'.format(str(int(time()))), 'w',
-              newline='\n') as f:
+    with open(a.outbasename+'dep_map_script_log{}.log'.format(
+            str(int(time()))), 'w', newline='\n') as f:
         f.write('Created on {}\n'.format(strftime('%Y %b %d, %H:%M:%S')))
         f.write('Execution path: {}\n\n'.format(os.getcwd()))
         f.write('Command line option : value\n---------------------------\n')
