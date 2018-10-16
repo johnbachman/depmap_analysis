@@ -22,7 +22,8 @@ from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 
-import pdb  # ToDo remove import before final commit
+import pdb  # ToDo remove import before final merge (and also remove
+            # ToDo set_trace() in code)
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctionsLogger')
@@ -45,7 +46,7 @@ def rawincount(filename):
     return sum(buf.count(b'\n') for buf in bufgen)
 
 
-def _entry_exist(nest_dict, outer_key, inner_key):
+def _entry_exist_dict(nest_dict, outer_key, inner_key):
     if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
         return True
     else:
@@ -712,12 +713,12 @@ def merge_correlation_data(correlation_dicts_list, settings):
     for o_gene, d in shortest_dict.items():
         for i_gene, corr in d.items():
             if o_gene is not i_gene and \
-                    not _entry_exist(merged_corr_dict, o_gene, i_gene):
+                    not _entry_exist_dict(merged_corr_dict, o_gene, i_gene):
                 # Check both directions
                 other_corr = None
-                if _entry_exist(other_dict, o_gene, i_gene):
+                if _entry_exist_dict(other_dict, o_gene, i_gene):
                     other_corr = other_dict[o_gene][i_gene]
-                elif _entry_exist(other_dict, i_gene, o_gene):
+                elif _entry_exist_dict(other_dict, i_gene, o_gene):
                     other_corr = other_dict[i_gene][o_gene]
 
                 if other_corr and pass_filter(
@@ -1276,7 +1277,7 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     # agent_1=subj, agent_2=obj, type, hash
     for index, row in hash_pair_dataframe.iterrows():
         (subj, obj, stmt_type, stmt_hash) = row
-        if _entry_exist(nest_hash_dict, subj, obj):
+        if _entry_exist_dict(nest_hash_dict, subj, obj):
             # Entry subj-obj already exists and should be a list
             nest_hash_dict[subj][obj].append((stmt_type, stmt_hash))
         else:
