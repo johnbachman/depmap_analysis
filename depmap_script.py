@@ -123,8 +123,6 @@ def main(args):
     args_dict['crispr']['corr'] = args.crispr_corr_file
     args_dict['crispr']['filter_gene_set'] = (args.geneset_file if
                                               args.geneset_file else [])
-    args_dict['crispr']['unique_pair_corr_file'] = \
-        args.unique_depmap_crispr_pairs
     args_dict['crispr']['ll'] = args.crispr_corr_range[0]
     args_dict['crispr']['ul'] = (args.crispr_corr_range[1] if len(
         args.crispr_corr_range) == 2 else 1.0)
@@ -134,13 +132,11 @@ def main(args):
     args_dict['crispr']['mean'] = args.crispr_mean_sigma[1] if \
         args.crispr_mean_sigma else None
     args_dict['crispr']['strict'] = args.strict
-    args_dict['crispr']['recalc'] = args.recalc_crispr
 
     args_dict['rnai']['data'] = args.rnai_data_file
     args_dict['rnai']['corr'] = args.rnai_corr_file
     args_dict['rnai']['filter_gene_set'] = (args.geneset_file if
                                             args.geneset_file else [])
-    args_dict['rnai']['unique_pair_corr_file'] = args.unique_depmap_rnai_pairs
     args_dict['rnai']['ll'] = args.rnai_corr_range[0]
     args_dict['rnai']['ul'] = (args.rnai_corr_range[1] if len(
         args.rnai_corr_range) == 2 else 1.0)
@@ -150,7 +146,6 @@ def main(args):
     args_dict['rnai']['mean'] = args.rnai_mean_sigma[1] if \
         args.rnai_mean_sigma else None
     args_dict['rnai']['strict'] = args.strict
-    args_dict['rnai']['recalc'] = args.recalc_rnai
 
     master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
         dict_of_data_sets=args_dict, filter_settings=filter_settings)
