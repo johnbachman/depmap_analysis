@@ -861,9 +861,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         else:
             dnf_logger.info('Calculating mean and standard deviation for set %s'
                             'from %s' % (gene_set_name, dataset_dict['data']))
-            full_mean, full_stdev = get_stats(corr_matrix_to_generator(
-                full_corr_matrix))
-            sigma_dict = {'mean': full_mean, 'sigma': full_stdev}
+            stats = get_stats(corr_matrix_to_generator(full_corr_matrix))
+            sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
 
         # Get tuple generator and the accompanied set of genes
         filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids = get_correlations(
@@ -872,8 +871,6 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             pd_corr_matrix=full_corr_matrix,
             strict=dataset_dict['strict'],
             outbasename=dataset_dict['outbasename'],
-            unique_pair_corr_file=dataset_dict['unique_pair_corr_file'],
-            recalc=dataset_dict['recalc'],
             lower_limit=dataset_dict['ll'],
             upper_limit=dataset_dict['ul'])
         dnf_logger.info('Created tuple generator with %i unique genes from '
@@ -909,8 +906,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
 
 def get_correlations(depmap_data, geneset_file, pd_corr_matrix, strict,
-                     outbasename, unique_pair_corr_file, recalc=False,
-                     lower_limit=0.2, upper_limit=1.0):
+                     outbasename, lower_limit=0.2, upper_limit=1.0):
     # todo make function take gene set data dict as input?
     """ given a gene-feature data matrix in csv format.
 
@@ -927,7 +923,8 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix, strict,
     unique_pair_corr_file: str
         Filepath to csvfile with unique tuples of gene,gene,corr.
     recalc: Bool
-        If True, recalculate correlations (has to be True if pd_corr_matrix is None).
+        If True, recalculate correlations (has to be True if pd_corr_matrix
+        is None).
     lower_limit: float
         Lowest correlation magnitude to consider
     upper_limit: float
@@ -944,14 +941,10 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix, strict,
     """
 
     filtered_correlation_matrix = _get_corr_df(
-        depmap_data=depmap_data,
-        corr_matrix=pd_corr_matrix,
-        geneset_file=geneset_file,
-        strict=strict,
-        recalc=recalc,
-        outbasename=outbasename,
-        lower_limit=lower_limit,
-        upper_limit=upper_limit)
+        depmap_data=depmap_data, corr_matrix=pd_corr_matrix,
+        geneset_file=geneset_file, strict=strict,
+        lower_limit=lower_limit, upper_limit=upper_limit
+    )
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
@@ -970,8 +963,8 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix, strict,
     return filtered_correlation_matrix, all_hgnc_symb, all_hgnc_ids
 
 
-def _get_corr_df(depmap_data, corr_matrix, geneset_file, strict, recalc,
-                 outbasename, lower_limit, upper_limit):
+def _get_corr_df(depmap_data, corr_matrix, geneset_file,
+                 strict, lower_limit, upper_limit):
 
     multi_index_data = pd.MultiIndex.from_tuples(
         tuples=[
