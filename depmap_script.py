@@ -537,7 +537,7 @@ if __name__ == '__main__':
     parser.add_argument('--margin', default=1.0,
                         help='How large diff in terms of standard deviations '
                              'to accept between data sets when filtering for '
-                             'correlations during merge.')
+                             'correlations during merge. Default is 1 SD.')
     parser.add_argument('--filter-type', default='sigma-diff', type=str,
                         help='Type of filtering. Currently only supports '
                              '"sigma-diff"')
@@ -577,9 +577,6 @@ if __name__ == '__main__':
         'if you are running the script on the full data with no filters.')
     parser.add_argument('-lls', action='store_true', help='Use exactly one '
         'standard deviation of full set as lower limit.')
-    parser.add_argument('--max-pairs', type=int, help='Limit the maximum '
-        'number of gene-gene pairs to explain. If used, the pairs used will '
-        'be sampled at random.')
     parser.add_argument('-crange', '--crispr-corr-range', default=[0.3],
                         type=float, nargs="+",
                         help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
