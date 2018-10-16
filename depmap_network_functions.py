@@ -52,6 +52,14 @@ def _entry_exist(nest_dict, outer_key, inner_key):
         return False
 
 
+def _entry_exist_corr_matrix(corr, val1, val2):
+    try:
+        _ = corr[np.in1d(corr.index.get_level_values(0), val1)][val2]
+        return True
+    except KeyError:
+        return False
+
+
 def create_nested_dict():
     """Returns a nested dictionary of arbitrary depth
 
@@ -667,7 +675,7 @@ def get_gene_gene_corr_dict(tuple_generator):
     return corr_nest_dict
 
 
-def merge_correlation_dicts(correlation_dicts_list, settings):
+def merge_correlation_data(correlation_dicts_list, settings):
     """Merge multiple correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
@@ -814,54 +822,35 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         The set of HGNC gene names in the master correlation lookup
     stats_dict: dict(dict)
     """
-    corr_dicts_list = []
+    name_dict_stats_list = []
     gene_set_intersection = set()
     stats_dict = dict()
 
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
+        dnf_logger.info('-' * 37)
         dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
         dnf_logger.info('-' * 37)
+
+        dnf_logger.info('Loading gene data...')
+        gene_data = pd.read_csv(dataset_dict['data'],
+                                index_col=0, header=0)
+        rows, cols = gene_data.shape
+        if rows > cols:
+            dnf_logger.info('Transposing data...')
+            gene_data = gene_data.T
 
         if dataset_dict['corr']:
             dnf_logger.info('Reading pre-calculated correlation file.')
             full_corr_matrix = pd.read_hdf(dataset_dict['corr'], 'correlations')
         else:
             dnf_logger.info('No correlation file provided, recalculating...')
-            full_corr_matrix = pd.read_csv(dataset_dict['data'],
-                index_col=0, header=0).corr()
+            full_corr_matrix = gene_data.corr()
             full_corr_matrix.to_hdf(
                 dataset_dict['outbasename'] + 'all_correlations.h5',
                 'correlations')
 
         dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
         full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
-
-        # Check if names are 'HGNCsymb (HGNCid)' or not
-        if len(full_corr_matrix.index.values[0].split()) == 2:
-            # split 'HGNCsymb (HGNCid)' to 'HGNCsymb' '(HGNCid)' multiindexing:
-            # pandas.pydata.org/pandas-docs/stable/advanced.html
-
-            # Get new indices
-            multi_index = pd.MultiIndex.from_tuples(
-                tuples=[
-                    (t[0], t[1].strip('(').strip(')')) for t in [
-                        s.split() for s in full_corr_matrix.index.values
-                    ]
-                ],
-                names=['HGNCsymbol', 'HGNCid'])
-
-            # Add multi-index inplace as index and column name
-            full_corr_matrix.set_axis(axis=0, labels=multi_index, inplace=True)
-            full_corr_matrix.set_axis(axis=1, labels=multi_index, inplace=True)
-
-        elif len(full_corr_matrix.index.values[0].split()) == 1:
-            # leave intact? Check if there are IDs? Warning that you don't
-            # have IDs/symbols but proceed?
-            dnf_logger.warning('Only one identifier found in index column, '
-                               'assuming it is HGNC symbol.')
-        else:
-            # throw error?
-            dnf_logger.warning('Uknown index column, check your input data.')
 
         if dataset_dict['sigma']:
             dnf_logger.info('Using provided sigma of %f for set %s' %
@@ -876,8 +865,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             sigma_dict = {'mean': full_mean, 'sigma': full_stdev}
 
         # Get tuple generator and the accompanied set of genes
-        tuple_generator, set_of_hgnc_syms, set_of_hgnc_ids = get_correlations(
-            depmap_data_file=dataset_dict['data'],
+        filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids = get_correlations(
+            depmap_data=gene_data,
             geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
             pd_corr_matrix=full_corr_matrix,
             strict=dataset_dict['strict'],
@@ -887,44 +876,49 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             lower_limit=dataset_dict['ll'],
             upper_limit=dataset_dict['ul'])
         dnf_logger.info('Created tuple generator with %i unique genes from '
-                        'set "%s"' % (len(set_of_hgnc_syms), gene_set_name))
+                        'set "%s"' % (len(set_hgnc_syms), gene_set_name))
 
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
-            tuple_generator=tuple_generator)
+            tuple_generator=corr_matrix_to_generator(filtered_corr_matrix))
         dnf_logger.info('Created correlation dictionary of length %i for set '
                         '"%s"' % (len(corr_dict), gene_set_name))
 
         # Append correlation dict and stats to list
         stats_dict[gene_set_name] = sigma_dict
-        corr_dicts_list.append((gene_set_name, corr_dict, sigma_dict))
-        gene_set_intersection.intersection_update(set_of_hgnc_syms)
+        name_dict_stats_list.append((gene_set_name, corr_dict, sigma_dict))
+        if len(gene_set_intersection) == 0:
+            gene_set_intersection = set_hgnc_syms
+        else:
+            gene_set_intersection.intersection_update(set_hgnc_syms)
 
-    dnf_logger.info('-' * 37)
-    dnf_logger.info('-' * 37)
+    dnf_logger.info('---------------------')
     dnf_logger.info('Merging the data sets')
+    dnf_logger.info('---------------------')
 
-    # Merge the dictionaries and the set of genes
-    master_corr_dict = merge_correlation_dicts(corr_dicts_list,
-                                               settings=filter_settings)
+    # Merge the dictionaries
+    master_corr_dict = merge_correlation_data(
+        correlation_dicts_list=name_dict_stats_list,
+        settings=filter_settings
+    )
     dnf_logger.info('Merged gene sets to master dictionary of length %i' %
                     len(master_corr_dict))
 
     return master_corr_dict, gene_set_intersection, stats_dict
 
 
-def get_correlations(depmap_data_file, geneset_file, pd_corr_matrix, strict,
+def get_correlations(depmap_data, geneset_file, pd_corr_matrix, strict,
                      outbasename, unique_pair_corr_file, recalc=False,
                      lower_limit=0.2, upper_limit=1.0):
     # todo make function take gene set data dict as input?
     """ given a gene-feature data matrix in csv format.
 
-    depmap_data_file: str
+    depmap_data: str
         Filepath to depmap data file to process
     geneset_file: str
         Filepath to a geneset to filter data to.
     pd_corr_matrix: str
-        Filepath to pre-calculated correlations of depmap_data_file.
+        Filepath to pre-calculated correlations of depmap_data.
     strict: Bool
         If True, all genes in correlations have to exist in geneset_file
     outbasename: str
@@ -941,7 +935,7 @@ def get_correlations(depmap_data_file, geneset_file, pd_corr_matrix, strict,
 
     Returns
     -------
-    uniq_pair_gen: generator
+    filtered_correlation_matrix: generator
         Generator of gene,gene,correlation tuples from file or correlation
         calculation
     all_hgnc_ids: set()
@@ -949,7 +943,7 @@ def get_correlations(depmap_data_file, geneset_file, pd_corr_matrix, strict,
     """
 
     filtered_correlation_matrix = _get_corr_df(
-        depmap_data_file=depmap_data_file,
+        depmap_data=depmap_data,
         corr_matrix=pd_corr_matrix,
         geneset_file=geneset_file,
         strict=strict,
@@ -961,47 +955,72 @@ def get_correlations(depmap_data_file, geneset_file, pd_corr_matrix, strict,
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
 
-    # Return a generator object from either a loaded file or a pandas dataframe
-    if unique_pair_corr_file:
-        dnf_logger.info('Loading unique correlation pairs from %s' %
-                        unique_pair_corr_file)
-        uniq_pair_gen = csv_file_to_generator(unique_pair_corr_file,
-                                              ['gene1', 'gene2', 'corr'])
+    # Return a generator object from pandas dataframe
+    if lower_limit == 0:
+        fname = outbasename + '_all_unique_correlation_pairs.csv'
     else:
-        if lower_limit == 0:
-            fname = outbasename + '_all_unique_correlation_pairs.csv'
-        else:
-            fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
-                    str(lower_limit).replace('.', '')
-
-        uniq_pair_gen = corr_matrix_to_generator(filtered_correlation_matrix)
-        dnf_logger.info('Saving unique correlation pairs to %s. '
-                        '(May take a while)' % fname)
-        # todo make saving the file an option
-        _dump_it_to_csv(fname, corr_matrix_to_generator(
-            filtered_correlation_matrix))
-    return uniq_pair_gen, all_hgnc_symb, all_hgnc_ids
+        fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
+                str(lower_limit).replace('.', '')
+    dnf_logger.info('Saving unique correlation pairs to %s. '
+                    '(May take a while)' % fname)
+    # todo make saving the file an option and not mandatory
+    _dump_it_to_csv(fname, corr_matrix_to_generator(
+        filtered_correlation_matrix))
+    return filtered_correlation_matrix, all_hgnc_symb, all_hgnc_ids
 
 
-def _get_corr_df(depmap_data_file, corr_matrix, geneset_file, strict, recalc,
+def _get_corr_df(depmap_data, corr_matrix, geneset_file, strict, recalc,
                  outbasename, lower_limit, upper_limit):
 
-    # Open data file
-    dnf_logger.info('Reading DepMap data from %s' % depmap_data_file)
-    data = pd.read_csv(depmap_data_file, index_col=0, header=0)
-    data = data.T
-    multi_index = pd.MultiIndex.from_tuples(
+    multi_index_data = pd.MultiIndex.from_tuples(
         tuples=[
             (t[0], t[1].strip('(').strip(')')) for t in [
-                s.split() for s in data.index.values
+                s.split() for s in depmap_data.columns.values
             ]
         ],
         names=['HGNCsymbol', 'HGNCid'])
-    data.set_axis(axis=0, labels=multi_index, inplace=True)
+    depmap_data.set_axis(axis=1, labels=multi_index_data, inplace=True)
+
+    if len(corr_matrix.index.values[0].split()) == 2:
+        # split 'HGNCsymb (HGNCid)' to 'HGNCsymb' '(HGNCid)' multiindexing:
+        # pandas.pydata.org/pandas-docs/stable/advanced.html
+
+        # Get new indices
+
+        tuple_list = []
+        for mystr in corr_matrix.index.values:
+            hgnc_symb, hgnc_id = mystr.split()
+            tuple_list.append(
+                (hgnc_symb, hgnc_id.strip('(').strip(')'))
+            )
+
+        multi_index_corr = pd.MultiIndex.from_tuples(
+            tuples=tuple_list,
+            names=['HGNCsymbol', 'HGNCid']
+        )
+
+        # Add multi-index inplace as index and column name
+        corr_matrix.set_axis(axis=0, labels=multi_index_corr, inplace=True)
+        corr_matrix.set_axis(axis=1, labels=multi_index_corr, inplace=True)
+
+    elif len(corr_matrix.index.values[0].split()) == 1:
+        # leave intact? Check if there are IDs? Warning that you don't
+        # have IDs/symbols but proceed?
+        dnf_logger.warning('Only one identifier found in index column. '
+                           'Assuming it is HGNC symbol and trying to set it '
+                           'using the index names from data.')
+        # todo: set axis labels mapping the labels from the data on to the
+        # todo: ones found in the correlation matrix
+
+    else:
+        dnf_logger.warning('Uknown index column. Your output dictionaries '
+                           'will likely be affected.')
 
     if geneset_file:
         # Read gene set to look at
-        gene_filter_list = _read_gene_set_file(gf=geneset_file, data=data)
+        gene_filter_list = _read_gene_set_file(
+            gf=geneset_file, data=depmap_data
+        )
     else:
         gene_filter_list = []  # Evaluates to False
 
