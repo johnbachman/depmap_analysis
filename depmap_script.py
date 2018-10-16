@@ -16,7 +16,8 @@ from depmap_network_functions import create_nested_dict as nest_dict
 # There are pickled files using "nest_dict" in their preserve import settings
 # and we can therefore not use another name when using those files
 
-import pdb  # todo remove import before merging PR
+# todo remove pdb import before merging PR
+import pdb
 
 logger = logging.getLogger('depmap_script')
 
