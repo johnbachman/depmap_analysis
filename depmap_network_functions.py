@@ -999,11 +999,7 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
         # leave intact? Check if there are IDs? Warning that you don't
         # have IDs/symbols but proceed?
         dnf_logger.warning('Only one identifier found in index column. '
-                           'Assuming it is HGNC symbol and trying to set it '
-                           'using the index names from data.')
-        # todo: set axis labels mapping the labels from the data on to the
-        # todo: ones found in the correlation matrix
-
+                           'Assuming it is HGNC symbol.')
     else:
         dnf_logger.warning('Uknown index column. Your output dictionaries '
                            'will likely be affected.')
