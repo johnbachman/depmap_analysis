@@ -139,7 +139,15 @@ def main(args):
         raise FileNotFoundError
 
     filter_settings = {'margin': args.margin,
-                       'filter_type': args.filter_type}
+                       'filter_type': (
+                           args.filter_type if args.filter_type in [
+                               'sigma-diff',
+                               'corr-corr-corr'
+                           ] else None)}
+
+    if not filter_settings['filter_type']:
+        logger.info('No merge filter set. Output will be intersection of the '
+                    'two data sets.')
 
     args_dict = _arg_dict(args)
 
@@ -532,8 +540,14 @@ if __name__ == '__main__':
                              'to accept between data sets when filtering for '
                              'correlations during merge. Default is 1 SD.')
     parser.add_argument('--filter-type', default='sigma-diff', type=str,
-                        help='Type of filtering. Currently only supports '
-                             '"sigma-diff"')
+                        help='Type of filtering. Options are: `sigma-diff` - '
+        'The difference in the distances from the mean measured in number of '
+        'standard deviations must be smaller than given by --margin. '
+        '`corr-corr-corr` - The product of the scaled correlations* must be '
+        'greater than given by --margin. `None` - No filter is applied when '
+        'merging the data sets. The resulting correlation dictionary will '
+        'simply be the intersection of the provided data sets. *Scaled '
+        'Correlation = (corr-mean)/SD')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp.')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
