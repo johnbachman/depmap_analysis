@@ -138,7 +138,6 @@ def main(args):
                      '`-ndi (--nested-dict-in)` argument.')
         raise FileNotFoundError
 
-    # Prepare data (we need uniq_pairs to look for explainable interactions)
     filter_settings = {'margin': args.margin,
                        'filter_type': args.filter_type}
 
@@ -455,12 +454,11 @@ def main(args):
     long_string += '  RNAi data ' + '\n'
     long_string += '  ----------' + '\n'
     long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
-    long_string += '> SD: %f\n' % stats_dict['rnai']['sigma']
+    long_string += '> SD: %f\n\n' % stats_dict['rnai']['sigma']
     long_string += '  CRISPR data ' + '\n'
     long_string += '  ------------' + '\n'
     long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
     long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
-    long_string += '' + '\n'
     long_string += '-' * 63 + '\n\n'
 
     logger.info('\n' + long_string)
@@ -572,8 +570,6 @@ if __name__ == '__main__':
     parser.add_argument('-rup', '--unique-depmap-rnai-pairs', help='Uses a '
         'previously saved file to read the unique pairs to read over. Useful '
         'if you are running the script on the full data with no filters.')
-    parser.add_argument('-lls', action='store_true', help='Use exactly one '
-        'standard deviation of full set as lower limit.')
     parser.add_argument('--max-pairs', type=int, default=None, help='Limit the '
         'maximum number of gene-gene pairs to explain. If used, the pairs '
         'used will be sampled at random.')
