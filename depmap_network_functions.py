@@ -1032,14 +1032,15 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
 
     assert corr_matrix_df is not None
 
-    # Filter correlations
-    if lower_limit > 0:
-        return corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit)
     # No filtering
-    else:
+    if lower_limit == 0 and upper_limit == 1.0:
         dnf_logger.warning('No filtering requested. Be aware of large RAM '
                           'usage.')
         return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
+    # Filter correlations
+    else:
+        return corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit),\
+               hgnc_sym2id, hgnc_id2sym
 
 
 def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
