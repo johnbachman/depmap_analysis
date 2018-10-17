@@ -123,8 +123,8 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
                 n, axis=0).sample(n, axis=1)
 
         dnf_logger.info('Created a random sample of the correlation matrix '
-                        'with at least %i extractable correlation pairs.'
-                        % max_pairs)
+                        'with %i extractable correlation pairs.'
+                        % corr_df_sample.notna().sum().sum())
 
     # No sampling, get all non-NaN correlations
     else:
@@ -673,10 +673,11 @@ def _get_partial_gaussian_stats(bin_edges, hist):
 
 
 def get_gene_gene_corr_dict(tuple_generator):
-    """Returns a gene-gene correlation nested dict given a gene-gene nested dict
+    """Returns a gene-gene correlation nested dict from a gene correlation
+    generator
 
     tuple_generator : generator object
-        A generator object
+        A generator object returning (gene, gene, correlation) tuples
 
     Returns
     -------
@@ -685,14 +686,21 @@ def get_gene_gene_corr_dict(tuple_generator):
     """
     corr_nest_dict = create_nested_dict()
     dnf_logger.info('Generating correlation lookup')
-    for gene1, gene2, c in tuple_generator:
+    skip = 0
+    doublets = 0
+    for count, (gene1, gene2, c) in enumerate(tuple_generator):
         # Self correlations should be filtered at this point but as a backup
         if gene1 == gene2:
+            skip += 1
             continue
         else:
             corr = float(c)
+            if _entry_exist_dict(corr_nest_dict, gene1, gene2):
+                doublets += 1
             corr_nest_dict[gene1][gene2] = corr
-
+    count += 1
+    dnf_logger.info('Went through %i gene pairs, skipped %i, found %i '
+                    'doublets.' % (count, skip, doublets))
     corr_nest_dict.default_factory = None
     return corr_nest_dict
 
@@ -911,7 +919,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             )
         )
         dnf_logger.info('Created correlation dictionary of length %i for set '
-                        '"%s"' % (len(corr_dict), gene_set_name))
+                        '`%s`' % (len(corr_dict), gene_set_name))
 
         # Append correlation dict and stats to list
         stats_dict[gene_set_name] = sigma_dict
@@ -940,7 +948,8 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
                      strict, dump_unique_pairs, outbasename,
                      lower_limit=0.2, upper_limit=1.0):
     # todo make function take data dict as input or use args* + kwargs**
-    """ given a gene-feature data matrix in csv format.
+    """Return correlation data, filtered gene sets and gene id translation
+    dictionaries given a depmap gene data file
 
     depmap_data: str
         Filepath to depmap data file to process
@@ -958,18 +967,23 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
         If True, recalculate correlations (has to be True if pd_corr_matrix
         is None).
     lower_limit: float
-        Lowest correlation magnitude to consider
+        Smallest distance from correlation mean to consider
     upper_limit: float
-        Highest correlation magnitude to consider (good for picking a sample
-        in the middle of the correlation distribution).
+        Largest distance from correlation mean to consider (Good for picking a
+        sample in the middle of the correlation distribution).
 
     Returns
     -------
-    filtered_correlation_matrix: generator
-        Generator of gene,gene,correlation tuples from file or correlation
-        calculation
+    filtered_correlation_matrix: pandas.DataFrame
+        Correlation matrix as pd.DataFrame
     all_hgnc_ids: set()
-        The set of all genes in the correlation
+        The set of all HGNC IDs in the correlation matrix
+    all_hgnc_symb: set()
+        The set of all HGNC symbols in the correlation matrix
+    sym2id_dict: dict
+        Dictionary translating HGNC symbols to HGNC IDs in the data set
+    id2sym_dict: dict
+        Dictionary translating HGNC IDs to HGNC symbols in the data set
     """
 
     filtered_correlation_matrix, sym2id_dict, id2sym_dict = _get_corr_df(
