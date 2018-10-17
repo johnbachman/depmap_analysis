@@ -982,11 +982,12 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
 
     if dump_unique_pairs:
-        if lower_limit == 0:
+        if lower_limit == 0 and upper_limit == 0:
             fname = outbasename + '_all_unique_correlation_pairs.csv'
         else:
-            fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
-                    str(lower_limit).replace('.', '')
+            fname = outbasename + '_unique_correlation_pairs_ll%s_ul%s.csv' % \
+                    (str(lower_limit).replace('.', ''),
+                     str(upper_limit).replace('.', ''))
         dnf_logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
         _dump_it_to_csv(fname, corr_matrix_to_generator(
