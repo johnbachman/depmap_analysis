@@ -94,15 +94,16 @@ def _arg_dict(args_struct):
     # CRISPR
     args_dict['crispr']['data'] = args_struct.crispr_data_file
     args_dict['crispr']['corr'] = args_struct.crispr_corr_file
+    args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
     args_dict['crispr']['filter_gene_set'] = (args_struct.geneset_file if
                                               args_struct.geneset_file else [])
     args_dict['crispr']['ll'] = args_struct.crispr_corr_range[0]
     args_dict['crispr']['ul'] = (args_struct.crispr_corr_range[1] if len(
         args_struct.crispr_corr_range) == 2 else 1.0)
-    args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
-    args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[0] if \
-        args_struct.crispr_mean_sigma else None
+    args_dict['crispr']['max_pairs'] = args_struct.max_pairs
     args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[1] if \
+        args_struct.crispr_mean_sigma else None
+    args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[0] if \
         args_struct.crispr_mean_sigma else None
     args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
     args_dict['crispr']['strict'] = args_struct.strict
@@ -110,12 +111,13 @@ def _arg_dict(args_struct):
     # RNAi
     args_dict['rnai']['data'] = args_struct.rnai_data_file
     args_dict['rnai']['corr'] = args_struct.rnai_corr_file
+    args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
     args_dict['rnai']['filter_gene_set'] = (args_struct.geneset_file if
                                             args_struct.geneset_file else [])
     args_dict['rnai']['ll'] = args_struct.rnai_corr_range[0]
     args_dict['rnai']['ul'] = (args_struct.rnai_corr_range[1] if len(
         args_struct.rnai_corr_range) == 2 else 1.0)
-    args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
+    args_dict['rnai']['max_pairs'] = args_struct.max_pairs
     args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[0] if \
         args_struct.rnai_mean_sigma else None
     args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[1] if \
