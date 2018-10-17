@@ -87,19 +87,51 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(corrrelation_df_matrix):
+def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     """Return a tuple generator given a correlation matrix
+    
+    The function takes a correlation matrix and returns a consumable tuple 
+    generator object. Once consumed, the object is exhausted and a new
+    generator needs to be produced.
 
     corrrelation_df_matrix : pandas.DataFrame
-        A pandas correlation matrix as a dataframe
+        A correlation matrix as a pandas dataframe
 
     Returns
     -------
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
-    corr_value_matrix = corrrelation_df_matrix.values
-    gene_name_array = corrrelation_df_matrix.index.values
+    # Sample at random: get a random sample of the correlation matrix that has
+    # enough non-nan values to exhaustively generate at least max_pair
+    all_pairs = corrrelation_df_matrix.notna().sum().sum()
+    assert all_pairs != 0
+    if max_pairs > all_pairs and max_pairs is not None:
+        max_pairs = all_pairs
+        dnf_logger.info('The requestd number of correlation pairs is larger '
+                        'than the available number of pairs. Resetting '
+                        '`max_pairs` to %i' % all_pairs)
+    if max_pairs:
+        n = np.floor(np.sqrt(max_pairs))/2 - 1
+        corr_df_sample = corrrelation_df_matrix.sample(
+            n, axis=0).sample(n, axis=1)
+
+        # Increase sample until number of extractable pairs exceed max_pairs
+        while corr_df_sample.notna().sum().sum() <= max_pairs:
+            n += 1
+            corr_df_sample = corrrelation_df_matrix.sample(
+                n, axis=0).sample(n, axis=1)
+
+        dnf_logger.info('Created a random sample of the correlation matrix '
+                        'with at least %i extractable correlation pairs.'
+                        % max_pairs)
+
+    # No sampling, get all non-NaN correlations
+    else:
+        corr_df_sample = corrrelation_df_matrix
+
+    corr_value_matrix = corr_df_sample.values
+    gene_name_array = corr_df_sample.index.values
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     # Only get HGNC symbols (first in tuple) since we're gonna compare to
     # INDRA statements, which is currently done with HGNC symbols
@@ -765,18 +797,19 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
         dict_of_data_sets[gene_set_name] = dataset_dict
 
-        dataset_dict = {data: (depmap filepath),
-                        corr: (depmap corr file),
+        dataset_dict = {data: str (depmap filepath),
+                        corr: str (depmap corr file),
+                        outbasename: str (base name for all output files),
                         filter_gene_set: list[genes to filter on],
-                        ll: lower_limit_for_correlation,
-                        ul: upper_limit_for_correlation,
-                        mean: mean of correlation distr,
-                        sigma: st-dev of correlation distr,
-                        filter_margin: float,
-                        merge_filter_type: str,
-                        outbasename: str,
-                        dump_unique_pairs: Bool,
-                        strict: Bool}
+                        ll: float (lower limit for correlation),
+                        ul: float (upper limit for correlation),
+                        max_pairs: int (max number of sampled pairs from corr)
+                        mean: float (mean of correlation distr),
+                        sigma: float (st-dev of correlation distr),
+                        filter_margin: float (st-dev diff for filtering distr),
+                        dump_unique_pairs: Bool (Output unique corr pairs),
+                        strict: Bool (A,B both have to be in `filter_gene_set`)
+                        }
 
     The filter settings should contain the following:
 
@@ -849,9 +882,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             stats = get_stats(corr_matrix_to_generator(full_corr_matrix))
             sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
 
-        # Get tuple generator and the accompanied set of genes
-        filtered_corr_matrix,\
-            set_hgnc_syms, set_hgnc_ids,\
+        # Get corr matrix and the accompanied set of genes
+        filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids,\
             sym2id_dict, id2sym_dict = get_correlations(
                 depmap_data=gene_data,
                 geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
@@ -873,7 +905,11 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
-            tuple_generator=corr_matrix_to_generator(filtered_corr_matrix))
+            tuple_generator=corr_matrix_to_generator(
+                corrrelation_df_matrix=filtered_corr_matrix,
+                max_pairs=dataset_dict['max_pairs']
+            )
+        )
         dnf_logger.info('Created correlation dictionary of length %i for set '
                         '"%s"' % (len(corr_dict), gene_set_name))
 
