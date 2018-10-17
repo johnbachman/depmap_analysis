@@ -112,7 +112,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
                         'than the available number of pairs. Resetting '
                         '`max_pairs` to %i' % all_pairs)
     if max_pairs:
-        n = np.floor(np.sqrt(max_pairs))/2 - 1
+        n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
         corr_df_sample = corrrelation_df_matrix.sample(
             n, axis=0).sample(n, axis=1)
 
@@ -1419,7 +1419,7 @@ def deduplicate_stmt_list(stmts, ignore_str):
          List of preassembled statments possibly including a non-statements
     """
     # subjects should be the outer keys and objects should be the inner
-    
+
     if ignore_str in stmts:
         dnf_logger.info('Deduplicating statements and accounting for custom '
                         'string %s' % ignore_str)
