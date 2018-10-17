@@ -899,6 +899,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                 strict=dataset_dict['strict'],
                 dump_unique_pairs=dataset_dict['dump_unique_pairs'],
                 outbasename=outbasename,
+                sigma_dict=sigma_dict,
                 lower_limit=dataset_dict['ll'],
                 upper_limit=dataset_dict['ul']
             )
@@ -945,8 +946,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
 
 def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
-                     strict, dump_unique_pairs, outbasename,
-                     lower_limit=0.2, upper_limit=1.0):
+                     strict, dump_unique_pairs, outbasename, sigma_dict,
+                     lower_limit=1.0, upper_limit=50.0):
     # todo make function take data dict as input or use args* + kwargs**
     """Return correlation data, filtered gene sets and gene id translation
     dictionaries given a depmap gene data file
@@ -989,14 +990,16 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
     filtered_correlation_matrix, sym2id_dict, id2sym_dict = _get_corr_df(
         depmap_data=depmap_data, corr_matrix=pd_corr_matrix,
         geneset_file=geneset_file, strict=strict,
-        lower_limit=lower_limit, upper_limit=upper_limit
+        lower_limit=lower_limit, upper_limit=upper_limit,
+        sigma_dict=sigma_dict
     )
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
 
     if dump_unique_pairs:
-        if lower_limit == 0 and upper_limit == 0:
+        if lower_limit == 0.0 and upper_limit >= (1.0 - sigma_dict['mean']) / \
+                sigma_dict['sigma']:
             fname = outbasename + '_all_unique_correlation_pairs.csv'
         else:
             fname = outbasename + '_unique_correlation_pairs_ll%s_ul%s.csv' % \
@@ -1013,7 +1016,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
 
 
 def _get_corr_df(depmap_data, corr_matrix, geneset_file,
-                 strict, lower_limit, upper_limit):
+                 strict, lower_limit, upper_limit, sigma_dict):
     # todo make function take data dict as input or use args* + kwargs**
     multi_index_data = pd.MultiIndex.from_tuples(
         tuples=[
@@ -1085,37 +1088,49 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
     assert corr_matrix_df is not None
 
     # No filtering
-    if lower_limit == 0 and upper_limit == 1.0:
-        dnf_logger.warning('No filtering requested. Be aware of large RAM '
+    if lower_limit == 0.0 and upper_limit >= (1.0 - sigma_dict['mean']) / \
+            sigma_dict['sigma']:
+        dnf_logger.warning('No filtering is performed. Be aware of large RAM '
                           'usage.')
         return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
     # Filter correlations
     else:
-        return corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit),\
-               hgnc_sym2id, hgnc_id2sym
+        return corr_limit_filtering(
+            corr_matrix_df=corr_matrix_df,
+            lower_limit=lower_limit,
+            upper_limit=upper_limit,
+            mu=sigma_dict['mean'],
+            sigma=sigma_dict['sigma']
+        ), hgnc_sym2id, hgnc_id2sym
 
 
-def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
+def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
     """Filters a correlation matrix to values in (lower_limit, upper_limit)
 
     corr_matrix_df: pandas.DataFrame
         A pandas correlation matrix as a pandas data frame
     lower_limit: float
-        Lowest correlation magnitude to consider
+        Smallest distance (measured in SD) from mean correlation to consider
     upper_limit: float
-        Highest correlation magnitude to consider (good for picking a sample
-        in the middle of the correlation distribution)
+        Largest distance (measured in SD) from mean correlation to consider
+        (good for picking a sample in the middle of the correlation
+         distribution)
 
     Returns
     -------
     corr_matrix_df: pandas.DataFrame
         A filtered correlation dataframe matrix
     """
-    dnf_logger.info('Filtering correlations to %.1f < C < %.1f' %
+    dnf_logger.info('Filtering correlations in range %.2f < (C-mu)/SD < %.2f' %
                     (lower_limit, upper_limit))
-    corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() > lower_limit]
+    # Filter by number of SD from mean
+    corr_matrix_df = corr_matrix_df[
+        abs(corr_matrix_df - mu) / sigma > lower_limit
+    ]
     if upper_limit < 1.0:
-        corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() < upper_limit]
+        corr_matrix_df = corr_matrix_df[
+            abs(corr_matrix_df - mu) / sigma < upper_limit
+        ]
 
     return corr_matrix_df
 
