@@ -524,21 +524,18 @@ if __name__ == '__main__':
     either_of.add_argument('-b', '--belief-score-dict', help='Load a dict with '
         'stmt hash: belief score to be incorporated in the explainable '
         'network dict.')
-    either_of.add_argument('-ndi', '--nested-dict-in',
-                           help='Load precalculated nested dict of'
-                                'statements of the form '
-                                'd[subj][obj] = [(stmt/stmt hash, belief '
-                                'score)].')
+    either_of.add_argument('-ndi', '--nested-dict-in', help='Load '
+        'precalculated nested dict of statements of the form  d[subj][obj] = '
+        '[(stmt/stmt hash, belief score)].')
     parser.add_argument('-cc', '--crispr-corr-file',
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
                         help='Precalculated RNAi correlations in h5 format')
     parser.add_argument('-g', '--geneset-file',
                         help='Filter to interactions with gene set data file.')
-    parser.add_argument('--margin', type=float, default=1.0,
-                        help='How large diff in terms of standard deviations '
-                             'to accept between data sets when filtering for '
-                             'correlations during merge. Default is 1 SD.')
+    parser.add_argument('--margin', type=float, default=1.0, help='How large '
+        'diff in terms of standard deviations to accept between data sets '
+        'when filtering for correlations during merge. Default is 1 SD.')
     parser.add_argument('--filter-type', default='sigma-diff', type=str,
                         help='Type of filtering. Options are: `sigma-diff` - '
         'The difference in the distances from the mean measured in number of '
@@ -577,7 +574,7 @@ if __name__ == '__main__':
         'to use instead of quering a database. This option is unused if a '
         'lightweight file [-lw] is provided.')
     parser.add_argument('-sto', '--statements-out', help='Saves the used '
-        'statements read from the database')
+        'statements to a pickle file.')
     parser.add_argument('-cup', '--unique-depmap-crispr-pairs', help='Uses a '
         'previously saved file to read the unique pairs to read over. Useful '
         'if you are running the script on the full data with no filters.')
@@ -587,26 +584,22 @@ if __name__ == '__main__':
     parser.add_argument('--max-pairs', type=int, default=None, help='Limit the '
         'maximum number of gene-gene pairs to explain. If used, the pairs '
         'used will be sampled at random.')
-    parser.add_argument('-crange', '--crispr-corr-range', default=0.3,
-                        type=float, nargs="+",
-                        help='LOWER_LIM UPPER_LIM | Two decimal numbers '
-                             'denoting the range of correlations to consider '
-                             'in the crispr data.')
-    parser.add_argument('-rrange', '--rnai-corr-range', default=0.2,
-                        type=float, nargs="+",
-                        help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
-                             'denoting the range of correlations to consider '
-                             'in the rnai data.')
+    parser.add_argument('-crange', '--crispr-corr-range', default=[1.0],
+                        type=float, nargs="+", help='-crange LOWER_LIM ('
+        'UPPER_LIM) | One or two decimal numbers denoting the range of '
+        'correlations to consider in terms of number of SD in the CRISPR data.')
+    parser.add_argument('-rrange', '--rnai-corr-range', default=[1.0],
+                        type=float, nargs="+", help='-rrange LOWER_LIM ('
+        'UPPER_LIM) | One or two decimal numbers denoting the range of '
+        'correlations to consider in terms of number of SD in the RNAi data.')
     parser.add_argument('-cstats', '--crispr-mean-sigma', type=float, nargs=2,
                         help='-rstats <mean> <stdev> | Provide a value of the '
-                             'mean and standard deviation for the CRISPR data '
-                             'instead of calculating it from the full data '
-                             'set.')
+        'mean and standard deviation for the CRISPR data instead of '
+        'calculating it from the full data set.')
     parser.add_argument('-rstats', '--rnai-mean-sigma', type=float, nargs=2,
                         help='-rstats <mean> <stdev> | Provide a value of the '
-                             'mean and standard deviation for the RNAi data '
-                             'instead of calculating it from the full data '
-                             'set.')
+        'mean and standard deviation for the RNAi data instead of calculating '
+        'it from the full data set.')
     a = parser.parse_args()
 
     with open(a.outbasename+'dep_map_script_log{}.log'.format(
