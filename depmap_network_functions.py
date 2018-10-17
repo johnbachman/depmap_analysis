@@ -1160,9 +1160,26 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         difference in their distance from the mean standard deviation.
     """
     if filter_type == 'sigma-diff':
-        return abs((mu1 + corr1)/sigma1 - (mu2 + corr2)/sigma2) < margin
+        return _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+    elif filter_type == 'corr-corr-corr':
+        return _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+    # No filter; Add more filter types above
     else:
         return True
+
+
+def _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+    """Return True if the difference in the scaled distances from the mean
+    measured in number of standard deviations is smaller than the given margin.
+    """
+    return abs((corr1 - mu1) / sigma1 - (corr2 - mu2) / sigma2) < margin
+
+
+def _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+    """Return True if the product of the scaled correlations is greater than
+    the given margin.
+    """
+    return ((corr1 - mu1) / sigma1) * ((corr2 - mu2) / sigma2) > margin
 
 
 def get_directed(stmts, undirected_types=None):
