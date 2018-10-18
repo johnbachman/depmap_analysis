@@ -106,12 +106,14 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     # enough non-nan values to exhaustively generate at least max_pair
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
     assert all_pairs != 0
-    if max_pairs > all_pairs and max_pairs is not None:
-        max_pairs = all_pairs
-        dnf_logger.info('The requestd number of correlation pairs is larger '
+
+    if max_pairs and max_pairs >= all_pairs:
+        dnf_logger.info('The requested number of correlation pairs is larger '
                         'than the available number of pairs. Resetting '
                         '`max_pairs` to %i' % all_pairs)
-    if max_pairs:
+        corr_df_sample = corrrelation_df_matrix
+
+    elif max_pairs and max_pairs < all_pairs:
         n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
         corr_df_sample = corrrelation_df_matrix.sample(
             n, axis=0).sample(n, axis=1)
@@ -126,7 +128,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
                         'with %i extractable correlation pairs.'
                         % corr_df_sample.notna().sum().sum())
 
-    # No sampling, get all non-NaN correlations
+    # max_pairs == None: no sampling, get all non-NaN correlations;
     else:
         corr_df_sample = corrrelation_df_matrix
 
@@ -727,77 +729,99 @@ def merge_correlation_data(correlation_dicts_list, settings):
     # smallest and loop that one (assuming len(dict) gives the nested dict
     # with the shortest iteration).
 
-    # Get shortest dict from tuple list
-    name_dict_sigma_tuple = next(d for d in correlation_dicts_list if len(
-        d[1]) == min([len(i[1]) for i in correlation_dicts_list]))
-    # Remove the tuple with the shortest dict  from the list
-    correlation_dicts_list.remove(name_dict_sigma_tuple)
-    set_name, shortest_dict, sigma_dict = name_dict_sigma_tuple
-    # Pop the list to get the oter tuple to merge with
-    other_name, other_dict, other_sigma_dict = correlation_dicts_list.pop()
+    # We have three cases:
+    # 1.    Only one data set
+    # 2.    Two data sets
+    # 3.    Three or more data sets (not yet implemented)
+    #
+    # For 1: Skip the merger and just return whatever data set came in.
+    # For 2: Merge the two dictionaries.
+    # For 3: Merge two of the data sets and then call a recursive
 
+    # Create the return dict
     merged_corr_dict = create_nested_dict()
-    dnf_logger.info('Merging correlation dicts %s and %s' %
-                    (set_name, other_name))
 
-    # Loop shortest correlation lookup dict
-    npairs = 0
-    for o_gene, d in shortest_dict.items():
-        for i_gene, corr in d.items():
-            if o_gene is not i_gene and \
-                    not _entry_exist_dict(merged_corr_dict, o_gene, i_gene):
-                # Check both directions
-                other_corr = None
-                if _entry_exist_dict(other_dict, o_gene, i_gene):
-                    other_corr = other_dict[o_gene][i_gene]
-                elif _entry_exist_dict(other_dict, i_gene, o_gene):
-                    other_corr = other_dict[i_gene][o_gene]
+    # Case 1
+    if len(correlation_dicts_list) == 1:
+        only_name, only_dict, only_sigma_dict = correlation_dicts_list.pop()
 
-                if other_corr and pass_filter(
-                        corr1=corr, mu1=sigma_dict['mean'],
-                        sigma1=sigma_dict['sigma'],
-                        corr2=other_corr, mu2=other_sigma_dict['mean'],
-                        sigma2=other_sigma_dict['sigma'],
-                        margin=settings['margin'],
-                        filter_type=settings['filter_type']):
-                    merged_corr_dict[o_gene][i_gene][set_name] = corr
-                    merged_corr_dict[o_gene][i_gene][other_name] = other_corr
-                    assert merged_corr_dict[o_gene][i_gene].get(set_name) is \
-                        not None
-                    assert merged_corr_dict[o_gene][i_gene].get(other_name) is \
-                        not None
-                    assert merged_corr_dict[o_gene].get(o_gene) is None
-                    assert merged_corr_dict[i_gene].get(i_gene) is None
+        npairs = 0
+        for o_gene, d in only_dict.items():
+            for i_gene, corr in d.items():
+                if o_gene is not i_gene:
+                    merged_corr_dict[o_gene][i_gene][only_name] = corr
                     npairs += 1
 
-                # Did not pass filter
+    # Case 2
+    elif len(correlation_dicts_list) == 2:
+        # Get shortest dict from tuple list
+        name_dict_sigma_tuple = next(d for d in correlation_dicts_list if len(
+            d[1]) == min([len(i[1]) for i in correlation_dicts_list]))
+        # Remove the tuple with the shortest dict  from the list
+        correlation_dicts_list.remove(name_dict_sigma_tuple)
+        set_name, shortest_dict, sigma_dict = name_dict_sigma_tuple
+        # Pop the list to get the oter tuple to merge with
+        other_name, other_dict, other_sigma_dict = correlation_dicts_list.pop()
+        dnf_logger.info('Merging correlation dicts %s and %s' %
+                        (set_name, other_name))
+
+        # Loop shortest correlation lookup dict
+        npairs = 0
+        for o_gene, d in shortest_dict.items():
+            for i_gene, corr in d.items():
+                if o_gene is not i_gene and \
+                        not _entry_exist_dict(merged_corr_dict, o_gene, i_gene):
+                    # Check both directions
+                    other_corr = None
+                    if _entry_exist_dict(other_dict, o_gene, i_gene):
+                        other_corr = other_dict[o_gene][i_gene]
+                    elif _entry_exist_dict(other_dict, i_gene, o_gene):
+                        other_corr = other_dict[i_gene][o_gene]
+
+                    if other_corr and pass_filter(
+                            corr1=corr, mu1=sigma_dict['mean'],
+                            sigma1=sigma_dict['sigma'],
+                            corr2=other_corr, mu2=other_sigma_dict['mean'],
+                            sigma2=other_sigma_dict['sigma'],
+                            margin=settings['margin'],
+                            filter_type=settings['filter_type']):
+                        merged_corr_dict[o_gene][i_gene][set_name] = corr
+                        merged_corr_dict[o_gene][i_gene][other_name] = \
+                            other_corr
+                        assert merged_corr_dict[o_gene][i_gene].get(set_name)\
+                            is not None
+                        assert merged_corr_dict[o_gene][i_gene].get(other_name)\
+                            is not None
+                        assert merged_corr_dict[o_gene].get(o_gene) is None
+                        assert merged_corr_dict[i_gene].get(i_gene) is None
+                        npairs += 1
+
+                    # Did not pass filter
+                    else:
+                        continue
+
+                # Entry already exists
                 else:
                     continue
-            # Entry already exists
-            else:
-                continue
 
-    # recursive case: more than 2 dicts. Merge the shortest and another,
-    # call same function with and the merged dict plus the rest of the list.
-    # if correlation_dicts_list:
+    # todo: create recursive data set merger for 3 or more data sets
+    # Case 3 (not yet implemented)
+    # else:
     #     return merge_correlation_dicts_recursive(
     #         correlation_dicts_list.append(('master', merged_corr_dict)))
-
-    # base case: 2 dicts in list. Return merged dict.
-    # else:
 
     merged_corr_dict.default_factory = None
     return merged_corr_dict, npairs
 
 
-# def merge_correlation_dicts_recursive(correlation_dicts_list):
-#     """ This should be the recursive version of correlation_dicts_list(). Call
-#     this function from correlation_dicts_list()
-#
-#     :param correlation_dicts_list:
-#     :return: pass
-#     """
-#     pass
+def merge_correlation_dicts_recursive(correlation_dicts_list):
+    """ This should be the recursive version of correlation_dicts_list(). Call
+    this function from correlation_dicts_list()
+
+    :param correlation_dicts_list:
+    :return: pass
+    """
+    pass
 
 
 def get_combined_correlations(dict_of_data_sets, filter_settings):
@@ -942,7 +966,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         correlation_dicts_list=name_dict_stats_list,
         settings=filter_settings
     )
-    dnf_logger.info('Merged gene sets to master dictionary of length %i' %
+    dnf_logger.info('Created gene correlation master dictionary of length %i' %
                     npairs)
 
     return master_corr_dict, gene_set_intersection, stats_dict
