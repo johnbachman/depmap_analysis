@@ -155,15 +155,17 @@ def _dump_it_to_csv(fname, iterable, separator=','):
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
     dnf_logger.info('Dumping master dict to pairs in %s' % fname)
+    pairs = 0
     with open(fname, 'w') as fo:
         fo.write('gene1,gene2,correlation_list\n')
         for ok, od in nest_dict.items():
-            for ik, id_ in od[ok].items():
-                corr_dict = id_[ik]
+            for ik, id_ in od.items():
                 vals = []
-                for name in corr_dict:
-                    vals.append(corr_dict[name])
+                for name in id_:
+                    vals.append(id_[name])
                 fo.write('%s,%s,%s\n' % (ok, ik, str(vals)))
+                pairs += 1
+    return pairs
 
 
 def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
@@ -699,8 +701,8 @@ def get_gene_gene_corr_dict(tuple_generator):
                 doublets += 1
             corr_nest_dict[gene1][gene2] = corr
     count += 1
-    dnf_logger.info('Went through %i gene pairs, skipped %i, found %i '
-                    'doublets.' % (count, skip, doublets))
+    dnf_logger.info('Created correlation dictionary of length %i, skipped %i, '
+                    'found %i doublets' % (count, skip, doublets))
     corr_nest_dict.default_factory = None
     return corr_nest_dict
 
@@ -739,6 +741,7 @@ def merge_correlation_data(correlation_dicts_list, settings):
                     (set_name, other_name))
 
     # Loop shortest correlation lookup dict
+    npairs = 0
     for o_gene, d in shortest_dict.items():
         for i_gene, corr in d.items():
             if o_gene is not i_gene and \
@@ -765,6 +768,8 @@ def merge_correlation_data(correlation_dicts_list, settings):
                         not None
                     assert merged_corr_dict[o_gene].get(o_gene) is None
                     assert merged_corr_dict[i_gene].get(i_gene) is None
+                    npairs += 1
+
                 # Did not pass filter
                 else:
                     continue
@@ -782,7 +787,7 @@ def merge_correlation_data(correlation_dicts_list, settings):
     # else:
 
     merged_corr_dict.default_factory = None
-    return merged_corr_dict
+    return merged_corr_dict, npairs
 
 
 # def merge_correlation_dicts_recursive(correlation_dicts_list):
@@ -919,8 +924,6 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                 max_pairs=dataset_dict['max_pairs']
             )
         )
-        dnf_logger.info('Created correlation dictionary of length %i for set '
-                        '`%s`' % (len(corr_dict), gene_set_name))
 
         # Append correlation dict and stats to list
         stats_dict[gene_set_name] = sigma_dict
@@ -935,12 +938,12 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     dnf_logger.info('---------------------')
 
     # Merge the dictionaries
-    master_corr_dict = merge_correlation_data(
+    master_corr_dict, npairs = merge_correlation_data(
         correlation_dicts_list=name_dict_stats_list,
         settings=filter_settings
     )
     dnf_logger.info('Merged gene sets to master dictionary of length %i' %
-                    len(master_corr_dict))
+                    npairs)
 
     return master_corr_dict, gene_set_intersection, stats_dict
 
