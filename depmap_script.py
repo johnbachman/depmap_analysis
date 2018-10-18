@@ -99,7 +99,7 @@ def _arg_dict(args_struct):
                                               args_struct.geneset_file else [])
     args_dict['crispr']['ll'] = max(args_struct.crispr_corr_range[0], 0.0)
     args_dict['crispr']['ul'] = min(50.0, (args_struct.crispr_corr_range[1] if
-        len(args_struct.crispr_corr_range) == 2 else 1.0))
+        len(args_struct.crispr_corr_range) == 2 else 50.0))
     args_dict['crispr']['max_pairs'] = args_struct.max_pairs
     args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[1] if \
         args_struct.crispr_mean_sigma else None
@@ -116,7 +116,7 @@ def _arg_dict(args_struct):
                                             args_struct.geneset_file else [])
     args_dict['rnai']['ll'] = max(args_struct.rnai_corr_range[0], 0.0)
     args_dict['rnai']['ul'] = min(50.0, (args_struct.rnai_corr_range[1] if len(
-        args_struct.rnai_corr_range) == 2 else 1.0))
+        args_struct.rnai_corr_range) == 2 else 50.0))
     args_dict['rnai']['max_pairs'] = args_struct.max_pairs
     args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[0] if \
         args_struct.rnai_mean_sigma else None
@@ -205,14 +205,7 @@ def main(args):
     elif args.nested_dict_in:
         nested_dict_statements = _pickle_open(args.nested_dict_in)
     else:
-        if belief_dict is None:
-            logger.error('belief dict must be provided through the `-b ('
-                         '--belief-score-dict)` argument if no nested dict '
-                         'of statements is provided through the `-ndi ('
-                         '--nested-dict-in)` argument.')
-            raise FileNotFoundError
-        else:
-            nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
+        nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
                                                             belief_dict)
         if args.nested_dict_out:
             _dump_it_to_pickle(fname=args.nested_dict_out,
@@ -283,15 +276,18 @@ def main(args):
                     logger.info('Skipped outer_id=%s and inner_id=%s' %
                             (outer_id, inner_id))
                 continue
+
             avg_corrs = []
             for set_name in corr_dict:
                 avg_corrs.append(corr_dict[set_name])
 
+            # Take the average correlation so it
             avg_corr = sum(avg_corrs)/len(avg_corrs)
             id1, id2 = outer_id, inner_id
 
             # Store bool(s) for found connection (either A-B or A-X-B)
             found = set()
+            dir_found = False
             im_found = False  # Flag bool set for intermediate connections
 
             for subj, obj in itt.permutations((id1, id2), r=2):
@@ -307,8 +303,8 @@ def main(args):
                     if args.verbosity:
                         logger.info('Found direct connection between %s and '
                                     '%s' % (subj, obj))
-                    dir_expl_count += 1
                     found.add(True)
+                    dir_found = True
                     stmt_tuple = (subj, obj, corr_dict['crispr'],
                                   corr_dict['rnai'], 'direct', [])
                     explained_pairs.append(stmt_tuple)
@@ -409,7 +405,9 @@ def main(args):
             else:
                 found.add(False)
 
-            # Count intermediate connections found
+            # Count connections found
+            if dir_found:
+                dir_expl_count += 1
             if im_found:
                 im_expl_count += 1
 
@@ -451,14 +449,17 @@ def main(args):
                                 '%s.' % (id1, id2))
     long_string = ''
     long_string += '-' * 63 + '\n'
-    long_string += 'Summary:' + '\n'
-    long_string += '> Skipped %i empty doublets in corr dict\n' % skipped
+    long_string += 'Summary mathcing INDRA network to correlation pairs:' + '\n'
+    long_string += '> Total number of pairs checked: %i' % npairs + '\n'
+    if args.verbosity:
+        long_string += '> Skipped %i empty doublets in corr dict\n' % skipped
     long_string += '> Total unexplained: %i' % len(unexplained) + '\n'
-    long_string += '> Total explained: %i,' % len(explained_pairs) + '\n'
-    long_string += '> with %i direct and %i mediated by an intermediate ' \
-                   'node.' % (dir_expl_count, im_expl_count) + '\n'
-    long_string += '> Total number of pairs checked: %i' % npairs + '\n\n'
-    long_string += 'Statistics:' + '\n\n'
+    long_string += '> Total explained: %i, with:' % len(explained_pairs) + '\n'
+    long_string += '>      %i direct (at least one of A,B or B,A)' % \
+                   dir_expl_count + '\n'
+    long_string += '>      %i mediated by an intermediate node (A-X-B type ' \
+                   'connections).' % im_expl_count + '\n\n'
+    long_string += 'Statistics of input data:' + '\n\n'
     long_string += '  RNAi data ' + '\n'
     long_string += '  ----------' + '\n'
     long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
