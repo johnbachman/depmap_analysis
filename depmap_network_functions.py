@@ -23,7 +23,7 @@ from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 
 db_prim = dbu.get_primary_db()
-dnf_logger = logging.getLogger('DepMapFunctionsLogger')
+dnf_logger = logging.getLogger('DepMapFunctions')
 
 
 def rawincount(filename):
@@ -957,9 +957,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         else:
             gene_set_intersection.intersection_update(set_hgnc_syms)
 
-    dnf_logger.info('---------------------')
-    dnf_logger.info('Merging the data sets')
-    dnf_logger.info('---------------------')
+    if len(name_dict_stats_list) > 1:
+        dnf_logger.info('---------------------')
+        dnf_logger.info('Merging the data sets')
+        dnf_logger.info('---------------------')
 
     # Merge the dictionaries
     master_corr_dict, npairs = merge_correlation_data(
