@@ -154,7 +154,8 @@ def main(args):
     master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
         dict_of_data_sets=args_dict, filter_settings=filter_settings)
 
-    dnf._dump_master_corr_dict_to_pairs_in_csv(
+    # Count pairs in merged correlation dict
+    npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
         fname=args.outbasename+'_merged_corr_pairs.csv',
         nest_dict=master_corr_dict)
 
@@ -230,8 +231,6 @@ def main(args):
     explained_pairs = []  # Saves all explanations
     explained_neg_pairs = []  # Saves all explanations with correlation < 0
     unexplained = []  # Unexplained correlations
-    # npairs = dnf.rawincount(args.outbasename+'_merged_corr_pairs.csv')
-    npairs = len(master_corr_dict)
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
     # connection type or correlation).
@@ -263,8 +262,8 @@ def main(args):
     # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
     #         open(args.outbasename + '_neg_conn_latex.tex', 'w') as f_neg_c:
 
-    logger.info('Looking for connections between %i pairs (length of dict)' %
-                len(master_corr_dict))
+    logger.info('Looking for connections between %i pairs (pairs in nested '
+                'dict)' % npairs)
 
     skipped = 0
 
