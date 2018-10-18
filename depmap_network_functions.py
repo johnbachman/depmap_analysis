@@ -1121,13 +1121,13 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
     corr_matrix_df: pandas.DataFrame
         A filtered correlation dataframe matrix
     """
-    dnf_logger.info('Filtering correlations in range %.2f < (C-mu)/SD < %.2f' %
-                    (lower_limit, upper_limit))
+    dnf_logger.info('Filtering correlations in range %.2f < abs(C-mu)/SD < '
+                    '%.2f' % (lower_limit, upper_limit))
     # Filter by number of SD from mean
     corr_matrix_df = corr_matrix_df[
         abs(corr_matrix_df - mu) / sigma > lower_limit
     ]
-    if upper_limit < 1.0:
+    if upper_limit < (1.0 - mu) / sigma:
         corr_matrix_df = corr_matrix_df[
             abs(corr_matrix_df - mu) / sigma < upper_limit
         ]
