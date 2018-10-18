@@ -549,12 +549,12 @@ def main(args):
         long_string += '  CRISPR data ' + '\n'
         long_string += '  ------------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
-        long_string += '> SD: %f\n\n' % stats_dict['crispr']['sigma']
+        long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
         long_string += '> lower bound: %.2f*SD = %.3f\n' % (
             args_dict['crispr']['ll'],
             args_dict['crispr']['ll']*stats_dict['crispr']['sigma']
         )
-        long_string += '> upper bound: %.2f*SD = %.3f\n' % (
+        long_string += '> upper bound: %.2f*SD = %.3f\n\n' % (
             args_dict['crispr']['ul'],
             args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
         )
