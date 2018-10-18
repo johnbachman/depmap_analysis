@@ -55,7 +55,8 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None):
         for ok in nested_dict:
             for ik in nested_dict[ok]:
                 cd = nested_dict[ok][ik]['correlations']
-                fo.write('%s,%s,%f,%f\n' % (ok, ik, cd['crispr'], cd['rnai']))
+                fo.write('%s,%s,%s,%s\n' %
+                         (ok, ik, str(cd['crispr']), str(cd['rnai'])))
 
 
 def _pickle_open(file_path_to_pickle):
@@ -91,38 +92,47 @@ def _corr_web_latex(id1, id2, fmtcorr):
 def _arg_dict(args_struct):
     args_dict = dnf.create_nested_dict()
 
+    if not args_struct.crispr_data_file and not args_struct.rnai_data_file:
+        logger.error('Must provide at least one data set!')
+        raise FileNotFoundError
+
     # CRISPR
-    args_dict['crispr']['data'] = args_struct.crispr_data_file
-    args_dict['crispr']['corr'] = args_struct.crispr_corr_file
-    args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
-    args_dict['crispr']['filter_gene_set'] = (args_struct.geneset_file if
-                                              args_struct.geneset_file else [])
-    args_dict['crispr']['ll'] = max(args_struct.crispr_corr_range[0], 0.0)
-    args_dict['crispr']['ul'] = min(50.0, (args_struct.crispr_corr_range[1] if
-        len(args_struct.crispr_corr_range) == 2 else 50.0))
-    args_dict['crispr']['max_pairs'] = args_struct.max_pairs
-    args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[1] if \
-        args_struct.crispr_mean_sigma else None
-    args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[0] if \
-        args_struct.crispr_mean_sigma else None
-    args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
-    args_dict['crispr']['strict'] = args_struct.strict
+    if args_struct.crispr_data_file:
+        args_dict['crispr']['data'] = args_struct.crispr_data_file
+        args_dict['crispr']['corr'] = args_struct.crispr_corr_file
+        args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
+        args_dict['crispr']['filter_gene_set'] = (
+            args_struct.geneset_file if args_struct.geneset_file else []
+        )
+        args_dict['crispr']['ll'] = max(args_struct.crispr_corr_range[0], 0.0)
+        args_dict['crispr']['ul'] = min(50.0, (args_struct.crispr_corr_range[1]
+            if len(args_struct.crispr_corr_range) == 2 else 50.0))
+        args_dict['crispr']['max_pairs'] = args_struct.max_pairs
+        args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[1] if \
+            args_struct.crispr_mean_sigma else None
+        args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[0] if \
+            args_struct.crispr_mean_sigma else None
+        args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
+        args_dict['crispr']['strict'] = args_struct.strict
 
     # RNAi
-    args_dict['rnai']['data'] = args_struct.rnai_data_file
-    args_dict['rnai']['corr'] = args_struct.rnai_corr_file
-    args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
-    args_dict['rnai']['filter_gene_set'] = (args_struct.geneset_file if
-                                            args_struct.geneset_file else [])
-    args_dict['rnai']['ll'] = max(args_struct.rnai_corr_range[0], 0.0)
-    args_dict['rnai']['ul'] = min(50.0, (args_struct.rnai_corr_range[1] if len(
-        args_struct.rnai_corr_range) == 2 else 50.0))
-    args_dict['rnai']['max_pairs'] = args_struct.max_pairs
-    args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[0] if \
-        args_struct.rnai_mean_sigma else None
-    args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[1] if \
-        args_struct.rnai_mean_sigma else None
-    args_dict['rnai']['strict'] = args_struct.strict
+    if args_struct.rnai_data_file:
+        args_dict['rnai']['data'] = args_struct.rnai_data_file
+        args_dict['rnai']['corr'] = args_struct.rnai_corr_file
+        args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
+        args_dict['rnai']['filter_gene_set'] = (
+            args_struct.geneset_file if args_struct.geneset_file else []
+        )
+        args_dict['rnai']['ll'] = max(args_struct.rnai_corr_range[0], 0.0)
+        args_dict['rnai']['ul'] = min(50.0, (args_struct.rnai_corr_range[1]
+            if len(args_struct.rnai_corr_range) == 2 else 50.0))
+        args_dict['rnai']['max_pairs'] = args_struct.max_pairs
+        args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[1] if \
+            args_struct.rnai_mean_sigma else None
+        args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[0] if \
+            args_struct.rnai_mean_sigma else None
+        args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
+        args_dict['rnai']['strict'] = args_struct.strict
 
     args_dict.default_factory = None
     return args_dict
@@ -139,13 +149,15 @@ def main(args):
         raise FileNotFoundError
 
     filter_settings = {'margin': args.margin,
-                       'filter_type': (
-                           args.filter_type if args.filter_type in [
-                               'sigma-diff',
-                               'corr-corr-corr'
-                           ] else None)}
+                       'filter_type':
+                       (args.filter_type if
+                        args.filter_type in ['sigma-diff', 'corr-corr-corr']
+                        else None)
+                       }
 
-    if not filter_settings['filter_type']:
+    if not filter_settings['filter_type'] and \
+        args.crispr_data_file and \
+        args.rnai_data_file:
         logger.info('No merge filter set. Output will be intersection of the '
                     'two data sets.')
 
@@ -160,12 +172,25 @@ def main(args):
         nest_dict=master_corr_dict)
 
     if args.geneset_file:
-        gene_filter_list = set(dnf._read_gene_set_file(
+        gene_filter_list = None
+        if args_dict.get('crispr') and not args_dict.get('rnai'):
+            gene_filter_list = dnf._read_gene_set_file(
                 gf=args_dict['crispr']['filter_gene_set'],
-                data=args_dict['crispr']['data'])) & \
-            set(dnf._read_gene_set_file(
-                gf=args_dict['rnai']['filter_gene_set'],
-                data=args_dict['crispr']['data']))
+                data=args_dict['crispr']['data'])
+        elif args_dict.get('rnai') and not args_dict.get('crispr'):
+            gene_filter_list = dnf._read_gene_set_file(
+                    gf=args_dict['rnai']['filter_gene_set'],
+                    data=args_dict['crispr']['data'])
+        elif args_dict.get('crispr') and args_dict.get('rnai'):
+            gene_filter_list = \
+                set(dnf._read_gene_set_file(
+                    gf=args_dict['crispr']['filter_gene_set'],
+                    data=args_dict['crispr']['data'])) & \
+                set(dnf._read_gene_set_file(
+                    gf=args_dict['rnai']['filter_gene_set'],
+                    data=args_dict['crispr']['data']))
+        assert gene_filter_list is not None
+
     else:
         gene_filter_list = None
 
@@ -517,9 +542,9 @@ if __name__ == '__main__':
 
     either_of = parser.add_argument_group('One of the following two arguments')
     required_args = parser.add_argument_group('Required Arguments')
-    required_args.add_argument('-cf', '--crispr-data-file', required=True,
+    required_args.add_argument('-cf', '--crispr-data-file',
                                help='CRISPR gene dependency data in csv format')
-    required_args.add_argument('-rf', '--rnai-data-file', required=True,
+    required_args.add_argument('-rf', '--rnai-data-file',
                                help='RNAi gene dependency data in csv format')
     either_of.add_argument('-b', '--belief-score-dict', help='Load a dict with '
         'stmt hash: belief score to be incorporated in the explainable '
