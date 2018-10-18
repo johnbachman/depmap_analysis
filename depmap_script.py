@@ -13,11 +13,8 @@ from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 from depmap_network_functions import create_nested_dict as nest_dict
-# There are pickled files using "nest_dict" in their preserve import settings
+# There are pickled files using "nest_dict" in their preserved import settings
 # and we can therefore not use another name when using those files
-
-# todo remove pdb import before merging PR
-import pdb
 
 logger = logging.getLogger('depmap_script')
 
@@ -252,7 +249,16 @@ def main(args):
     dir_node_set = set(nx_dir_graph.nodes)
 
     # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
-    dir_expl_count, im_expl_count = 0, 0
+    any_expl = 0  # Count if any explanation per (A,B) correlation found
+    # Count any explanation per (A,B) found, excluding shared regulator
+    any_expl_not_sr = 0
+    tuple_dir_expl_count = 0  # Count A-B/B-A as one per set(A,B)
+    both_dir_expl_count = 0  # Count A-B and B-A separately per set(A,B)
+    tuple_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
+    both_im_dir_expl_count = 0  # Count A->X->B,B->X->A separately per set(A,B)
+    tuple_im_st_expl_count = 0  # Count if shared target found per set(A,B)
+    tuple_im_sr_expl_count = 0  # Count if shared regulator found per set(A,B)
+    tuple_sr_expl_only_count = 0  # Count if only shared regulator found
     explained_pairs = []  # Saves all explanations
     explained_neg_pairs = []  # Saves all explanations with correlation < 0
     unexplained = []  # Unexplained correlations
@@ -287,8 +293,8 @@ def main(args):
     # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
     #         open(args.outbasename + '_neg_conn_latex.tex', 'w') as f_neg_c:
 
-    logger.info('Looking for connections between %i pairs (pairs in nested '
-                'dict)' % npairs)
+    logger.info('Looking for connections between %i pairs (pairs in master '
+                'correlation dict)' % npairs)
 
     skipped = 0
 
@@ -310,12 +316,16 @@ def main(args):
             id1, id2 = outer_id, inner_id
 
             # Store bool(s) for found connection (either A-B or A-X-B)
-            found = set()
-            dir_found = False
-            im_found = False  # Flag bool set for intermediate connections
+            found = set()  # Flag anythin found
+            dir_found = False  # Flag direct/complex connection
+            im_found = False  # Flag intermediate connections
+            sr_found = False  # Flag shared regulator connection
+            not_sr_found = False  # Flag any non shared regulator connection
 
             for subj, obj in itt.permutations((id1, id2), r=2):
                 if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
+                    both_dir_expl_count += 1
+
                     # Get the statements
                     stmts = nested_dict_statements[subj][obj]
 
@@ -329,6 +339,7 @@ def main(args):
                                     '%s' % (subj, obj))
                     found.add(True)
                     dir_found = True
+                    not_sr_found = True
                     stmt_tuple = (subj, obj, corr_dict['crispr'],
                                   corr_dict['rnai'], 'direct', [])
                     explained_pairs.append(stmt_tuple)
@@ -344,6 +355,8 @@ def main(args):
                     if dir_path_nodes:
                         found.add(True)
                         im_found = True
+                        not_sr_found = True
+                        both_im_dir_expl_count += 1
                         if args.verbosity:
                             logger.info('Found directed path of length 2 '
                                         'between %s and %s' % (subj, obj))
@@ -379,6 +392,8 @@ def main(args):
                 if downstream_share:
                     found.add(True)
                     im_found = True
+                    not_sr_found = True
+                    tuple_im_st_expl_count += 1
                     downstream_share_wb = dnf.rank_nodes(
                         node_list=downstream_share,
                         nested_dict_stmts=nested_dict_statements,
@@ -403,6 +418,8 @@ def main(args):
                 if upstream_share:
                     found.add(True)
                     im_found = True
+                    sr_found = True
+                    tuple_im_sr_expl_count += 1
                     upstream_share_wb = dnf.rank_nodes(
                         node_list=upstream_share,
                         nested_dict_stmts=nested_dict_statements,
@@ -429,16 +446,29 @@ def main(args):
             else:
                 found.add(False)
 
-            # Count connections found
-            if dir_found:
-                dir_expl_count += 1
-            if im_found:
-                im_expl_count += 1
-
             # Make sure the connection types we didn't find are empty lists.
             # Also add correlation so it can be queried for at the same time
             # as the items for the second drop down.
             if any(found):
+                # Any explanation found
+                any_expl += 1
+
+                # Count A-B or B-A connections found per set(A,B)
+                if dir_found:
+                    tuple_dir_expl_count += 1
+
+                # Count A-X-B connections found per set(A,B)
+                if im_found:
+                    tuple_im_expl_count += 1
+
+                # Count non shared regulators found
+                if not_sr_found:
+                    any_expl_not_sr += 1
+
+                # Count only shared regulators found
+                if sr_found and not not_sr_found:
+                    tuple_sr_expl_only_count += 1
+
                 for s, o in itt.permutations((id1, id2), r=2):
                     # Correlation
                     explained_nested_dict[s][o]['correlations'] = corr_dict
@@ -473,25 +503,61 @@ def main(args):
                                 '%s.' % (id1, id2))
     long_string = ''
     long_string += '-' * 63 + '\n'
-    long_string += 'Summary mathcing INDRA network to correlation pairs:' + '\n'
+    long_string += 'Summary for matching INDRA network to correlation pairs:'\
+                   + '\n\n'
     long_string += '> Total number of pairs checked: %i' % npairs + '\n'
     if args.verbosity:
         long_string += '> Skipped %i empty doublets in corr dict\n' % skipped
-    long_string += '> Total unexplained: %i' % len(unexplained) + '\n'
-    long_string += '> Total explained: %i, with:' % len(explained_pairs) + '\n'
-    long_string += '>      %i direct (at least one of A,B or B,A)' % \
-                   dir_expl_count + '\n'
-    long_string += '>      %i mediated by an intermediate node (A-X-B type ' \
-                   'connections).' % im_expl_count + '\n\n'
+
+    long_string += '> Total correlations unexplained: %i' % len(unexplained)\
+                   + '\n'
+    long_string += '> Total correlations explained: %i' % any_expl + '\n'
+    long_string += '> Total correlations explained, excluding shared ' \
+                   'regulator: %i' % any_expl_not_sr + '\n'
+    long_string += '>    %i correlations have an explanation involving a ' \
+                   'direct connecton' % tuple_dir_expl_count + \
+                   '\n'
+    long_string += '>    %i direct connections found (count A-B and B-A ' \
+                   'separately)' % both_dir_expl_count + '\n'
+    long_string += '>    %i correlations have an explanation ' \
+                   'involving and intermediate node (A-X-B).' \
+                   % tuple_im_expl_count + '\n'
+    long_string += '>    %i A->X->B or B->X->A connections found (one count ' \
+                   'per direction)' % both_im_dir_expl_count + '\n'
+    long_string += '>    %i correlations have an explanation involving a ' \
+                   'shared target (A->X<-B) ' % tuple_im_st_expl_count + '\n'
+    long_string += '>    %i correlations have an explanation involving a ' \
+                   'shared regulator' % tuple_im_sr_expl_count + '\n'
+    long_string += '>    %i correlations have shared regulator as only ' \
+                   'explanation' % tuple_sr_expl_only_count + '\n\n'
+
     long_string += 'Statistics of input data:' + '\n\n'
-    long_string += '  RNAi data ' + '\n'
-    long_string += '  ----------' + '\n'
-    long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
-    long_string += '> SD: %f\n\n' % stats_dict['rnai']['sigma']
-    long_string += '  CRISPR data ' + '\n'
-    long_string += '  ------------' + '\n'
-    long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
-    long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
+    if stats_dict.get('rnai'):
+        long_string += '  RNAi data ' + '\n'
+        long_string += '  ----------' + '\n'
+        long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
+        long_string += '> SD: %f\n\n' % stats_dict['rnai']['sigma']
+        long_string += '> lower bound: %.2f*SD = %.3f\n' % (
+            args_dict['rnai']['ll'],
+            args_dict['rnai']['ll']*stats_dict['rnai']['sigma']
+        )
+        long_string += '> upper bound: %.2f*SD = %.3f\n' % (
+            args_dict['rnai']['ul'],
+            args_dict['rnai']['ul'] * stats_dict['rnai']['sigma']
+        )
+    if stats_dict.get('crispr'):
+        long_string += '  CRISPR data ' + '\n'
+        long_string += '  ------------' + '\n'
+        long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
+        long_string += '> SD: %f\n\n' % stats_dict['crispr']['sigma']
+        long_string += '> lower bound: %.2f*SD = %.3f\n' % (
+            args_dict['crispr']['ll'],
+            args_dict['crispr']['ll']*stats_dict['crispr']['sigma']
+        )
+        long_string += '> upper bound: %.2f*SD = %.3f\n' % (
+            args_dict['crispr']['ul'],
+            args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
+        )
     long_string += '-' * 63 + '\n\n'
 
     logger.info('\n' + long_string)
