@@ -572,12 +572,13 @@ def main(args):
         # 'explained_nodes' are used to produce first drop down
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
-        _dump_it_to_json('explainable_ids.json', explained_nodes)
+        _dump_it_to_json(args.outbasename+'explainable_ids.json',
+                         explained_nodes)
 
         # Get undir graph and save each neighbor lookup as json for 2nd dropdown
         nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
         dnf.nx_undir_to_neighbor_lookup_json(
-            expl_undir_graph=nx_expl_undir_graph)
+            expl_undir_graph=nx_expl_undir_graph, outbasename=args.outbasename)
 
         _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
                                nested_dict=explained_nested_dict,
