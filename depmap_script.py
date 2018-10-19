@@ -102,12 +102,12 @@ def _arg_dict(args_struct):
             args_struct.geneset_file if args_struct.geneset_file else []
         )
         args_dict['crispr']['ll'] = max(args_struct.crispr_corr_range[0], 0.0)
-        args_dict['crispr']['ul'] = min(50.0, (args_struct.crispr_corr_range[1]
-            if len(args_struct.crispr_corr_range) == 2 else 50.0))
+        args_dict['crispr']['ul'] = (args_struct.crispr_corr_range[1]
+            if len(args_struct.crispr_corr_range) == 2 else None)
         args_dict['crispr']['max_pairs'] = args_struct.max_pairs
-        args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[1] if \
+        args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[0] if \
             args_struct.crispr_mean_sigma else None
-        args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[0] if \
+        args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[1] if \
             args_struct.crispr_mean_sigma else None
         args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
         args_dict['crispr']['strict'] = args_struct.strict
@@ -121,12 +121,12 @@ def _arg_dict(args_struct):
             args_struct.geneset_file if args_struct.geneset_file else []
         )
         args_dict['rnai']['ll'] = max(args_struct.rnai_corr_range[0], 0.0)
-        args_dict['rnai']['ul'] = min(50.0, (args_struct.rnai_corr_range[1]
-            if len(args_struct.rnai_corr_range) == 2 else 50.0))
+        args_dict['rnai']['ul'] = (args_struct.rnai_corr_range[1]
+            if len(args_struct.rnai_corr_range) == 2 else None)
         args_dict['rnai']['max_pairs'] = args_struct.max_pairs
-        args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[1] if \
+        args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[0] if \
             args_struct.rnai_mean_sigma else None
-        args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[0] if \
+        args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[1] if \
             args_struct.rnai_mean_sigma else None
         args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
         args_dict['rnai']['strict'] = args_struct.strict
@@ -516,7 +516,7 @@ def main(args):
     long_string += '> Total correlations explained, excluding shared ' \
                    'regulator: %i' % any_expl_not_sr + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
-                   'direct connecton' % tuple_dir_expl_count + \
+                   'direct connection' % tuple_dir_expl_count + \
                    '\n'
     long_string += '>    %i direct connections found (count A-B and B-A ' \
                    'separately, including complexes)' % both_dir_expl_count + \
