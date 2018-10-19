@@ -696,9 +696,9 @@ if __name__ == '__main__':
                         help='-rstats <mean> <stdev> | Provide a value of the '
         'mean and standard deviation for the RNAi data instead of calculating '
         'it from the full data set.')
-    parser.add_argument('-noweb', '--no-web-files', type=bool,
-                        action='store_false', help='With the flag active, '
-        'no output files aimed for web services are produced')
+    parser.add_argument('-noweb', '--no-web-files', action='store_false',
+                        help='With the flag active, no output files aimed for '
+        'web services are produced')
     a = parser.parse_args()
 
     with open(a.outbasename+'dep_map_script_log{}.log'.format(
