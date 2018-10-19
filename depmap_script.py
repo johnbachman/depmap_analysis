@@ -568,19 +568,21 @@ def main(args):
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
         nest_d=explained_nested_dict)
 
-    # 'explained_nodes' are used to produce first drop down
-    explained_nodes = list(nx_expl_dir_graph.nodes)
-    logger.info('Dumping json "explainable_ids.json" for first dropdown.')
-    _dump_it_to_json('explainable_ids.json', explained_nodes)
+    if not args.noweb:
+        # 'explained_nodes' are used to produce first drop down
+        explained_nodes = list(nx_expl_dir_graph.nodes)
+        logger.info('Dumping json "explainable_ids.json" for first dropdown.')
+        _dump_it_to_json('explainable_ids.json', explained_nodes)
 
-    # Get undir graph and save each neighbor lookup as json for 2nd dropdown
-    nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
-    dnf.nx_undir_to_neighbor_lookup_json(expl_undir_graph=nx_expl_undir_graph)
+        # Get undir graph and save each neighbor lookup as json for 2nd dropdown
+        nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
+        dnf.nx_undir_to_neighbor_lookup_json(expl_undir_graph=nx_expl_undir_graph)
 
-    _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
-                           nested_dict=explained_nested_dict,
-                           header=['gene1', 'gene2',
-                                   'crispr_corr', 'rnai_corr'])
+        _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
+                               nested_dict=explained_nested_dict,
+                               header=['gene1', 'gene2',
+                                       'crispr_corr', 'rnai_corr'])
+
     _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
                        pyobj=explained_nested_dict)
     headers = ['subj', 'obj', 'crispr_corr', 'rnai_corr', 'type', 'X']
@@ -693,6 +695,9 @@ if __name__ == '__main__':
                         help='-rstats <mean> <stdev> | Provide a value of the '
         'mean and standard deviation for the RNAi data instead of calculating '
         'it from the full data set.')
+    parser.add_argument('-noweb', '--no-web-files', type=bool,
+                        action='store_false', help='With the flag active, '
+        'no output files aimed for web services are produced')
     a = parser.parse_args()
 
     with open(a.outbasename+'dep_map_script_log{}.log'.format(
