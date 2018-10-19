@@ -505,7 +505,8 @@ def main(args):
     long_string += '-' * 63 + '\n'
     long_string += 'Summary for matching INDRA network to correlation pairs:'\
                    + '\n\n'
-    long_string += '> Total number of pairs checked: %i' % npairs + '\n'
+    long_string += '> Total number of correlation pairs checked: %i' % npairs\
+                   + '\n'
     if args.verbosity:
         long_string += '> Skipped %i empty doublets in corr dict\n' % skipped
 
