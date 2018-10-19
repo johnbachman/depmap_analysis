@@ -975,7 +975,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
 def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
                      strict, dump_unique_pairs, outbasename, sigma_dict,
-                     lower_limit=1.0, upper_limit=50.0):
+                     lower_limit=1.0, upper_limit=None):
     # todo make function take data dict as input or use args* + kwargs**
     """Return correlation data, filtered gene sets and gene id translation
     dictionaries given a depmap gene data file
@@ -997,9 +997,11 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
         is None).
     lower_limit: float
         Smallest distance from correlation mean to consider
-    upper_limit: float
+    upper_limit: float or None
         Largest distance from correlation mean to consider (Good for picking a
-        sample in the middle of the correlation distribution).
+        sample in the middle of the correlation distribution). If None,
+        there is no upper bound, i.e. all pairs with correlation == 1.0
+        are considered.
 
     Returns
     -------
@@ -1026,9 +1028,14 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
 
     if dump_unique_pairs:
-        if lower_limit == 0.0 and upper_limit >= (1.0 - sigma_dict['mean']) / \
-                sigma_dict['sigma']:
+        if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
+        sigma_dict['mean']) / sigma_dict['sigma']):
             fname = outbasename + '_all_unique_correlation_pairs.csv'
+        elif lower_limit > 0.0 and (upper_limit is None or upper_limit >= (
+                1.0 - sigma_dict['mean']) / sigma_dict['sigma']):
+            fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
+                    (str(lower_limit).replace('.', ''))
+
         else:
             fname = outbasename + '_unique_correlation_pairs_ll%s_ul%s.csv' % \
                     (str(lower_limit).replace('.', ''),
@@ -1116,8 +1123,8 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
     assert corr_matrix_df is not None
 
     # No filtering
-    if lower_limit == 0.0 and upper_limit >= (1.0 - sigma_dict['mean']) / \
-            sigma_dict['sigma']:
+    if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
+            sigma_dict['mean']) / sigma_dict['sigma']):
         dnf_logger.warning('No filtering is performed. Be aware of large RAM '
                           'usage.')
         return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
@@ -1152,9 +1159,10 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
     dnf_logger.info('Filtering correlations in range %.2f < abs(C-mu)/SD < '
                     '%.2f' % (lower_limit, upper_limit))
     # Filter by number of SD from mean
-    corr_matrix_df = corr_matrix_df[
-        abs(corr_matrix_df - mu) / sigma > lower_limit
-    ]
+    if lower_limit > 0.0:
+        corr_matrix_df = corr_matrix_df[
+            abs(corr_matrix_df - mu) / sigma > lower_limit
+        ]
     if upper_limit < (1.0 - mu) / sigma:
         corr_matrix_df = corr_matrix_df[
             abs(corr_matrix_df - mu) / sigma < upper_limit
