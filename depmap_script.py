@@ -518,16 +518,17 @@ def main(args):
                    'direct connecton' % tuple_dir_expl_count + \
                    '\n'
     long_string += '>    %i direct connections found (count A-B and B-A ' \
-                   'separately)' % both_dir_expl_count + '\n'
+                   'separately, including complexes)' % both_dir_expl_count + \
+                   '\n'
     long_string += '>    %i correlations have an explanation ' \
                    'involving and intermediate node (A-X-B).' \
                    % tuple_im_expl_count + '\n'
     long_string += '>    %i A->X->B or B->X->A connections found (one count ' \
                    'per direction)' % both_im_dir_expl_count + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
-                   'shared target (A->X<-B) ' % tuple_im_st_expl_count + '\n'
+                   'shared target (A->X<-B)' % tuple_im_st_expl_count + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
-                   'shared regulator' % tuple_im_sr_expl_count + '\n'
+                   'shared regulator (A<-X->B)' % tuple_im_sr_expl_count + '\n'
     long_string += '>    %i correlations have shared regulator as only ' \
                    'explanation' % tuple_sr_expl_only_count + '\n\n'
 
@@ -536,12 +537,12 @@ def main(args):
         long_string += '  RNAi data ' + '\n'
         long_string += '  ----------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
-        long_string += '> SD: %f\n\n' % stats_dict['rnai']['sigma']
-        long_string += '> lower bound: %.2f*SD = %.3f\n' % (
+        long_string += '> SD: %f\n' % stats_dict['rnai']['sigma']
+        long_string += '> lower bound: %.3f*SD = %.4f\n' % (
             args_dict['rnai']['ll'],
             args_dict['rnai']['ll']*stats_dict['rnai']['sigma']
         )
-        long_string += '> upper bound: %.2f*SD = %.3f\n' % (
+        long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
             args_dict['rnai']['ul'],
             args_dict['rnai']['ul'] * stats_dict['rnai']['sigma']
         )
@@ -550,11 +551,11 @@ def main(args):
         long_string += '  ------------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
         long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
-        long_string += '> lower bound: %.2f*SD = %.3f\n' % (
+        long_string += '> lower bound: %.3f*SD = %.4f\n' % (
             args_dict['crispr']['ll'],
             args_dict['crispr']['ll']*stats_dict['crispr']['sigma']
         )
-        long_string += '> upper bound: %.2f*SD = %.3f\n\n' % (
+        long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
             args_dict['crispr']['ul'],
             args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
         )
