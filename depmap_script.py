@@ -154,7 +154,7 @@ def main(args):
 
     if not filter_settings['filter_type'] and \
         args.crispr_data_file and \
-        args.rnai_data_file:
+            args.rnai_data_file:
         logger.info('No merge filter set. Output will be intersection of the '
                     'two data sets.')
 
@@ -576,7 +576,8 @@ def main(args):
 
         # Get undir graph and save each neighbor lookup as json for 2nd dropdown
         nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
-        dnf.nx_undir_to_neighbor_lookup_json(expl_undir_graph=nx_expl_undir_graph)
+        dnf.nx_undir_to_neighbor_lookup_json(
+            expl_undir_graph=nx_expl_undir_graph)
 
         _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
                                nested_dict=explained_nested_dict,
