@@ -180,8 +180,14 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
     'neighbor_lookup/' is used.
 
     """
-    if not os.path.isdir((outbasename+'/'+path_prefix).replace('//', '/')):
-        path = (outbasename+'/'+path_prefix).replace('//', '/')
+    if not os.path.isdir(
+            '/'.join(
+                (outbasename+'/'+path_prefix).replace('//', '/').split('/')[:-1]
+            )
+    ):
+        path = '/'.join(
+            (outbasename+'/'+path_prefix).replace('//', '/').split('/')[:-1]
+        )
         dnf_logger.info('Could not find path "%s", creating new directory.' %
                         path)
         os.makedirs(path)
