@@ -543,10 +543,11 @@ def main(args):
             args_dict['rnai']['ll'],
             args_dict['rnai']['ll']*stats_dict['rnai']['sigma']
         )
-        long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
-            args_dict['rnai']['ul'],
-            args_dict['rnai']['ul'] * stats_dict['rnai']['sigma']
-        )
+        if args_dict['rnai']['ul']:
+            long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
+                args_dict['rnai']['ul'],
+                args_dict['rnai']['ul'] * stats_dict['rnai']['sigma']
+            )
     if stats_dict.get('crispr'):
         long_string += '  CRISPR data ' + '\n'
         long_string += '  ------------' + '\n'
@@ -556,10 +557,11 @@ def main(args):
             args_dict['crispr']['ll'],
             args_dict['crispr']['ll']*stats_dict['crispr']['sigma']
         )
-        long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
-            args_dict['crispr']['ul'],
-            args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
-        )
+        if args_dict['crispr']['ul']:
+            long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
+                args_dict['crispr']['ul'],
+                args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
+            )
     long_string += '-' * 63 + '\n\n'
 
     logger.info('\n' + long_string)
