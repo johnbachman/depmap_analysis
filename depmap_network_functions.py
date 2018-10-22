@@ -199,7 +199,7 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
         for other_node in expl_undir_graph[node]:
             inner_dict = expl_undir_graph[node][other_node]
             nnnl.append([other_node, inner_dict['attr_dict']['correlation']])
-        _dump_it_to_json(fname=path+'neighbors_to_%s.json' % node,
+        _dump_it_to_json(fname=path+'/neighbors_to_%s.json' % node,
                          pyobj=nnnl)
     dnf_logger.info('Finished dumping node neighbor dicts to %s' % path)
 
