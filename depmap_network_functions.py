@@ -193,7 +193,7 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
         os.makedirs(path)
 
     dnf_logger.info('Dumping node neighbor dicts to "%s'
-                    'neighbors_to_NODENAME.json"' % path)
+                    '/neighbors_to_NODENAME.json"' % path)
     for node in expl_undir_graph.nodes:
         nnnl = []
         for other_node in expl_undir_graph[node]:
