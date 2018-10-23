@@ -1771,24 +1771,24 @@ def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
     return output.encode('ascii', 'ignore').decode('ascii')
 
 
-def dbc_load_statements(hgnc_ids):
+def dbc_load_statements(hgnc_syms):
     """Load statements where hgnc id is subject or object from indra.db.client
 
     Parameters
     ----------
-    hgnc_ids : iterable
-        An iterable containing HGNC ids
+    hgnc_syms : iterable
+        An iterable containing HGNC symbols
 
     Returns
     -------
     stmts : set{:py:class:`indra.statements.Statement`}
-        A set of all retrieved INDRA statemetents containing HGNC id
+        A set of all retrieved INDRA statemetents containing HGNC symbols
     """
     stmts = set()
     counter = 0
-    n_hgnc_ids = len(hgnc_ids)
+    n_hgnc_ids = len(hgnc_syms)
     try:
-        for hgnc_id in hgnc_ids:
+        for hgnc_id in hgnc_syms:
             stmts.update(dbc.get_statements_by_gene_role_type(agent_id=hgnc_id,
                                                               db=db_prim,
                                                               preassembled=
