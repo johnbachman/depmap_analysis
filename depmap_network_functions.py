@@ -251,9 +251,22 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
 
         # The statment with the highest belief score should
         # represent the edge (potentially multiple stmts per edge)
-        for typ, hsh_a, bs in ax_stmts:
+        # To get latest belief score: see indra_db.belief
+        for tup in ax_stmts:
+            assert len(tup) == 2 or len(tup) == 3
+            bs = 1
+            if len(tup) == 2:
+                typ, hsh_a = tup
+            elif len(tup) == 3:
+                typ, hsh_a, bs = tup
             ax_score_list.append(bs)
-        for typ, hsh_b, bs in xb_stmts:
+        for tup in xb_stmts:
+            assert len(tup) == 2 or len(tup) == 3
+            bs = 1
+            if len(tup) == 2:
+                typ, hsh_b = tup
+            elif len(tup) == 3:
+                typ, hsh_b, bs = tup
             xb_score_list.append(bs)
 
         # Rank by multiplying the best two belief scores for each edge
