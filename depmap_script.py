@@ -570,7 +570,7 @@ def main(args):
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
         nest_d=explained_nested_dict)
 
-    if not args.no_web_files:
+    if args.no_web_files:
         # 'explained_nodes' are used to produce first drop down
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
