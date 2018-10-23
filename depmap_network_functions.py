@@ -378,6 +378,7 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
                     has_belief = True
                 break
 
+    error_count = 0
     for subj in nest_d:
         if nest_d.get(subj):
             for obj in nest_d[subj]:
@@ -391,10 +392,15 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
                             try:
                                 bs = belief_dict[str(hsh)]
                             except KeyError:
-                                dnf_logger.warning('No entry found in belief '
-                                                   'dict for hash %s' %
-                                                   str(hsh))
                                 bs = 1
+                                error_count += 1
+                                if error_count < 50:
+                                    dnf_logger.warning('No entry found in '
+                                                       'belief dict for hash '
+                                                       '%s' % str(hsh))
+                                if error_count == 50:
+                                    dnf_logger.warning('Muting belief dict '
+                                                       'KeyError...')
                             t = (typ, hsh, bs)
                             inner_obj_b.append(t)
                     else:
@@ -402,6 +408,9 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
                     nx_dir_g.add_edge(u_of_edge=subj,
                                       v_of_edge=obj,
                                       attr_dict={'stmts': inner_obj_b})
+    if error_count > 100:
+        dnf_logger.warning('%i hashes did not have a mathcing key in belief '
+                           'dict' % error_count)
     return nx_dir_g
 
 
