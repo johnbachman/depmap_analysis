@@ -570,7 +570,7 @@ def main(args):
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
         nest_d=explained_nested_dict)
 
-    if args.no_web_files:
+    if not args.no_web_files:
         # 'explained_nodes' are used to produce first drop down
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
@@ -699,7 +699,7 @@ if __name__ == '__main__':
                         help='-rstats <mean> <stdev> | Provide a value of the '
         'mean and standard deviation for the RNAi data instead of calculating '
         'it from the full data set.')
-    parser.add_argument('-noweb', '--no-web-files', action='store_false',
+    parser.add_argument('-noweb', '--no-web-files', action='store_true',
                         help='With the flag active, no output files aimed for '
         'web services are produced')
     a = parser.parse_args()
