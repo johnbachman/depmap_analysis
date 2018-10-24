@@ -171,23 +171,21 @@ def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
 
 
 def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
-                                     path_prefix='neighbor_lookup/'):
+                                     neighbor_dir='neighbor_lookup/'):
     """Dumps one json dict per node in a undirected nx graph where entry is a
     json array containing all neighbors
 
     expl_undir_graph : nx.Graph
-    path_prefix : directory to put jsons in. Must be specified or the default
+    neighbor_dir : directory to put jsons in. Must be specified or the default
     'neighbor_lookup/' is used.
 
     """
     path = '/'.join(
-        (outbasename+'/'+path_prefix).replace('//', '/').split('/')[:-1]
-        )
-    if not os.path.isdir(
-            '/'.join(
-                (outbasename+'/'+path_prefix).replace('//', '/').split('/')[:-1]
-            )
-    ):
+        outbasename.replace('//', '/').split('/')[:-1]
+    ) + '/' + neighbor_dir
+    if '/' == path[0]:
+        path = path[1:]
+    if not os.path.isdir(path):
         dnf_logger.info('Could not find path "%s", creating new directory.' %
                         path)
         os.makedirs(path)
