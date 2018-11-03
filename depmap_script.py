@@ -24,6 +24,13 @@ logger = logging.getLogger('depmap_script')
 # 3. geneset loaded, strict -> each correlation can only contain genes from
 #    the loaded data set
 
+global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
+    both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
+    tuple_im_st_expl_count, tuple_im_sr_expl_count, \
+    tuple_sr_expl_only_count, explained_pairs, explained_neg_pairs, \
+    unexplained, explained_nested_dict, id1, id2, nested_dict_statements, \
+    corr_dict, avg_corr, dir_node_set, nx_dir_graph
+
 
 def _dump_it_to_pickle(fname, pyobj):
     with open(fname, 'wb') as po:
@@ -135,7 +142,211 @@ def _arg_dict(args_struct):
     return args_dict
 
 
+def loop_body(args):
+
+    global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
+        both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
+        tuple_im_st_expl_count, tuple_im_sr_expl_count, \
+        tuple_sr_expl_only_count, explained_pairs, explained_neg_pairs,\
+        unexplained, explained_nested_dict, id1, id2, nested_dict_statements,\
+        corr_dict, avg_corr, dir_node_set, nx_dir_graph
+
+    # Store bool(s) for found connection (either A-B or A-X-B)
+    found = set()  # Flag anythin found
+    dir_found = False  # Flag direct/complex connection
+    im_found = False  # Flag intermediate connections
+    sr_found = False  # Flag shared regulator connection
+    not_sr_found = False  # Flag any non shared regulator connection
+
+    for subj, obj in itt.permutations((id1, id2), r=2):
+        if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
+            both_dir_expl_count += 1
+
+            # Get the statements
+            stmts = nested_dict_statements[subj][obj]
+
+            # check if directed, put in the explained nested dict
+            dir_stmts, undir_stmts = dnf.get_directed(stmts)
+            explained_nested_dict[subj][obj]['directed'] = dir_stmts
+            explained_nested_dict[subj][obj]['undirected'] = undir_stmts
+
+            if args.verbosity:
+                logger.info('Found direct connection between %s and '
+                            '%s' % (subj, obj))
+            found.add(True)
+            dir_found = True
+            not_sr_found = True
+            stmt_tuple = (subj, obj, corr_dict['crispr'],
+                          corr_dict['rnai'], 'direct', [])
+            explained_pairs.append(stmt_tuple)
+
+            if avg_corr < 0:
+                explained_neg_pairs.append(stmt_tuple)
+                # f_neg_c.write(output)
+
+        # Checking 1. "pathway": A -> X -> B and B -> X -> A
+        if subj in dir_node_set and obj in dir_node_set:
+            dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
+                                  set(nx_dir_graph.pred[obj]))
+            if dir_path_nodes:
+                found.add(True)
+                im_found = True
+                not_sr_found = True
+                both_im_dir_expl_count += 1
+                if args.verbosity:
+                    logger.info('Found directed path of length 2 '
+                                'between %s and %s' % (subj, obj))
+
+                dir_path_nodes_wb = dnf.rank_nodes(
+                    node_list=dir_path_nodes,
+                    nested_dict_stmts=nested_dict_statements,
+                    gene_a=subj,
+                    gene_b=obj,
+                    x_type='x_is_intermediary')
+
+                explained_nested_dict[subj][obj]['x_is_intermediary'] \
+                    = dir_path_nodes_wb
+                stmt_tuple = (subj, obj, corr_dict['crispr'],
+                              corr_dict['rnai'], 'pathway',
+                              dir_path_nodes_wb)
+                explained_pairs.append(stmt_tuple)
+                if avg_corr < 0:
+                    explained_neg_pairs.append(stmt_tuple)
+            else:
+                found.add(False)
+
+        else:
+            found.add(False)
+
+    if id1 in dir_node_set and id2 in dir_node_set:
+        # Checking 2: share target/coregulator A -> X <- B
+        downstream_share = list(set(nx_dir_graph.succ[id1]) &
+                                set(nx_dir_graph.succ[id2]))
+        # Checking 3: No correlator A <- X -> B
+        upstream_share = list(set(nx_dir_graph.pred[id1]) &
+                              set(nx_dir_graph.pred[id2]))
+        if downstream_share:
+            found.add(True)
+            im_found = True
+            not_sr_found = True
+            tuple_im_st_expl_count += 1
+            downstream_share_wb = dnf.rank_nodes(
+                node_list=downstream_share,
+                nested_dict_stmts=nested_dict_statements,
+                gene_a=id1,
+                gene_b=id2,
+                x_type='x_is_downstream')
+            stmt_tuple = (id1, id2, corr_dict['crispr'],
+                          corr_dict['rnai'], 'shared_target',
+                          downstream_share_wb)
+            if args.verbosity:
+                logger.info('Found downstream share: %s and %s share '
+                            '%i targets' %
+                            (id1, id2, len(downstream_share)))
+            explained_nested_dict[id1][id2]['x_is_downstream'] = \
+                downstream_share_wb
+            explained_nested_dict[id2][id1]['x_is_downstream'] = \
+                downstream_share_wb
+            explained_pairs.append(stmt_tuple)
+            if avg_corr < 0:
+                explained_neg_pairs.append(stmt_tuple)
+
+        if upstream_share:
+            found.add(True)
+            im_found = True
+            sr_found = True
+            tuple_im_sr_expl_count += 1
+            upstream_share_wb = dnf.rank_nodes(
+                node_list=upstream_share,
+                nested_dict_stmts=nested_dict_statements,
+                gene_a=id1,
+                gene_b=id2,
+                x_type='x_is_upstream')
+            stmt_tuple = (id1, id2, corr_dict['crispr'],
+                          corr_dict['rnai'], 'shared_upstream',
+                          upstream_share_wb)
+            if args.verbosity:
+                logger.info('Found upstream share: %s and %s are both '
+                            'directly downstream of %i nodes' %
+                            (id1, id2, len(upstream_share)))
+            explained_nested_dict[id1][id2]['x_is_upstream'] = \
+                upstream_share_wb
+            explained_nested_dict[id2][id1]['x_is_upstream'] = \
+                upstream_share_wb
+            explained_pairs.append(stmt_tuple)
+            if avg_corr < 0:
+                explained_neg_pairs.append(stmt_tuple)
+
+        if not downstream_share and not upstream_share:
+            found.add(False)
+    else:
+        found.add(False)
+
+    # Make sure the connection types we didn't find are empty lists.
+    # Also add correlation so it can be queried for at the same time
+    # as the items for the second drop down.
+    if any(found):
+        # Any explanation found
+        any_expl += 1
+
+        # Count A-B or B-A connections found per set(A,B)
+        if dir_found:
+            tuple_dir_expl_count += 1
+
+        # Count A-X-B connections found per set(A,B)
+        if im_found:
+            tuple_im_expl_count += 1
+
+        # Count non shared regulators found
+        if not_sr_found:
+            any_expl_not_sr += 1
+
+        # Count only shared regulators found
+        if sr_found and not not_sr_found:
+            tuple_sr_expl_only_count += 1
+
+        for s, o in itt.permutations((id1, id2), r=2):
+            # Correlation
+            explained_nested_dict[s][o]['correlations'] = corr_dict
+            # Directed
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'directed'):
+                explained_nested_dict[s][o]['directed'] = []
+            # Undirected
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'undirected'):
+                explained_nested_dict[s][o]['undirected'] = []
+            # x_is_intermediary
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'x_is_intermediary'):
+                explained_nested_dict[s][o]['x_is_intermediary'] = []
+            # x_is_upstream
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'x_is_upstream'):
+                explained_nested_dict[s][o]['x_is_upstream'] = []
+            # x_is_downstream
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'x_is_downstream'):
+                explained_nested_dict[s][o]['x_is_downstream'] = []
+
+    # any(found) is True if at least one connection was found and
+    # therefore "not any" is only True when no connection was found
+    if not any(found):
+        unexplained.append((id1, id2, corr_dict['crispr'],
+                            corr_dict['rnai']))
+        if args.verbosity and args.verbosity > 1:
+            logger.info('No explainable path found between %s and '
+                        '%s.' % (id1, id2))
+
+
 def main(args):
+
+    global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
+        both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
+        tuple_im_st_expl_count, tuple_im_sr_expl_count, \
+        tuple_sr_expl_only_count, explained_pairs, explained_neg_pairs,\
+        unexplained, explained_nested_dict, id1, id2, nested_dict_statements,\
+        corr_dict, avg_corr, dir_node_set, nx_dir_graph
 
     # Check if belief dict is provided
     if not args.belief_score_dict and not args.nested_dict_in:
@@ -167,6 +378,19 @@ def main(args):
     npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
         fname=args.outbasename+'_merged_corr_pairs.csv',
         nest_dict=master_corr_dict)
+
+    # Begin here for random gene pair sampling
+    # For counters use:
+    # a = 2
+    # def for_loop_body():
+    #     global a
+    #     a += 1
+    # if dict:
+    #     for pairs in dict:
+    #         for_loop_body(args)
+    # elif random:
+    #     for random pair:
+    #         for_loop_body(args)
 
     if args.geneset_file:
         gene_filter_list = None
@@ -297,7 +521,7 @@ def main(args):
                 'correlation dict)' % npairs)
 
     skipped = 0
-
+    # if : loop dictionary
     for outer_id, do in master_corr_dict.items():
         for inner_id, corr_dict in do.items():
             if len(corr_dict.keys()) == 0:
@@ -314,193 +538,10 @@ def main(args):
             # Take the average correlation so it
             avg_corr = sum(avg_corrs)/len(avg_corrs)
             id1, id2 = outer_id, inner_id
+            loop_body(args)
+    # elif : loop random pairs from data set
+            loop_body(args)
 
-            # Store bool(s) for found connection (either A-B or A-X-B)
-            found = set()  # Flag anythin found
-            dir_found = False  # Flag direct/complex connection
-            im_found = False  # Flag intermediate connections
-            sr_found = False  # Flag shared regulator connection
-            not_sr_found = False  # Flag any non shared regulator connection
-
-            for subj, obj in itt.permutations((id1, id2), r=2):
-                if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
-                    both_dir_expl_count += 1
-
-                    # Get the statements
-                    stmts = nested_dict_statements[subj][obj]
-
-                    # check if directed, put in the explained nested dict
-                    dir_stmts, undir_stmts = dnf.get_directed(stmts)
-                    explained_nested_dict[subj][obj]['directed'] = dir_stmts
-                    explained_nested_dict[subj][obj]['undirected'] = undir_stmts
-
-                    if args.verbosity:
-                        logger.info('Found direct connection between %s and '
-                                    '%s' % (subj, obj))
-                    found.add(True)
-                    dir_found = True
-                    not_sr_found = True
-                    stmt_tuple = (subj, obj, corr_dict['crispr'],
-                                  corr_dict['rnai'], 'direct', [])
-                    explained_pairs.append(stmt_tuple)
-
-                    if avg_corr < 0:
-                        explained_neg_pairs.append(stmt_tuple)
-                        # f_neg_c.write(output)
-
-                # Checking 1. "pathway": A -> X -> B and B -> X -> A
-                if subj in dir_node_set and obj in dir_node_set:
-                    dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
-                                          set(nx_dir_graph.pred[obj]))
-                    if dir_path_nodes:
-                        found.add(True)
-                        im_found = True
-                        not_sr_found = True
-                        both_im_dir_expl_count += 1
-                        if args.verbosity:
-                            logger.info('Found directed path of length 2 '
-                                        'between %s and %s' % (subj, obj))
-
-                        dir_path_nodes_wb = dnf.rank_nodes(
-                            node_list=dir_path_nodes,
-                            nested_dict_stmts=nested_dict_statements,
-                            gene_a=subj,
-                            gene_b=obj,
-                            x_type='x_is_intermediary')
-
-                        explained_nested_dict[subj][obj]['x_is_intermediary']\
-                            = dir_path_nodes_wb
-                        stmt_tuple = (subj, obj, corr_dict['crispr'],
-                                      corr_dict['rnai'], 'pathway',
-                                      dir_path_nodes_wb)
-                        explained_pairs.append(stmt_tuple)
-                        if avg_corr < 0:
-                            explained_neg_pairs.append(stmt_tuple)
-                    else:
-                        found.add(False)
-
-                else:
-                    found.add(False)
-
-            if id1 in dir_node_set and id2 in dir_node_set:
-                # Checking 2: share target/coregulator A -> X <- B
-                downstream_share = list(set(nx_dir_graph.succ[id1]) &
-                                        set(nx_dir_graph.succ[id2]))
-                # Checking 3: No correlator A <- X -> B
-                upstream_share = list(set(nx_dir_graph.pred[id1]) &
-                                      set(nx_dir_graph.pred[id2]))
-                if downstream_share:
-                    found.add(True)
-                    im_found = True
-                    not_sr_found = True
-                    tuple_im_st_expl_count += 1
-                    downstream_share_wb = dnf.rank_nodes(
-                        node_list=downstream_share,
-                        nested_dict_stmts=nested_dict_statements,
-                        gene_a=id1,
-                        gene_b=id2,
-                        x_type='x_is_downstream')
-                    stmt_tuple = (id1, id2, corr_dict['crispr'], 
-                                  corr_dict['rnai'], 'shared_target',
-                                  downstream_share_wb)
-                    if args.verbosity:
-                        logger.info('Found downstream share: %s and %s share '
-                                    '%i targets' %
-                                    (id1, id2, len(downstream_share)))
-                    explained_nested_dict[id1][id2]['x_is_downstream'] = \
-                        downstream_share_wb
-                    explained_nested_dict[id2][id1]['x_is_downstream'] = \
-                        downstream_share_wb
-                    explained_pairs.append(stmt_tuple)
-                    if avg_corr < 0:
-                        explained_neg_pairs.append(stmt_tuple)
-
-                if upstream_share:
-                    found.add(True)
-                    im_found = True
-                    sr_found = True
-                    tuple_im_sr_expl_count += 1
-                    upstream_share_wb = dnf.rank_nodes(
-                        node_list=upstream_share,
-                        nested_dict_stmts=nested_dict_statements,
-                        gene_a=id1,
-                        gene_b=id2,
-                        x_type='x_is_upstream')
-                    stmt_tuple = (id1, id2, corr_dict['crispr'], 
-                                  corr_dict['rnai'], 'shared_upstream',
-                                  upstream_share_wb)
-                    if args.verbosity:
-                        logger.info('Found upstream share: %s and %s are both '
-                                    'directly downstream of %i nodes' %
-                                    (id1, id2, len(upstream_share)))
-                    explained_nested_dict[id1][id2]['x_is_upstream'] = \
-                        upstream_share_wb
-                    explained_nested_dict[id2][id1]['x_is_upstream'] = \
-                        upstream_share_wb
-                    explained_pairs.append(stmt_tuple)
-                    if avg_corr < 0:
-                        explained_neg_pairs.append(stmt_tuple)
-
-                if not downstream_share and not upstream_share:
-                    found.add(False)
-            else:
-                found.add(False)
-
-            # Make sure the connection types we didn't find are empty lists.
-            # Also add correlation so it can be queried for at the same time
-            # as the items for the second drop down.
-            if any(found):
-                # Any explanation found
-                any_expl += 1
-
-                # Count A-B or B-A connections found per set(A,B)
-                if dir_found:
-                    tuple_dir_expl_count += 1
-
-                # Count A-X-B connections found per set(A,B)
-                if im_found:
-                    tuple_im_expl_count += 1
-
-                # Count non shared regulators found
-                if not_sr_found:
-                    any_expl_not_sr += 1
-
-                # Count only shared regulators found
-                if sr_found and not not_sr_found:
-                    tuple_sr_expl_only_count += 1
-
-                for s, o in itt.permutations((id1, id2), r=2):
-                    # Correlation
-                    explained_nested_dict[s][o]['correlations'] = corr_dict
-                    # Directed
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                            'directed'):
-                        explained_nested_dict[s][o]['directed'] = []
-                    # Undirected
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                            'undirected'):
-                        explained_nested_dict[s][o]['undirected'] = []
-                    # x_is_intermediary
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                        'x_is_intermediary'):
-                        explained_nested_dict[s][o]['x_is_intermediary'] = []
-                    # x_is_upstream
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                        'x_is_upstream'):
-                        explained_nested_dict[s][o]['x_is_upstream'] = []
-                    # x_is_downstream
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                        'x_is_downstream'):
-                        explained_nested_dict[s][o]['x_is_downstream'] = []
-
-            # any(found) is True if at least one connection was found and
-            # therefore "not any" is only True when no connection was found
-            if not any(found):
-                unexplained.append((id1, id2, corr_dict['crispr'],
-                                    corr_dict['rnai']))
-                if args.verbosity and args.verbosity > 1:
-                    logger.info('No explainable path found between %s and '
-                                '%s.' % (id1, id2))
     long_string = ''
     long_string += '-' * 63 + '\n'
     long_string += 'Summary for matching INDRA network to correlation pairs:'\
