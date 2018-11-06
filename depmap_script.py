@@ -606,7 +606,7 @@ def main(args):
                    'explanation' % tuple_sr_expl_only_count + '\n\n'
 
     long_string += 'Statistics of input data:' + '\n\n'
-    if stats_dict.get('rnai'):
+    if stats_dict and stats_dict.get('rnai'):
         long_string += '  RNAi data ' + '\n'
         long_string += '  ----------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
@@ -620,7 +620,7 @@ def main(args):
                 args_dict['rnai']['ul'],
                 args_dict['rnai']['ul'] * stats_dict['rnai']['sigma']
             )
-    if stats_dict.get('crispr'):
+    if stats_dict and stats_dict.get('crispr'):
         long_string += '  CRISPR data ' + '\n'
         long_string += '  ------------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
@@ -634,6 +634,9 @@ def main(args):
                 args_dict['crispr']['ul'],
                 args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
             )
+    if not stats_dict:
+        long_string += '  (No Stats - Correlation pairs were randomly ' \
+                       'selected)' + '\n\n'
     long_string += '-' * 63 + '\n\n'
 
     logger.info('\n' + long_string)
