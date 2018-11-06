@@ -20,7 +20,7 @@ from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
-from indra.sources.indra_db_rest.client_api import IndraDBRestError
+from indra.sources.indra_db_rest.client_api import IndraDBRestAPIError
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMapFunctions')
@@ -1960,7 +1960,7 @@ def direct_relation_from_api(id1, id2, on_limit='sample'):
     try:
         stmts = capi.get_statements(subject=id1, object=id2, on_limit=on_limit)
         stmts + capi.get_statements(subject=id2, object=id1, on_limit=on_limit)
-    except IndraDBRestError:
+    except IndraDBRestAPIError:
         stmts = capi.get_statements(subject=id1 + '@TEXT', object=id2 + '@TEXT',
                                     on_limit=on_limit)
         stmts + capi.get_statements(subject=id2 + '@TEXT', object=id1 + '@TEXT',
