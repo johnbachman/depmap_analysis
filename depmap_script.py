@@ -143,7 +143,7 @@ def _arg_dict(args_struct):
 
     if args_struct.sampling_gene_file:
         if not args_struct.max_pairs:
-            logger.error('Must specify a maximum number of pars for random '
+            logger.error('Must specify a maximum number of pairs for random '
                          'sampling')
             raise ValueError
         args_dict['sampling_gene_file'] = args_struct.sampling_gene_file
@@ -538,7 +538,7 @@ def main(args):
     logger.info('Looking for connections between %i pairs' % (npairs if
                                                               npairs > 0 else
                                                               args.max_pairs))
-    if not args_dict.get('sampling_gene_file'):
+    if args_dict.get('rnai') or args_dict.get('crispr'):
         for outer_id, do in master_corr_dict.items():
             for inner_id, corr_dict in do.items():
                 if len(corr_dict.keys()) == 0:
@@ -634,9 +634,6 @@ def main(args):
                 args_dict['crispr']['ul'],
                 args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
             )
-    if not stats_dict:
-        long_string += '  (No Stats - Correlation pairs were randomly ' \
-                       'selected)' + '\n\n'
     long_string += '-' * 63 + '\n\n'
 
     logger.info('\n' + long_string)
