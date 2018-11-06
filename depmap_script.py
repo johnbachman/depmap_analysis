@@ -10,6 +10,7 @@ import itertools as itt
 from numpy import float64
 from time import time, strftime
 from collections import defaultdict
+from random import choice as rnd_choice
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 from depmap_network_functions import create_nested_dict as nest_dict
@@ -365,65 +366,6 @@ def main(args):
                      '`-ndi (--nested-dict-in)` argument.')
         raise FileNotFoundError
 
-    filter_settings = {'margin': args.margin,
-                       'filter_type':
-                       (args.filter_type if
-                        args.filter_type in ['sigma-diff', 'corr-corr-corr']
-                        else None)
-                       }
-
-    if not filter_settings['filter_type'] and \
-        args.crispr_data_file and \
-            args.rnai_data_file:
-        logger.info('No merge filter set. Output will be intersection of the '
-                    'two data sets.')
-
-    args_dict = _arg_dict(args)
-
-    master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
-        dict_of_data_sets=args_dict, filter_settings=filter_settings)
-
-    # Count pairs in merged correlation dict
-    npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
-        fname=args.outbasename+'_merged_corr_pairs.csv',
-        nest_dict=master_corr_dict)
-
-    # Begin here for random gene pair sampling
-    # For counters use:
-    # a = 2
-    # def for_loop_body():
-    #     global a
-    #     a += 1
-    # if dict:
-    #     for pairs in dict:
-    #         for_loop_body(args)
-    # elif random:
-    #     for random pair:
-    #         for_loop_body(args)
-
-    if args.geneset_file:
-        gene_filter_list = None
-        if args_dict.get('crispr') and not args_dict.get('rnai'):
-            gene_filter_list = dnf._read_gene_set_file(
-                gf=args_dict['crispr']['filter_gene_set'],
-                data=args_dict['crispr']['data'])
-        elif args_dict.get('rnai') and not args_dict.get('crispr'):
-            gene_filter_list = dnf._read_gene_set_file(
-                    gf=args_dict['rnai']['filter_gene_set'],
-                    data=args_dict['crispr']['data'])
-        elif args_dict.get('crispr') and args_dict.get('rnai'):
-            gene_filter_list = \
-                set(dnf._read_gene_set_file(
-                    gf=args_dict['crispr']['filter_gene_set'],
-                    data=args_dict['crispr']['data'])) & \
-                set(dnf._read_gene_set_file(
-                    gf=args_dict['rnai']['filter_gene_set'],
-                    data=args_dict['crispr']['data']))
-        assert gene_filter_list is not None
-
-    else:
-        gene_filter_list = None
-
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
     if args.belief_score_dict:
@@ -431,6 +373,72 @@ def main(args):
             belief_dict = _json_open(args.belief_score_dict)
         elif args.belief_score_dict.endswith('.pkl'):
             belief_dict = _pickle_open(args.belief_score_dict)
+
+    args_dict = _arg_dict(args)
+    npairs = 0
+
+    # No random sampling
+    if not args_dict.get('sampling_gene_file'):
+        filter_settings = {'margin': args.margin,
+                           'filter_type':
+                           (args.filter_type if
+                            args.filter_type in ['sigma-diff', 'corr-corr-corr']
+                            else None)
+                           }
+
+        if not filter_settings['filter_type'] and \
+            args.crispr_data_file and \
+                args.rnai_data_file:
+            logger.info('No merge filter set. Output will be intersection of '
+                        'the two data sets.')
+
+        master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
+            dict_of_data_sets=args_dict, filter_settings=filter_settings)
+
+        # Count pairs in merged correlation dict and dum it
+        npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
+            fname=args.outbasename+'_merged_corr_pairs.csv',
+            nest_dict=master_corr_dict)
+
+        if args.geneset_file:
+            gene_filter_list = None
+            if args_dict.get('crispr') and not args_dict.get('rnai'):
+                gene_filter_list = dnf._read_gene_set_file(
+                    gf=args_dict['crispr']['filter_gene_set'],
+                    data=args_dict['crispr']['data'])
+            elif args_dict.get('rnai') and not args_dict.get('crispr'):
+                gene_filter_list = dnf._read_gene_set_file(
+                        gf=args_dict['rnai']['filter_gene_set'],
+                        data=args_dict['crispr']['data'])
+            elif args_dict.get('crispr') and args_dict.get('rnai'):
+                gene_filter_list = \
+                    set(dnf._read_gene_set_file(
+                        gf=args_dict['crispr']['filter_gene_set'],
+                        data=args_dict['crispr']['data'])) & \
+                    set(dnf._read_gene_set_file(
+                        gf=args_dict['rnai']['filter_gene_set'],
+                        data=args_dict['crispr']['data']))
+            assert gene_filter_list is not None
+
+        else:
+            gene_filter_list = None
+
+    else:
+        stats_dict = None
+
+    # # Begin here for random gene pair sampling
+    # # For counter variables, use:
+    # a = 2
+    # def for_loop_body():
+    #     global a
+    #     a += 1
+    # # Then loop like:
+    # if dict:
+    #     for pairs in dict:
+    #         for_loop_body(args)
+    # elif random:
+    #     for random pair:
+    #         for_loop_body(args)
 
     # LOADING INDRA STATEMENTS
     # Get statements from file or from database that contain any gene from
@@ -527,29 +535,42 @@ def main(args):
     # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
     #         open(args.outbasename + '_neg_conn_latex.tex', 'w') as f_neg_c:
 
-    logger.info('Looking for connections between %i pairs (pairs in master '
-                'correlation dict)' % npairs)
+    logger.info('Looking for connections between %i pairs' % (npairs if
+                                                              npairs > 0 else
+                                                              args.max_pairs))
+    if not args_dict.get('sampling_gene_file'):
+        for outer_id, do in master_corr_dict.items():
+            for inner_id, corr_dict in do.items():
+                if len(corr_dict.keys()) == 0:
+                    skipped += 1
+                    if args.verbosity:
+                        logger.info('Skipped outer_id=%s and inner_id=%s' %
+                                (outer_id, inner_id))
+                    continue
 
-    skipped = 0
-    # if : loop dictionary
-    for outer_id, do in master_corr_dict.items():
-        for inner_id, corr_dict in do.items():
-            if len(corr_dict.keys()) == 0:
-                skipped += 1
-                if args.verbosity:
-                    logger.info('Skipped outer_id=%s and inner_id=%s' %
-                            (outer_id, inner_id))
-                continue
+                avg_corrs = []
+                for set_name in corr_dict:
+                    avg_corrs.append(corr_dict[set_name])
 
-            avg_corrs = []
-            for set_name in corr_dict:
-                avg_corrs.append(corr_dict[set_name])
-
-            # Take the average correlation so it
-            avg_corr = sum(avg_corrs)/len(avg_corrs)
-            id1, id2 = outer_id, inner_id
-            loop_body(args)
+                # Take the average correlation so it
+                avg_corr = sum(avg_corrs)/len(avg_corrs)
+                id1, id2 = outer_id, inner_id
+                loop_body(args)
     # elif : loop random pairs from data set
+    elif args_dict.get('sampling_gene_file'):
+        with open(args_dict['sampling_gene_file'], 'r') as fi:
+            rnd_gene_set = [l.strip() for l in fi.readlines()]
+
+            def rnd_pair_gen(rgs):
+                return rnd_choice(rgs), rnd_choice(rgs)
+
+        npairs = args.max_pairs
+        avg_corr = 0
+        corr_dict = {'rnai': 0, 'crispr': 0}
+
+        for _ in range(npairs):
+            id1, id2 = rnd_pair_gen(rnd_gene_set)
+            assert not isinstance(id1, list)
             loop_body(args)
 
     long_string = ''
