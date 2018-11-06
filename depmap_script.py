@@ -96,8 +96,10 @@ def _corr_web_latex(id1, id2, fmtcorr):
 def _arg_dict(args_struct):
     args_dict = dnf.create_nested_dict()
 
-    if not args_struct.crispr_data_file and not args_struct.rnai_data_file:
-        logger.error('Must provide at least one data set!')
+    if not args_struct.crispr_data_file and not args_struct.rnai_data_file \
+            and not args_struct.sampling_genes_file:
+        logger.error('Must provide at least one data set or a gene file for '
+                     'random sampling!')
         raise FileNotFoundError
 
     # CRISPR
@@ -137,6 +139,9 @@ def _arg_dict(args_struct):
             args_struct.rnai_mean_sigma else None
         args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
         args_dict['rnai']['strict'] = args_struct.strict
+
+    if args_dict.sampling_genes_file:
+        args_dict['sampling_genes_file'] = args_struct.sampling_genes_file
 
     args_dict.default_factory = None
     return args_dict
@@ -655,12 +660,16 @@ if __name__ == '__main__':
                     '-lw: a csv file with  `gene,gene,stmt type,stmt hash`  as '
                     'columns.')
 
-    either_of = parser.add_argument_group('One of the following two arguments')
-    required_args = parser.add_argument_group('Required Arguments')
+    either_of = parser.add_argument_group('One of the following arguments:')
+    required_args = parser.add_argument_group('Required arguments:')
     required_args.add_argument('-cf', '--crispr-data-file',
                                help='CRISPR gene dependency data in csv format')
     required_args.add_argument('-rf', '--rnai-data-file',
                                help='RNAi gene dependency data in csv format')
+    required_args.add_argument('-sampl', '--sampling-genes-file',
+                               help='A file containing hgnc symbols that will '
+        'have pairs sampled from it at random. The pairs are then used to '
+        'generate statistics over the explanation ratio for random pairs.')
     either_of.add_argument('-b', '--belief-score-dict', help='Load a dict with '
         'stmt hash: belief score to be incorporated in the explainable '
         'network dict.')
@@ -683,7 +692,7 @@ if __name__ == '__main__':
         '`corr-corr-corr` - The product of the scaled correlations* must be '
         'greater than given by --margin. `None` - No filter is applied when '
         'merging the data sets. The resulting correlation dictionary will '
-        'simply be the intersection of the provided data sets. *Scaled '
+        'simply be the intersection of the provided data sets. | *Scaled '
         'Correlation = (corr-mean)/SD')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp.')
