@@ -97,7 +97,7 @@ def _arg_dict(args_struct):
     args_dict = dnf.create_nested_dict()
 
     if not args_struct.crispr_data_file and not args_struct.rnai_data_file \
-            and not args_struct.sampling_genes_file:
+            and not args_struct.sampling_gene_file:
         logger.error('Must provide at least one data set or a gene file for '
                      'random sampling!')
         raise FileNotFoundError
@@ -140,8 +140,12 @@ def _arg_dict(args_struct):
         args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
         args_dict['rnai']['strict'] = args_struct.strict
 
-    if args_dict.sampling_genes_file:
-        args_dict['sampling_genes_file'] = args_struct.sampling_genes_file
+    if args_struct.sampling_gene_file:
+        if not args_struct.max_pairs:
+            logger.error('Must specify a maximum number of pars for random '
+                         'sampling')
+            raise ValueError
+        args_dict['sampling_gene_file'] = args_struct.sampling_gene_file
 
     args_dict.default_factory = None
     return args_dict
@@ -491,6 +495,7 @@ def main(args):
     explained_pairs = []  # Saves all explanations
     explained_neg_pairs = []  # Saves all explanations with correlation < 0
     unexplained = []  # Unexplained correlations
+    skipped = 0
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
     # connection type or correlation).
@@ -660,13 +665,13 @@ if __name__ == '__main__':
                     '-lw: a csv file with  `gene,gene,stmt type,stmt hash`  as '
                     'columns.')
 
-    either_of = parser.add_argument_group('One of the following arguments:')
-    required_args = parser.add_argument_group('Required arguments:')
+    either_of = parser.add_argument_group('One of the following arguments')
+    required_args = parser.add_argument_group('Required arguments')
     required_args.add_argument('-cf', '--crispr-data-file',
                                help='CRISPR gene dependency data in csv format')
     required_args.add_argument('-rf', '--rnai-data-file',
                                help='RNAi gene dependency data in csv format')
-    required_args.add_argument('-sampl', '--sampling-genes-file',
+    required_args.add_argument('-sampl', '--sampling-gene-file',
                                help='A file containing hgnc symbols that will '
         'have pairs sampled from it at random. The pairs are then used to '
         'generate statistics over the explanation ratio for random pairs.')
