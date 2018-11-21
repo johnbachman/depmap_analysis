@@ -614,6 +614,34 @@ def _manually_add_to_histo(hist, start, binsize, value):
     hist[_map2index(start, binsize, value)] += 1
 
 
+def histogram_from_tuple_generator(tuple_gen, binsize, first,
+                                   number_of_bins=None):
+    """Returns a histogram for large data sets represented as tuple generators
+
+    tuple_gen : generator object
+        tuple_generator object that generates A, B, value tuples
+    number_of_bins: int
+        the number fo bins to use
+    binsize : float
+        the size of bins
+    first : float
+        The left most (min(x)) edge of the bin edges
+
+    Returns
+    -------
+    home_brewed_histo: np.array
+        A histrogram of the data in fpath according to number of bins,
+        binsize and first.
+    """
+    if number_of_bins is None:
+        number_of_bins = int(2*abs(first) / binsize)
+    home_brewed_histo = np.zeros(number_of_bins, dtype=int)
+    for g1, g1, flt in tuple_gen:
+        home_brewed_histo[_map2index(start=first, binsize=binsize,
+                                     value=flt)] += 1
+    return home_brewed_histo
+
+
 def _my_gauss(x, a, x0, sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
 
