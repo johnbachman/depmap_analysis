@@ -107,22 +107,23 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
     assert all_pairs != 0
 
-    if max_pairs and max_pairs >= all_pairs:
-        dnf_logger.info('The requested number of correlation pairs is larger '
-                        'than the available number of pairs. Resetting '
-                        '`max_pairs` to %i' % all_pairs)
-        corr_df_sample = corrrelation_df_matrix
+    if max_pairs:
+        if max_pairs >= all_pairs:
+            dnf_logger.info('The requested number of correlation pairs is larger '
+                            'than the available number of pairs. Resetting '
+                            '`max_pairs` to %i' % all_pairs)
+            corr_df_sample = corrrelation_df_matrix
 
-    elif max_pairs and max_pairs < all_pairs:
-        n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
-        corr_df_sample = corrrelation_df_matrix.sample(
-            n, axis=0).sample(n, axis=1)
-
-        # Increase sample until number of extractable pairs exceed max_pairs
-        while corr_df_sample.notna().sum().sum() <= max_pairs:
-            n += 1
+        elif max_pairs < all_pairs:
+            n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
             corr_df_sample = corrrelation_df_matrix.sample(
                 n, axis=0).sample(n, axis=1)
+
+            # Increase sample until number of extractable pairs exceed max_pairs
+            while corr_df_sample.notna().sum().sum() <= max_pairs:
+                n += 1
+                corr_df_sample = corrrelation_df_matrix.sample(
+                    n, axis=0).sample(n, axis=1)
 
         dnf_logger.info('Created a random sample of the correlation matrix '
                         'with %i extractable correlation pairs.'
@@ -649,7 +650,7 @@ def _my_gauss(x, a, x0, sigma):
 def get_stats(tuple_generator):
     """Get mean and standard deviation from large file with A,B-value pairs.
 
-    tuple_generator: tuple_generator
+    tuple_generator: generator object
         tuple_generator object that generates A, B, value tuples
 
     Returns
