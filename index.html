@@ -8,15 +8,19 @@
     <!-- LINKS -->
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
     <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.bootstrap3.css">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
 
     <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">-->
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
 
     <!-- Latest compiled and minified JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-    
+
 
     <!-- SCRIPTS -->
     <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
@@ -44,35 +48,19 @@
 </head>
 
 <body>
-   <!-- Fixed navbar -->
-    <nav class="navbar navbar-inverse navbar-fixed-top">
-      <div class="container">
-        <div class="navbar-header">
-          <!--
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>-->
-          <a class="navbar-brand" href="#">INDRA DepMap Explainer</a>
-        </div>
-      </div>
-    </nav>
 
     <div class="container theme-showcase" role="main">
-    <div>
-        <p>&nbsp;
-    </div>
 
+    <h2 class=display-1">INDRA DepMap Explainer</h2>
 
-    <div class="panel panel-default">
-        <div class="panel-heading"><h3>Gene Selection</h3></div>
+    <div class="card">
+        <h4 class="card-header">Gene Selection</h4>
+        <div class="card-body">
         <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.<br><br><i>NOTE: Complexes are treated as undirected connections (i.e. there is no subject and object) and may appear in the output for intermediary connections of the type A-X-B.</i></p>
 
         <form>
         <div class="form-group row">
-            <label class="col-sm-1 col-form-label" style="text-align: right; vertical-align: middle"
+            <label class="col-sm-2 col-form-label" style="text-align: right; vertical-align: middle"
                 for="select_first_gene">Gene A</label>
             <div class="col-sm-4">
                 <div class="dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
@@ -81,7 +69,7 @@
             </div>
         </div>
         <div class="form-group row">
-            <label class="col-sm-1 col-form-label" style="text-align: right; vertical-align: middle"
+            <label class="col-sm-2 col-form-label" style="text-align: right; vertical-align: middle"
                 for="select_second_gene">Gene B</label>
             <div class="col-sm-4">
                 <div class="dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
@@ -89,14 +77,22 @@
                 </div>
             </div>
         </div>
+        <div class="form-group row">
+        <div class="col-sm-2"></div>
+        <ul class="nav nav-pills col-sm-4">
+            <li class="nav-item"><a class="nav-link" target="_blank"
+                    id="show_correlation">Correlation plot <i class="fas fa-external-link-square-alt"></i></a></li>
+        </ul>
+        </div>
         </form>
+    </div>
+    </div>
 
     <!--
         <div id="output_A_B">
             <h4>Selection</h4>
             <div id="my_outputA">Gene A:</div>
             <div id="my_outputB">Gene B:</div>
-            <h4 id="show_correlation">Link to depmap plot for geneA vs geneB (<i>correlation</i>)</h4>
         </div>
     -->
     </div>

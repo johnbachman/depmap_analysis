@@ -322,12 +322,14 @@ $(function(){
                     correlation_AB = res[geneB]
 
                     var correlation_output = $("#show_correlation")[0];
-                    correlation_output.innerHTML = null;
-                    var correlation_output_element = document.createElement("a")
-                    var linkText = document.createTextNode("Link to depmap plot")
-                    correlation_output_element.appendChild(linkText);
-                    correlation_output_element.title = "Link to depmap plot for " + geneA + " vs " + geneB
-                    correlation_output_element.href = depmap1 + geneA + depmap2 + geneB + depmap3
+                    //correlation_output.innerHTML = null;
+                    //var correlation_output_element = document.createElement("a")
+                    //var linkText = document.createTextNode("Link to depmap plot")
+                    //correlation_output_element.appendChild(linkText);
+                    //correlation_output_element.title = "Link to depmap plot for " + geneA + " vs " + geneB
+                    //correlation_output_element.href = depmap1 + geneA + depmap2 + geneB + depmap3
+                    correlation_output.href = depmap1 + geneA + depmap2 + geneB + depmap3
+                    correlation_output.class = "nav-link active"
                     if (isNumeric(correlation_AB)) {
                         correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " (" + parseFloat(correlation_AB).toFixed(3).toString() + ")" // DECIMAL PLACES IN CORRELATION
                     } else {
