@@ -38,7 +38,7 @@ with open(args.pickle_file, 'rb') as pr:
     nest_dict = pkl.load(file=pr)
 
 # Create nested dict
-nest_dict_out = dnf.nest_dict()
+nest_dict_out = dnf.create_nested_dict()
 
 # Convert hash to strings
 for s, inner_d in nest_dict.items():

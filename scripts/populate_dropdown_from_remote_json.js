@@ -769,6 +769,8 @@ $(function(){
                     hash = stmt_hash_array[k]
                     type = uuid_stmtjson_dict[uuid].type
                     eng_plain = eng_array[k].sentences[uuid]
+                    console.log("eng_plain");
+                    console.log(eng_plain);
                     uuid_hash_type_plain_array.push([uuid, hash, type, eng_plain])
                 }
 
