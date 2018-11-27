@@ -51,10 +51,10 @@
 
     <div class="container theme-showcase" role="main">
 
-    <h2 class=display-1">INDRA DepMap Explainer</h2>
+    <h2 class=display-1" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer</h2>
 
-    <div class="card">
-        <h4 class="card-header">Gene Selection</h4>
+    <div class="card" style="bottom-margin: 100px;">
+        <h5 class="card-header">Gene Selection</h5>
         <div class="card-body">
         <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.<br><br><i>NOTE: Complexes are treated as undirected connections (i.e. there is no subject and object) and may appear in the output for intermediary connections of the type A-X-B.</i></p>
 
@@ -85,39 +85,38 @@
         </ul>
         </div>
         </form>
-    </div>
-    </div>
+    </div> <!--  card-body -->
+    </div> <!-- card -->
 
-    <!--
-        <div id="output_A_B">
-            <h4>Selection</h4>
-            <div id="my_outputA">Gene A:</div>
-            <div id="my_outputB">Gene B:</div>
+    <div class="card" style="bottom-margin: 10px">
+        <h5 class="card-header">Complex <div id="A_complex" style="display:inline-block;">A</div>
+                        <div id="B_complex" style="display:inline-block;">B</div>
+                    <span id="collapseAcB_ev_count" class="badge badge-default float-right"
+                          style="background-color:#6E6E6E;">Statements: 0</span></h5>
+        <div id="collapseAcB" class="card-body panel-collapse collapse">
+            <div id="expl_A_complex_B">&nbsp;</div>
         </div>
+    </div> <!-- card -->
+
+<!--
+    <div class="card">
+        <h4 class="card-header">Gene Selection</h4>
+        <div class="card-body">
+
+            <a data-toggle="collapse" href="#collapseAcB">
+                Complex <div id="A_complex" style="display:inline-block;">A</div>
+                        <div id="B_complex" style="display:inline-block;">B</div>
+                    <span id="collapseAcB_ev_count" class="badge badge-default float-right"
+                          style="background-color:#6E6E6E;">Statements: 0</span>
+                    <div id="AB_output_complex"></div>
+            </a>
+        </h4>
+        </div>
+        <div id="collapseAcB" class="panel-collapse collapse">
+            <div id="expl_A_complex_B">&nbsp;</div>
+        </div>
+    </div>
     -->
-    </div>
-
-    <div class="panel panel-default">
-        <div class="panel-heading">
-            <h3 id="explanations" class="panel-title">Explanations</h3>
-        </div>
-            <div class="panel-group">
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapseAcB">
-                            Complex <div id="A_complex" style="display:inline-block;">A</div> <div id="B_complex" style="display:inline-block;">B</div>
-                           <span id="collapseAcB_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">Statements: 0</span>
-                            <div id="AB_output_complex"></div>
-                        </a>
-                    </h4>
-                    </div>
-                    <div id="collapseAcB" class="panel-collapse collapse">
-                        <div id="expl_A_complex_B">&nbsp;</div>
-                    </div>
-                </div>
-
 
                 <div class="panel panel-default">
                     <div class="panel-heading">
