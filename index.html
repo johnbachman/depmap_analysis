@@ -8,19 +8,18 @@
     <!-- LINKS -->
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
 
     <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.bootstrap3.css">
 
 
     <!-- Optional theme -->
-    <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">-->
+    <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous"> -->
 
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
 
     <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
 
     <!-- SCRIPTS -->
     <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
@@ -89,12 +88,14 @@
     </div> <!-- card -->
 
     <div class="card" style="bottom-margin: 10px">
-        <h5 class="card-header">Complex <div id="A_complex" style="display:inline-block;">A</div>
+        <h5 class="card-header" data-toggle="collapse" data-target="#collapseAcB" aria-expanded="false" aria-controls="collapseAcB">Complex <div id="A_complex" style="display:inline-block;">A</div>
                         <div id="B_complex" style="display:inline-block;">B</div>
                     <span id="collapseAcB_ev_count" class="badge badge-default float-right"
                           style="background-color:#6E6E6E;">Statements: 0</span></h5>
-        <div id="collapseAcB" class="card-body panel-collapse collapse">
-            <div id="expl_A_complex_B">&nbsp;</div>
+        <div id="collapseAcB" class="collapse">
+            <div class="card-body">
+                <div id="expl_A_complex_B">&nbsp;</div>
+            </div>
         </div>
     </div> <!-- card -->
 

@@ -110,7 +110,8 @@ $(function(){
         // Clean up the output areas so old output doesn't stick around
 
         // Complex AB
-        output_ABcomplex.innerHTML = null;
+        output_AcB.innerHTML = null;
+        // output_ABcomplex.innerHTML = null;
         AcB_ev_count.textContent = "Statements: 0";
         AcB_ev_count.style = "background-color:#6E6E6E;";
         // A->B
@@ -330,14 +331,12 @@ $(function(){
                     //correlation_output_element.href = depmap1 + geneA + depmap2 + geneB + depmap3
                     correlation_output.href = depmap1 + geneA + depmap2 + geneB + depmap3
                     correlation_output.class = "nav-link active"
-                    if (isNumeric(correlation_AB)) {
-                        correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " (" + parseFloat(correlation_AB).toFixed(3).toString() + ")" // DECIMAL PLACES IN CORRELATION
-                    } else {
-                        // When we don't have the correlation; If it happens, you probably need to update the correlation jsons
+                    if (!isNumeric(correlation_AB)) {
+                        // If this happens, you probably need to update the correlation jsons
                         console.log('Correlation is not a valid number!')
-                        correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " not available."
+                        // correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " not available."
                     }
-                    correlation_output.appendChild(correlation_output_element)
+                    // correlation_output.appendChild(correlation_output_element)
                 },
                 error: function() {
                     var correlation_output = $("#show_correlation")[0];
@@ -393,7 +392,8 @@ $(function(){
                             Bname_complex.textContent = geneB;
 
                             // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                            output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
+                            // output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
+                            output_directs(output_AcB, output_AcB, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
                         }
                     }
 
@@ -484,7 +484,8 @@ $(function(){
                             Bname_complex.textContent = geneB;
 
                             // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                            output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string)
+                            // output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string)
+                            output_directs(output_AcB, output_AcB, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string)
                         }
                     }
 
@@ -794,7 +795,7 @@ $(function(){
                     source_output_pointer.appendChild(text_and_button_container)
 
                 }
-                output_pointer.appendChild(source_output_pointer)
+                // output_pointer.appendChild(source_output_pointer)
 
                 $(".btn-evidence").off("click").on("click", function(b){
                     // Loop through the evidence for the statement the button is linked to
