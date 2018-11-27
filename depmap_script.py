@@ -13,11 +13,8 @@ from collections import defaultdict
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 from depmap_network_functions import create_nested_dict as nest_dict
-# There are pickled files using "nest_dict" in their preserve import settings
+# There are pickled files using "nest_dict" in their preserved import settings
 # and we can therefore not use another name when using those files
-
-# todo remove pdb import before merging PR
-import pdb
 
 logger = logging.getLogger('depmap_script')
 
@@ -55,7 +52,8 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None):
         for ok in nested_dict:
             for ik in nested_dict[ok]:
                 cd = nested_dict[ok][ik]['correlations']
-                fo.write('%s,%s,%f,%f\n' % (ok, ik, cd['crispr'], cd['rnai']))
+                fo.write('%s,%s,%s,%s\n' %
+                         (ok, ik, str(cd['crispr']), str(cd['rnai'])))
 
 
 def _pickle_open(file_path_to_pickle):
@@ -91,37 +89,49 @@ def _corr_web_latex(id1, id2, fmtcorr):
 def _arg_dict(args_struct):
     args_dict = dnf.create_nested_dict()
 
+    if not args_struct.crispr_data_file and not args_struct.rnai_data_file:
+        logger.error('Must provide at least one data set!')
+        raise FileNotFoundError
+
     # CRISPR
-    args_dict['crispr']['data'] = args_struct.crispr_data_file
-    args_dict['crispr']['corr'] = args_struct.crispr_corr_file
-    args_dict['crispr']['filter_gene_set'] = (args_struct.geneset_file if
-                                              args_struct.geneset_file else [])
-    args_dict['crispr']['ll'] = args_struct.crispr_corr_range[0]
-    args_dict['crispr']['ul'] = (args_struct.crispr_corr_range[1] if len(
-        args_struct.crispr_corr_range) == 2 else 1.0)
-    args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
-    args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[0] if \
-        args_struct.crispr_mean_sigma else None
-    args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[1] if \
-        args_struct.crispr_mean_sigma else None
-    args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
-    args_dict['crispr']['strict'] = args_struct.strict
+    if args_struct.crispr_data_file:
+        args_dict['crispr']['data'] = args_struct.crispr_data_file
+        args_dict['crispr']['corr'] = args_struct.crispr_corr_file
+        args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
+        args_dict['crispr']['filter_gene_set'] = (
+            args_struct.geneset_file if args_struct.geneset_file else []
+        )
+        args_dict['crispr']['ll'] = max(args_struct.crispr_corr_range[0], 0.0)
+        args_dict['crispr']['ul'] = (args_struct.crispr_corr_range[1]
+            if len(args_struct.crispr_corr_range) == 2 else None)
+        args_dict['crispr']['max_pairs'] = args_struct.max_pairs
+        args_dict['crispr']['mean'] = args_struct.crispr_mean_sigma[0] if \
+            args_struct.crispr_mean_sigma else None
+        args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[1] if \
+            args_struct.crispr_mean_sigma else None
+        args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
+        args_dict['crispr']['strict'] = args_struct.strict
 
     # RNAi
-    args_dict['rnai']['data'] = args_struct.rnai_data_file
-    args_dict['rnai']['corr'] = args_struct.rnai_corr_file
-    args_dict['rnai']['filter_gene_set'] = (args_struct.geneset_file if
-                                            args_struct.geneset_file else [])
-    args_dict['rnai']['ll'] = args_struct.rnai_corr_range[0]
-    args_dict['rnai']['ul'] = (args_struct.rnai_corr_range[1] if len(
-        args_struct.rnai_corr_range) == 2 else 1.0)
-    args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
-    args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[0] if \
-        args_struct.rnai_mean_sigma else None
-    args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[1] if \
-        args_struct.rnai_mean_sigma else None
-    args_dict['rnai']['strict'] = args_struct.strict
+    if args_struct.rnai_data_file:
+        args_dict['rnai']['data'] = args_struct.rnai_data_file
+        args_dict['rnai']['corr'] = args_struct.rnai_corr_file
+        args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
+        args_dict['rnai']['filter_gene_set'] = (
+            args_struct.geneset_file if args_struct.geneset_file else []
+        )
+        args_dict['rnai']['ll'] = max(args_struct.rnai_corr_range[0], 0.0)
+        args_dict['rnai']['ul'] = (args_struct.rnai_corr_range[1]
+            if len(args_struct.rnai_corr_range) == 2 else None)
+        args_dict['rnai']['max_pairs'] = args_struct.max_pairs
+        args_dict['rnai']['mean'] = args_struct.rnai_mean_sigma[0] if \
+            args_struct.rnai_mean_sigma else None
+        args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[1] if \
+            args_struct.rnai_mean_sigma else None
+        args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
+        args_dict['rnai']['strict'] = args_struct.strict
 
+    args_dict.default_factory = None
     return args_dict
 
 
@@ -135,26 +145,49 @@ def main(args):
                      '`-ndi (--nested-dict-in)` argument.')
         raise FileNotFoundError
 
-    # Prepare data (we need uniq_pairs to look for explainable interactions)
     filter_settings = {'margin': args.margin,
-                       'filter_type': args.filter_type}
+                       'filter_type':
+                       (args.filter_type if
+                        args.filter_type in ['sigma-diff', 'corr-corr-corr']
+                        else None)
+                       }
+
+    if not filter_settings['filter_type'] and \
+        args.crispr_data_file and \
+            args.rnai_data_file:
+        logger.info('No merge filter set. Output will be intersection of the '
+                    'two data sets.')
 
     args_dict = _arg_dict(args)
 
     master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
         dict_of_data_sets=args_dict, filter_settings=filter_settings)
 
-    dnf._dump_master_corr_dict_to_pairs_in_csv(
+    # Count pairs in merged correlation dict
+    npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
         fname=args.outbasename+'_merged_corr_pairs.csv',
         nest_dict=master_corr_dict)
 
     if args.geneset_file:
-        gene_filter_list = set(dnf._read_gene_set_file(
+        gene_filter_list = None
+        if args_dict.get('crispr') and not args_dict.get('rnai'):
+            gene_filter_list = dnf._read_gene_set_file(
                 gf=args_dict['crispr']['filter_gene_set'],
-                data=args_dict['crispr']['data'])) & \
-            set(dnf._read_gene_set_file(
-                gf=args_dict['rnai']['filter_gene_set'],
-                data=args_dict['crispr']['data']))
+                data=args_dict['crispr']['data'])
+        elif args_dict.get('rnai') and not args_dict.get('crispr'):
+            gene_filter_list = dnf._read_gene_set_file(
+                    gf=args_dict['rnai']['filter_gene_set'],
+                    data=args_dict['crispr']['data'])
+        elif args_dict.get('crispr') and args_dict.get('rnai'):
+            gene_filter_list = \
+                set(dnf._read_gene_set_file(
+                    gf=args_dict['crispr']['filter_gene_set'],
+                    data=args_dict['crispr']['data'])) & \
+                set(dnf._read_gene_set_file(
+                    gf=args_dict['rnai']['filter_gene_set'],
+                    data=args_dict['crispr']['data']))
+        assert gene_filter_list is not None
+
     else:
         gene_filter_list = None
 
@@ -195,14 +228,7 @@ def main(args):
     elif args.nested_dict_in:
         nested_dict_statements = _pickle_open(args.nested_dict_in)
     else:
-        if belief_dict is None:
-            logger.error('belief dict must be provided through the `-b ('
-                         '--belief-score-dict)` argument if no nested dict '
-                         'of statements is provided through the `-ndi ('
-                         '--nested-dict-in)` argument.')
-            raise FileNotFoundError
-        else:
-            nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
+        nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
                                                             belief_dict)
         if args.nested_dict_out:
             _dump_it_to_pickle(fname=args.nested_dict_out,
@@ -223,12 +249,19 @@ def main(args):
     dir_node_set = set(nx_dir_graph.nodes)
 
     # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
-    dir_expl_count, im_expl_count = 0, 0
+    any_expl = 0  # Count if any explanation per (A,B) correlation found
+    # Count any explanation per (A,B) found, excluding shared regulator
+    any_expl_not_sr = 0
+    tuple_dir_expl_count = 0  # Count A-B/B-A as one per set(A,B)
+    both_dir_expl_count = 0  # Count A-B and B-A separately per set(A,B)
+    tuple_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
+    both_im_dir_expl_count = 0  # Count A->X->B,B->X->A separately per set(A,B)
+    tuple_im_st_expl_count = 0  # Count if shared target found per set(A,B)
+    tuple_im_sr_expl_count = 0  # Count if shared regulator found per set(A,B)
+    tuple_sr_expl_only_count = 0  # Count if only shared regulator found
     explained_pairs = []  # Saves all explanations
     explained_neg_pairs = []  # Saves all explanations with correlation < 0
     unexplained = []  # Unexplained correlations
-    # npairs = dnf.rawincount(args.outbasename+'_merged_corr_pairs.csv')
-    npairs = len(master_corr_dict)
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
     # connection type or correlation).
@@ -260,8 +293,8 @@ def main(args):
     # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
     #         open(args.outbasename + '_neg_conn_latex.tex', 'w') as f_neg_c:
 
-    logger.info('Looking for connections between %i pairs (length of dict)' %
-                len(master_corr_dict))
+    logger.info('Looking for connections between %i pairs (pairs in master '
+                'correlation dict)' % npairs)
 
     skipped = 0
 
@@ -273,19 +306,26 @@ def main(args):
                     logger.info('Skipped outer_id=%s and inner_id=%s' %
                             (outer_id, inner_id))
                 continue
+
             avg_corrs = []
             for set_name in corr_dict:
                 avg_corrs.append(corr_dict[set_name])
 
+            # Take the average correlation so it
             avg_corr = sum(avg_corrs)/len(avg_corrs)
             id1, id2 = outer_id, inner_id
 
             # Store bool(s) for found connection (either A-B or A-X-B)
-            found = set()
-            im_found = False  # Flag bool set for intermediate connections
+            found = set()  # Flag anythin found
+            dir_found = False  # Flag direct/complex connection
+            im_found = False  # Flag intermediate connections
+            sr_found = False  # Flag shared regulator connection
+            not_sr_found = False  # Flag any non shared regulator connection
 
             for subj, obj in itt.permutations((id1, id2), r=2):
                 if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
+                    both_dir_expl_count += 1
+
                     # Get the statements
                     stmts = nested_dict_statements[subj][obj]
 
@@ -297,8 +337,9 @@ def main(args):
                     if args.verbosity:
                         logger.info('Found direct connection between %s and '
                                     '%s' % (subj, obj))
-                    dir_expl_count += 1
                     found.add(True)
+                    dir_found = True
+                    not_sr_found = True
                     stmt_tuple = (subj, obj, corr_dict['crispr'],
                                   corr_dict['rnai'], 'direct', [])
                     explained_pairs.append(stmt_tuple)
@@ -314,6 +355,8 @@ def main(args):
                     if dir_path_nodes:
                         found.add(True)
                         im_found = True
+                        not_sr_found = True
+                        both_im_dir_expl_count += 1
                         if args.verbosity:
                             logger.info('Found directed path of length 2 '
                                         'between %s and %s' % (subj, obj))
@@ -349,6 +392,8 @@ def main(args):
                 if downstream_share:
                     found.add(True)
                     im_found = True
+                    not_sr_found = True
+                    tuple_im_st_expl_count += 1
                     downstream_share_wb = dnf.rank_nodes(
                         node_list=downstream_share,
                         nested_dict_stmts=nested_dict_statements,
@@ -373,6 +418,8 @@ def main(args):
                 if upstream_share:
                     found.add(True)
                     im_found = True
+                    sr_found = True
+                    tuple_im_sr_expl_count += 1
                     upstream_share_wb = dnf.rank_nodes(
                         node_list=upstream_share,
                         nested_dict_stmts=nested_dict_statements,
@@ -399,14 +446,29 @@ def main(args):
             else:
                 found.add(False)
 
-            # Count intermediate connections found
-            if im_found:
-                im_expl_count += 1
-
             # Make sure the connection types we didn't find are empty lists.
             # Also add correlation so it can be queried for at the same time
             # as the items for the second drop down.
             if any(found):
+                # Any explanation found
+                any_expl += 1
+
+                # Count A-B or B-A connections found per set(A,B)
+                if dir_found:
+                    tuple_dir_expl_count += 1
+
+                # Count A-X-B connections found per set(A,B)
+                if im_found:
+                    tuple_im_expl_count += 1
+
+                # Count non shared regulators found
+                if not_sr_found:
+                    any_expl_not_sr += 1
+
+                # Count only shared regulators found
+                if sr_found and not not_sr_found:
+                    tuple_sr_expl_only_count += 1
+
                 for s, o in itt.permutations((id1, id2), r=2):
                     # Correlation
                     explained_nested_dict[s][o]['correlations'] = corr_dict
@@ -441,23 +503,65 @@ def main(args):
                                 '%s.' % (id1, id2))
     long_string = ''
     long_string += '-' * 63 + '\n'
-    long_string += 'Summary:' + '\n'
-    long_string += '> Skipped %i empty doublets in corr dict\n' % skipped
-    long_string += '> Total unexplained: %i' % len(unexplained) + '\n'
-    long_string += '> Total explained: %i,' % len(explained_pairs) + '\n'
-    long_string += '> with %i direct and %i mediated by an intermediate ' \
-                   'node.' % (dir_expl_count, im_expl_count) + '\n'
-    long_string += '> Total number of pairs checked: %i' % npairs + '\n\n'
-    long_string += 'Statistics:' + '\n\n'
-    long_string += '  RNAi data ' + '\n'
-    long_string += '  ----------' + '\n'
-    long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
-    long_string += '> SD: %f\n' % stats_dict['rnai']['sigma']
-    long_string += '  CRISPR data ' + '\n'
-    long_string += '  ------------' + '\n'
-    long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
-    long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
-    long_string += '' + '\n'
+    long_string += 'Summary for matching INDRA network to correlation pairs:'\
+                   + '\n\n'
+    long_string += '> Total number of correlation pairs checked: %i' % npairs\
+                   + '\n'
+    if args.verbosity:
+        long_string += '> Skipped %i empty doublets in corr dict\n' % skipped
+
+    long_string += '> Total correlations unexplained: %i' % len(unexplained)\
+                   + '\n'
+    long_string += '> Total correlations explained: %i' % any_expl + '\n'
+    long_string += '> Total correlations explained, excluding shared ' \
+                   'regulator: %i' % any_expl_not_sr + '\n'
+    long_string += '>    %i correlations have an explanation involving a ' \
+                   'direct connection' % tuple_dir_expl_count + \
+                   '\n'
+    long_string += '>    %i direct connections found (count A-B and B-A ' \
+                   'separately, including complexes)' % both_dir_expl_count + \
+                   '\n'
+    long_string += '>    %i correlations have an explanation ' \
+                   'involving and intermediate node (A-X-B).' \
+                   % tuple_im_expl_count + '\n'
+    long_string += '>    %i A->X->B or B->X->A connections found (one count ' \
+                   'per direction)' % both_im_dir_expl_count + '\n'
+    long_string += '>    %i correlations have an explanation involving a ' \
+                   'shared target (A->X<-B)' % tuple_im_st_expl_count + '\n'
+    long_string += '>    %i correlations have an explanation involving a ' \
+                   'shared regulator (A<-X->B)' % tuple_im_sr_expl_count + '\n'
+    long_string += '>    %i correlations have shared regulator as only ' \
+                   'explanation' % tuple_sr_expl_only_count + '\n\n'
+
+    long_string += 'Statistics of input data:' + '\n\n'
+    if stats_dict.get('rnai'):
+        long_string += '  RNAi data ' + '\n'
+        long_string += '  ----------' + '\n'
+        long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
+        long_string += '> SD: %f\n' % stats_dict['rnai']['sigma']
+        long_string += '> lower bound: %.3f*SD = %.4f\n' % (
+            args_dict['rnai']['ll'],
+            args_dict['rnai']['ll']*stats_dict['rnai']['sigma']
+        )
+        if args_dict['rnai']['ul']:
+            long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
+                args_dict['rnai']['ul'],
+                args_dict['rnai']['ul'] * stats_dict['rnai']['sigma']
+            )
+    if stats_dict.get('crispr'):
+        long_string += '  CRISPR data ' + '\n'
+        long_string += '  ------------' + '\n'
+        long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
+        long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
+        long_string += '> lower bound: %.3f*SD = %.4f\n' % (
+            args_dict['crispr']['ll'],
+            args_dict['crispr']['ll']*stats_dict['crispr']['sigma']
+        )
+        if args_dict['crispr']['ul']:
+            long_string += '> upper bound: %.3f*SD = %.4f\n\n' % (
+                args_dict['crispr']['ul'],
+                args_dict['crispr']['ul'] * stats_dict['crispr']['sigma']
+            )
     long_string += '-' * 63 + '\n\n'
 
     logger.info('\n' + long_string)
@@ -466,19 +570,23 @@ def main(args):
     nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
         nest_d=explained_nested_dict)
 
-    # 'explained_nodes' are used to produce first drop down
-    explained_nodes = list(nx_expl_dir_graph.nodes)
-    logger.info('Dumping json "explainable_ids.json" for first dropdown.')
-    _dump_it_to_json('explainable_ids.json', explained_nodes)
+    if not args.no_web_files:
+        # 'explained_nodes' are used to produce first drop down
+        explained_nodes = list(nx_expl_dir_graph.nodes)
+        logger.info('Dumping json "explainable_ids.json" for first dropdown.')
+        _dump_it_to_json(args.outbasename+'explainable_ids.json',
+                         explained_nodes)
 
-    # Get undir graph and save each neighbor lookup as json for 2nd dropdown
-    nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
-    dnf.nx_undir_to_neighbor_lookup_json(expl_undir_graph=nx_expl_undir_graph)
+        # Get undir graph and save each neighbor lookup as json for 2nd dropdown
+        nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
+        dnf.nx_undir_to_neighbor_lookup_json(
+            expl_undir_graph=nx_expl_undir_graph, outbasename=args.outbasename)
 
-    _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
-                           nested_dict=explained_nested_dict,
-                           header=['gene1', 'gene2',
-                                   'crispr_corr', 'rnai_corr'])
+        _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
+                               nested_dict=explained_nested_dict,
+                               header=['gene1', 'gene2',
+                                       'crispr_corr', 'rnai_corr'])
+
     _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
                        pyobj=explained_nested_dict)
     headers = ['subj', 'obj', 'crispr_corr', 'rnai_corr', 'type', 'X']
@@ -508,31 +616,34 @@ if __name__ == '__main__':
 
     either_of = parser.add_argument_group('One of the following two arguments')
     required_args = parser.add_argument_group('Required Arguments')
-    required_args.add_argument('-cf', '--crispr-data-file', required=True,
+    required_args.add_argument('-cf', '--crispr-data-file',
                                help='CRISPR gene dependency data in csv format')
-    required_args.add_argument('-rf', '--rnai-data-file', required=True,
+    required_args.add_argument('-rf', '--rnai-data-file',
                                help='RNAi gene dependency data in csv format')
     either_of.add_argument('-b', '--belief-score-dict', help='Load a dict with '
         'stmt hash: belief score to be incorporated in the explainable '
         'network dict.')
-    either_of.add_argument('-ndi', '--nested-dict-in',
-                           help='Load precalculated nested dict of'
-                                'statements of the form '
-                                'd[subj][obj] = [(stmt/stmt hash, belief '
-                                'score)].')
+    either_of.add_argument('-ndi', '--nested-dict-in', help='Load '
+        'precalculated nested dict of statements of the form  d[subj][obj] = '
+        '[(stmt/stmt hash, belief score)].')
     parser.add_argument('-cc', '--crispr-corr-file',
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
                         help='Precalculated RNAi correlations in h5 format')
     parser.add_argument('-g', '--geneset-file',
                         help='Filter to interactions with gene set data file.')
-    parser.add_argument('--margin', type=float, default=1.0,
-                        help='How large diff in terms of standard deviations '
-                             'to accept between data sets when filtering for '
-                             'correlations during merge. Default is 1 SD.')
+    parser.add_argument('--margin', type=float, default=1.0, help='How large '
+        'diff in terms of standard deviations to accept between data sets '
+        'when filtering for correlations during merge. Default is 1 SD.')
     parser.add_argument('--filter-type', default='sigma-diff', type=str,
-                        help='Type of filtering. Currently only supports '
-                             '"sigma-diff"')
+                        help='Type of filtering. Options are: `sigma-diff` - '
+        'The difference in the distances from the mean measured in number of '
+        'standard deviations must be smaller than given by --margin. '
+        '`corr-corr-corr` - The product of the scaled correlations* must be '
+        'greater than given by --margin. `None` - No filter is applied when '
+        'merging the data sets. The resulting correlation dictionary will '
+        'simply be the intersection of the provided data sets. *Scaled '
+        'Correlation = (corr-mean)/SD')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp.')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
@@ -548,9 +659,8 @@ if __name__ == '__main__':
         '\'--dump-unique-pairs\', you can save the unique '
         'gene-gene-correlation pairs for each data set. Default: False (no '
         'output)')
-    parser.add_argument('-v', '--verbosity', action='count',
-                        help='increase output verbosity (-vv is more '
-                             'than -v)')
+    parser.add_argument('-v', '--verbosity', action='count', help='increase '
+        'output verbosity (-vv is more than -v)')
     parser.add_argument('-dgi', '--directed-graph-in', help='Load a'
         'precalculated directed graph of indra subject/object network.')
     parser.add_argument('-dgo', '--directed-graph-out', help='Save the '
@@ -563,35 +673,35 @@ if __name__ == '__main__':
         'to use instead of quering a database. This option is unused if a '
         'lightweight file [-lw] is provided.')
     parser.add_argument('-sto', '--statements-out', help='Saves the used '
-        'statements read from the database')
+        'statements to a pickle file.')
     parser.add_argument('-cup', '--unique-depmap-crispr-pairs', help='Uses a '
         'previously saved file to read the unique pairs to read over. Useful '
         'if you are running the script on the full data with no filters.')
     parser.add_argument('-rup', '--unique-depmap-rnai-pairs', help='Uses a '
         'previously saved file to read the unique pairs to read over. Useful '
         'if you are running the script on the full data with no filters.')
-    parser.add_argument('-lls', action='store_true', help='Use exactly one '
-        'standard deviation of full set as lower limit.')
-    parser.add_argument('-crange', '--crispr-corr-range', default=[0.3],
-                        type=float, nargs="+",
-                        help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
-                             'denoting the range of correlations to consider '
-                             'in the crispr data.')
-    parser.add_argument('-rrange', '--rnai-corr-range', default=[0.2],
-                        type=float, nargs="+",
-                        help='LOWER_LIM UPPER_LIM\nTwo decimal numbers '
-                             'denoting the range of correlations to consider '
-                             'in the rnai data.')
+    parser.add_argument('--max-pairs', type=int, default=None, help='Limit the '
+        'maximum number of gene-gene pairs to explain. If used, the pairs '
+        'used will be sampled at random.')
+    parser.add_argument('-crange', '--crispr-corr-range', default=[1.0],
+                        type=float, nargs="+", help='-crange LOWER_LIM ('
+        'UPPER_LIM) | One or two decimal numbers denoting the range of '
+        'correlations to consider in terms of number of SD in the CRISPR data.')
+    parser.add_argument('-rrange', '--rnai-corr-range', default=[1.0],
+                        type=float, nargs="+", help='-rrange LOWER_LIM ('
+        'UPPER_LIM) | One or two decimal numbers denoting the range of '
+        'correlations to consider in terms of number of SD in the RNAi data.')
     parser.add_argument('-cstats', '--crispr-mean-sigma', type=float, nargs=2,
                         help='-rstats <mean> <stdev> | Provide a value of the '
-                             'mean and standard deviation for the crispr data '
-                             'instead of calculating it from the full data '
-                             'set.')
+        'mean and standard deviation for the CRISPR data instead of '
+        'calculating it from the full data set.')
     parser.add_argument('-rstats', '--rnai-mean-sigma', type=float, nargs=2,
                         help='-rstats <mean> <stdev> | Provide a value of the '
-                             'mean and standard deviation for the rnai data '
-                             'instead of calculating it from the full data '
-                             'set.')
+        'mean and standard deviation for the RNAi data instead of calculating '
+        'it from the full data set.')
+    parser.add_argument('-noweb', '--no-web-files', action='store_true',
+                        help='With the flag active, no output files aimed for '
+        'web services are produced')
     a = parser.parse_args()
 
     with open(a.outbasename+'dep_map_script_log{}.log'.format(

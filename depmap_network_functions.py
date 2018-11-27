@@ -23,7 +23,7 @@ from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestError
 
 db_prim = dbu.get_primary_db()
-dnf_logger = logging.getLogger('DepMapFunctionsLogger')
+dnf_logger = logging.getLogger('DepMapFunctions')
 
 
 def rawincount(filename):
@@ -87,19 +87,53 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(corrrelation_df_matrix):
+def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     """Return a tuple generator given a correlation matrix
+    
+    The function takes a correlation matrix and returns a consumable tuple 
+    generator object. Once consumed, the object is exhausted and a new
+    generator needs to be produced.
 
     corrrelation_df_matrix : pandas.DataFrame
-        A pandas correlation matrix as a dataframe
+        A correlation matrix as a pandas dataframe
 
     Returns
     -------
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
-    corr_value_matrix = corrrelation_df_matrix.values
-    gene_name_array = corrrelation_df_matrix.index.values
+    # Sample at random: get a random sample of the correlation matrix that has
+    # enough non-nan values to exhaustively generate at least max_pair
+    all_pairs = corrrelation_df_matrix.notna().sum().sum()
+    assert all_pairs != 0
+
+    if max_pairs and max_pairs >= all_pairs:
+        dnf_logger.info('The requested number of correlation pairs is larger '
+                        'than the available number of pairs. Resetting '
+                        '`max_pairs` to %i' % all_pairs)
+        corr_df_sample = corrrelation_df_matrix
+
+    elif max_pairs and max_pairs < all_pairs:
+        n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
+        corr_df_sample = corrrelation_df_matrix.sample(
+            n, axis=0).sample(n, axis=1)
+
+        # Increase sample until number of extractable pairs exceed max_pairs
+        while corr_df_sample.notna().sum().sum() <= max_pairs:
+            n += 1
+            corr_df_sample = corrrelation_df_matrix.sample(
+                n, axis=0).sample(n, axis=1)
+
+        dnf_logger.info('Created a random sample of the correlation matrix '
+                        'with %i extractable correlation pairs.'
+                        % corr_df_sample.notna().sum().sum())
+
+    # max_pairs == None: no sampling, get all non-NaN correlations;
+    else:
+        corr_df_sample = corrrelation_df_matrix
+
+    corr_value_matrix = corr_df_sample.values
+    gene_name_array = corr_df_sample.index.values
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     # Only get HGNC symbols (first in tuple) since we're gonna compare to
     # INDRA statements, which is currently done with HGNC symbols
@@ -123,42 +157,49 @@ def _dump_it_to_csv(fname, iterable, separator=','):
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
     dnf_logger.info('Dumping master dict to pairs in %s' % fname)
+    pairs = 0
     with open(fname, 'w') as fo:
         fo.write('gene1,gene2,correlation_list\n')
         for ok, od in nest_dict.items():
-            for ik, id_ in od[ok].items():
-                corr_dict = id_[ik]
+            for ik, id_ in od.items():
                 vals = []
-                for name in corr_dict:
-                    vals.append(corr_dict[name])
+                for name in id_:
+                    vals.append(id_[name])
                 fo.write('%s,%s,%s\n' % (ok, ik, str(vals)))
+                pairs += 1
+    return pairs
 
 
-def nx_undir_to_neighbor_lookup_json(expl_undir_graph,
-                                     path_prefix='neighbor_lookup/'):
+def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
+                                     neighbor_dir='neighbor_lookup/'):
     """Dumps one json dict per node in a undirected nx graph where entry is a
     json array containing all neighbors
 
     expl_undir_graph : nx.Graph
-    path_prefix : directory to put jsons in. Must be specified or the default
+    neighbor_dir : directory to put jsons in. Must be specified or the default
     'neighbor_lookup/' is used.
 
     """
-    if not os.path.isdir(path_prefix):
+    path = '/'.join(
+        outbasename.replace('//', '/').split('/')[:-1]
+    ) + '/' + neighbor_dir
+    if '/' == path[0]:
+        path = path[1:]
+    if not os.path.isdir(path):
         dnf_logger.info('Could not find path "%s", creating new directory.' %
-                        path_prefix)
-        os.mkdir(path_prefix)
+                        path)
+        os.makedirs(path)
 
     dnf_logger.info('Dumping node neighbor dicts to "%s'
-                    'neighbors_to_NODENAME.json"' % path_prefix)
+                    '/neighbors_to_NODENAME.json"' % path)
     for node in expl_undir_graph.nodes:
         nnnl = []
         for other_node in expl_undir_graph[node]:
             inner_dict = expl_undir_graph[node][other_node]
             nnnl.append([other_node, inner_dict['attr_dict']['correlation']])
-        _dump_it_to_json(fname=path_prefix+'neighbors_to_%s.json' % node,
+        _dump_it_to_json(fname=path+'/neighbors_to_%s.json' % node,
                          pyobj=nnnl)
-    dnf_logger.info('Finished dumping node neighbor dicts to %s' % path_prefix)
+    dnf_logger.info('Finished dumping node neighbor dicts to %s' % path)
 
 
 def _filter_corr_data(corr, clusters, cl_limit):
@@ -208,9 +249,22 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
 
         # The statment with the highest belief score should
         # represent the edge (potentially multiple stmts per edge)
-        for typ, hsh_a, bs in ax_stmts:
+        # To get latest belief score: see indra_db.belief
+        for tup in ax_stmts:
+            assert len(tup) == 2 or len(tup) == 3
+            bs = 1
+            if len(tup) == 2:
+                typ, hsh_a = tup
+            elif len(tup) == 3:
+                typ, hsh_a, bs = tup
             ax_score_list.append(bs)
-        for typ, hsh_b, bs in xb_stmts:
+        for tup in xb_stmts:
+            assert len(tup) == 2 or len(tup) == 3
+            bs = 1
+            if len(tup) == 2:
+                typ, hsh_b = tup
+            elif len(tup) == 3:
+                typ, hsh_b, bs = tup
             xb_score_list.append(bs)
 
         # Rank by multiplying the best two belief scores for each edge
@@ -322,6 +376,7 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
                     has_belief = True
                 break
 
+    error_count = 0
     for subj in nest_d:
         if nest_d.get(subj):
             for obj in nest_d[subj]:
@@ -335,10 +390,15 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
                             try:
                                 bs = belief_dict[str(hsh)]
                             except KeyError:
-                                dnf_logger.warning('No entry found in belief '
-                                                   'dict for hash %s' %
-                                                   str(hsh))
                                 bs = 1
+                                error_count += 1
+                                if error_count < 50:
+                                    dnf_logger.warning('No entry found in '
+                                                       'belief dict for hash '
+                                                       '%s' % str(hsh))
+                                if error_count == 50:
+                                    dnf_logger.warning('Muting belief dict '
+                                                       'KeyError...')
                             t = (typ, hsh, bs)
                             inner_obj_b.append(t)
                     else:
@@ -346,6 +406,9 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
                     nx_dir_g.add_edge(u_of_edge=subj,
                                       v_of_edge=obj,
                                       attr_dict={'stmts': inner_obj_b})
+    if error_count > 100:
+        dnf_logger.warning('%i hashes did not have a mathcing key in belief '
+                           'dict' % error_count)
     return nx_dir_g
 
 
@@ -641,10 +704,11 @@ def _get_partial_gaussian_stats(bin_edges, hist):
 
 
 def get_gene_gene_corr_dict(tuple_generator):
-    """Returns a gene-gene correlation nested dict given a gene-gene nested dict
+    """Returns a gene-gene correlation nested dict from a gene correlation
+    generator
 
     tuple_generator : generator object
-        A generator object
+        A generator object returning (gene, gene, correlation) tuples
 
     Returns
     -------
@@ -653,13 +717,21 @@ def get_gene_gene_corr_dict(tuple_generator):
     """
     corr_nest_dict = create_nested_dict()
     dnf_logger.info('Generating correlation lookup')
-    for gene1, gene2, c in tuple_generator:
-        if gene1 == gene2:  # If self correlation were not filtered
+    skip = 0
+    doublets = 0
+    for count, (gene1, gene2, c) in enumerate(tuple_generator):
+        # Self correlations should be filtered at this point but as a backup
+        if gene1 == gene2:
+            skip += 1
             continue
         else:
             corr = float(c)
+            if _entry_exist_dict(corr_nest_dict, gene1, gene2):
+                doublets += 1
             corr_nest_dict[gene1][gene2] = corr
-
+    count += 1
+    dnf_logger.info('Created correlation dictionary of length %i, skipped %i, '
+                    'found %i doublets' % (count, skip, doublets))
     corr_nest_dict.default_factory = None
     return corr_nest_dict
 
@@ -684,74 +756,99 @@ def merge_correlation_data(correlation_dicts_list, settings):
     # smallest and loop that one (assuming len(dict) gives the nested dict
     # with the shortest iteration).
 
-    # Get shortest dict from tuple list
-    name_dict_sigma_tuple = next(d for d in correlation_dicts_list if len(
-        d[1]) == min([len(i[1]) for i in correlation_dicts_list]))
-    # Remove the tuple with the shortest dict  from the list
-    correlation_dicts_list.remove(name_dict_sigma_tuple)
-    set_name, shortest_dict, sigma_dict = name_dict_sigma_tuple
-    # Pop the list to get the oter tuple to merge with
-    other_name, other_dict, other_sigma_dict = correlation_dicts_list.pop()
+    # We have three cases:
+    # 1.    Only one data set
+    # 2.    Two data sets
+    # 3.    Three or more data sets (not yet implemented)
+    #
+    # For 1: Skip the merger and just return whatever data set came in.
+    # For 2: Merge the two dictionaries.
+    # For 3: Merge two of the data sets and then call a recursive
 
+    # Create the return dict
     merged_corr_dict = create_nested_dict()
-    dnf_logger.info('Merging correlation dicts %s and %s' %
-                    (set_name, other_name))
 
-    # Loop shortest correlation lookup dict
-    for o_gene, d in shortest_dict.items():
-        for i_gene, corr in d.items():
-            if o_gene is not i_gene and \
-                    not _entry_exist_dict(merged_corr_dict, o_gene, i_gene):
-                # Check both directions
-                other_corr = None
-                if _entry_exist_dict(other_dict, o_gene, i_gene):
-                    other_corr = other_dict[o_gene][i_gene]
-                elif _entry_exist_dict(other_dict, i_gene, o_gene):
-                    other_corr = other_dict[i_gene][o_gene]
+    # Case 1
+    if len(correlation_dicts_list) == 1:
+        only_name, only_dict, only_sigma_dict = correlation_dicts_list.pop()
 
-                if other_corr and pass_filter(
-                        corr1=corr, mu1=sigma_dict['mean'],
-                        sigma1=sigma_dict['sigma'],
-                        corr2=other_corr, mu2=other_sigma_dict['mean'],
-                        sigma2=other_sigma_dict['sigma'],
-                        margin=settings['margin'],
-                        filter_type=settings['filter_type']):
-                    merged_corr_dict[o_gene][i_gene][set_name] = corr
-                    merged_corr_dict[o_gene][i_gene][other_name] = other_corr
-                    assert merged_corr_dict[o_gene][i_gene].get(set_name) is \
-                        not None
-                    assert merged_corr_dict[o_gene][i_gene].get(other_name) is \
-                        not None
-                    assert merged_corr_dict[o_gene].get(o_gene) is None
-                    assert merged_corr_dict[i_gene].get(i_gene) is None
-                # Did not pass filter
+        npairs = 0
+        for o_gene, d in only_dict.items():
+            for i_gene, corr in d.items():
+                if o_gene is not i_gene:
+                    merged_corr_dict[o_gene][i_gene][only_name] = corr
+                    npairs += 1
+
+    # Case 2
+    elif len(correlation_dicts_list) == 2:
+        # Get shortest dict from tuple list
+        name_dict_sigma_tuple = next(d for d in correlation_dicts_list if len(
+            d[1]) == min([len(i[1]) for i in correlation_dicts_list]))
+        # Remove the tuple with the shortest dict  from the list
+        correlation_dicts_list.remove(name_dict_sigma_tuple)
+        set_name, shortest_dict, sigma_dict = name_dict_sigma_tuple
+        # Pop the list to get the oter tuple to merge with
+        other_name, other_dict, other_sigma_dict = correlation_dicts_list.pop()
+        dnf_logger.info('Merging correlation dicts %s and %s' %
+                        (set_name, other_name))
+
+        # Loop shortest correlation lookup dict
+        npairs = 0
+        for o_gene, d in shortest_dict.items():
+            for i_gene, corr in d.items():
+                if o_gene is not i_gene and \
+                        not _entry_exist_dict(merged_corr_dict, o_gene, i_gene):
+                    # Check both directions
+                    other_corr = None
+                    if _entry_exist_dict(other_dict, o_gene, i_gene):
+                        other_corr = other_dict[o_gene][i_gene]
+                    elif _entry_exist_dict(other_dict, i_gene, o_gene):
+                        other_corr = other_dict[i_gene][o_gene]
+
+                    if other_corr and pass_filter(
+                            corr1=corr, mu1=sigma_dict['mean'],
+                            sigma1=sigma_dict['sigma'],
+                            corr2=other_corr, mu2=other_sigma_dict['mean'],
+                            sigma2=other_sigma_dict['sigma'],
+                            margin=settings['margin'],
+                            filter_type=settings['filter_type']):
+                        merged_corr_dict[o_gene][i_gene][set_name] = corr
+                        merged_corr_dict[o_gene][i_gene][other_name] = \
+                            other_corr
+                        assert merged_corr_dict[o_gene][i_gene].get(set_name)\
+                            is not None
+                        assert merged_corr_dict[o_gene][i_gene].get(other_name)\
+                            is not None
+                        assert merged_corr_dict[o_gene].get(o_gene) is None
+                        assert merged_corr_dict[i_gene].get(i_gene) is None
+                        npairs += 1
+
+                    # Did not pass filter
+                    else:
+                        continue
+
+                # Entry already exists
                 else:
                     continue
-            # Entry already exists
-            else:
-                continue
 
-    # recursive case: more than 2 dicts. Merge the shortest and another,
-    # call same function with and the merged dict plus the rest of the list.
-    # if correlation_dicts_list:
+    # todo: create recursive data set merger for 3 or more data sets
+    # Case 3 (not yet implemented)
+    # else:
     #     return merge_correlation_dicts_recursive(
     #         correlation_dicts_list.append(('master', merged_corr_dict)))
 
-    # base case: 2 dicts in list. Return merged dict.
-    # else:
-
     merged_corr_dict.default_factory = None
-    return merged_corr_dict
+    return merged_corr_dict, npairs
 
 
-# def merge_correlation_dicts_recursive(correlation_dicts_list):
-#     """ This should be the recursive version of correlation_dicts_list(). Call
-#     this function from correlation_dicts_list()
-#
-#     :param correlation_dicts_list:
-#     :return: pass
-#     """
-#     pass
+def merge_correlation_dicts_recursive(correlation_dicts_list):
+    """ This should be the recursive version of correlation_dicts_list(). Call
+    this function from correlation_dicts_list()
+
+    :param correlation_dicts_list:
+    :return: pass
+    """
+    pass
 
 
 def get_combined_correlations(dict_of_data_sets, filter_settings):
@@ -764,18 +861,19 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
         dict_of_data_sets[gene_set_name] = dataset_dict
 
-        dataset_dict = {data: (depmap filepath),
-                        corr: (depmap corr file),
+        dataset_dict = {data: str (depmap filepath),
+                        corr: str (depmap corr file),
+                        outbasename: str (base name for all output files),
                         filter_gene_set: list[genes to filter on],
-                        ll: lower_limit_for_correlation,
-                        ul: upper_limit_for_correlation,
-                        mean: mean of correlation distr,
-                        sigma: st-dev of correlation distr,
-                        filter_margin: float,
-                        merge_filter_type: str,
-                        outbasename: str,
-                        dump_unique_pairs: Bool,
-                        strict: Bool}
+                        ll: float (lower limit for correlation),
+                        ul: float (upper limit for correlation),
+                        max_pairs: int (max number of sampled pairs from corr)
+                        mean: float (mean of correlation distr),
+                        sigma: float (st-dev of correlation distr),
+                        filter_margin: float (st-dev diff for filtering distr),
+                        dump_unique_pairs: Bool (Output unique corr pairs),
+                        strict: Bool (A,B both have to be in `filter_gene_set`)
+                        }
 
     The filter settings should contain the following:
 
@@ -848,9 +946,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             stats = get_stats(corr_matrix_to_generator(full_corr_matrix))
             sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
 
-        # Get tuple generator and the accompanied set of genes
-        filtered_corr_matrix,\
-            set_hgnc_syms, set_hgnc_ids,\
+        # Get corr matrix and the accompanied set of genes
+        filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids,\
             sym2id_dict, id2sym_dict = get_correlations(
                 depmap_data=gene_data,
                 geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
@@ -858,6 +955,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                 strict=dataset_dict['strict'],
                 dump_unique_pairs=dataset_dict['dump_unique_pairs'],
                 outbasename=outbasename,
+                sigma_dict=sigma_dict,
                 lower_limit=dataset_dict['ll'],
                 upper_limit=dataset_dict['ul']
             )
@@ -872,9 +970,11 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
 
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
-            tuple_generator=corr_matrix_to_generator(filtered_corr_matrix))
-        dnf_logger.info('Created correlation dictionary of length %i for set '
-                        '"%s"' % (len(corr_dict), gene_set_name))
+            tuple_generator=corr_matrix_to_generator(
+                corrrelation_df_matrix=filtered_corr_matrix,
+                max_pairs=dataset_dict['max_pairs']
+            )
+        )
 
         # Append correlation dict and stats to list
         stats_dict[gene_set_name] = sigma_dict
@@ -884,26 +984,28 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         else:
             gene_set_intersection.intersection_update(set_hgnc_syms)
 
-    dnf_logger.info('---------------------')
-    dnf_logger.info('Merging the data sets')
-    dnf_logger.info('---------------------')
+    if len(name_dict_stats_list) > 1:
+        dnf_logger.info('---------------------')
+        dnf_logger.info('Merging the data sets')
+        dnf_logger.info('---------------------')
 
     # Merge the dictionaries
-    master_corr_dict = merge_correlation_data(
+    master_corr_dict, npairs = merge_correlation_data(
         correlation_dicts_list=name_dict_stats_list,
         settings=filter_settings
     )
-    dnf_logger.info('Merged gene sets to master dictionary of length %i' %
-                    len(master_corr_dict))
+    dnf_logger.info('Created gene correlation master dictionary of length %i' %
+                    npairs)
 
     return master_corr_dict, gene_set_intersection, stats_dict
 
 
 def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
-                     strict, dump_unique_pairs, outbasename,
-                     lower_limit=0.2, upper_limit=1.0):
+                     strict, dump_unique_pairs, outbasename, sigma_dict,
+                     lower_limit=1.0, upper_limit=None):
     # todo make function take data dict as input or use args* + kwargs**
-    """ given a gene-feature data matrix in csv format.
+    """Return correlation data, filtered gene sets and gene id translation
+    dictionaries given a depmap gene data file
 
     depmap_data: str
         Filepath to depmap data file to process
@@ -921,35 +1023,50 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
         If True, recalculate correlations (has to be True if pd_corr_matrix
         is None).
     lower_limit: float
-        Lowest correlation magnitude to consider
-    upper_limit: float
-        Highest correlation magnitude to consider (good for picking a sample
-        in the middle of the correlation distribution).
+        Smallest distance from correlation mean to consider
+    upper_limit: float or None
+        Largest distance from correlation mean to consider (Good for picking a
+        sample in the middle of the correlation distribution). If None,
+        there is no upper bound, i.e. all pairs with correlation == 1.0
+        are considered.
 
     Returns
     -------
-    filtered_correlation_matrix: generator
-        Generator of gene,gene,correlation tuples from file or correlation
-        calculation
+    filtered_correlation_matrix: pandas.DataFrame
+        Correlation matrix as pd.DataFrame
     all_hgnc_ids: set()
-        The set of all genes in the correlation
+        The set of all HGNC IDs in the correlation matrix
+    all_hgnc_symb: set()
+        The set of all HGNC symbols in the correlation matrix
+    sym2id_dict: dict
+        Dictionary translating HGNC symbols to HGNC IDs in the data set
+    id2sym_dict: dict
+        Dictionary translating HGNC IDs to HGNC symbols in the data set
     """
 
     filtered_correlation_matrix, sym2id_dict, id2sym_dict = _get_corr_df(
         depmap_data=depmap_data, corr_matrix=pd_corr_matrix,
         geneset_file=geneset_file, strict=strict,
-        lower_limit=lower_limit, upper_limit=upper_limit
+        lower_limit=lower_limit, upper_limit=upper_limit,
+        sigma_dict=sigma_dict
     )
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
 
     if dump_unique_pairs:
-        if lower_limit == 0:
+        if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
+        sigma_dict['mean']) / sigma_dict['sigma']):
             fname = outbasename + '_all_unique_correlation_pairs.csv'
-        else:
+        elif lower_limit > 0.0 and (upper_limit is None or upper_limit >= (
+                1.0 - sigma_dict['mean']) / sigma_dict['sigma']):
             fname = outbasename + '_unique_correlation_pairs_ll%s.csv' % \
-                    str(lower_limit).replace('.', '')
+                    (str(lower_limit).replace('.', ''))
+
+        else:
+            fname = outbasename + '_unique_correlation_pairs_ll%s_ul%s.csv' % \
+                    (str(lower_limit).replace('.', ''),
+                     str(upper_limit).replace('.', ''))
         dnf_logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
         _dump_it_to_csv(fname, corr_matrix_to_generator(
@@ -961,7 +1078,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
 
 
 def _get_corr_df(depmap_data, corr_matrix, geneset_file,
-                 strict, lower_limit, upper_limit):
+                 strict, lower_limit, upper_limit, sigma_dict):
     # todo make function take data dict as input or use args* + kwargs**
     multi_index_data = pd.MultiIndex.from_tuples(
         tuples=[
@@ -1033,37 +1150,64 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
     assert corr_matrix_df is not None
 
     # No filtering
-    if lower_limit == 0 and upper_limit == 1.0:
-        dnf_logger.warning('No filtering requested. Be aware of large RAM '
+    if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
+            sigma_dict['mean']) / sigma_dict['sigma']):
+        dnf_logger.warning('No filtering is performed. Be aware of large RAM '
                           'usage.')
         return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
     # Filter correlations
     else:
-        return corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit),\
-               hgnc_sym2id, hgnc_id2sym
+        return corr_limit_filtering(
+            corr_matrix_df=corr_matrix_df,
+            lower_limit=lower_limit,
+            upper_limit=upper_limit,
+            mu=sigma_dict['mean'],
+            sigma=sigma_dict['sigma']
+        ), hgnc_sym2id, hgnc_id2sym
 
 
-def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit):
+def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
     """Filters a correlation matrix to values in (lower_limit, upper_limit)
 
     corr_matrix_df: pandas.DataFrame
         A pandas correlation matrix as a pandas data frame
     lower_limit: float
-        Lowest correlation magnitude to consider
+        Smallest distance (measured in SD) from mean correlation to consider
     upper_limit: float
-        Highest correlation magnitude to consider (good for picking a sample
-        in the middle of the correlation distribution)
+        Largest distance (measured in SD) from mean correlation to consider
+        (good for picking a sample in the middle of the correlation
+         distribution)
 
     Returns
     -------
     corr_matrix_df: pandas.DataFrame
         A filtered correlation dataframe matrix
     """
-    dnf_logger.info('Filtering correlations to %.1f < C < %.1f' %
-                    (lower_limit, upper_limit))
-    corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() > lower_limit]
-    if upper_limit < 1.0:
-        corr_matrix_df = corr_matrix_df[corr_matrix_df.abs() < upper_limit]
+    # Filter by number of SD from mean
+    if lower_limit > 0.0 and upper_limit and upper_limit < (1.0 - mu) / sigma:
+        dnf_logger.info('Filtering correlations to range %.2f < abs(C-mu)/SD < '
+                        '%.2f' % (lower_limit, upper_limit))
+        corr_matrix_df = corr_matrix_df[
+            abs(corr_matrix_df - mu) / sigma > lower_limit
+        ]
+        corr_matrix_df = corr_matrix_df[
+            abs(corr_matrix_df - mu) / sigma < upper_limit
+        ]
+    elif lower_limit == 0.0 and upper_limit and upper_limit < (1.0 - mu) / \
+            sigma:
+        dnf_logger.info('Filtering correlations to range 0.0 <= abs(C-mu)/SD < '
+                        '%.2f' % upper_limit)
+        corr_matrix_df = corr_matrix_df[
+            abs(corr_matrix_df - mu) / sigma < upper_limit
+        ]
+    elif lower_limit > 0.0 and not upper_limit:
+        dnf_logger.info('Filtering correlations to range %.2f < abs(C-mu)/SD'
+                        % lower_limit)
+        corr_matrix_df = corr_matrix_df[
+            abs(corr_matrix_df - mu) / sigma > lower_limit
+        ]
+    elif lower_limit == 0.0 and not upper_limit:
+        dnf_logger.info('Not filtering correlations.')
 
     return corr_matrix_df
 
@@ -1093,9 +1237,26 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         difference in their distance from the mean standard deviation.
     """
     if filter_type == 'sigma-diff':
-        return abs((mu1 + corr1)/sigma1 - (mu2 + corr2)/sigma2) < margin
+        return _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+    elif filter_type == 'corr-corr-corr':
+        return _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+    # No filter; Add more filter types above
     else:
         return True
+
+
+def _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+    """Return True if the difference in the scaled distances from the mean
+    measured in number of standard deviations is smaller than the given margin.
+    """
+    return abs((corr1 - mu1) / sigma1 - (corr2 - mu2) / sigma2) < margin
+
+
+def _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+    """Return True if the product of the scaled correlations is greater than
+    the given margin.
+    """
+    return ((corr1 - mu1) / sigma1) * ((corr2 - mu2) / sigma2) > margin
 
 
 def get_directed(stmts, undirected_types=None):
@@ -1381,7 +1542,7 @@ def deduplicate_stmt_list(stmts, ignore_str):
          List of preassembled statments possibly including a non-statements
     """
     # subjects should be the outer keys and objects should be the inner
-    
+
     if ignore_str in stmts:
         dnf_logger.info('Deduplicating statements and accounting for custom '
                         'string %s' % ignore_str)
@@ -1630,24 +1791,24 @@ def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
     return output.encode('ascii', 'ignore').decode('ascii')
 
 
-def dbc_load_statements(hgnc_ids):
+def dbc_load_statements(hgnc_syms):
     """Load statements where hgnc id is subject or object from indra.db.client
 
     Parameters
     ----------
-    hgnc_ids : iterable
-        An iterable containing HGNC ids
+    hgnc_syms : iterable
+        An iterable containing HGNC symbols
 
     Returns
     -------
     stmts : set{:py:class:`indra.statements.Statement`}
-        A set of all retrieved INDRA statemetents containing HGNC id
+        A set of all retrieved INDRA statemetents containing HGNC symbols
     """
     stmts = set()
     counter = 0
-    n_hgnc_ids = len(hgnc_ids)
+    n_hgnc_ids = len(hgnc_syms)
     try:
-        for hgnc_id in hgnc_ids:
+        for hgnc_id in hgnc_syms:
             stmts.update(dbc.get_statements_by_gene_role_type(agent_id=hgnc_id,
                                                               db=db_prim,
                                                               preassembled=
