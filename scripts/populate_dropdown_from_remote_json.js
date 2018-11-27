@@ -281,22 +281,6 @@ $(function(){
         onChange: function(value) {
             geneB = document.getElementById("select_second_gene").textContent.split(":")[0];
 
-            // Refer to the div (or other object) where the output text should be
-            let output_text = $("#my_outputB")[0];
-
-            // Add an empty innerHTML object (otherwise it keeps appending to current HTML object)
-            output_text.innerHTML = null;
-            
-            // Build an element (here: "thingy") in the innerHTML that includes the selected value.
-            thingy = document.createElement("span");
-
-            // Get the text from the selected item dropdown 
-            // thingy.textContent = "Subject: " + subj_input.options[subj_input.selectedIndex].text
-            thingy.textContent = "Gene B: " + geneB;
-
-            // Append the element to the div object
-            output_text.appendChild(thingy)
-
             // Reset Output and Names
             resetNamesOutput();
 
@@ -623,21 +607,6 @@ $(function(){
                 // Reset output and names
                 resetNamesOutput();
 
-                // Refer to the div (or other object) where the output text should be
-                let output_text = $("#my_outputA")[0];
-
-                // Add an empty innerHTML object (otherwise it keeps appending to current HTML object)
-                output_text.innerHTML = null;
-                
-                // build an element (here: "thingy") in the innerHTML that includes the selected value.
-                let thingy = document.createElement("span");
-
-                // Get the text from the selected item dropdown 
-                thingy.textContent = "Gene A: " + value
-
-                // Append the element to the div object
-                output_text.appendChild(thingy)
-                
                 // Set second query address example:
                 // https://s3.amazonaws.com/depmap-public/prior_filtered_neighbor_lookup/neighbors_to_BRCA1.json
                 // https://s3.amazonaws.com/depmap-public/neighbor_lookup/neighbors_to_A1BG.json
@@ -656,11 +625,13 @@ $(function(){
                             callback(second_items);
                         },
                         error: function() {
-                            let output_text = $("#my_outputB")[0];
+                            /*let output_text = $("#my_outputB")[0];
                             output_text.innerHTML = null;
                             let output_text_err = document.createElement("div")
                             output_text_err.textContent = "Could not load from " + second_dd_address
                             output_text.appendChild(output_text)
+                            */
+                            console.log("Could not load from " + second_dd_address)
                         }
                     })
                 });

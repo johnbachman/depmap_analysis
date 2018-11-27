@@ -44,34 +44,61 @@
 </head>
 
 <body>
-    <div class="container">
-    <div class="jumbotron">
-        <h1>INDRA DepMap Explainer</h1>
+   <!-- Fixed navbar -->
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <!--
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>-->
+          <a class="navbar-brand" href="#">INDRA DepMap Explainer</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container theme-showcase" role="main">
+    <div>
+        <p>&nbsp;
     </div>
+
 
     <div class="panel panel-default">
         <div class="panel-heading"><h3>Gene Selection</h3></div>
         <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.<br><br><i>NOTE: Complexes are treated as undirected connections (i.e. there is no subject and object) and may appear in the output for intermediary connections of the type A-X-B.</i></p>
-        <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
-        <div class="control-group">
-            <label for="select_first_gene"></label>
-            <select id="select_first_gene" class="demo-default" placeholder="Select a gene..."></select>
-        </div>
-        </div>
 
-        <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
-        <div class="control-group">
-            <label for="select_second_gene"></label>
-                <select id="select_second_gene" class="demo-default" placeholder="Select a gene..."></select>
+        <form>
+        <div class="form-group row">
+            <label class="col-sm-1 col-form-label" style="text-align: right; vertical-align: middle"
+                for="select_first_gene">Gene A</label>
+            <div class="col-sm-4">
+                <div class="dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                    <select id="select_first_gene" class="form-control" placeholder="Select a gene..."></select>
+                </div>
             </div>
         </div>
-        
+        <div class="form-group row">
+            <label class="col-sm-1 col-form-label" style="text-align: right; vertical-align: middle"
+                for="select_second_gene">Gene B</label>
+            <div class="col-sm-4">
+                <div class="dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                   <select id="select_second_gene" class="form-control" placeholder="Select a gene..."></select>
+                </div>
+            </div>
+        </div>
+        </form>
+
+    <!--
         <div id="output_A_B">
             <h4>Selection</h4>
             <div id="my_outputA">Gene A:</div>
             <div id="my_outputB">Gene B:</div>
             <h4 id="show_correlation">Link to depmap plot for geneA vs geneB (<i>correlation</i>)</h4>
         </div>
+    -->
     </div>
 
     <div class="panel panel-default">
