@@ -647,6 +647,22 @@ def _my_gauss(x, a, x0, sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
 
 
+def _bivariate_normal(r, rho, n):
+    # USE mean AS RHO VALUE; to be sure ask the question: "Is the correlation
+    # coefficient the mean of the correlation distribution curve?"
+    # n is number of cell lines?
+    # gamma = scipy/reference/generated/scipy.special.gamma.html
+    # gauss_hg = scipy/reference/generated/scipy.special.hyp2f1.html
+    gamma_n_1 = gamma(n-1)  # Gamma(n-1)
+    gamma_n_1_2 = gamma(n-0.5)  # Gamma(n-1.2)
+    gauss_hyperg = guss_hg(0.5, 0.5, (2*n-1)/2, (rho*r+1)/1)
+
+    denom = (n-2)*gamma_n_1*(1-rho**2)**((n-1)/2)*(1-r)**((n-4)/2)  # upper
+    numer = np.sqrt(2*np.pi)*gamma_n_1_2*(1-rho*r)**(n-3/2)  # lower
+
+    return gauss_hyperg*denom/numer
+
+
 def get_stats(tuple_generator):
     """Get mean and standard deviation from large file with A,B-value pairs.
 
