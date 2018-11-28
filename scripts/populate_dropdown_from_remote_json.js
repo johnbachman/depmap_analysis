@@ -48,16 +48,16 @@ $(function(){
     // Output areas
     // Complex AB
     var output_AcB = $("#expl_A_complex_B")[0];
-    var output_ABcomplex = $("#AB_output_complex")[0];
+    // var output_ABcomplex = $("#AB_output_complex")[0];
     var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
     // AB
     var output_AB = $("#expl_A_to_B")[0];
-    var output_AB_AB = $("#AB_output_AB")[0];
+    // var output_AB_AB = $("#AB_output_AB")[0];
     var AB_ev_count = document.getElementById("collapseAB_ev_count");
 
     // BA
     var output_BA = $("#expl_B_to_A")[0];
-    var output_BA_BA = $("#BA_output_BA")[0];
+    // var output_BA_BA = $("#BA_output_BA")[0];
     var BA_ev_count = document.getElementById("collapseBA_ev_count");
 
     // AXB
@@ -115,11 +115,13 @@ $(function(){
         AcB_ev_count.textContent = "Statements: 0";
         AcB_ev_count.style = "background-color:#6E6E6E;";
         // A->B
-        output_AB_AB.innerHTML = null;
+        output_AB.innerHTML = null;
+        // output_AB_AB.innerHTML = null;
         AB_ev_count.textContent = "Statements: 0";
         AB_ev_count.style = "background-color:#6E6E6E;";
         // B->A
-        output_BA_BA.innerHTML = null;
+        output_BA.innerHTML = null;
+        // output_BA_BA.innerHTML = null;
         BA_ev_count.textContent = "Statements: 0";
         BA_ev_count.style = "background-color:#6E6E6E;";
         // A->X->B
@@ -406,7 +408,8 @@ $(function(){
                         Bname_AtoB.textContent = geneB;
 
                         // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                        output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
+                        // output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
+                        output_directs(output_AB, output_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
                     }
 
                     // 'x_is_intermediary'; This is for A->X->B
@@ -498,7 +501,8 @@ $(function(){
                         Bname_BtoA.textContent = geneB;
 
                         // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                        output_directs(output_BA, output_BA_BA, BA_ev_count, connection_type_list.directed, geneB, geneA, debug_string)
+                        // output_directs(output_BA, output_BA_BA, BA_ev_count, connection_type_list.directed, geneB, geneA, debug_string)
+                        output_directs(output_BA, output_BA, BA_ev_count, connection_type_list.directed, geneB, geneA, debug_string)
                     }
 
                     // 'x_is_intermediary'; B->X->A
@@ -717,12 +721,6 @@ $(function(){
             Promise.all(eng_res_array).then(function(eng_array) {
                 // console.log("< < eng_res_array promises resolved > >")
                 number_of_statements = eng_array.length
-
-                // Output statement count
-                let output_element_stmt_count = document.createElement("h4")
-                output_element_stmt_count.textContent = "Found " + number_of_statements + subj_obj_string;
-                output_element_stmt_count.style = "background-color:#F2F2F2;"
-                source_output_pointer.appendChild(output_element_stmt_count);
 
                 // Update the count in the badge for A-B. A-X-B updates their badges at the level of the A-X-B functions
                 ev_counter_pointer.textContent = "Statements: " + number_of_statements.toString() // EVIDENCE SOURCE COUNT
