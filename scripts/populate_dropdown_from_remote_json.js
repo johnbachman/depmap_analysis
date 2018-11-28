@@ -191,7 +191,7 @@ $(function(){
         return eng_stmt
     };
 
-    function getStatementByHash(indra_query) {
+    function getStatementsByHash(indra_query) {
         var api_key = document.getElementById("api_key_input").value;
         console.log(("api key: " + api_key))
         _url = indra_server_addr + "?api-key=" + api_key;
