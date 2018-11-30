@@ -41,6 +41,12 @@
         }
     </script>
 
+    <style>
+    .stmt_toggle {
+        cursor: pointer;
+    }
+    </style>
+
     <title>
         INDRA DepMap Explainer
     </title>
@@ -111,7 +117,7 @@
 
     <!-- COMPLEXES -->
     <div class="card">
-        <h5 class="card-header"
+        <h5 class="card-header stmt_toggle"
             data-toggle="collapse"
             data-target="#collapseAcB"
             aria-expanded="false" 
@@ -120,7 +126,7 @@
             <div id="B_complex" style="display:inline-block;">B</div>
             <span id="collapseAcB_ev_count" 
                   class="badge badge-default float-right"
-                  style="background-color:#6E6E6E;">Statements: 0</span>
+                  style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
         </h5>
         <div id="collapseAcB" class="collapse">
             <div class="card-body">
@@ -138,7 +144,7 @@
                 Complex <div id="A_complex" style="display:inline-block;">A</div>
                         <div id="B_complex" style="display:inline-block;">B</div>
                     <span id="collapseAcB_ev_count" class="badge badge-default float-right"
-                          style="background-color:#6E6E6E;">Statements: 0</span>
+                          style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
                     <div id="AB_output_complex"></div>
             </a>
         </h4>
@@ -150,7 +156,7 @@
     -->
     <!-- A->B -->
     <div class="card">
-        <h5 class="card-header" 
+        <h5 class="card-header stmt_toggle" 
             data-toggle="collapse" 
             data-target="#collapseAB" 
             aria-expanded="false" 
@@ -159,7 +165,7 @@
             <div id="B_AtoB" style="display:inline-block;">B</div>
             <span id="collapseAB_ev_count"
                   class="badge badge-default float-right" 
-                  style="background-color:#6E6E6E;">Statements: 0</span>
+                  style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
         </h5>
         <div id="collapseAB" 
              class="collapse">
@@ -171,7 +177,7 @@
 
     <!-- B->A -->
     <div class="card">
-        <h5 class="card-header" 
+        <h5 class="card-header stmt_toggle" 
             data-toggle="collapse" 
             data-target="#collapseBA" 
             aria-expanded="false" 
@@ -192,7 +198,7 @@
 
     <!-- A->X->B -->
     <div class="card">
-        <h5 class="card-header"
+        <h5 class="card-header stmt_toggle"
             data-toggle="collapse"
             data-target="#collapseAXB"
             aria-expanded="false"
@@ -202,7 +208,7 @@
             <div id="B_AXB" style="display:inline-block;">B</div>
             <span id="collapseAXB_ev_count" 
                   class="badge badge-default float-right" 
-                  style="background-color:#6E6E6E;">X: 0</span>
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
         </h5>
         <div id="collapseAXB" 
              class="collapse">
@@ -218,7 +224,7 @@
 
     <!-- B->X->A -->
     <div class="card">
-        <h5 class="card-header"
+        <h5 class="card-header stmt_toggle"
             data-toggle="collapse"
             data-target="#collapseBXA"
             aria-expanded="false"
@@ -228,7 +234,7 @@
             <div id="A_BXA" style="display:inline-block;">A</div>
             <span id="collapseBXA_ev_count" 
                   class="badge badge-default float-right" 
-                  style="background-color:#6E6E6E;">X: 0</span>
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
         </h5>
         <div id="collapseBXA" 
              class="collapse">
@@ -244,7 +250,7 @@
 
     <!-- B->X<-A -->
     <div class="card">
-        <h5 class="card-header"
+        <h5 class="card-header stmt_toggle"
             data-toggle="collapse"
             data-target="#collapse_st"
             aria-expanded="false"
@@ -254,7 +260,7 @@
                 <div id="B_ABtoX" style="display:inline-block;">B</div>)
                 <span id="collapse_st_X_count" 
                       class="badge badge-default float-right" 
-                      style="background-color:#6E6E6E;">X: 0</span>
+                      style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
         </h5>
         <div id="collapse_st" 
              class="collapse">
@@ -270,7 +276,7 @@
 
     <!-- B<-X->A -->
     <div class="card">
-        <h5 class="card-header"
+        <h5 class="card-header stmt_toggle"
             data-toggle="collapse"
             data-target="#collapse_sr"
             aria-expanded="false"
@@ -280,7 +286,7 @@
                 <div id="B_XtoAB" style="display:inline-block;">B</div>)
                 <span id="collapse_sr_X_count" 
                       class="badge badge-default float-right" 
-                      style="background-color:#6E6E6E;">X: 0</span>
+                      style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
         </h5>
         <div id="collapse_sr" 
              class="collapse">
