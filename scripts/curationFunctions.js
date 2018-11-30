@@ -1,25 +1,13 @@
-// CUARTION FUNCTIONS
-// Expand/collapse row
-$(function() {
-    $("td[class='curation_toggle']").click(function(event) {
-        event.stopPropagation();
-        var $target = $(event.target);
-        if (event.target.dataset.clicked == "true") {
-            // Toggle (animation duration in msec)
-            $target.closest("tr").next().find("div").slideToggle(200);
-        // First click event
-        } else {
-            // Stay down (animation duration in msec)
-            $target.closest("tr").next().find("div").slideDown(400);
+// CURATION FUNCTIONS
 
-            // Change color of icon to light gray
-            event.target.style="color:#A4A4A4;"
-
-            // Set clicked to true
-            event.target.dataset.clicked = "true"
-        }
-    });
-});
+var latestSubmission = {
+                        'curator': '',
+                        'api_key': '',
+                        'ddSelect': '',
+                        'ev_hash': '',
+                        'source_hash': '',
+                        'submit_status': 0
+                    };
 
 function submitButtonClick(clickEvent) {
     // CURATOR
@@ -421,4 +409,3 @@ function addCurationRow(clickedRow) {
     // Append new row to provided row
     clickedRow.parentNode.insertBefore(curationRow, clickedRow.nextSibling);
 };
-// END CURATION FUNCTIONS
