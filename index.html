@@ -53,6 +53,27 @@
 
     <h2 class=display-1" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer</h2>
 
+    <div class="page-header">
+        <a name='index'></a>
+        <h4>Curator Information</h4>
+        <div class="user_data">
+        <div class="api_key_form" id="api_key_form" style="display:inline-block; vertical-align: top; width: 330">
+            <form name="apiKeyForm" action="javascript:keySubmit(api_key_input.value)">
+                <b>API key</b><br>If no key is provided your curation will be rejected.<br>
+                <input type="text" name="api_key" id="api_key_input" placeholder="Enter key here..." style="width: 200px;">
+                <input type="submit" name="store_button" value="submit key">
+                <div id="ensure_user_on_api_key">No key given.</div>
+            </form>
+        </div>
+        <div class="curator_form" id="curator_form" style="display:inline-block; vertical-align: top; width: 330">
+            <form name="curatorForm">
+                <b>Curator ID</b><br>Your curation will get priority if you provide your email or name.<br>
+                <input type="text" name="curator" id="curator_input" placeholder="Enter your name or email..." style="width: 200px;">
+            </form>
+        </div>
+    </div>
+    </div>
+
     <div class="card" style="padding-bottom: 0px;">
         <h5 class="card-header">Gene Selection</h5>
         <div class="card-body">
@@ -159,7 +180,7 @@
             <div id="A_BtoA" style="display:inline-block;">A</div>
             <span id="collapseBA_ev_count" 
                   class="badge badge-default float-right" 
-                  style="background-color:#6E6E6E;">Statements: 0</span>
+                  style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
         </h5>
         <div id="collapseBA" 
              class="collapse">
@@ -275,18 +296,5 @@
 
     </div> <!-- closing div for class="container theme-showcase" role="main" -->
 
-    <div class="container theme-showcase" role="apiKey" style="padding-top: 40px">
-    <div class="card">
-        <div class="card-header"><h4>API key</h4></div>
-        <div class="card-body">
-            <form name="apiKeyForm" action="javascript:keySubmit(api_key_input.value)">
-                If no key is provided, evidence text output might be limited. Links to source material will always be provided.<br>
-                <input type="text" name="api_key" id="api_key_input" placeholder="Enter key here..." style="width: 360px;">
-                <input type="submit" name="store_button" value="submit key">
-                <div id="ensure_user_on_api_key">No key given.</div>
-            </form>
-        </div>
-    </div>
-    </div>
 </body>
 </html>
