@@ -115,41 +115,41 @@ $(function(){
         output_AcB.innerHTML = null;
         // output_ABcomplex.innerHTML = null;
         AcB_ev_count.textContent = "Statements: 0";
-        AcB_ev_count.style = "background-color:#6E6E6E;";
+        AcB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->B
         output_AB.innerHTML = null;
         // output_AB_AB.innerHTML = null;
         AB_ev_count.textContent = "Statements: 0";
-        AB_ev_count.style = "background-color:#6E6E6E;";
+        AB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // B->A
         output_BA.innerHTML = null;
         // output_BA_BA.innerHTML = null;
         BA_ev_count.textContent = "Statements: 0";
-        BA_ev_count.style = "background-color:#6E6E6E;";
+        BA_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->X->B
         AXB_dd_div.innerHTML = null;
         output_AX_AXB.innerHTML = null;
         output_XB_AXB.innerHTML = null;
         AXB_ev_count.textContent = "X: 0";
-        AXB_ev_count.style = "background-color:#6E6E6E;";
+        AXB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // B->X->A
         BXA_dd_div.innerHTML = null;
         output_BX_BXA.innerHTML = null;
         output_XB_BXA.innerHTML = null;
         BXA_ev_count.textContent = "X: 0";
-        BXA_ev_count.style = "background-color:#6E6E6E;";
+        BXA_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A<-X->B
         XtoAB_dd_div.innerHTML = null;
         output_AX_XtoAB.innerHTML = null;
         output_XB_XtoAB.innerHTML = null;
         xAB_ev_count.textContent = "X: 0";
-        xAB_ev_count.style = "background-color:#6E6E6E;";
+        xAB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->X<-B
         ABtox_dd_div.innerHTML = null;
         output_AX_ABtoX.innerHTML = null;
         output_XB_ABtoX.innerHTML = null;
         ABx_ev_count.textContent = "X: 0";
-        ABx_ev_count.style = "background-color:#6E6E6E;";
+        ABx_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
     }
 
     function allAreComplex(stmts) {
@@ -206,7 +206,9 @@ $(function(){
     };
 
     function getCurationHTMLByHash(hash) {
-        url = indra_curation_addr + hash + "?format=html"
+        ev_limit = 3;
+        options = "&ev_limit=" + ev_limit
+        url = indra_curation_addr + hash + "?format=html" + options
         return $.ajax({url: url})
     }
 
@@ -371,15 +373,58 @@ $(function(){
 
             // To be used so we can query common up/downstream on B-X-A when A->B gives back a result but not B->A;
             // Should also use it for avoiding double output.
-            var AcB_d_output = false
-            var AB_st_output = false
-            var AB_sr_output = false
+            var AcB_d_output = false;
+            var AB_st_output = false;
+            var AB_sr_output = false;
+            var calledPMIDtitle = false;
 
             // Query and output all subj:A -> obj:B
             var geneA_is_subj_promise = $.ajax({
                 url: geneA_is_subj_expl_address,
                 success: function(res) {
                     let obj = geneB
+
+                    // First to resolve: just set to true
+                    if (!calledPMIDtitle) {
+                        calledPMIDtitle = true;
+                    } else {
+                        var readyStateCheckInterval = setInterval(function() {
+                            console.log("Current document readyState: " + document.readyState)
+
+                            // options are "loading", "interactive", "complete"
+                            if (document.readyState === "complete") {
+                                clearInterval(readyStateCheckInterval);
+                                populatePMIDlinkTitles();
+
+                                // Source the curation row toggle function
+                                $(function() {
+                                    console.log("Re-reading toggle function")
+                                    $("td[class='curation_toggle']").click(function(event) {
+                                        console.log("Curation toggle click")
+                                        event.stopPropagation();
+                                        var $target = $(event.target);
+                                        console.log($(event.target))
+                                        if (event.target.dataset.clicked == "true") {
+                                            console.log('trying to animate')
+                                            // Toggle (animation duration in msec)
+                                            $target.closest("tr").next().find("div").slideToggle(200);
+                                        // First click event
+                                        } else {
+                                            console.log('first click event')
+                                            // Stay down (animation duration in msec)
+                                            $target.closest("tr").next().find("div").slideDown(400);
+
+                                            // Change color of icon to light gray
+                                            event.target.style="color:#A4A4A4;"
+
+                                            // Set clicked to true
+                                            event.target.dataset.clicked = "true"
+                                        }
+                                    });
+                                });
+                            }
+                        }, 1000); // Time interval in milliseconds
+                    }
 
                     // Should return a dict of the format below
                     connection_type_list = res[obj]
@@ -493,6 +538,48 @@ $(function(){
                 url: geneB_is_subj_expl_address,
                 success: function(res) {
                     let obj = geneA
+
+                    // First to resolve: just set to true
+                    if (!calledPMIDtitle) {
+                        calledPMIDtitle = true;
+                    } else {
+                        var readyStateCheckInterval = setInterval(function() {
+                            // options are "loading", "interactive", "complete"
+                            if (document.readyState === "complete") {
+                                clearInterval(readyStateCheckInterval);
+                                populatePMIDlinkTitles();
+
+                                // Source the curation row toggle function
+                                $(function() {
+                                    console.log("Re-reading toggle function")
+                                    $("td[class='curation_toggle']").click(function(event) {
+                                        console.log("Curation toggle click")
+                                        event.stopPropagation();
+                                        var $target = $(event.target);
+                                        console.log($(event.target))
+                                        if (event.target.dataset.clicked == "true") {
+                                            // Toggle (animation duration in msec)
+                                            console.log('trying to animate')
+                                            $target.closest("tr").next().find("div").slideToggle(200);
+                                        // First click event
+                                        } else {
+                                            console.log('first click event')
+                                            // Stay down (animation duration in msec)
+                                            $target.closest("tr").next().find("div").slideDown(400);
+
+                                            // Change color of icon to light gray
+                                            event.target.style="color:#A4A4A4;"
+
+                                            // Set clicked to true
+                                            event.target.dataset.clicked = "true"
+                                        }
+                                    });
+                                });
+                            }
+                        }, 1000); // Time interval in milliseconds
+                    }
+
+                    // Should return a dict of the format below
                     connection_type_list = res[obj]
 
                     // if connection undirected and not already printed
@@ -679,6 +766,15 @@ $(function(){
         // type_hash_array contains [["type1", hash1], ["type2", hash2], ...]
         for (let i = 0; i < type_hash_array.length; i++) {
             hash_list.push(type_hash_array[i][1]);
+        }
+        nStmts = hash_list.length;
+        ev_counter_pointer.textContent = "Statements: " + nStmts;
+        if (nStmts == 0) {
+            // No statements found, light gray
+            ev_counter_pointer.style = "background-color:#BBB; color: #FFFFFF;"
+        } else {
+            // Statements found, set to standard gray 
+            ev_counter_pointer.style = "background-color:#777; color: #FFFFFF;"
         }
 
         curationHTMLpromiseArray = [];
@@ -951,11 +1047,11 @@ $(function(){
         // Update the count of X in the badge
         x_counter_pointer.textContent = "X: " + x_array.length.toString()
         if (x_array.length == 0) {
-            // No X found, gray out
-            x_counter_pointer.style = "background-color:#6E6E6E;"
+            // No X found, gray out 
+            x_counter_pointer.style = "background-color:#BBB; color: #FFFFFF;"
         } else {
             // X found, set to black
-            x_counter_pointer.style = "background-color:#000000;"
+            x_counter_pointer.style = "background-color:#777; color: #FFFFFF;"
         }
         
 
