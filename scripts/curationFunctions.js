@@ -1,5 +1,7 @@
 // CURATION FUNCTIONS
 
+// Variables
+var pubmed_fetch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
 var latestSubmission = {
                         'curator': '',
                         'api_key': '',
@@ -409,3 +411,88 @@ function addCurationRow(clickedRow) {
     // Append new row to provided row
     clickedRow.parentNode.insertBefore(curationRow, clickedRow.nextSibling);
 };
+
+function getPubMedMETAxmlByPMID(pmid) {
+    params_dict = {'db': 'pubmed',
+        'retmode': 'xml',
+        'rettype': 'docsum',
+        'id': pmid
+    };
+    PubMedMETAxml = $.ajax({
+        url: pubmed_fetch,
+        type: "POST",
+        dataType: "xml",
+        data: params_dict,
+    });
+    return PubMedMETAxml
+};
+
+function pmidXML2dict(XML) {
+    xml_dict = {};
+    for (child of XML.children) {
+        name = child.getAttribute("Name");
+        type = child.getAttribute("Type");
+        if (child.hasChildNodes() & type == "List") {
+            // Javascript can't really do nice recursive functions...
+            // special cases for "History" and "ArticleIds" which has unique inner Names
+            if (name == "ArticleIds" | name == "History") {
+                innerDict = {};
+                for (c of child.children) {
+                    innerDict[c.getAttribute("Name")] = c.textContent;
+                }
+                innerItems = innerDict;
+            } else {
+                innerList = [];
+                for (c of child.children) {
+                    innerList.push(c.textContent);
+                }
+                innerItems = innerList;
+            }
+            xml_dict[name] = innerItems
+        } else if (child.tagName == "Item") {
+            // Here just get the inner strings
+            xml_dict[name] = child.textContent;
+        } else if (child.tagName == "Id") {
+            // Special case
+            xml_dict["Id"] = child.textContent;
+        } else {
+            if (!xml_dict["no_key"]) {
+                xml_dict["no_key"] = [child.textContent]
+            } else {
+                xml_dict["no_key"].push(child.textContent)
+            }
+        }
+    }
+    return xml_dict;
+}
+
+// Modify link hover text
+function setPMIDlinkTitle(pmid, link_tag) {
+    let pubmed_xml_promise = getPubMedMETAxmlByPMID(pmid);
+    pubmed_xml_promise.then(function(responseXML) {
+        docsum_xml = responseXML.getElementsByTagName('DocSum')[0];
+        pmid_meta_dict = pmidXML2dict(docsum_xml);
+        authorlist = pmid_meta_dict.AuthorList
+        if (authorlist.length > 3) {
+            authors = authorlist[0] + ", ... " + authorlist[authorlist.length-1];
+        } else {
+            authors = authorlist.join(", ");
+        }
+        // Shortened journal name is in .Source, while full name is in .FullJournalName
+        journal = pmid_meta_dict.Source
+        SO = pmid_meta_dict.SO
+        title = pmid_meta_dict.Title
+
+        pmid_hover_string = authors + ", \"" + title + "\", " + journal + ", " + SO
+        link_tag.title = pmid_hover_string;
+    })
+}
+
+// Loop all pmid link nodes and set title
+function populatePMIDlinkTitles() {
+    var pmid_link_array = document.getElementsByClassName("pmid_link");
+    for (link_obj of pmid_link_array) {
+        pmid = link_obj.textContent;
+        setPMIDlinkTitle(pmid, link_obj)
+    }
+}

@@ -14,7 +14,6 @@ $(function(){
     var indra_server_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hashes";
     // var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
     var indra_english_asmb = "http://api.indra.bio:8000/assemblers/english";
-    var pubmed_fetch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
 
     // "GLOBAL" VARIABLE SCOPE
     var old_geneA = "A"
@@ -223,60 +222,6 @@ $(function(){
         // Append to output
         outputDiv.appendChild(statement);
         outputDiv.appendChild(evidence);
-    }
-
-    function getPubMedMETAxmlByPMID(pmid) {
-        params_dict = {'db': 'pubmed',
-            'retmode': 'xml',
-            'rettype': 'docsum',
-            'id': pmid
-        };
-        PubMedMETAxml = $.ajax({
-            url: pubmed_fetch,
-            type: "POST",
-            dataType: "xml",
-            data: params_dict,
-        });
-        return PubMedMETAxml
-    };
-
-    function pmidXML2dict(XML) {
-        xml_dict = {};
-        for (child of XML.children) {
-            name = child.getAttribute("Name");
-            type = child.getAttribute("Type");
-            if (child.hasChildNodes() & type == "List") {
-                // Javascript can't really do nice recursive functions...
-                // special cases for "History" and "ArticleIds" which has unique inner Names
-                if (name == "ArticleIds" | name == "History") {
-                    innerDict = {};
-                    for (c of child.children) {
-                        innerDict[c.getAttribute("Name")] = c.textContent;
-                    }
-                    innerItems = innerDict;
-                } else {
-                    innerList = [];
-                    for (c of child.children) {
-                        innerList.push(c.textContent);
-                    }
-                    innerItems = innerList;
-                }
-                xml_dict[name] = innerItems
-            } else if (child.tagName == "Item") {
-                // Here just get the inner strings
-                xml_dict[name] = child.textContent;
-            } else if (child.tagName == "Id") {
-                // Special case
-                xml_dict["Id"] = child.textContent;
-            } else {
-                if (!xml_dict["no_key"]) {
-                    xml_dict["no_key"] = [child.textContent]
-                } else {
-                    xml_dict["no_key"].push(child.textContent)
-                }
-            }
-        }
-        return xml_dict;
     }
 
     function grabJSON (url, callback) {
