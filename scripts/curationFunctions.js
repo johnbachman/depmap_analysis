@@ -340,7 +340,7 @@ function createSBDiv () {
     let sbButton = document.createElement("button");
     sbButton.type = "button";
     sbButton.className = "btn btn-default btn-submit pull-right";
-    sbButton.style = "padding: 2px 6px";
+    sbButton.style = "padding: 2px 6px; border: solid 1px #878787;";
     sbButton.textContent = "Submit";
     sbButton.onclick = submitButtonClick; // ATTACHES SCRIPT TO BUTTON
 
@@ -496,3 +496,25 @@ function populatePMIDlinkTitles() {
         setPMIDlinkTitle(pmid, link_obj)
     }
 }
+
+// Expand/collapse row
+$(function() {
+    $("td[class='curation_toggle']").click(function(event) {
+        event.stopPropagation();
+        var $target = $(event.target);
+        if (event.target.dataset.clicked == "true") {
+            // Toggle (animation duration in msec)
+            $target.closest("tr").next().find("div").slideToggle(200);
+        // First click event
+        } else {
+            // Stay down (animation duration in msec)
+            $target.closest("tr").next().find("div").slideDown(400);
+
+            // Change color of icon to light gray
+            event.target.style="color:#A4A4A4;"
+
+            // Set clicked to true
+            event.target.dataset.clicked = "true"
+        }
+    });
+});
