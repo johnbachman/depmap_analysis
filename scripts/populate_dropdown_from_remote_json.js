@@ -339,7 +339,7 @@ $(function(){
                             // options are "loading", "interactive", "complete"
                             if (document.readyState === "complete") {
                                 clearInterval(readyStateCheckInterval);
-                                populatePMIDlinkTitles();
+                                // populatePMIDlinkTitles();
 
                                 // Source the curation row toggle function
                                 $(function() {
@@ -492,7 +492,7 @@ $(function(){
                             // options are "loading", "interactive", "complete"
                             if (document.readyState === "complete") {
                                 clearInterval(readyStateCheckInterval);
-                                populatePMIDlinkTitles();
+                                // populatePMIDlinkTitles();
 
                                 // Source the curation row toggle function
                                 $(function() {
@@ -596,7 +596,7 @@ $(function(){
                             Aname_A_XtoAB.textContent = geneA;
                             Bname_XtoAB.textContent = geneB;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_xAB, output_AX_XtoAB, output_XB_XtoAB, xAB_ev_count, XtoAB_dd_div, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address, debug_string)
                         }
                     }
