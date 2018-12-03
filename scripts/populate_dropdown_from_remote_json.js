@@ -63,28 +63,28 @@ $(function(){
 
     // AXB
     var output_AXB = $("#expl_A_to_X_to_B")[0];
-    var AXB_dd_div = $("#AXB_dropdown")[0];
+    var AXB_dd_div = "AXB_dropdown";
     var output_AX_AXB = $("#AX_output_AXB")[0];
     var output_XB_AXB = $("#XB_output_AXB")[0];
     var AXB_ev_count = document.getElementById("collapseAXB_ev_count");
 
     // BXA
     var output_BXA = $("#expl_B_to_X_to_A")[0];
-    var BXA_dd_div = $("#BXA_dropdown")[0];
+    var BXA_dd_div = "BXA_dropdown";
     var output_BX_BXA = $("#BX_output_BXA")[0];
     var output_XB_BXA = $("#XA_output_BXA")[0];
     var BXA_ev_count = document.getElementById("collapseBXA_ev_count");
 
     // ABx
     var output_ABx = $('#expl_x_is_downstream')[0];
-    var ABtox_dd_div = $("#ABtoX_dropdown")[0];
+    var ABtox_dd_div = "ABtoX_dropdown";
     var output_AX_ABtoX = $("#AX_output_ABtoX")[0];
     var output_XB_ABtoX = $("#XB_output_ABtoX")[0];
     var ABx_ev_count = document.getElementById("collapse_st_X_count");
 
     // xAB
     var output_xAB = $('#expl_x_is_upstream')[0];
-    var XtoAB_dd_div = $("#XtoAB_dropdown")[0];
+    var XtoAB_dd_div = "XtoAB_dropdown";
     var output_AX_XtoAB = $("#AX_output_XtoAB")[0];
     var output_XB_XtoAB = $("#XB_output_XtoAB")[0];
     var xAB_ev_count = document.getElementById("collapse_sr_X_count");
@@ -126,25 +126,21 @@ $(function(){
         BA_ev_count.textContent = "Statements: 0";
         BA_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->X->B
-        AXB_dd_div.innerHTML = null;
         output_AX_AXB.innerHTML = null;
         output_XB_AXB.innerHTML = null;
         AXB_ev_count.textContent = "X: 0";
         AXB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // B->X->A
-        BXA_dd_div.innerHTML = null;
         output_BX_BXA.innerHTML = null;
         output_XB_BXA.innerHTML = null;
         BXA_ev_count.textContent = "X: 0";
         BXA_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A<-X->B
-        XtoAB_dd_div.innerHTML = null;
         output_AX_XtoAB.innerHTML = null;
         output_XB_XtoAB.innerHTML = null;
         xAB_ev_count.textContent = "X: 0";
         xAB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->X<-B
-        ABtox_dd_div.innerHTML = null;
         output_AX_ABtoX.innerHTML = null;
         output_XB_ABtoX.innerHTML = null;
         ABx_ev_count.textContent = "X: 0";
@@ -735,27 +731,8 @@ $(function(){
     } // Closes the output_directs function bracket
 
     // Use this function for A-X-B (same for all four) the query needs to be over two json lookups: SUBJ_is_subj and OBJ_is_obj
-    function output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
+    function output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
         // console.log(('Called output_intermediary_new from ' + debug_string))
-        let dropdown_div = dd_div;
-        var dd_id = dropdown_div.id;
-        var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer to the dropdown
-        dropdown_div.class = "dropdown";
-        dropdown_div.style = "width: 360px; top: 36px; left: 0px; visibility: visible;";
-        let dropdown_ctrl_group = document.createElement("div");
-        dropdown_ctrl_group.class = "control-group";
-        let dropdown_label = document.createElement("label");
-        dropdown_label.for = rand_id;
-        let dropdown_select = document.createElement("select");
-        dropdown_select.id = rand_id;
-        dropdown_select.class = "demo-default";
-        dropdown_select.placeholder = "Select gene X...";
-
-        dropdown_ctrl_group.appendChild(dropdown_label)
-        dropdown_ctrl_group.appendChild(dropdown_select)
-        dropdown_div.appendChild(dropdown_ctrl_group)
-        // output_pointer.appendChild(dropdown_div)
-        
         var items = x_array.map(function(x) { return { x_value: x[0], item: x[0] + ": rank " + parseFloat(x[1]).toFixed(3).toString(), rank: x[1] }; })
 
         // Update the count of X in the badge
@@ -767,10 +744,28 @@ $(function(){
             // X found, set to black
             x_counter_pointer.style = "background-color:#777; color: #FFFFFF;"
         }
-        
 
-        // Create dropdown with all X
-        $select_intermediate = $("#"+rand_id).selectize({
+        // let dropdown_select = dd_select_id;
+        // var dd_id = dropdown_select.id;
+        // var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer to the dropdown
+        // dropdown_select.class = "dropdown";
+        // dropdown_select.style = "width: 360px; top: 36px; left: 0px; visibility: visible;";
+        // let dropdown_ctrl_group = document.createElement("div");
+        // dropdown_ctrl_group.class = "control-group";
+        // let dropdown_label = document.createElement("label");
+        // dropdown_label.for = rand_id;
+        // let dropdown_select = document.createElement("select");
+        // dropdown_select.id = rand_id;
+        // dropdown_select.class = "demo-default";
+        // dropdown_select.placeholder = "Select gene X...";
+
+        // dropdown_ctrl_group.appendChild(dropdown_label)
+        // dropdown_ctrl_group.appendChild(dropdown_select)
+        // dropdown_select.appendChild(dropdown_ctrl_group)
+        // output_pointer.appendChild(dropdown_select)
+
+        // Load list of X into dropdown; ALTERNATIVELY, MAKE DROPDOWN FUNCTIONS FOR EACH A-X-B EXPLICITLY
+        $select_intermediate = $("#"+dd_select_id).selectize({
             options: items,
             valueField: "x_value",
             labelField: "item",
@@ -781,6 +776,11 @@ $(function(){
                 field: "rank",
                 direction: "desc"
             },
+
+            // General settings
+            create: false, // Don't allow user to add options
+            maxItems: 1, // Only allow one item to be selected
+            placeholder: "Select gene X...", // Placeholder when nothing is selected
 
             // On select/change: Query A-X and B-X and output the english statements and their evidence
             // Also clear the output area so that a fresh one can be sent once a new X is selected

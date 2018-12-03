@@ -56,8 +56,9 @@
           background-color: #606060;
           color: #FFFFFF;
         }
-        .curation_toggle {
+        h5 a.stmt_toggle {
           cursor: pointer;
+          color: #000000;
         }
     </style>
 
@@ -131,13 +132,16 @@
 
     <!-- COMPLEXES -->
     <div class="card">
-        <h5 class="card-header stmt_toggle"
-            data-toggle="collapse"
-            data-target="#collapseAcB"
-            aria-expanded="false" 
-            aria-controls="collapseAcB">Complex 
-            <div id="A_complex" style="display:inline-block;">A </div>
-            <div id="B_complex" style="display:inline-block;">B</div>
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapseAcB"
+               aria-expanded="false" 
+               aria-controls="collapseAcB">
+                Complex <div id="A_complex" style="display:inline-block;">A </div>
+                <div id="B_complex" style="display:inline-block;">B</div>
+            </a>
             <span id="collapseAcB_ev_count" 
                   class="badge badge-default float-right"
                   style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
@@ -151,13 +155,16 @@
 
     <!-- A->B -->
     <div class="card">
-        <h5 class="card-header stmt_toggle" 
-            data-toggle="collapse" 
-            data-target="#collapseAB" 
-            aria-expanded="false" 
-            aria-controls="collapseAB">
-            <div id="A_AtoB" style="display:inline-block;">A</div> &rarr; 
-            <div id="B_AtoB" style="display:inline-block;">B</div>
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse" 
+               data-target="#collapseAB" 
+               aria-expanded="false" 
+               aria-controls="collapseAB">
+                <div id="A_AtoB" style="display:inline-block;">A</div> &rarr; 
+                <div id="B_AtoB" style="display:inline-block;">B</div>
+            </a>
             <span id="collapseAB_ev_count"
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
@@ -172,13 +179,16 @@
 
     <!-- B->A -->
     <div class="card">
-        <h5 class="card-header stmt_toggle" 
-            data-toggle="collapse" 
-            data-target="#collapseBA" 
-            aria-expanded="false" 
-            aria-controls="collapseBA">
-            <div id="B_BtoA" style="display:inline-block;">B</div> &rarr; 
-            <div id="A_BtoA" style="display:inline-block;">A</div>
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse" 
+               data-target="#collapseBA" 
+               aria-expanded="false" 
+               aria-controls="collapseBA">
+                <div id="B_BtoA" style="display:inline-block;">B</div> &rarr; 
+                <div id="A_BtoA" style="display:inline-block;">A</div>
+            </a>
             <span id="collapseBA_ev_count" 
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
@@ -193,23 +203,35 @@
 
     <!-- A->X->B -->
     <div class="card">
-        <h5 class="card-header stmt_toggle"
-            data-toggle="collapse"
-            data-target="#collapseAXB"
-            aria-expanded="false"
-            aria-controls="collapseAXB">
-            <div id="A_AXB" style="display:inline-block;">A</div> &rarr; 
-            <div id="X_AXB" style="display:inline-block;">X</div> &rarr; 
-            <div id="B_AXB" style="display:inline-block;">B</div>
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapseAXB"
+               aria-expanded="false"
+               aria-controls="collapseAXB">
+                <div id="A_AXB" style="display:inline-block;">A</div> &rarr; 
+                <div id="X_AXB" style="display:inline-block;">X</div> &rarr; 
+                <div id="B_AXB" style="display:inline-block;">B</div>
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row" style="display:inline-block;">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="AXB_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
             <span id="collapseAXB_ev_count" 
                   class="badge badge-default float-right" 
-                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0
+            </span>
         </h5>
         <div id="collapseAXB" 
              class="collapse">
             <div class="card-body">
                 <div id="expl_A_to_X_to_B">&nbsp;
-                    <div id="AXB_dropdown"></div>
                     <div id="AX_output_AXB"></div>
                     <div id="XB_output_AXB"></div>
                 </div>
@@ -219,14 +241,26 @@
 
     <!-- B->X->A -->
     <div class="card">
-        <h5 class="card-header stmt_toggle"
-            data-toggle="collapse"
-            data-target="#collapseBXA"
-            aria-expanded="false"
-            aria-controls="collapseBXA">
-            <div id="B_BXA" style="display:inline-block;">B</div> &rarr; 
-            <div id="X_BXA" style="display:inline-block;">X</div> &rarr; 
-            <div id="A_BXA" style="display:inline-block;">A</div>
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapseBXA"
+               aria-expanded="false"
+               aria-controls="collapseBXA">
+                <div id="B_BXA" style="display:inline-block;">B</div> &rarr; 
+                <div id="X_BXA" style="display:inline-block;">X</div> &rarr; 
+                <div id="A_BXA" style="display:inline-block;">A</div>
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row" style="display:inline-block;">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="BXA_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
             <span id="collapseBXA_ev_count" 
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
@@ -235,7 +269,6 @@
              class="collapse">
             <div class="card-body">
                 <div id="expl_B_to_X_to_A">&nbsp;
-                    <div id="BXA_dropdown"></div>
                     <div id="BX_output_BXA"></div>
                     <div id="XA_output_BXA"></div>
                 </div>
@@ -245,23 +278,34 @@
 
     <!-- B->X<-A -->
     <div class="card">
-        <h5 class="card-header stmt_toggle"
-            data-toggle="collapse"
-            data-target="#collapse_st"
-            aria-expanded="false"
-            aria-controls="collapse_st">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle" 
+               data-toggle="collapse" 
+               data-target="#collapse_st" 
+               aria-expanded="false" 
+               aria-controls="collapse_st">
                 Shared target (<div id="A_ABtoX" style="display:inline-block;">A</div> &rarr; 
                 <div id="X_ABtoX" style="display:inline-block;">X</div> &larr; 
                 <div id="B_ABtoX" style="display:inline-block;">B</div>)
-                <span id="collapse_st_X_count" 
-                      class="badge badge-default float-right" 
-                      style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row" style="display:inline-block;">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="ABtoX_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
+            <span id="collapse_st_X_count" 
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
         </h5>
         <div id="collapse_st" 
              class="collapse">
             <div class="card-body">
                 <div id="expl_x_is_downstream">&nbsp;
-                    <div id="ABtoX_dropdown"></div>
                     <div id="AX_output_ABtoX"></div>
                     <div id="XB_output_ABtoX"></div>
                 </div>
@@ -271,23 +315,34 @@
 
     <!-- B<-X->A -->
     <div class="card">
-        <h5 class="card-header stmt_toggle"
-            data-toggle="collapse"
-            data-target="#collapse_sr"
-            aria-expanded="false"
-            aria-controls="collapse_sr">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapse_sr"
+               aria-expanded="false"
+               aria-controls="collapse_sr">
                 Shared regulator (<div id="A_XtoAB" style="display:inline-block;">A</div> &larr; 
                 <div id="X_XtoAB" style="display:inline-block;">X</div> &rarr; 
                 <div id="B_XtoAB" style="display:inline-block;">B</div>)
-                <span id="collapse_sr_X_count" 
-                      class="badge badge-default float-right" 
-                      style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row" style="display:inline-block;">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="XtoAB_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
+            <span id="collapse_sr_X_count" 
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
         </h5>
         <div id="collapse_sr" 
              class="collapse">
             <div class="card-body">
                 <div id="expl_x_is_upstream">&nbsp;
-                    <div id="XtoAB_dropdown"></div>
                     <div id="AX_output_XtoAB"></div>
                     <div id="XB_output_XtoAB"></div>
                 </div>
