@@ -9,8 +9,8 @@ $(function(){
     var first_select_list = "https://s3.amazonaws.com/depmap-public/explainable_ids_1534216288.json";
     var select_first_gene, $select_first_gene
     var select_second_gene, $select_second_gene
-    // var indra_curation_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hash";
-    var indra_curation_addr = "http://127.0.0.1:5000/statements/from_hash/";
+    var indra_curation_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hash/";
+    // var indra_curation_addr = "http://127.0.0.1:5000/statements/from_hash/";
     var indra_server_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hashes";
     // var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
     var indra_english_asmb = "http://api.indra.bio:8000/assemblers/english";
@@ -335,7 +335,6 @@ $(function(){
                             // options are "loading", "interactive", "complete"
                             if (document.readyState === "complete") {
                                 clearInterval(readyStateCheckInterval);
-                                // populatePMIDlinkTitles();
 
                                 // Source the curation row toggle function
                                 $(function() {
@@ -426,7 +425,7 @@ $(function(){
                         Aname_AXB.textContent = geneA;
                         Bname_AXB.textContent = geneB;
 
-                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                         output_intermediary_new(output_AXB, output_AX_AXB, output_XB_AXB, AXB_ev_count, AXB_dd_div, connection_type_list.x_is_intermediary, geneA, geneB, geneA_is_subj_address, geneB_is_obj_address, debug_string)
                     }
 
@@ -442,7 +441,7 @@ $(function(){
 
                             AB_st_output = true;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_ABx, output_AX_ABtoX, output_XB_ABtoX, ABx_ev_count, ABtox_dd_div, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address, debug_string)
                         }
                     }
@@ -460,7 +459,7 @@ $(function(){
                             Aname_A_XtoAB.textContent = geneA;
                             Bname_XtoAB.textContent = geneB;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_xAB, output_AX_XtoAB, output_XB_XtoAB, xAB_ev_count, XtoAB_dd_div, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address, debug_string)
                         }
                     }
@@ -488,7 +487,6 @@ $(function(){
                             // options are "loading", "interactive", "complete"
                             if (document.readyState === "complete") {
                                 clearInterval(readyStateCheckInterval);
-                                // populatePMIDlinkTitles();
 
                                 // Source the curation row toggle function
                                 $(function() {
@@ -560,7 +558,7 @@ $(function(){
                         Aname_BXA.textContent = geneA;
                         Bname_BXA.textContent = geneB;
 
-                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                         output_intermediary_new(output_BXA, output_BX_BXA, output_XB_BXA, BXA_ev_count, BXA_dd_div, connection_type_list.x_is_intermediary, geneB, geneA, geneB_is_subj_address, geneA_is_obj_address, debug_string)
                     }
 
@@ -575,7 +573,7 @@ $(function(){
                             Aname_ABtoX.textContent = geneA;
                             Bname_ABtoX.textContent = geneB;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_ABx, output_AX_ABtoX, output_XB_ABtoX, ABx_ev_count, ABtox_dd_div, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address, debug_string)
                         }
                     }
@@ -632,9 +630,6 @@ $(function(){
             // The name of the property to use as the value when an item is selected.
             valueField: "item",
 
-            // Allows the user to create new items not in the initial list.
-            // create: true,
-
             // An array of property names to analyze when filtering options.
             searchField: ["item"],
 
@@ -679,12 +674,6 @@ $(function(){
                             callback(second_items);
                         },
                         error: function() {
-                            /*let output_text = $("#my_outputB")[0];
-                            output_text.innerHTML = null;
-                            let output_text_err = document.createElement("div")
-                            output_text_err.textContent = "Could not load from " + second_dd_address
-                            output_text.appendChild(output_text)
-                            */
                             console.log("Could not load from " + second_dd_address)
                         }
                     })
@@ -744,25 +733,6 @@ $(function(){
             // X found, set to black
             x_counter_pointer.style = "background-color:#777; color: #FFFFFF;"
         }
-
-        // let dropdown_select = dd_select_id;
-        // var dd_id = dropdown_select.id;
-        // var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer to the dropdown
-        // dropdown_select.class = "dropdown";
-        // dropdown_select.style = "width: 360px; top: 36px; left: 0px; visibility: visible;";
-        // let dropdown_ctrl_group = document.createElement("div");
-        // dropdown_ctrl_group.class = "control-group";
-        // let dropdown_label = document.createElement("label");
-        // dropdown_label.for = rand_id;
-        // let dropdown_select = document.createElement("select");
-        // dropdown_select.id = rand_id;
-        // dropdown_select.class = "demo-default";
-        // dropdown_select.placeholder = "Select gene X...";
-
-        // dropdown_ctrl_group.appendChild(dropdown_label)
-        // dropdown_ctrl_group.appendChild(dropdown_select)
-        // dropdown_select.appendChild(dropdown_ctrl_group)
-        // output_pointer.appendChild(dropdown_select)
 
         // Load list of X into dropdown; ALTERNATIVELY, MAKE DROPDOWN FUNCTIONS FOR EACH A-X-B EXPLICITLY
         $select_intermediate = $("#"+dd_select_id).selectize({
