@@ -25,21 +25,6 @@
     <!-- <script type="text/javascript" src="https://s3.amazonaws.com/depmap-public/curationJS/curationFunctions.js"></script> -->
     <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js"></script>
 
-    <script type="text/javascript">
-        // Check the API key input
-        function keySubmit (key_value) {
-            var ensure_user = document.getElementById("ensure_user_on_api_key")
-            // Default value still there or nothing entered 
-            if (key_value == "No key given." | !key_value) {
-                return;
-            // nothing entered
-            } else {
-                console.log("document.getElementById(\"api_key_input\").value: " + document.getElementById("api_key_input").value);
-                ensure_user.textContent = "Key stored: " + key_value;
-            }
-        }
-    </script>
-
     <style>
         a {
             color: #256DC5;
@@ -61,6 +46,12 @@
           margin-bottom: 0px;
           margin-left: 0px;
           margin-right: 0px;
+        }
+        .dropdown {
+          width: 220px;
+          top: 0px;
+          left: 0px;
+          visibility: visible;
         }
         h5 a.stmt_toggle {
           cursor: pointer;
@@ -111,7 +102,7 @@
                 <label class="col-sm-2 col-form-label" style="text-align: right; vertical-align: middle"
                     for="select_first_gene">Gene A</label>
                 <div class="col-sm-4">
-                    <div class="dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                    <div class="dropdown">
                         <select id="select_first_gene" class="form-control" placeholder="Select a gene..."></select>
                     </div>
                 </div>
@@ -120,7 +111,7 @@
                 <label class="col-sm-2 col-form-label" style="text-align: right; vertical-align: middle"
                     for="select_second_gene">Gene B</label>
                 <div class="col-sm-4">
-                    <div class="dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                    <div class="dropdown">
                        <select id="select_second_gene" class="form-control" placeholder="Select a gene..."></select>
                     </div>
                 </div>
@@ -223,7 +214,7 @@
             <!-- Dropdown for X -->
             <div class="form-group row x-dropdown">
                 <div class="col-sm-4">
-                    <div class="dropdown" id="AXB_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                    <div class="dropdown" id="AXB_dropdown">
                         <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
                     </div>
                 </div>
@@ -261,7 +252,7 @@
             <!-- Dropdown for X -->
             <div class="form-group row x-dropdown">
                 <div class="col-sm-4">
-                    <div class="dropdown" id="BXA_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                    <div class="dropdown" id="BXA_dropdown">
                         <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
                     </div>
                 </div>
@@ -298,7 +289,7 @@
             <!-- Dropdown for X -->
             <div class="form-group row x-dropdown">
                 <div class="col-sm-4">
-                    <div class="dropdown" id="ABtoX_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                    <div class="dropdown" id="ABtoX_dropdown">
                         <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
                     </div>
                 </div>
@@ -335,7 +326,7 @@
             <!-- Dropdown for X -->
             <div class="form-group row x-dropdown">
                 <div class="col-sm-4">
-                    <div class="dropdown" id="XtoAB_dropdown" style="width: 360px; top: 0px; left: 0px; visibility: visible;">
+                    <div class="dropdown" id="XtoAB_dropdown">
                         <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
                     </div>
                 </div>
