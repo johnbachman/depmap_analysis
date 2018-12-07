@@ -188,7 +188,6 @@ $(function(){
 
     function getStatementsByHash(indra_query) {
         var api_key = document.getElementById("api_key_input").value;
-        console.log(("api key: " + api_key))
         _url = indra_server_addr + "?api-key=" + api_key;
         stmts_db = $.ajax({
             url: _url,
@@ -495,7 +494,6 @@ $(function(){
                                         console.log("Curation toggle click")
                                         event.stopPropagation();
                                         var $target = $(event.target);
-                                        console.log($(event.target))
                                         if (event.target.dataset.clicked == "true") {
                                             // Toggle (animation duration in msec)
                                             console.log('trying to animate')
