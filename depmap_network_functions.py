@@ -1058,7 +1058,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
     return master_corr_dict, gene_set_intersection, stats_dict
 
 
-def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
+def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
                      strict, dump_unique_pairs, outbasename, sigma_dict,
                      lower_limit=1.0, upper_limit=None):
     # todo make function take data dict as input or use args* + kwargs**
@@ -1067,7 +1067,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
 
     depmap_data: str
         Filepath to depmap data file to process
-    geneset_file: str
+    filter_gene_set: str
         Filepath to a geneset to filter data to.
     pd_corr_matrix: str
         Filepath to pre-calculated correlations of depmap_data.
@@ -1104,7 +1104,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
 
     filtered_correlation_matrix, sym2id_dict, id2sym_dict = _get_corr_df(
         depmap_data=depmap_data, corr_matrix=pd_corr_matrix,
-        geneset_file=geneset_file, strict=strict,
+        filter_gene_set=filter_gene_set, strict=strict,
         lower_limit=lower_limit, upper_limit=upper_limit,
         sigma_dict=sigma_dict
     )
@@ -1135,7 +1135,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
         sym2id_dict, id2sym_dict
 
 
-def _get_corr_df(depmap_data, corr_matrix, geneset_file,
+def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
                  strict, lower_limit, upper_limit, sigma_dict):
     # todo make function take data dict as input or use args* + kwargs**
     multi_index_data = pd.MultiIndex.from_tuples(
@@ -1179,10 +1179,10 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
         dnf_logger.warning('Uknown index column. Your output dictionaries '
                            'will likely be affected.')
 
-    if geneset_file:
+    if filter_gene_set:
         # Read gene set to look at
         gene_filter_list = _read_gene_set_file(
-            gf=geneset_file, data=depmap_data
+            gf=filter_gene_set, data=depmap_data
         )
     else:
         gene_filter_list = []  # Evaluates to False
@@ -1190,18 +1190,18 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
     # 1. no loaded gene list OR 2. loaded gene list but not strict
     #    -> filter correlation matrix to
     corr_matrix_df = None
-    if not geneset_file or (geneset_file and not strict):
+    if not filter_gene_set or (filter_gene_set and not strict):
         # No gene set file, leave 'corr_matrix' intact
-        if not geneset_file:
+        if not filter_gene_set:
             corr_matrix_df = corr_matrix
 
         # Gene set file present: filter
-        elif geneset_file and not strict:
+        elif filter_gene_set and not strict:
             corr_matrix_df = corr_matrix[gene_filter_list]
 
     # 3. Strict: both genes in interaction must be from loaded set;
     #    Filter data, then calculate correlations and then unstack
-    elif geneset_file and strict:
+    elif filter_gene_set and strict:
         corr_matrix_df[np.in1d(corr_matrix_df.index.get_level_values(0),
                                gene_filter_list)].corr()
 
