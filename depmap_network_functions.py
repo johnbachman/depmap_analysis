@@ -785,8 +785,8 @@ def merge_correlation_data(correlation_dicts_list, settings):
     """Merge multiple correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
-    correlation_dicts_list: list[(gene_set_name, corr_dict, sigma_dict)]
-        List of name-corr_dict-distr_stats_dict tuples
+    correlation_dicts_list: list[(gene_set_name, dataset_dict, sigma_dict)]
+        List of name-dataset_dict-distr_stats_dict tuples
     settings:
 
     Returns
@@ -896,7 +896,8 @@ def merge_correlation_dicts_recursive(correlation_dicts_list):
     pass
 
 
-def get_combined_correlations(dict_of_data_sets, filter_settings):
+def get_combined_correlations(dict_of_data_sets, filter_settings,
+                              output_settings):
     """Return a combined dict of correlations given multiple gene data sets
 
     The input data [needs to be a collection of the gene expression data set.
@@ -909,7 +910,6 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         dataset_dict = {data: str (depmap filepath),
                         corr: str (depmap corr file),
                         outbasename: str (base name for all output files),
-                        filter_gene_set: list[genes to filter on],
                         ll: float (lower limit for correlation),
                         ul: float (upper limit for correlation),
                         max_pairs: int (max number of sampled pairs from corr)
@@ -917,15 +917,29 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                         sigma: float (st-dev of correlation distr),
                         filter_margin: float (st-dev diff for filtering distr),
                         dump_unique_pairs: Bool (Output unique corr pairs),
-                        strict: Bool (A,B both have to be in `filter_gene_set`)
                         }
 
     The filter settings should contain the following:
 
-        filter_settings = {'margin':      diff in terms of standard deviations
-                                          between correlations,
-                           'filter_type': Type of filtering
-                                          (Default: 'sigma-diff')}
+        filter_settings = {strict: Bool - If True, both A and B both have to
+                                          be in `gene_set_filter`.
+                           gene_set_filter: list[genes to filter on]
+                           cell_line_filter: str - list cell line names in
+                                             DepMap ID format
+                           margin: float - diff in terms of standard
+                                   deviations between correlations
+                           filter_type: str - Type of filtering (Default: None)
+                           }
+
+    The output settings should contain the following:
+
+        output_settings = {dump_unique_pairs: Bool - If True, dump a list of
+                                                     all the unique pairs of
+                                                     genes that have been
+                                                     looped over.
+                           outbasename: str - The output base name to be used
+                                              in any file dump.
+                           }
 
     The returned master correlation dict has the following format:
 
@@ -933,7 +947,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                          gene_set2: correlation,
                          ...}
 
-    dict_of_data_sets: dict()
+    dict_of_data_sets: dict
         Dictionary containing the filepaths and settings for the data set
     filter_settings: dict
         Dictionary with filter settings
@@ -951,13 +965,12 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     gene_set_intersection = set()
     stats_dict = dict()
 
+    outbasename = output_settings['outbasename']
+
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
         dnf_logger.info('-' * 37)
         dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
         dnf_logger.info('-' * 37)
-
-        outbasename = dataset_dict['outbasename']
-
         dnf_logger.info('Loading gene data...')
         gene_data = pd.read_csv(dataset_dict['data'],
                                 index_col=0, header=0)
@@ -995,10 +1008,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids,\
             sym2id_dict, id2sym_dict = get_correlations(
                 depmap_data=gene_data,
-                geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
+                filter_gene_set=filter_settings['gene_set_filter'],  # [] if no set
                 pd_corr_matrix=full_corr_matrix,
-                strict=dataset_dict['strict'],
-                dump_unique_pairs=dataset_dict['dump_unique_pairs'],
+                strict=filter_settings['strict'],
+                dump_unique_pairs=output_settings['dump_unique_pairs'],
                 outbasename=outbasename,
                 sigma_dict=sigma_dict,
                 lower_limit=dataset_dict['ll'],
@@ -1059,7 +1072,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
     pd_corr_matrix: str
         Filepath to pre-calculated correlations of depmap_data.
     strict: Bool
-        If True, all genes in correlations have to exist in geneset_file
+        If True, both genes in the gene pair have to exist in filter_gene_set
     outbasename: str
         Basename to use for output files
     unique_pair_corr_file: str
@@ -1384,12 +1397,12 @@ def get_directed_actual_statements(stmts, undirected_types):
 
     stmts: list[:py:class:`indra.statements.Statement`]
         List of INDRA statements
-    undirected: [statement types]
+    undirected: list[statement types]
         A list of name strings considered to be undirected.
 
     Returns
     -------
-    dir_stmts, undir_stmts : ([stmts], [stmts])
+    dir_stmts, undir_stmts : [stmts], [stmts]
         Two lists of statements, one containiing all undirected statements
         and one contaning all directed statements.
     """
