@@ -14,6 +14,7 @@ Other important options are:
 """
 
 import os
+import sys
 import csv
 import json
 import logging
@@ -96,6 +97,42 @@ def _is_float(n):
         return False
 
 
+def _rnd_pair_gen(rgs):
+    return rnd_choice(rgs), rnd_choice(rgs)
+
+
+def _parse_cell_filter(cl_file, id2depmapid_pickle=None):
+    cell_lines = []
+    with open(cl_file, 'r') as fi:
+        first_line = fi.readline()
+        if ',' in first_line:
+            col_separator = ','
+        else:
+            col_separator = None
+    with open(cl_file, 'r') as fi:
+        if id2depmapid_pickle:
+            id2depmapid_dict = _pickle_open(id2depmapid_pickle)
+            for n, cl in enumerate(fi.readlines()):
+                if n == 0:
+                    continue
+                else:
+                    try:
+                        cell_lines.append(
+                            id2depmapid_dict[
+                                cl.split(sep=col_separator)[0].split('_')[0]
+                            ])
+                    except KeyError:
+                        continue
+        else:
+            for n, cl in enumerate(fi.readlines()):
+                if n == 0:
+                    continue
+                else:
+                    cell_lines.append(cl.split(sep=col_separator)[0].split('_')[0])
+
+    return cell_lines
+
+
 def _corr_web_latex(id1, id2, fmtcorr):
     web_text = r'\section{{{}, {}: {}}}'.format(id1, id2, fmtcorr) + '\n' + \
                r'See correlation plot \href{{' \
@@ -113,10 +150,10 @@ def _arg_dict(args_struct):
     args_dict = dnf.create_nested_dict()
 
     if not args_struct.crispr_data_file and not args_struct.rnai_data_file \
+            and not args_struct.brca_dependencies \
             and not args_struct.sampling_gene_file:
-        logger.error('Must provide at least one data set or a gene file for '
-                     'random sampling!')
-        raise FileNotFoundError
+        sys.exit('Must provide at least one data set or a gene dependency '
+                 'dataset or a list of genes for random sampling!')
 
     # CRISPR
     if args_struct.crispr_data_file:
@@ -156,11 +193,15 @@ def _arg_dict(args_struct):
         args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
         args_dict['rnai']['strict'] = args_struct.strict
 
+    # BRCA ENRICHED DEPENDENCIES
+    if args_struct.brca_dependencies:
+        args_dict['brca_dependencies'] = args_struct.brca_dependencies
+
+    # RANDOM SAMPLING
     if args_struct.sampling_gene_file:
         if not args_struct.max_pairs:
-            logger.error('Must specify a maximum number of pairs for random '
-                         'sampling')
-            raise ValueError
+            sys.exit('Must specify a maximum number of pairs for random '
+                     'sampling')
         args_dict['sampling_gene_file'] = args_struct.sampling_gene_file
 
     args_dict.default_factory = None
@@ -373,6 +414,15 @@ def main(args):
         unexplained, explained_nested_dict, id1, id2, nested_dict_statements,\
         corr_dict, avg_corr, dir_node_set, nx_dir_graph
 
+    if args.cell_line_filter and not len(args.cell_line_filter) > 2:
+        cell_lines = _parse_cell_filter(*args.cell_line_filter)
+        assert len(cell_lines) > 0
+    elif args.cell_line_filter and len(args.cell_line_filter) > 2:
+        sys.exit('Argument --cell-line-filter only takes one or two arguments')
+    else:
+        # Should be empty only when --cell-line-filter is not provided
+        cell_lines = []
+
     # Check if belief dict is provided
     if not args.belief_score_dict and not args.nested_dict_in:
         logger.error('belief dict must be provided through the `-b ('
@@ -415,45 +465,32 @@ def main(args):
             fname=args.outbasename+'_merged_corr_pairs.csv',
             nest_dict=master_corr_dict)
 
-        if args.geneset_file:
+        if args.gene_set_filter:
             gene_filter_list = None
             if args_dict.get('crispr') and not args_dict.get('rnai'):
                 gene_filter_list = dnf._read_gene_set_file(
-                    gf=args_dict['crispr']['filter_gene_set'],
-                    data=args_dict['crispr']['data'])
+                    gf=filter_settings['gene_set_filter'],
+                    data=args_dict['crispr']['data']
+                )
             elif args_dict.get('rnai') and not args_dict.get('crispr'):
                 gene_filter_list = dnf._read_gene_set_file(
-                        gf=args_dict['rnai']['filter_gene_set'],
-                        data=args_dict['crispr']['data'])
+                        gf=filter_settings['gene_set_filter'],
+                        data=args_dict['crispr']['data']
+                )
             elif args_dict.get('crispr') and args_dict.get('rnai'):
                 gene_filter_list = \
                     set(dnf._read_gene_set_file(
-                        gf=args_dict['crispr']['filter_gene_set'],
+                        gf=filter_settings['gene_set_filter'],
                         data=args_dict['crispr']['data'])) & \
                     set(dnf._read_gene_set_file(
-                        gf=args_dict['rnai']['filter_gene_set'],
+                        gf=filter_settings['gene_set_filter'],
                         data=args_dict['crispr']['data']))
             assert gene_filter_list is not None
 
         else:
             gene_filter_list = None
-
     else:
         stats_dict = None
-
-    # # Begin here for random gene pair sampling
-    # # For counter variables, use:
-    # a = 2
-    # def for_loop_body():
-    #     global a
-    #     a += 1
-    # # Then loop like:
-    # if dict:
-    #     for pairs in dict:
-    #         for_loop_body(args)
-    # elif random:
-    #     for random pair:
-    #         for_loop_body(args)
 
     # LOADING INDRA STATEMENTS
     # Get statements from file or from database that contain any gene from
@@ -465,11 +502,11 @@ def main(args):
             stmts_all = set(ac.load_statements(args.statements_in))
         # Use api to get statements. _NOT_ the same as querying for each ID
         else:
-            if args.geneset_file:
+            if args.gene_set_filter:
                 stmts_all = dnf.dbc_load_statements(gene_filter_list)
             else:
                 # if there is no gene set file, restrict to gene ids in
-                # correlation data
+                # input data
                 stmts_all = dnf.dbc_load_statements(list(all_hgnc_ids))
 
         # Dump statements to pickle file if output name has been given
@@ -544,16 +581,27 @@ def main(args):
     # 2. dir -> undir graph -> jsons to check all corr neighbors -> 2nd dropdown
     # 3. jsons to check if connection is direct or intermediary
 
+    # Using the following loop structure for counter variables:
+    # a = 2
+    # def for_loop_body():
+    #     global a
+    #     a += 1
+    # # Then loop like:
+    # if dict:
+    #     for pairs in dict:
+    #         for_loop_body(args)
+    # elif random:
+    #     for random pair:
+    #         for_loop_body(args)
+
     explained_nested_dict = dnf.create_nested_dict()
 
-    # Open files to write text/latex output
-    # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
-    #         open(args.outbasename + '_neg_conn_latex.tex', 'w') as f_neg_c:
-
-    logger.info('Looking for connections between %i pairs' % (npairs if
-                                                              npairs > 0 else
-                                                              args.max_pairs))
-    if args_dict.get('rnai') or args_dict.get('crispr'):
+    # Loop rnai and/or crispr only
+    if args_dict.get('rnai') or args_dict.get('crispr') and \
+            not args_dict.get('brca_dependencies'):
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
         for outer_id, do in master_corr_dict.items():
             for inner_id, corr_dict in do.items():
                 if len(corr_dict.keys()) == 0:
@@ -571,13 +619,111 @@ def main(args):
                 avg_corr = sum(avg_corrs)/len(avg_corrs)
                 id1, id2 = outer_id, inner_id
                 loop_body(args)
-    # elif : loop random pairs from data set
+
+    # Loop rnai and/or crispr AND BRCA cell line dependencies
+    elif args_dict.get('rnai') or args_dict.get('crispr') and \
+            args_dict.get('brca_dependencies'):
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
+
+        # Load BRCA dependency data
+        brca_data_set = pd.read_csv(args_dict['brca_dependencies'], header=0)
+        depend_in_breast_genes = brca_data_set.drop(
+            axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
+                                                  'gene']
+        genes = set(depend_in_breast_genes['Gene/Compound'].values)
+
+        for outer_id, do in master_corr_dict.items():
+            for inner_id, knockout_dict in do.items():
+                if len(knockout_dict.keys()) == 0:
+                    skipped += 1
+                    if args.verbosity:
+                        logger.info('Skipped outer_id=%s and inner_id=%s' %
+                                (outer_id, inner_id))
+                    continue
+
+                id1, id2 = outer_id, inner_id
+                dataset_dict = {}
+                gene1_data = []
+                gene2_data = []
+
+                # Get BRCA dep data
+                if id1 in genes:
+                    for row in depend_in_breast_genes[
+                        depend_in_breast_genes[
+                            'Gene/Compound'] == id1].iterrows():
+                        gene1_data.append((row[1]['Dataset'],
+                                           row[1]['T-Statistic'],
+                                           row[1]['P-Value']))
+                if id2 in genes:
+                    for row in depend_in_breast_genes[
+                        depend_in_breast_genes[
+                            'Gene/Compound'] == id2].iterrows():
+                        gene2_data.append((row[1]['Dataset'],
+                                           row[1]['T-Statistic'],
+                                           row[1]['P-Value']))
+
+                dataset_dict[id1] = gene1_data
+                dataset_dict[id2] = gene2_data
+
+                dataset_dict['crispr'] = (knockout_dict['crispr'] if
+                                          knockout_dict.get('crispr')
+                                          else None),
+                dataset_dict['rnai'] = (knockout_dict['rnai'] if
+                                        knockout_dict.get('rnai')
+                                        else None)
+
+                if id1 not in genes and id2 not in genes:
+                    dataset_dict = knockout_dict
+
+                # Run loop body
+                loop_body(args)
+
+    # loop brca dependency ONLY
+    elif args_dict.get('brca_dependencies') and not \
+            (args_dict.get('rnai') or args_dict.get('crispr')):
+        brca_data_set = pd.read_csv(args_dict['brca_dependencies'], header=0)
+        depend_in_breast_genes = brca_data_set.drop(
+            axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
+                                                  'gene']
+        genes = set(depend_in_breast_genes['Gene/Compound'].values)
+        npairs = len(list(itt.combinations(genes, 2)))
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
+        for id1, id2 in itt.combinations(genes, 2):
+            gene1_data = []
+            gene2_data = []
+            # For each non-diagonal pair in file, insert in dataset_dict:
+            # geneA, geneB,
+            # dataset for A, dataset for B,
+            # T-stat for A, T-stat for B,
+            # P-value for A, P-value
+            for row in depend_in_breast_genes[
+                 depend_in_breast_genes['Gene/Compound'] == id1].iterrows():
+                gene1_data.append((row[1]['Dataset'],
+                                   row[1]['T-Statistic'],
+                                   row[1]['P-Value']))
+
+            for row in depend_in_breast_genes[
+                 depend_in_breast_genes['Gene/Compound'] == id2].iterrows():
+                gene2_data.append((row[1]['Dataset'],
+                                   row[1]['T-Statistic'],
+                                   row[1]['P-Value']))
+            # dataset_dict = {id1:
+            #                 [(dataset1, T-stat1, P-value1),
+            #                  (dataset2, T-stat2, P-value2)],
+            #                 id2:
+            #                  [(..., ...)],
+            #                  ...}
+            dataset_dict = {id1: gene1_data, id2: gene2_data}
+            loop_body(args)
+
+    # loop random pairs from data set
     elif args_dict.get('sampling_gene_file'):
         with open(args_dict['sampling_gene_file'], 'r') as fi:
             rnd_gene_set = [l.strip() for l in fi.readlines()]
-
-            def rnd_pair_gen(rgs):
-                return rnd_choice(rgs), rnd_choice(rgs)
 
         npairs = args.max_pairs
         avg_corr = 0
