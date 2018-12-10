@@ -159,10 +159,6 @@ def _arg_dict(args_struct):
     if args_struct.crispr_data_file:
         args_dict['crispr']['data'] = args_struct.crispr_data_file
         args_dict['crispr']['corr'] = args_struct.crispr_corr_file
-        args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
-        args_dict['crispr']['filter_gene_set'] = (
-            args_struct.geneset_file if args_struct.geneset_file else []
-        )
         args_dict['crispr']['ll'] = max(args_struct.crispr_corr_range[0], 0.0)
         args_dict['crispr']['ul'] = (args_struct.crispr_corr_range[1]
             if len(args_struct.crispr_corr_range) == 2 else None)
@@ -171,17 +167,11 @@ def _arg_dict(args_struct):
             args_struct.crispr_mean_sigma else None
         args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[1] if \
             args_struct.crispr_mean_sigma else None
-        args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
-        args_dict['crispr']['strict'] = args_struct.strict
 
     # RNAi
     if args_struct.rnai_data_file:
         args_dict['rnai']['data'] = args_struct.rnai_data_file
         args_dict['rnai']['corr'] = args_struct.rnai_corr_file
-        args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
-        args_dict['rnai']['filter_gene_set'] = (
-            args_struct.geneset_file if args_struct.geneset_file else []
-        )
         args_dict['rnai']['ll'] = max(args_struct.rnai_corr_range[0], 0.0)
         args_dict['rnai']['ul'] = (args_struct.rnai_corr_range[1]
             if len(args_struct.rnai_corr_range) == 2 else None)
@@ -190,8 +180,6 @@ def _arg_dict(args_struct):
             args_struct.rnai_mean_sigma else None
         args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[1] if \
             args_struct.rnai_mean_sigma else None
-        args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
-        args_dict['rnai']['strict'] = args_struct.strict
 
     # BRCA ENRICHED DEPENDENCIES
     if args_struct.brca_dependencies:
@@ -246,10 +234,6 @@ def loop_body(args):
                           corr_dict['rnai'], 'direct', [])
             explained_pairs.append(stmt_tuple)
 
-            if avg_corr < 0:
-                explained_neg_pairs.append(stmt_tuple)
-                # f_neg_c.write(output)
-
         # Checking 1. "pathway": A -> X -> B and B -> X -> A
         if subj in dir_node_set and obj in dir_node_set:
             dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
@@ -276,8 +260,7 @@ def loop_body(args):
                               corr_dict['rnai'], 'pathway',
                               dir_path_nodes_wb)
                 explained_pairs.append(stmt_tuple)
-                if avg_corr < 0:
-                    explained_neg_pairs.append(stmt_tuple)
+
             else:
                 found.add(False)
 
@@ -314,8 +297,6 @@ def loop_body(args):
             explained_nested_dict[id2][id1]['x_is_downstream'] = \
                 downstream_share_wb
             explained_pairs.append(stmt_tuple)
-            if avg_corr < 0:
-                explained_neg_pairs.append(stmt_tuple)
 
         if upstream_share:
             found.add(True)
@@ -340,8 +321,6 @@ def loop_body(args):
             explained_nested_dict[id2][id1]['x_is_upstream'] = \
                 upstream_share_wb
             explained_pairs.append(stmt_tuple)
-            if avg_corr < 0:
-                explained_neg_pairs.append(stmt_tuple)
 
         if not downstream_share and not upstream_share:
             found.add(False)
@@ -442,23 +421,31 @@ def main(args):
     args_dict = _arg_dict(args)
     npairs = 0
 
-    # No random sampling
-    if not args_dict.get('sampling_gene_file'):
-        filter_settings = {'margin': args.margin,
-                           'filter_type':
-                           (args.filter_type if
-                            args.filter_type in ['sigma-diff', 'corr-corr-corr']
-                            else None)
-                           }
+    filter_settings = {'gene_set_filter': args.gene_set_filter,
+                       'strict': args.strict,
+                       'cell_line_filter': cell_lines,
+                       'margin': args.margin,
+                       'filter_type': (args.filter_type
+                                       if args.filter_type in ['sigma-diff',
+                                                               'corr-corr-corr']
+                                       else None)
+                       }
 
+    output_settings = {'dump_unique_pairs': args.dump_unique_pairs,
+                       'outbasename': args.outbasename}
+
+    # CRISPR and/or RNAi data
+    if args_dict.get('crispr') or args_dict.get('rnai'):
         if not filter_settings['filter_type'] and \
             args.crispr_data_file and \
                 args.rnai_data_file:
             logger.info('No merge filter set. Output will be intersection of '
                         'the two data sets.')
 
-        master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
-            dict_of_data_sets=args_dict, filter_settings=filter_settings)
+        master_corr_dict, all_hgnc_ids, stats_dict = \
+            dnf.get_combined_correlations(dict_of_data_sets=args_dict,
+                                          filter_settings=filter_settings,
+                                          output_settings=output_settings)
 
         # Count pairs in merged correlation dict and dum it
         npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
@@ -553,7 +540,6 @@ def main(args):
     tuple_im_sr_expl_count = 0  # Count if shared regulator found per set(A,B)
     tuple_sr_expl_only_count = 0  # Count if only shared regulator found
     explained_pairs = []  # Saves all explanations
-    explained_neg_pairs = []  # Saves all explanations with correlation < 0
     unexplained = []  # Unexplained correlations
     skipped = 0
 
@@ -611,12 +597,6 @@ def main(args):
                                 (outer_id, inner_id))
                     continue
 
-                avg_corrs = []
-                for set_name in corr_dict:
-                    avg_corrs.append(corr_dict[set_name])
-
-                # Take the average correlation so it
-                avg_corr = sum(avg_corrs)/len(avg_corrs)
                 id1, id2 = outer_id, inner_id
                 loop_body(args)
 
@@ -730,7 +710,7 @@ def main(args):
         corr_dict = {'rnai': 0, 'crispr': 0}
 
         for _ in range(npairs):
-            id1, id2 = rnd_pair_gen(rnd_gene_set)
+            id1, id2 = _rnd_pair_gen(rnd_gene_set)
             assert not isinstance(id1, list)
             loop_body(args)
 
@@ -817,16 +797,13 @@ def main(args):
 
         _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
                                nested_dict=explained_nested_dict,
-                               header=['gene1', 'gene2',
-                                       'crispr_corr', 'rnai_corr'])
+                               header=['gene1', 'gene2', 'meta_data'])
 
     _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
                        pyobj=explained_nested_dict)
-    headers = ['subj', 'obj', 'crispr_corr', 'rnai_corr', 'type', 'X']
+    headers = ['subj', 'obj', 'type', 'X', 'meta_data']
     _dump_it_to_csv(fname=args.outbasename+'_expl_correlations.csv',
                     pyobj=explained_pairs, header=headers)
-    _dump_it_to_csv(fname=args.outbasename+'_expl_neg_correlations.csv',
-                    pyobj=explained_neg_pairs, header=headers)
     _dump_it_to_csv(fname=args.outbasename+'_unexpl_correlations.csv',
                     pyobj=unexplained, header=headers[:-2])
     with open(args.outbasename+'_script_summary.txt', 'w') as fo:
