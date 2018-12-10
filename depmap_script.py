@@ -1,3 +1,18 @@
+"""Script to analyze and try to explain gene knockout data from
+depmap.org. Minimum Working Example for running script:
+
+`python depmap_script.py -cf <crispr gene data csv file> -rf <rnai
+gene data csv file> -o <output file name>`
+
+
+Other important options are:
+
+- -cc/-rc: precalculated correlation matrices in hdf format
+- -ndi: nested dictionary of INDRA statements of the format
+  `d[gene][gene] = [stmts/stmt hashes]` OR -lw: a csv file with `gene,gene,
+  stmt type,stmt hash` as columns.
+"""
+
 import os
 import csv
 import json
@@ -675,16 +690,22 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ap.ArgumentParser(
-        description='Script to analyze and try to explain gene knockout data '
-                    'from depmap.org. Minimum Working Example for running '
-                    'script:    python depmap_script.py -cf <crispr gene '
-                    'data csv file> -rf <rnai gene data csv file> '
-                    '-o <output file name> Other good options are:    '
-                    '-cc/-rc: precalculated correlation matrices in hdf '
-                    'format    -ndi: nested dictionary of INDRA statements of '
-                    'the format  `d[gene][gene] = [stmts/stmt hashes]`  OR    '
-                    '-lw: a csv file with  `gene,gene,stmt type,stmt hash`  as '
-                    'columns.')
+        description=
+        """Script to analyze and try to explain gene knockout data from 
+        depmap.org. Minimum Working Example for running script:
+        
+        
+        `python depmap_script.py -cf <crispr gene data csv file> -rf <rnai 
+        gene data csv file> -o <output file name>`
+        
+        Other important options are:
+        
+        - -cc/-rc: precalculated correlation matrices in hdf format
+        - Pre-saved statement structures: -ndi: nested dictionary of INDRA 
+          statements of the format `d[gene][gene] = [stmts/stmt hashes]` OR 
+          -lw: a csv file with `gene,gene,stmt type,stmt hash` as columns.
+        """
+    )
 
     either_of = parser.add_argument_group('One of the following arguments')
     required_args = parser.add_argument_group('Required arguments')
@@ -692,6 +713,9 @@ if __name__ == '__main__':
                                help='CRISPR gene dependency data in csv format')
     required_args.add_argument('-rf', '--rnai-data-file',
                                help='RNAi gene dependency data in csv format')
+    required_args.add_argument('-brca', '--brca-dependencies',
+                               help='`Dependencies enriched in breast` from '
+        'https://depmap.org/portal/context/breast')
     required_args.add_argument('-sampl', '--sampling-gene-file',
                                help='A file containing hgnc symbols that will '
         'have pairs sampled from it at random. The pairs are then used to '
@@ -699,19 +723,26 @@ if __name__ == '__main__':
     either_of.add_argument('-b', '--belief-score-dict', help='Load a dict with '
         'stmt hash: belief score to be incorporated in the explainable '
         'network dict.')
-    either_of.add_argument('-ndi', '--nested-dict-in', help='Load '
-        'precalculated nested dict of statements of the form  d[subj][obj] = '
+    either_of.add_argument('-ndi', '--nested-dict-in', help='Load a nested '
+        'dict of statements of the form  d[subj][obj] = '
         '[(stmt/stmt hash, belief score)].')
     parser.add_argument('-cc', '--crispr-corr-file',
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
                         help='Precalculated RNAi correlations in h5 format')
-    parser.add_argument('-g', '--geneset-file',
-                        help='Filter to interactions with gene set data file.')
+    parser.add_argument('-gsf', '--gene-set-filter', type=str, help='Load a '
+        'file with a gene set to filter to interactions with the gene set.')
+    parser.add_argument('-clf', '--cell-line-filter', type=str, nargs='+',
+        help='If one argument is provided, the script assumes it is a text '
+        'file with cell line identifiers in the DepMap ID format. If two '
+        'arguments are provided, the script assumes the first argument is a '
+        'text file with cell line identifiers of non DepMap ID format and the '
+        'second argument is a dictionary with mappings from the provided cell '
+        'line ID format to DepMap ID.')
     parser.add_argument('--margin', type=float, default=1.0, help='How large '
         'diff in terms of standard deviations to accept between data sets '
         'when filtering for correlations during merge. Default is 1 SD.')
-    parser.add_argument('--filter-type', default='sigma-diff', type=str,
+    parser.add_argument('--filter-type', default='None', type=str,
                         help='Type of filtering. Options are: `sigma-diff` - '
         'The difference in the distances from the mean measured in number of '
         'standard deviations must be smaller than given by --margin. '
