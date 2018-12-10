@@ -44,9 +44,9 @@ logger = logging.getLogger('depmap_script')
 global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
     both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
     tuple_im_st_expl_count, tuple_im_sr_expl_count, \
-    tuple_sr_expl_only_count, explained_pairs, explained_neg_pairs, \
-    unexplained, explained_nested_dict, id1, id2, nested_dict_statements, \
-    corr_dict, avg_corr, dir_node_set, nx_dir_graph
+    tuple_sr_expl_only_count, explained_pairs, unexplained, \
+    explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
+    dir_node_set, nx_dir_graph
 
 
 def _dump_it_to_pickle(fname, pyobj):
@@ -75,7 +75,7 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None):
     with open(fname, 'a') as fo:
         for ok in nested_dict:
             for ik in nested_dict[ok]:
-                cd = nested_dict[ok][ik]['correlations']
+                cd = nested_dict[ok][ik]['meta_data']
                 fo.write('%s,%s,%s,%s\n' %
                          (ok, ik, str(cd['crispr']), str(cd['rnai'])))
 
@@ -201,9 +201,9 @@ def loop_body(args):
     global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
         both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
-        tuple_sr_expl_only_count, explained_pairs, explained_neg_pairs,\
-        unexplained, explained_nested_dict, id1, id2, nested_dict_statements,\
-        corr_dict, avg_corr, dir_node_set, nx_dir_graph
+        tuple_sr_expl_only_count, explained_pairs, unexplained, \
+        explained_nested_dict, id1, id2, nested_dict_statements, \
+        dataset_dict, dir_node_set, nx_dir_graph
 
     # Store bool(s) for found connection (either A-B or A-X-B)
     found = set()  # Flag anythin found
@@ -230,8 +230,7 @@ def loop_body(args):
             found.add(True)
             dir_found = True
             not_sr_found = True
-            stmt_tuple = (subj, obj, corr_dict['crispr'],
-                          corr_dict['rnai'], 'direct', [])
+            stmt_tuple = (subj, obj, 'direct', [], dataset_dict)
             explained_pairs.append(stmt_tuple)
 
         # Checking 1. "pathway": A -> X -> B and B -> X -> A
@@ -256,9 +255,8 @@ def loop_body(args):
 
                 explained_nested_dict[subj][obj]['x_is_intermediary'] \
                     = dir_path_nodes_wb
-                stmt_tuple = (subj, obj, corr_dict['crispr'],
-                              corr_dict['rnai'], 'pathway',
-                              dir_path_nodes_wb)
+                stmt_tuple = (subj, obj, 'pathway',
+                              dir_path_nodes_wb, dataset_dict)
                 explained_pairs.append(stmt_tuple)
 
             else:
@@ -285,9 +283,8 @@ def loop_body(args):
                 gene_a=id1,
                 gene_b=id2,
                 x_type='x_is_downstream')
-            stmt_tuple = (id1, id2, corr_dict['crispr'],
-                          corr_dict['rnai'], 'shared_target',
-                          downstream_share_wb)
+            stmt_tuple = (id1, id2, 'shared_target',
+                          downstream_share_wb, dataset_dict)
             if args.verbosity:
                 logger.info('Found downstream share: %s and %s share '
                             '%i targets' %
@@ -309,9 +306,8 @@ def loop_body(args):
                 gene_a=id1,
                 gene_b=id2,
                 x_type='x_is_upstream')
-            stmt_tuple = (id1, id2, corr_dict['crispr'],
-                          corr_dict['rnai'], 'shared_upstream',
-                          upstream_share_wb)
+            stmt_tuple = (id1, id2, 'shared_upstream',
+                          upstream_share_wb, dataset_dict)
             if args.verbosity:
                 logger.info('Found upstream share: %s and %s are both '
                             'directly downstream of %i nodes' %
@@ -352,7 +348,7 @@ def loop_body(args):
 
         for s, o in itt.permutations((id1, id2), r=2):
             # Correlation
-            explained_nested_dict[s][o]['correlations'] = corr_dict
+            explained_nested_dict[s][o]['meta_data'] = dataset_dict
             # Directed
             if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                          'directed'):
@@ -377,8 +373,7 @@ def loop_body(args):
     # any(found) is True if at least one connection was found and
     # therefore "not any" is only True when no connection was found
     if not any(found):
-        unexplained.append((id1, id2, corr_dict['crispr'],
-                            corr_dict['rnai']))
+        unexplained.append((id1, id2, dataset_dict))
         if args.verbosity and args.verbosity > 1:
             logger.info('No explainable path found between %s and '
                         '%s.' % (id1, id2))
@@ -389,9 +384,9 @@ def main(args):
     global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
         both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
-        tuple_sr_expl_only_count, explained_pairs, explained_neg_pairs,\
-        unexplained, explained_nested_dict, id1, id2, nested_dict_statements,\
-        corr_dict, avg_corr, dir_node_set, nx_dir_graph
+        tuple_sr_expl_only_count, explained_pairs, unexplained, \
+        explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
+        avg_corr, dir_node_set, nx_dir_graph
 
     if args.cell_line_filter and not len(args.cell_line_filter) > 2:
         cell_lines = _parse_cell_filter(*args.cell_line_filter)
@@ -589,8 +584,8 @@ def main(args):
             npairs if npairs > 0 else args.max_pairs)
         )
         for outer_id, do in master_corr_dict.items():
-            for inner_id, corr_dict in do.items():
-                if len(corr_dict.keys()) == 0:
+            for inner_id, dataset_dict in do.items():
+                if len(dataset_dict.keys()) == 0:
                     skipped += 1
                     if args.verbosity:
                         logger.info('Skipped outer_id=%s and inner_id=%s' %
@@ -706,9 +701,10 @@ def main(args):
             rnd_gene_set = [l.strip() for l in fi.readlines()]
 
         npairs = args.max_pairs
-        avg_corr = 0
-        corr_dict = {'rnai': 0, 'crispr': 0}
-
+        dataset_dict = None
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
         for _ in range(npairs):
             id1, id2 = _rnd_pair_gen(rnd_gene_set)
             assert not isinstance(id1, list)
