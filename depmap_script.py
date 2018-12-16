@@ -113,23 +113,25 @@ def _parse_cell_filter(cl_file, id2depmapid_pickle=None, namespace='CCLE_Name'):
     with open(cl_file, 'r') as fi:
         if id2depmapid_pickle:
             id2depmapid_dict = _pickle_open(id2depmapid_pickle)
+            assert namespace in id2depmapid_dict.keys()
             for n, cl in enumerate(fi.readlines()):
+                cl_name = cl.split(sep=col_separator)[0]
                 if n == 0:
                     continue
                 else:
                     try:
-                        cell_lines.append(
-                            id2depmapid_dict[
-                                cl.split(sep=col_separator)[0].split('_')[0]
-                            ])
+                        cell_lines.append(id2depmapid_dict[namespace][cl_name])
                     except KeyError:
+                        logger.warning('Could not find mapping for %s' %
+                                       cl_name)
                         continue
         else:
             for n, cl in enumerate(fi.readlines()):
+                cl_name = cl.split(sep=col_separator)[0]
                 if n == 0:
                     continue
                 else:
-                    cell_lines.append(cl.split(sep=col_separator)[0].split('_')[0])
+                    cell_lines.append(cl_name)
 
     return cell_lines
 
