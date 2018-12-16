@@ -184,10 +184,6 @@ def _arg_dict(args_struct):
         args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[1] if \
             args_struct.rnai_mean_sigma else None
 
-    # BRCA ENRICHED DEPENDENCIES
-    if args_struct.brca_dependencies:
-        args_dict['brca_dependencies'] = args_struct.brca_dependencies
-
     # RANDOM SAMPLING
     if args_struct.sampling_gene_file:
         if not args_struct.max_pairs:
@@ -396,6 +392,11 @@ def main(args):
         assert len(cell_lines) > 0
     elif args.cell_line_filter and len(args.cell_line_filter) > 2:
         sys.exit('Argument --cell-line-filter only takes one or two arguments')
+    # No cell line dictionary and rnai data and filtering is requested
+    elif args.cell_line_filter and len(args.cell_line_filter) == 1 and \
+            args.rnai_data_file:
+        sys.exit('Need a translation dictionary if RNAi data is provided and '
+                 'filter is requested')
     else:
         # Should be empty only when --cell-line-filter is not provided
         logger.info('No cell line filter provided. Using all cell lines in '
@@ -424,6 +425,9 @@ def main(args):
     filter_settings = {'gene_set_filter': args.gene_set_filter,
                        'strict': args.strict,
                        'cell_line_filter': cell_lines,
+                       'cell_line_translation_dict': _pickle_open(
+                                                     args.cell_line_filter[1])
+                       if len(args.cell_line_filter) == 2 else None,
                        'margin': args.margin,
                        'filter_type': (args.filter_type
                                        if args.filter_type in ['sigma-diff',
@@ -613,7 +617,7 @@ def main(args):
         )
 
         # Load BRCA dependency data
-        brca_data_set = pd.read_csv(args_dict['brca_dependencies'], header=0)
+        brca_data_set = pd.read_csv(args.brca_dependencies, header=0)
         depend_in_breast_genes = brca_data_set.drop(
             axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
                                                   'gene']
@@ -666,7 +670,7 @@ def main(args):
                 loop_body(args)
 
     # loop brca dependency ONLY
-    elif args_dict.get('brca_dependencies') and not \
+    elif args.brca_dependencies and not \
             (args_dict.get('rnai') or args_dict.get('crispr')):
         logger.info('Gene pairs generated from BRCA gene enrichment data only.')
         brca_data_set = pd.read_csv(args.brca_dependencies, header=0)
