@@ -33,7 +33,7 @@ from depmap_network_functions import create_nested_dict as nest_dict
 # There are pickled files using "nest_dict" in their preserved import settings
 # and we can therefore not use another name when using those files
 
-logger = logging.getLogger('depmap_script')
+logger = logging.getLogger('DepMap Script')
 
 # 1. no geneset -> use corr from full DepMap data, no filtering needed
 # 2. geneset, not strict -> interaction has to contain at least one gene from
@@ -101,7 +101,8 @@ def _rnd_pair_gen(rgs):
     return rnd_choice(rgs), rnd_choice(rgs)
 
 
-def _parse_cell_filter(cl_file, id2depmapid_pickle=None):
+def _parse_cell_filter(cl_file, id2depmapid_pickle=None, namespace='CCLE_Name'):
+    logger.info('Parsing cell lines...')
     cell_lines = []
     with open(cl_file, 'r') as fi:
         first_line = fi.readline()
@@ -395,11 +396,13 @@ def main(args):
         sys.exit('Argument --cell-line-filter only takes one or two arguments')
     else:
         # Should be empty only when --cell-line-filter is not provided
+        logger.info('No cell line filter provided. Using all cell lines in '
+                    'correlation calculations.')
         cell_lines = []
 
     # Check if belief dict is provided
     if not args.belief_score_dict and not args.nested_dict_in:
-        logger.error('belief dict must be provided through the `-b ('
+        logger.error('Belief dict must be provided through the `-b ('
                      '--belief-score-dict)` argument if no nested dict '
                      'of statements with belief score is provided through the '
                      '`-ndi (--nested-dict-in)` argument.')
@@ -429,7 +432,7 @@ def main(args):
     output_settings = {'dump_unique_pairs': args.dump_unique_pairs,
                        'outbasename': args.outbasename}
 
-    # CRISPR and/or RNAi data
+    # Parse CRISPR and/or RNAi data
     if args_dict.get('crispr') or args_dict.get('rnai'):
         if not filter_settings['filter_type'] and \
             args.crispr_data_file and \
@@ -579,7 +582,9 @@ def main(args):
 
     # Loop rnai and/or crispr only
     if args_dict.get('rnai') or args_dict.get('crispr') and \
-            not args_dict.get('brca_dependencies'):
+            not args.brca_dependencies:
+        logger.info('Gene pairs generated from DepMap knockout screening data '
+                    'sets')
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
@@ -597,7 +602,10 @@ def main(args):
 
     # Loop rnai and/or crispr AND BRCA cell line dependencies
     elif args_dict.get('rnai') or args_dict.get('crispr') and \
-            args_dict.get('brca_dependencies'):
+            args.brca_dependencies:
+        logger.info('Gene pairs generated from combined knockout screens. '
+                    'Output data will incluide BRCA cell line dependency\n'
+                    'data as well as correlation data from knockout screens.')
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
@@ -658,7 +666,8 @@ def main(args):
     # loop brca dependency ONLY
     elif args_dict.get('brca_dependencies') and not \
             (args_dict.get('rnai') or args_dict.get('crispr')):
-        brca_data_set = pd.read_csv(args_dict['brca_dependencies'], header=0)
+        logger.info('Gene pairs generated from BRCA gene enrichment data only.')
+        brca_data_set = pd.read_csv(args.brca_dependencies, header=0)
         depend_in_breast_genes = brca_data_set.drop(
             axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
                                                   'gene']
@@ -697,6 +706,8 @@ def main(args):
 
     # loop random pairs from data set
     elif args_dict.get('sampling_gene_file'):
+        logger.info('Gene pairs generated at random from %s' %
+                    args_dict['sampling_gene_file'])
         with open(args_dict['sampling_gene_file'], 'r') as fi:
             rnd_gene_set = [l.strip() for l in fi.readlines()]
 
