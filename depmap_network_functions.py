@@ -1052,7 +1052,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids,\
             sym2id_dict, id2sym_dict = get_correlations(
                 depmap_data=gene_data,
-                filter_gene_set=filter_settings['gene_set_filter'],  # [] if no set
+                filter_gene_set=filter_settings['gene_set_filter'],
                 pd_corr_matrix=full_corr_matrix,
                 strict=filter_settings['strict'],
                 dump_unique_pairs=output_settings['dump_unique_pairs'],
@@ -1236,6 +1236,9 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
         gene_filter_list = _read_gene_set_file(
             gf=filter_gene_set, data=depmap_data
         )
+        if len(gene_filter_list) == 0:
+            dnf_logger.warning('Gene filter empty, continuing without filter')
+            gene_filter_list = []
     else:
         gene_filter_list = []  # Evaluates to False
 
