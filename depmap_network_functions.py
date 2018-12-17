@@ -578,10 +578,19 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
 
 def _read_gene_set_file(gf, data):
     gset = []
+    try:
+        # Works if string is returned: we assume this is when we only have
+        # HGNC symbols
+        data.columns[0].split()
+        dset = set(data.columns)
+    except AttributeError:
+        # multi index
+        dset = set([t[0] for t in data.columns])
+
     with open(gf, 'rt') as f:
         for g in f.readlines():
             gn = g.upper().strip()
-            if gn in data.index:
+            if gn in dset:
                 gset.append(gn)
     return gset
 
