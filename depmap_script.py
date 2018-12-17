@@ -461,21 +461,23 @@ def main(args):
             if args_dict.get('crispr') and not args_dict.get('rnai'):
                 gene_filter_list = dnf._read_gene_set_file(
                     gf=filter_settings['gene_set_filter'],
-                    data=args_dict['crispr']['data']
-                )
+                    data=pd.read_csv(args_dict['crispr']['data'],
+                                         index_col=0, header=0))
             elif args_dict.get('rnai') and not args_dict.get('crispr'):
                 gene_filter_list = dnf._read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
-                        data=args_dict['crispr']['data']
-                )
+                        data=pd.read_csv(args_dict['rnai']['data'],
+                                         index_col=0, header=0))
             elif args_dict.get('crispr') and args_dict.get('rnai'):
                 gene_filter_list = \
                     set(dnf._read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
-                        data=args_dict['crispr']['data'])) & \
+                        data=pd.read_csv(args_dict['crispr']['data'],
+                                         index_col=0, header=0))) & \
                     set(dnf._read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
-                        data=args_dict['crispr']['data']))
+                        data=pd.read_csv(args_dict['rnai']['data'],
+                                         index_col=0, header=0)))
             assert gene_filter_list is not None
 
         else:
