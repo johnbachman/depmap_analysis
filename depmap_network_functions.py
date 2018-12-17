@@ -1242,23 +1242,36 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
     else:
         gene_filter_list = []  # Evaluates to False
 
-    # 1. no loaded gene list OR 2. loaded gene list but not strict
-    #    -> filter correlation matrix to
-    corr_matrix_df = None
-    if not filter_gene_set or (filter_gene_set and not strict):
-        # No gene set file, leave 'corr_matrix' intact
-        if not filter_gene_set:
-            corr_matrix_df = corr_matrix
+    row, col = corr_matrix.shape
+    assert row > 0
 
-        # Gene set file present: filter
-        elif filter_gene_set and not strict:
+    corr_matrix_df = None
+    # 1. No gene set file, leave 'corr_matrix' intact
+    if not filter_gene_set:
+        dnf_logger.info('No gene filtering')
+        corr_matrix_df = corr_matrix
+
+    # 2. loaded gene list but not strict: filter correlation matrix to one of
+    # the two genes in the pair being the
+    elif filter_gene_set and not strict:
+        try:
+            # Try to split first item: raises AttributeError if tuple
+            corr_matrix.index.values[0].split()
             corr_matrix_df = corr_matrix[gene_filter_list]
+            dnf_logger.info('Non-strict gene filtering')
+        except AttributeError:
+            dnf_logger.info('Non-strict multi index gene filtering')
+            corr_matrix_df = corr_matrix[np.in1d(
+                corr_matrix.index.get_level_values(0),
+                gene_filter_list)]
 
     # 3. Strict: both genes in interaction must be from loaded set;
     #    Filter data, then calculate correlations and then unstack
     elif filter_gene_set and strict:
-        corr_matrix_df[np.in1d(corr_matrix_df.index.get_level_values(0),
-                               gene_filter_list)].corr()
+        dnf_logger.info('Strict gene filtering')
+        corr_matrix_df = corr_matrix_df[np.in1d(
+            corr_matrix_df.index.get_level_values(0),
+            gene_filter_list)]
 
     if corr_matrix_df is None or corr_matrix_df.notna().sum().sum() == 0:
         dnf_logger.warning('Correlation matrix is empty')
