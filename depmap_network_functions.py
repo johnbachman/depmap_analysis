@@ -663,15 +663,22 @@ def _my_gauss(x, a, x0, sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
 
 
-def _bivariate_normal(r, rho, n):
-    # USE mean AS RHO VALUE; to be sure ask the question: "Is the correlation
-    # coefficient the mean of the correlation distribution curve?"
+def _pdf_bivariate_normal(r, rho, n):
+    """PDF for the sample correlation coefficient r of a normal bivariate
+
+    See:
+    https://en.wikipedia.org/wiki/Pearson_correlation_coefficient#Using_the_exact_distribution
+    and,
+    https://stats.stackexchange.com/questions/191937/what-is-the-distribution-of-sample-correlation-coefficients-between-two-uncorrel
+
+    """
+    # RHO is mean of PDF?
     # n is number of cell lines?
     # gamma = scipy/reference/generated/scipy.special.gamma.html
-    # gauss_hg = scipy/reference/generated/scipy.special.hyp2f1.html
+    # hyp2f1 = scipy/reference/generated/scipy.special.hyp2f1.html
     gamma_n_1 = gamma(n-1)  # Gamma(n-1)
     gamma_n_1_2 = gamma(n-0.5)  # Gamma(n-1.2)
-    gauss_hyperg = guss_hg(0.5, 0.5, (2*n-1)/2, (rho*r+1)/1)
+    gauss_hyperg = hyp2f1(0.5, 0.5, (2*n-1)/2, (rho*r+1)/1)
 
     denom = (n-2)*gamma_n_1*(1-rho**2)**((n-1)/2)*(1-r)**((n-4)/2)  # upper
     numer = np.sqrt(2*np.pi)*gamma_n_1_2*(1-rho*r)**(n-3/2)  # lower
