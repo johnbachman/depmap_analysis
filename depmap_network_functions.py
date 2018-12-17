@@ -23,7 +23,7 @@ from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestAPIError
 
 db_prim = dbu.get_primary_db()
-dnf_logger = logging.getLogger('DepMapFunctions')
+dnf_logger = logging.getLogger('DepMap Functions')
 
 
 def rawincount(filename):
@@ -1017,7 +1017,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
                           'sigma': dataset_dict['sigma']}
         else:
             dnf_logger.info('Calculating mean and standard deviation for set %s'
-                            'from %s' % (gene_set_name, dataset_dict['data']))
+                            ' from %s' % (gene_set_name, dataset_dict['data']))
             stats = get_stats(corr_matrix_to_generator(full_corr_matrix))
             sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
 
@@ -1167,6 +1167,7 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
     if len(corr_matrix.index.values[0].split()) == 2:
         # split 'HGNCsymb (HGNCid)' to 'HGNCsymb' '(HGNCid)' multiindexing:
         # pandas.pydata.org/pandas-docs/stable/advanced.html
+        dnf_logger.info('Performing multi indexing of correlation matrix')
 
         # Get new indices
         hgnc_sym2id, hgnc_id2sym = {}, {}
@@ -1193,8 +1194,8 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
         dnf_logger.warning('Only one identifier found in index column. '
                            'Assuming it is HGNC symbol.')
     else:
-        dnf_logger.warning('Uknown index column. Your output dictionaries '
-                           'will likely be affected.')
+        dnf_logger.warning('Uknown index column. Output dictionaries will '
+                           'likely be affected.')
 
     if filter_gene_set:
         # Read gene set to look at
@@ -1227,7 +1228,8 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
     # No filtering
     if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
             sigma_dict['mean']) / sigma_dict['sigma']):
-        dnf_logger.warning('No filtering is performed. Be aware of large RAM '
+        dnf_logger.warning('No correlation filtering is performed. Be aware '
+                           'of large RAM '
                           'usage.')
         return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
     # Filter correlations
