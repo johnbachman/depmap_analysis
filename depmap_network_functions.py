@@ -1,26 +1,31 @@
-import os
 import csv
+import itertools as itt
 import json
 import logging
+import os
+import re
+import sys
+from collections import Mapping
+from collections import OrderedDict
+from collections import defaultdict
+from math import ceil, log10
+
+import networkx as nx
 import numpy as np
 import pandas as pd
-import networkx as nx
-import itertools as itt
-from math import ceil, log10
-from collections import Mapping
-from collections import defaultdict
-from collections import OrderedDict
-from sqlalchemy.exc import StatementError
+from pandas.core.series import Series as pd_Series_class
 from scipy import interpolate as interpol
 from scipy.optimize import curve_fit as opt_curve_fit
-from pandas.core.series import Series as pd_Series_class
-from indra_db import util as dbu
-from indra_db import client as dbc
-from indra.statements import Statement
-from indra.tools import assemble_corpus as ac
+from scipy.special import gamma, hyp2f1
+from sqlalchemy.exc import StatementError
+
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestAPIError
+from indra.statements import Statement
+from indra.tools import assemble_corpus as ac
+from indra_db import client as dbc
+from indra_db import util as dbu
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
@@ -105,7 +110,9 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
-    assert all_pairs != 0
+    if all_pairs.notna().sum().sum() == 0:
+        dnf_logger.warning('Correlation matrix is empty')
+        sys.exit('Script aborted due to empty correlation matrix')
 
     if max_pairs:
         if max_pairs >= all_pairs:
@@ -1010,7 +1017,11 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
         full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
 
-        if dataset_dict['sigma']:
+        if full_corr_matrix.notna().sum().sum() == 0:
+            dnf_logger.warning('Correlation matrix is empty')
+            sys.exit('Script aborted due to empty correlation matrix')
+
+        if dataset_dict.get('sigma'):
             dnf_logger.info('Using provided sigma of %f for set %s' %
                             (dataset_dict['sigma'], gene_set_name))
             sigma_dict = {'mean': dataset_dict['mean'],
@@ -1036,6 +1047,9 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
             )
         dnf_logger.info('Created tuple generator with %i unique genes from '
                         'set "%s"' % (len(set_hgnc_syms), gene_set_name))
+        if filtered_corr_matrix.notna().sum().sum() == 0:
+            dnf_logger.warning('Correlation matrix is empty')
+            sys.exit('Script aborted due to empty correlation matrix')
 
         dnf_logger.info('Dumping json HGNC symbol/id dictionaries...')
         _dump_it_to_json(outbasename+'_%s_sym2id_dict.json' % gene_set_name,
@@ -1125,6 +1139,10 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
         lower_limit=lower_limit, upper_limit=upper_limit,
         sigma_dict=sigma_dict
     )
+
+    if filtered_correlation_matrix.notna().sum().sum() == 0:
+        dnf_logger.warning('Correlation matrix is empty')
+        sys.exit('Script aborted due to empty correlation matrix')
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
@@ -1223,7 +1241,9 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
         corr_matrix_df[np.in1d(corr_matrix_df.index.get_level_values(0),
                                gene_filter_list)].corr()
 
-    assert corr_matrix_df is not None
+    if corr_matrix_df is None or corr_matrix_df.notna().sum().sum() == 0:
+        dnf_logger.warning('Correlation matrix is empty')
+        sys.exit('Script aborted due to empty correlation matrix')
 
     # No filtering
     if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
