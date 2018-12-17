@@ -988,27 +988,36 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
         dnf_logger.info('-' * 37)
         dnf_logger.info('Loading gene data...')
-        gene_data = pd.read_csv(dataset_dict['data'],
-                                index_col=0, header=0)
+        gene_data = pd.read_csv(dataset_dict['data'], index_col=0, header=0)
         rows, cols = gene_data.shape
         if rows > cols:
             dnf_logger.info('Transposing data...')
             gene_data = gene_data.T
 
-        if dataset_dict['cell_line_filter']:
+        # Check if cell lines need to be translated to DepMap ID
+        # (happens for RNAi)
+        if not re.match('ACH-[0-9][0-9][0-9][0-9][0-9][0-9]',
+                        gene_data.index.values[0]):
+            assert filter_settings['cell_line_translation_dict'] is not None
+            dnf_logger.info('Translating cell line names to DepMap ID')
+            gene_data.rename(
+                filter_settings['cell_line_translation_dict']['CCLE_Name'],
+                inplace=True
+            )
+
+        if filter_settings.get('cell_line_filter'):
             dnf_logger.info('Filtering to provided cell lines')
-            gene_data = gene_data[
-                gene_data.index.isin(dataset_dict['cell_line_filter'])
-            ]
+            gene_data = gene_data[gene_data.index.isin(
+                filter_settings['cell_line_filter'])]
+            assert len(gene_data) > 0
             dnf_logger.info('Calculating Pearson correlation matrix from '
                             'cell line filtered data')
             full_corr_matrix = gene_data.corr()
-            full_corr_matrix.to_hdf(
-                outbasename + 'cell_line_filtered_correlations.h5',
-                'correlations'
-            )
+            full_corr_matrix.to_hdf(outbasename +
+                '_%s_cell_line_filtered_correlations.h5'
+                % gene_set_name, 'correlations')
         else:
-            if dataset_dict['corr']:
+            if dataset_dict.get('corr'):
                 dnf_logger.info('Reading pre-calculated correlation file.')
                 full_corr_matrix = pd.read_hdf(
                     dataset_dict['corr'], 'correlations'
@@ -1018,10 +1027,8 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
                                 'new Pearson correlation matrix...'
                                 )
                 full_corr_matrix = gene_data.corr()
-                full_corr_matrix.to_hdf(
-                    outbasename + 'all_correlations.h5',
-                    'correlations'
-                )
+                full_corr_matrix.to_hdf(outbasename +
+                    '_%s_all_correlations.h5' % gene_set_name, 'correlations')
 
         dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
         full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
