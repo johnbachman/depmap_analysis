@@ -41,7 +41,7 @@ logger = logging.getLogger('DepMap Script')
 # 3. geneset loaded, strict -> each correlation can only contain genes from
 #    the loaded data set
 
-global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
+global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
     both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
     tuple_im_st_expl_count, tuple_im_sr_expl_count, \
     tuple_sr_expl_only_count, explained_pairs, unexplained, \
@@ -197,7 +197,7 @@ def _arg_dict(args_struct):
 
 def loop_body(args):
 
-    global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
+    global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
         both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
         tuple_sr_expl_only_count, explained_pairs, unexplained, \
@@ -212,7 +212,8 @@ def loop_body(args):
     not_sr_found = False  # Flag any non shared regulator connection
 
     for subj, obj in itt.permutations((id1, id2), r=2):
-        if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
+        if dnf._entry_exist_dict(nested_dict_statements, subj, obj) or \
+                dnf.has_common_parent(id1=subj, id2=obj):
             both_dir_expl_count += 1
 
             # Get the statements
@@ -263,6 +264,15 @@ def loop_body(args):
 
         else:
             found.add(False)
+
+    if dnf.has_common_parent(id1=id1, id2=id2):
+        common_parent += 1
+        found.add(True)
+        parents = list(dnf.common_parent(id1=id1, id2=id2))
+        explained_nested_dict[id1][id2]['common_parents'] = parents
+        explained_nested_dict[id2][id1]['common_parents'] = parents
+    else:
+        found.add(False)
 
     if id1 in dir_node_set and id2 in dir_node_set:
         # Checking 2: share target/coregulator A -> X <- B
@@ -346,13 +356,17 @@ def loop_body(args):
             tuple_sr_expl_only_count += 1
 
         for s, o in itt.permutations((id1, id2), r=2):
-            # Correlation
+            # Correlation/meta data
             explained_nested_dict[s][o]['meta_data'] = dataset_dict
-            # Directed
+            # common_parents
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'common_parents'):
+                explained_nested_dict[s][o]['common_parents'] = []
+            # directed
             if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                          'directed'):
                 explained_nested_dict[s][o]['directed'] = []
-            # Undirected
+            # undirected
             if not dnf._entry_exist_dict(explained_nested_dict[s], o,
                                          'undirected'):
                 explained_nested_dict[s][o]['undirected'] = []
@@ -380,7 +394,7 @@ def loop_body(args):
 
 def main(args):
 
-    global any_expl, any_expl_not_sr, tuple_dir_expl_count, \
+    global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
         both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
         tuple_sr_expl_only_count, explained_pairs, unexplained, \
@@ -538,6 +552,7 @@ def main(args):
     any_expl = 0  # Count if any explanation per (A,B) correlation found
     # Count any explanation per (A,B) found, excluding shared regulator
     any_expl_not_sr = 0
+    common_parent = 0  # Count if common parent found per set(A,B)
     tuple_dir_expl_count = 0  # Count A-B/B-A as one per set(A,B)
     both_dir_expl_count = 0  # Count A-B and B-A separately per set(A,B)
     tuple_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
@@ -561,6 +576,7 @@ def main(args):
     # d[subj][obj] = {correlation: {gene_set1: corr, gene_set2: corr, ...},
     #                 directed: [(stmt/stmt hash, belief score)],
     #                 undirected: [(stmt/stmt hash, belief score)],
+    #                 common_parents: [list of parents]
     #                 x_is_intermediary: [(X, belief rank)],
     #                 x_is_downstream: [(X, belief rank)],
     #                 x_is_upstream: [(X, belief rank)]}
