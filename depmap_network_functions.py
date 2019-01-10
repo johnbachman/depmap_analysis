@@ -1,31 +1,31 @@
-import csv
-import itertools as itt
-import json
-import logging
 import os
 import re
+import csv
 import sys
+import json
+import logging
+import itertools as itt
+from math import ceil, log10
 from collections import Mapping
 from collections import OrderedDict
 from collections import defaultdict
-from math import ceil, log10
 
-import networkx as nx
 import numpy as np
 import pandas as pd
-from pandas.core.series import Series as pd_Series_class
-from scipy import interpolate as interpol
-from scipy.optimize import curve_fit as opt_curve_fit
+import networkx as nx
 from scipy.special import gamma, hyp2f1
 from sqlalchemy.exc import StatementError
+from scipy import interpolate as interpol
+from scipy.optimize import curve_fit as opt_curve_fit
+from pandas.core.series import Series as pd_Series_class
 
+from indra_db import util as dbu
+from indra_db import client as dbc
+from indra.statements import Statement
+from indra.tools import assemble_corpus as ac
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import client_api as capi
 from indra.sources.indra_db_rest.client_api import IndraDBRestAPIError
-from indra.statements import Statement
-from indra.tools import assemble_corpus as ac
-from indra_db import client as dbc
-from indra_db import util as dbu
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
