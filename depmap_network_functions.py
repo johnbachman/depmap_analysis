@@ -667,9 +667,11 @@ def _pdf_bivariate_normal(r, rho, n):
     """PDF for the sample correlation coefficient r of a normal bivariate
 
     See:
-    https://en.wikipedia.org/wiki/Pearson_correlation_coefficient#Using_the_exact_distribution
+    ( 'https://en.wikipedia.org/wiki/Pearson_correlation_coefficient'
+      '#Using_the_exact_distribution' )
     and,
-    https://stats.stackexchange.com/questions/191937/what-is-the-distribution-of-sample-correlation-coefficients-between-two-uncorrel
+    ( 'https://stats.stackexchange.com/questions/191937/what-is-the'
+      '-distribution-of-sample-correlation-coefficients-between-two-uncorrel' )
 
     """
     # RHO is mean of PDF?
@@ -1928,7 +1930,7 @@ def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
 
 
 def dbc_load_statements(hgnc_syms):
-    """Load statements where hgnc id is subject or object from indra.db.client
+    """Get statements where hgnc symbol is subject/object from indra.db.client
 
     Parameters
     ----------
@@ -2177,7 +2179,7 @@ def has_direct_relation(id1, id2, long_stmts=set()):
     Returns
     -------
     bool
-        True if the HGNC ids has a direct relation found in the
+        True if the HGNC symbols has a direct relation found in the
         indra.sources.indra_db_rest.client_api databases.
     """
     return bool(direct_relation(id1, id2, long_stmts=long_stmts))
@@ -2190,14 +2192,14 @@ def are_connected(id1, id2, long_stmts=set()):
     Parameters
     ----------
     id1/i2 : str
-        HGNC id
+        HGNC symbol
 
     Returns
     -------
     bool
-        True if the two HGNC ids either have a common parent or if they have a
-        direct relation found in the indra.sources.indra_db_rest.client_api
-        databases.
+        True if the two HGNC symbols either have a common parent or if they
+        have a direct relation found in the
+        indra.sources.indra_db_rest.client_api databases.
     """
     return has_common_parent(ns1='HGCN', id1=id1, ns2='HGCN', id2=id2) or \
         has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
@@ -2209,7 +2211,7 @@ def connection_types(id1, id2, long_stmts=set()):
     Parameters
     ----------
     id1/i2 : str
-        HGNC id
+        HGNC symbol
 
     Returns
     -------
