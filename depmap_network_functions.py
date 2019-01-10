@@ -9,7 +9,6 @@ from math import ceil, log10
 from collections import Mapping
 from collections import OrderedDict
 from collections import defaultdict
-
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -18,7 +17,6 @@ from sqlalchemy.exc import StatementError
 from scipy import interpolate as interpol
 from scipy.optimize import curve_fit as opt_curve_fit
 from pandas.core.series import Series as pd_Series_class
-
 from indra_db import util as dbu
 from indra_db import client as dbc
 from indra.statements import Statement
