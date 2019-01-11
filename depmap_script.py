@@ -763,6 +763,8 @@ def main(args):
     long_string += '> Total correlations explained, excluding shared ' \
                    'regulator: %i' % any_expl_not_sr + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
+                   'common parent' % common_parent + '\n'
+    long_string += '>    %i correlations have an explanation involving a ' \
                    'direct connection' % tuple_dir_expl_count + \
                    '\n'
     long_string += '>    %i direct connections found (count A-B and B-A ' \
