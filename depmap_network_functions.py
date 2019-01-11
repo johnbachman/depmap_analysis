@@ -108,7 +108,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
-    if all_pairs.notna().sum().sum() == 0:
+    if all_pairs == 0:
         dnf_logger.warning('Correlation matrix is empty')
         sys.exit('Script aborted due to empty correlation matrix')
 
@@ -945,14 +945,14 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
     The filter settings should contain the following:
 
         filter_settings = {strict: Bool - If True, both A and B both have to
-                                          be in `gene_set_filter`.
+                            be in `gene_set_filter`.
                            gene_set_filter: list[genes to filter on]
-                           cell_line_filter: str - list cell line names in
-                                             DepMap ID format
+                           cell_line_filter: list - cell line names in DepMap
+                            ID format
                            margin: float - diff in terms of standard
-                                   deviations between correlations
+                            deviations between correlations
                            filter_type: str - Type of filtering (Default: None)
-                           }
+                          }
 
     The output settings should contain the following:
 
@@ -1001,10 +1001,11 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
             dnf_logger.info('Transposing data...')
             gene_data = gene_data.T
 
-        # Check if cell lines need to be translated to DepMap ID
-        # (happens for RNAi)
-        if not re.match('ACH-[0-9][0-9][0-9][0-9][0-9][0-9]',
-                        gene_data.index.values[0]):
+        # If filtering on cell lines, check if cell line IDs need to be
+        # translated to DepMap ID (happens for RNAi)
+        if filter_settings.get('cell_line_filter') and not \
+                re.match('ACH-[0-9][0-9][0-9][0-9][0-9][0-9]',
+                         gene_data.index.values[0]):
             assert filter_settings['cell_line_translation_dict'] is not None
             dnf_logger.info('Translating cell line names to DepMap ID')
             gene_data.rename(
@@ -1624,7 +1625,7 @@ def nested_dict_of_stmts(stmts, belief_dict=None):
                 except KeyError:
                     nested_stmt_dicts[subj][obj] = [(st, bs)]
 
-            # Check common parent (same familiy or complex)
+            # Check common parent (same family or complex)
             for agent, other_agent in itt.permutations(agent_list, r=2):
                 if has_common_parent(id1=agent, id2=other_agent):
                     bs = None
