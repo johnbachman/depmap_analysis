@@ -31,7 +31,8 @@ from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 from depmap_network_functions import create_nested_dict as nest_dict
 # There are pickled files using "nest_dict" in their preserved import settings
-# and we can therefore not use another name when using those files
+# and we can therefore not use another name when using those files until we
+# create new pickle files
 
 logger = logging.getLogger('DepMap Script')
 
@@ -402,6 +403,8 @@ def main(args):
         avg_corr, dir_node_set, nx_dir_graph
 
     if args.cell_line_filter and not len(args.cell_line_filter) > 2:
+        logger.info('Filtering to provided cell lines in correlation '
+                    'calculations.')
         cell_lines = _parse_cell_filter(*args.cell_line_filter)
         assert len(cell_lines) > 0
     elif args.cell_line_filter and len(args.cell_line_filter) > 2:
@@ -441,7 +444,8 @@ def main(args):
                        'cell_line_filter': cell_lines,
                        'cell_line_translation_dict': _pickle_open(
                                                      args.cell_line_filter[1])
-                       if len(args.cell_line_filter) == 2 else None,
+                       if args.cell_line_filter and len(args.cell_line_filter)
+                       == 2 else None,
                        'margin': args.margin,
                        'filter_type': (args.filter_type
                                        if args.filter_type in ['sigma-diff',
