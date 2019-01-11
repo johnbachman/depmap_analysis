@@ -213,8 +213,7 @@ def loop_body(args):
     not_sr_found = False  # Flag any non shared regulator connection
 
     for subj, obj in itt.permutations((id1, id2), r=2):
-        if dnf._entry_exist_dict(nested_dict_statements, subj, obj) or \
-                dnf.has_common_parent(id1=subj, id2=obj):
+        if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
             both_dir_expl_count += 1
 
             # Get the statements
