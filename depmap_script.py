@@ -210,7 +210,7 @@ def loop_body(args):
     dir_found = False  # Flag direct/complex connection
     im_found = False  # Flag intermediate connections
     sr_found = False  # Flag shared regulator connection
-    not_sr_found = False  # Flag any non shared regulator connection
+    non_sr_found = False  # Flag any non shared regulator connection
 
     for subj, obj in itt.permutations((id1, id2), r=2):
         if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
@@ -229,7 +229,7 @@ def loop_body(args):
                             '%s' % (subj, obj))
             found.add(True)
             dir_found = True
-            not_sr_found = True
+            non_sr_found = True
             stmt_tuple = (subj, obj, 'direct', [], dataset_dict)
             explained_pairs.append(stmt_tuple)
 
@@ -240,7 +240,7 @@ def loop_body(args):
             if dir_path_nodes:
                 found.add(True)
                 im_found = True
-                not_sr_found = True
+                non_sr_found = True
                 both_im_dir_expl_count += 1
                 if args.verbosity:
                     logger.info('Found directed path of length 2 '
@@ -267,6 +267,7 @@ def loop_body(args):
 
     if dnf.has_common_parent(id1=id1, id2=id2):
         common_parent += 1
+        non_sr_found = True
         found.add(True)
         parents = list(dnf.common_parent(id1=id1, id2=id2))
         explained_nested_dict[id1][id2]['common_parents'] = parents
@@ -284,7 +285,7 @@ def loop_body(args):
         if downstream_share:
             found.add(True)
             im_found = True
-            not_sr_found = True
+            non_sr_found = True
             tuple_im_st_expl_count += 1
             downstream_share_wb = dnf.rank_nodes(
                 node_list=downstream_share,
@@ -348,11 +349,11 @@ def loop_body(args):
             tuple_im_expl_count += 1
 
         # Count non shared regulators found
-        if not_sr_found:
+        if non_sr_found:
             any_expl_not_sr += 1
 
         # Count only shared regulators found
-        if sr_found and not not_sr_found:
+        if sr_found and not non_sr_found:
             tuple_sr_expl_only_count += 1
 
         for s, o in itt.permutations((id1, id2), r=2):
