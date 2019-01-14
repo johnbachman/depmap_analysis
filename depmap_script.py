@@ -772,7 +772,7 @@ def main(args):
                    'separately, including complexes)' % both_dir_expl_count + \
                    '\n'
     long_string += '>    %i correlations have an explanation ' \
-                   'involving and intermediate node (A-X-B).' \
+                   'involving an intermediate node (A-X-B).' \
                    % tuple_im_expl_count + '\n'
     long_string += '>    %i A->X->B or B->X->A connections found (one count ' \
                    'per direction)' % both_im_dir_expl_count + '\n'
