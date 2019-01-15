@@ -47,7 +47,7 @@ global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
     tuple_im_st_expl_count, tuple_im_sr_expl_count, \
     tuple_sr_expl_only_count, explained_pairs, unexplained, \
     explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
-    dir_node_set, nx_dir_graph, uninteresting_set
+    dir_node_set, nx_dir_graph, uninteresting_set, uninteresting
 
 
 def _dump_it_to_pickle(fname, pyobj):
@@ -224,7 +224,8 @@ def loop_body(args):
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
         tuple_sr_expl_only_count, explained_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, \
-        dataset_dict, dir_node_set, nx_dir_graph, uninteresting_set
+        dataset_dict, dir_node_set, nx_dir_graph, uninteresting_set, \
+        uninteresting
 
     # Store bool(s) for found connection (either A-B or A-X-B)
     found = set()  # Flag anythin found
@@ -301,6 +302,7 @@ def loop_body(args):
     if id1 in uninteresting_set and id2 in uninteresting_set:
         explained_nested_dict[id1][id2]['uninteresting'] = True
         explained_nested_dict[id2][id1]['uninteresting'] = True
+        uninteresting += 1
         found.add(True)
     else:
         explained_nested_dict[id1][id2]['uninteresting'] = False
@@ -432,7 +434,7 @@ def main(args):
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
         tuple_sr_expl_only_count, explained_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
-        avg_corr, dir_node_set, nx_dir_graph, uninteresting_set
+        avg_corr, dir_node_set, nx_dir_graph, uninteresting_set, uninteresting
 
     if args.cell_line_filter and not len(args.cell_line_filter) > 2:
         logger.info('Filtering to provided cell lines in correlation '
@@ -599,6 +601,7 @@ def main(args):
     # Count any explanation per (A,B) found, excluding shared regulator
     any_expl_not_sr = 0
     common_parent = 0  # Count if common parent found per set(A,B)
+    uninteresting = 0  # Count pairs removed because they were "uninteresting"
     tuple_dir_expl_count = 0  # Count A-B/B-A as one per set(A,B)
     both_dir_expl_count = 0  # Count A-B and B-A separately per set(A,B)
     tuple_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
@@ -807,6 +810,9 @@ def main(args):
                    'regulator: %i' % any_expl_not_sr + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
                    'common parent' % common_parent + '\n'
+    if args.uninteresting:
+        long_string += '>    %i gene pairs were considered explained as part ' \
+                       'of the "uninterested genes"' % uninteresting + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
                    'direct connection' % tuple_dir_expl_count + \
                    '\n'
