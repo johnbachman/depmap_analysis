@@ -416,8 +416,8 @@ def loop_body(args):
                                          'x_is_downstream'):
                 explained_nested_dict[s][o]['x_is_downstream'] = []
 
-    # any(found) is True if at least one connection was found and
-    # therefore "not any" is only True when no connection was found
+    # any(found) == True if at least one connection was found
+    # not any(found) == True is only True when no connection was found
     if not any(found):
         unexplained.append((id1, id2, dataset_dict))
         if args.verbosity and args.verbosity > 1:
