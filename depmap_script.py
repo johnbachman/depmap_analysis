@@ -47,7 +47,7 @@ global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
     tuple_im_st_expl_count, tuple_im_sr_expl_count, \
     tuple_sr_expl_only_count, explained_pairs, unexplained, \
     explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
-    dir_node_set, nx_dir_graph
+    dir_node_set, nx_dir_graph, uninteresting_set
 
 
 def _dump_it_to_pickle(fname, pyobj):
@@ -137,6 +137,27 @@ def _parse_cell_filter(cl_file, id2depmapid_pickle=None, namespace='CCLE_Name'):
     return cell_lines
 
 
+def _parse_uninteresting_genes(gene_set_file, check_column):
+    logger.info('Parsing uninteresting genes assuming column %s can be '
+                'mapped to boolean' % check_column)
+    gene_df = pd.read_csv(gene_set_file, header=0)
+    if check_column in gene_df.columns.values:
+        try:
+            genes = set(gene_df['gene'][gene_df[check_column].apply(
+                bool)].values)
+        except KeyError:
+            try:
+                genes = set(gene_df['genes'][gene_df[check_column].apply(
+                    bool)].values)
+            except KeyError as exception:
+                logger.warning(exception)
+                sys.exit('No column with name "gene" or "genes" found!')
+    else:
+        sys.exit('Cannot find column %s!' % check_column)
+    logger.info('Loaded %i uninteresting genes' % len(genes))
+    return genes
+
+
 def _corr_web_latex(id1, id2, fmtcorr):
     web_text = r'\section{{{}, {}: {}}}'.format(id1, id2, fmtcorr) + '\n' + \
                r'See correlation plot \href{{' \
@@ -203,7 +224,7 @@ def loop_body(args):
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
         tuple_sr_expl_only_count, explained_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, \
-        dataset_dict, dir_node_set, nx_dir_graph
+        dataset_dict, dir_node_set, nx_dir_graph, uninteresting_set
 
     # Store bool(s) for found connection (either A-B or A-X-B)
     found = set()  # Flag anythin found
@@ -265,6 +286,7 @@ def loop_body(args):
         else:
             found.add(False)
 
+    # Check common parent
     if dnf.has_common_parent(id1=id1, id2=id2):
         common_parent += 1
         non_sr_found = True
@@ -273,6 +295,16 @@ def loop_body(args):
         explained_nested_dict[id1][id2]['common_parents'] = parents
         explained_nested_dict[id2][id1]['common_parents'] = parents
     else:
+        found.add(False)
+
+    # Check if both A and B are in list of "uninteresting genes"
+    if id1 in uninteresting_set and id2 in uninteresting_set:
+        explained_nested_dict[id1][id2]['uninteresting'] = True
+        explained_nested_dict[id2][id1]['uninteresting'] = True
+        found.add(True)
+    else:
+        explained_nested_dict[id1][id2]['uninteresting'] = False
+        explained_nested_dict[id2][id1]['uninteresting'] = False
         found.add(False)
 
     if id1 in dir_node_set and id2 in dir_node_set:
@@ -400,7 +432,7 @@ def main(args):
         tuple_im_st_expl_count, tuple_im_sr_expl_count, \
         tuple_sr_expl_only_count, explained_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
-        avg_corr, dir_node_set, nx_dir_graph
+        avg_corr, dir_node_set, nx_dir_graph, uninteresting_set
 
     if args.cell_line_filter and not len(args.cell_line_filter) > 2:
         logger.info('Filtering to provided cell lines in correlation '
@@ -419,6 +451,16 @@ def main(args):
         logger.info('No cell line filter provided. Using all cell lines in '
                     'correlation calculations.')
         cell_lines = []
+
+    # Parse "uninteresting genes"
+    if args.uninteresting and len(args.uninteresting) == 2:
+        uninteresting_set = _parse_uninteresting_genes(
+            gene_set_file=args.uninteresting[0],
+            check_column=args.uninteresting[1])
+        logger.info('Loading "uninteresting pairs."')
+    elif args.uninteresting and len(args.uninteresting) != 2:
+        sys.exit('Argument --uninteresting takes exactly two arguments: '
+                 '--uninteresting <file> <column name>')
 
     # Check if belief dict is provided
     if not args.belief_score_dict and not args.nested_dict_in:
@@ -890,6 +932,12 @@ if __name__ == '__main__':
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
                         help='Precalculated RNAi correlations in h5 format')
+    parser.add_argument('--uninteresting', type=str, nargs='+',
+                        help='--uninteresting <filepath> <column name> | Load '
+        'a gene set file. The genes in this set will be considered '
+        '"uninteresting" when looking for explanations for a pair. If both '
+        'genes in the pair are members of the "uniunteresting set", the pair '
+        'will be considered explained.')
     parser.add_argument('-gsf', '--gene-set-filter', type=str, help='Load a '
         'file with a gene set to filter to interactions with the gene set.')
     parser.add_argument('-clf', '--cell-line-filter', type=str, nargs='+',
