@@ -9,9 +9,9 @@ $(function(){
     var first_select_list = "https://s3.amazonaws.com/depmap-public/explainable_ids_1534216288.json";
     var select_first_gene, $select_first_gene
     var select_second_gene, $select_second_gene
-    var indra_curation_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hash/";
-    // var indra_curation_addr = "http://127.0.0.1:5000/statements/from_hash/";
-    var indra_server_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hashes";
+    var indra_html_assm_addr = "https://db.indra.bio/statements/from_hash/";
+    // var indra_html_assm_addr = "http://127.0.0.1:5000/statements/from_hash/";
+    var indra_server_addr = "https://db.indra.bio/statements/from_hashes";
     // var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
     var indra_english_asmb = "http://api.indra.bio:8000/assemblers/english";
 
@@ -199,10 +199,10 @@ $(function(){
         return stmts_db;
     };
 
-    function getCurationHTMLByHash(hash) {
+    function getHTMLByHash(hash) {
         ev_limit = 3;
         options = "&ev_limit=" + ev_limit
-        url = indra_curation_addr + hash + "?format=html" + options
+        url = indra_html_assm_addr + hash + "?format=html" + options
         return $.ajax({url: url})
     }
 
@@ -707,7 +707,7 @@ $(function(){
 
         curationHTMLpromiseArray = [];
         for (let hash of hash_list) {
-            curationHTMLpromiseArray.push(getCurationHTMLByHash(hash))
+            curationHTMLpromiseArray.push(getHTMLByHash(hash))
         }
 
         Promise.all(curationHTMLpromiseArray).then(function(curationHTMLtextArray) {
