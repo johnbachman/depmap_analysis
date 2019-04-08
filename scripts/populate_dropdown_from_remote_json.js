@@ -223,6 +223,21 @@ $(function(){
         return $.ajax({url: url, dataType: "json"});
     };
 
+    function toggleStatus(badgeDiv, show, msg) {
+        gifDiv = badgeDiv.parentNode.getElementsByClassName('query-status-gif')[0];
+        textTag = badgeDiv.parentNode.getElementsByClassName('query-status')[0];
+
+        // Toggle gif animation show
+        if (show) {
+            gifDiv.style = 'display: inline;';
+        } else {
+            gifDiv.style = 'display: none;';
+        }
+
+        // Display text message
+        textTag.textContent = msg;
+    }
+
     // MOUSE HOVER LOAD PAGE
     $(".tiptext").mouseover(function() {
         $(this).children(".description").show();
@@ -663,16 +678,22 @@ $(function(){
 
                 // Query for next dropdown
                 select_second_gene.load(function(callback) {
+                    $('#second-dropdown-status-gif').show()
+                    $('#second-dropdown-status').textContent = 'Loading genes correlated with ' + geneA;
                     var second_json = $.ajax({
                         url: second_dd_address,
                         success: function(results) {
                             // var second_items = results.map(function(x) { return {second_item: x}; })
                             var second_items = results.map(function(x) { return {second_item: x[0] + ": correlation " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: Math.abs(x[1]) }; })
                             select_second_gene.enable();
+                            $('#second-dropdown-status-gif').hide()
+                            $('#second-dropdown-status').textContent = '';
                             callback(second_items);
                         },
                         error: function() {
                             console.log("Could not load from " + second_dd_address)
+                            $('#second-dropdown-status-gif').hide()
+                            $('#second-dropdown-status').textContent = "Could not load second gene. Select new first gene.";
                         }
                     })
                 });
@@ -687,6 +708,7 @@ $(function(){
     // Function for quering and outputting plain english description and statement evidence with PMIDs
     function output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string){
         // console.log("< < Entering new output_directs call > >")
+        toggleStatus(ev_counter_pointer, true, 'Loading...')
 
         // Create array to store each statement hash
         var hash_list = [];
@@ -711,6 +733,7 @@ $(function(){
         }
 
         Promise.all(curationHTMLpromiseArray).then(function(curationHTMLtextArray) {
+            toggleStatus(ev_counter_pointer, false, '')
             for (let curationHTMLtext of curationHTMLtextArray) {
                 populateOutputDiv(output_pointer, curationHTMLtext)
             }

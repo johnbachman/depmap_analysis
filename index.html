@@ -26,37 +26,37 @@
     <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js"></script>
 
     <style>
-        a {
-            color: #256DC5;
-        }
-        .badge-subject {
-          background-color: #4a36aa;
-          color: #FFFFFF;
-        }
-        .badge-object {
-          background-color: #2d8e4c;
-          color: #FFFFFF;
-        }
-        .badge-other {
-          background-color: #606060;
-          color: #FFFFFF;
-        }
-        .x-dropdown {
-          display:inline-block;
-          margin-bottom: 0px;
-          margin-left: 0px;
-          margin-right: 0px;
-        }
-        .dropdown {
-          width: 220px;
-          top: 0px;
-          left: 0px;
-          visibility: visible;
-        }
-        h5 a.stmt_toggle {
-          cursor: pointer;
-          color: #000000;
-        }
+      a {
+        color: #256DC5;
+      }
+      .badge-subject {
+        background-color: #4a36aa;
+        color: #FFFFFF;
+      }
+      .badge-object {
+        background-color: #2d8e4c;
+        color: #FFFFFF;
+      }
+      .badge-other {
+        background-color: #606060;
+        color: #FFFFFF;
+      }
+      .x-dropdown {
+        display:inline-block;
+        margin-bottom: 0px;
+        margin-left: 0px;
+        margin-right: 0px;
+      }
+      .dropdown {
+        width: 220px;
+        top: 0px;
+        left: 0px;
+        visibility: visible;
+      }
+      h5 a.stmt_toggle {
+        cursor: pointer;
+        color: #000000;
+      }
     </style>
 
     <title>
@@ -69,10 +69,10 @@
 
     <div class="container theme-showcase" role="main">
 
-    <h2 class=display-1" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer</h2>
+    <h2 class="display-1" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer</h2>
 
     <div class="page-header">
-        <a name='index'></a>
+        <a name="index"></a>
         <h4>Curator Information</h4>
         <div class="user_data">
         <div class="api_key_form" id="api_key_form" style="display:inline-block; vertical-align: top; width: 330">
@@ -115,6 +115,10 @@
                        <select id="select_second_gene" class="form-control" placeholder="Select a gene..."></select>
                     </div>
                 </div>
+                <div id="second-dropdown-status-gif" style="display:inline-block; display: none;">
+                    <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+                </div>
+                <span id="second-dropdown-status"></span>
             </div>
                 <div class="form-group row">
                 <div class="col-sm-2"></div>
@@ -139,6 +143,10 @@
                 Complex <div id="A_complex" style="display:inline-block;">A </div>
                 <div id="B_complex" style="display:inline-block;">B</div>
             </a>
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
             <span id="collapseAcB_ev_count" 
                   class="badge badge-default float-right"
                   style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
@@ -162,6 +170,10 @@
                 <div id="A_AtoB" style="display:inline-block;">A</div> &rarr; 
                 <div id="B_AtoB" style="display:inline-block;">B</div>
             </a>
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
             <span id="collapseAB_ev_count"
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
@@ -186,6 +198,10 @@
                 <div id="B_BtoA" style="display:inline-block;">B</div> &rarr; 
                 <div id="A_BtoA" style="display:inline-block;">A</div>
             </a>
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
             <span id="collapseBA_ev_count" 
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
@@ -220,6 +236,10 @@
                 </div>
             </div>
             <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
             <span id="collapseAXB_ev_count" 
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">X: 0
@@ -258,6 +278,10 @@
                 </div>
             </div>
             <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
             <span id="collapseBXA_ev_count" 
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
@@ -295,6 +319,10 @@
                 </div>
             </div>
             <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
             <span id="collapse_st_X_count" 
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
@@ -332,6 +360,10 @@
                 </div>
             </div>
             <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
             <span id="collapse_sr_X_count" 
                   class="badge badge-default float-right" 
                   style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
