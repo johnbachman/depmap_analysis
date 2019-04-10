@@ -8,34 +8,56 @@
     <!-- LINKS -->
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
     <link rel="stylesheet" type="text/css" href="https://selectize.github.io/selectize.js/css/selectize.bootstrap3.css">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
 
     <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
 
     <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-    
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
 
     <!-- SCRIPTS -->
     <script type="text/javascript" src="https://selectize.github.io/selectize.js/js/selectize.js"></script>
+    <script type="text/javascript" src="https://www.indra.bio/indra/assemblers/html/curationFunctions.js"></script>
+    <!-- <script type="text/javascript" src="https://s3.amazonaws.com/depmap-public/curationJS/curationFunctions.js"></script> -->
     <script type="text/javascript" src="scripts/populate_dropdown_from_remote_json.js"></script>
 
-    <script type="text/javascript">
-        // Check the API key input
-        function keySubmit (key_value) {
-            var ensure_user = document.getElementById("ensure_user_on_api_key")
-            // Default value still there or nothing entered 
-            if (key_value == "No key given." | !key_value) {
-                return;
-            // nothing entered
-            } else {
-                console.log("document.getElementById(\"api_key_input\").value: " + document.getElementById("api_key_input").value);
-                ensure_user.textContent = "Key stored: " + key_value;
-            }
-        }
-    </script>
+    <style>
+      a {
+        color: #256DC5;
+      }
+      .badge-subject {
+        background-color: #4a36aa;
+        color: #FFFFFF;
+      }
+      .badge-object {
+        background-color: #2d8e4c;
+        color: #FFFFFF;
+      }
+      .badge-other {
+        background-color: #606060;
+        color: #FFFFFF;
+      }
+      .x-dropdown {
+        display:inline-block;
+        margin-bottom: 0px;
+        margin-left: 0px;
+        margin-right: 0px;
+      }
+      .dropdown {
+        width: 220px;
+        top: 0px;
+        left: 0px;
+        visibility: visible;
+      }
+      h5 a.stmt_toggle {
+        cursor: pointer;
+        color: #000000;
+      }
+    </style>
 
     <title>
         INDRA DepMap Explainer
@@ -44,178 +66,320 @@
 </head>
 
 <body>
-    <div class="container">
-    <div class="jumbotron">
-        <h1>INDRA DepMap Explainer</h1>
+
+    <div class="container theme-showcase" role="main">
+
+    <h2 class="display-1" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer</h2>
+
+    <div class="page-header">
+        <a name="index"></a>
+        <h4>Curator Information</h4>
+        <div class="user_data">
+        <div class="api_key_form" id="api_key_form" style="display:inline-block; vertical-align: top; width: 330">
+            <form name="apiKeyForm" action="javascript:keySubmit(api_key_input.value)">
+                <b>API key</b><br>If no key is provided your curation will be rejected.<br>
+                <input type="text" name="api_key" id="api_key_input" placeholder="Enter key here..." style="width: 200px;">
+                <input type="submit" name="store_button" value="submit key">
+                <div id="ensure_user_on_api_key">No key given.</div>
+            </form>
+        </div>
+        <div class="curator_form" id="curator_form" style="display:inline-block; vertical-align: top; width: 330">
+            <form name="curatorForm">
+                <b>Curator ID</b><br>Your curation will get priority if you provide your email or name.<br>
+                <input type="text" name="curator" id="curator_input" placeholder="Enter your name or email..." style="width: 200px;">
+            </form>
+        </div>
+    </div>
     </div>
 
-    <div class="panel panel-default">
-        <div class="panel-heading"><h3>Gene Selection</h3></div>
+    <div class="card" style="padding-bottom: 0px;">
+        <h5 class="card-header">Gene Selection</h5>
+        <div class="card-body">
         <p>The first dropdown will access a searchable menu of genes involved in CRISPR screens of cancer cell lines found at <a href="https://depmap.org/portal/" title="depmap.org at the Broad Institute">depmap.org</a>. The second dropdown will load once the first gene is selcted and will show the genes correlated with the first that have some explanation found using INDRA.<br><br><i>NOTE: Complexes are treated as undirected connections (i.e. there is no subject and object) and may appear in the output for intermediary connections of the type A-X-B.</i></p>
-        <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
-        <div class="control-group">
-            <label for="select_first_gene"></label>
-            <select id="select_first_gene" class="demo-default" placeholder="Select a gene..."></select>
-        </div>
-        </div>
 
-        <div class="dropdown" style="width: 360px; top: 36px; left: 0px; visibility: visible;">
-        <div class="control-group">
-            <label for="select_second_gene"></label>
-                <select id="select_second_gene" class="demo-default" placeholder="Select a gene..."></select>
+            <form>
+            <div class="form-group row">
+                <label class="col-sm-2 col-form-label" style="text-align: right; vertical-align: middle"
+                    for="select_first_gene">Gene A</label>
+                <div class="col-sm-4">
+                    <div class="dropdown">
+                        <select id="select_first_gene" class="form-control" placeholder="Select a gene..."></select>
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <div id="output_A_B">
-            <h4>Selection</h4>
-            <div id="my_outputA">Gene A:</div>
-            <div id="my_outputB">Gene B:</div>
-            <h4 id="show_correlation">Link to depmap plot for geneA vs geneB (<i>correlation</i>)</h4>
-        </div>
-    </div>
-
-    <div class="panel panel-default">
-        <div class="panel-heading">
-            <h3 id="explanations" class="panel-title">Explanations</h3>
-        </div>
-            <div class="panel-group">
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapseAcB">
-                            Complex <div id="A_complex" style="display:inline-block;">A</div> <div id="B_complex" style="display:inline-block;">B</div>
-                           <span id="collapseAcB_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">Statements: 0</span>
-                            <div id="AB_output_complex"></div>
-                        </a>
-                    </h4>
-                    </div>
-                    <div id="collapseAcB" class="panel-collapse collapse">
-                        <div id="expl_A_complex_B">&nbsp;</div>
+            <div class="form-group row">
+                <label class="col-sm-2 col-form-label" style="text-align: right; vertical-align: middle"
+                    for="select_second_gene">Gene B</label>
+                <div class="col-sm-4">
+                    <div class="dropdown">
+                       <select id="select_second_gene" class="form-control" placeholder="Select a gene..."></select>
                     </div>
                 </div>
-
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapseAB">
-                            <div id="A_AtoB" style="display:inline-block;">A</div> &rarr; <div id="B_AtoB" style="display:inline-block;">B</div>
-                            <span id="collapseAB_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">Statements: 0</span>
-                            <div id="AB_output_AB"></div>
-                        </a>
-                    </h4>
-
-                    </div>
-
-                    <div id="collapseAB" class="panel-collapse collapse">
-                        <div id="expl_A_to_B">&nbsp;</div>
-                    </div>
+                <div id="second-dropdown-status-gif" style="display:inline-block; display: none;">
+                    <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
                 </div>
-
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapseBA">
-                            <div id="B_BtoA" style="display:inline-block;">B</div> &rarr; <div id="A_BtoA" style="display:inline-block;">A</div>
-                            <span id="collapseBA_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">Statements: 0</span>
-                            <div id="BA_output_BA"></div>
-                        </a>
-                    </h4>
-                    </div>
-                    <div id="collapseBA" class="panel-collapse collapse">
-                        <div id="expl_B_to_A">&nbsp;</div>
-                    </div>
-                </div>
-
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapseAXB">
-                            <div id="A_AXB" style="display:inline-block;">A</div> &rarr; <div id="X_AXB" style="display:inline-block;">X</div> &rarr; <div id="B_AXB" style="display:inline-block;">B</div>
-                            <span id="collapseAXB_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                        </a>
-                    </h4>
-                    </div>
-                    <div id="collapseAXB" class="panel-collapse collapse">
-                        <div id="expl_A_to_X_to_B">&nbsp;
-                            <div id="AXB_dropdown"></div>
-                            <div id="AX_output_AXB"></div>
-                            <div id="XB_output_AXB"></div>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapseBXA">
-                            <div id="B_BXA" style="display:inline-block;">B</div> &rarr; <div id="X_BXA" style="display:inline-block;">X</div> &rarr; <div id="A_BXA" style="display:inline-block;">A</div>
-                            <span id="collapseBXA_ev_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                        </a>
-                    </h4>
-                    </div>
-                    <div id="collapseBXA" class="panel-collapse collapse">
-                        <div id="expl_B_to_X_to_A">&nbsp;
-                            <div id="BXA_dropdown"></div>
-                            <div id="BX_output_BXA"></div>
-                            <div id="XA_output_BXA"></div>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapse_st">
-                            Shared target (<div id="A_ABtoX" style="display:inline-block;">A</div> &rarr; <div id="X_ABtoX" style="display:inline-block;">X</div> &larr; <div id="B_ABtoX" style="display:inline-block;">B</div>)
-                            <span id="collapse_st_X_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                        </a>
-                    </h4>
-                    </div>
-                    <div id="collapse_st" class="panel-collapse collapse">
-                        <div id="expl_x_is_downstream">&nbsp;
-                            <div id="ABtoX_dropdown"></div>
-                            <div id="AX_output_ABtoX"></div>
-                            <div id="XB_output_ABtoX"></div>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <a data-toggle="collapse" href="#collapse_sr">
-                            Shared regulator (<div id="A_XtoAB" style="display:inline-block;">A</div> &larr; <div id="X_XtoAB" style="display:inline-block;">X</div> &rarr; <div id="B_XtoAB" style="display:inline-block;">B</div>)
-                            <span id="collapse_sr_X_count" class="badge badge-default float-right" style="background-color:#6E6E6E;">X: 0</span>
-                        </a>
-                    </h4>
-                    </div>
-                    <div id="collapse_sr" class="panel-collapse collapse">
-                        <div id="expl_x_is_upstream">&nbsp;
-                            <div id="XtoAB_dropdown"></div>
-                            <div id="AX_output_XtoAB"></div>
-                            <div id="XB_output_XtoAB"></div>
-                        </div>
-                    </div>
-                </div>
-
+                <span id="second-dropdown-status"></span>
             </div>
-        </div>
-    <div class="panel panel-default">
-        <div class="panel-heading"><h4>API key</h4></div>
-        <form name="apiKeyForm" action="javascript:keySubmit(api_key_input.value)">
-            If no key is provided, evidence text output might be limited. Links to source material will always be provided.<br>
-            <input type="text" name="api_key" id="api_key_input" placeholder="Enter key here..." style="width: 360px;">
-            <input type="submit" name="store_button" value="submit key">
-            <div id="ensure_user_on_api_key">No key given.</div>
-        </form>
-    </div>
-    </div>
+                <div class="form-group row">
+                <div class="col-sm-2"></div>
+                <ul class="nav nav-pills col-sm-4">
+                    <li class="nav-item"><a class="nav-link" target="_blank"
+                            id="show_correlation">Correlation plot <i class="fas fa-external-link-square-alt"></i></a></li>
+                </ul>
+                </div>
+            </form>
+        </div> <!--  card-body -->
+    </div> <!-- card -->
+
+    <!-- COMPLEXES -->
+    <div class="card">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapseAcB"
+               aria-expanded="false" 
+               aria-controls="collapseAcB">
+                Complex <div id="A_complex" style="display:inline-block;">A </div>
+                <div id="B_complex" style="display:inline-block;">B</div>
+            </a>
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
+            <span id="collapseAcB_ev_count" 
+                  class="badge badge-default float-right"
+                  style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
+        </h5>
+        <div id="collapseAcB" class="collapse">
+            <div class="card-body">
+                <div id="expl_A_complex_B">&nbsp;</div>
+            </div>
+        </div> <!-- card-body -->
+    </div> <!-- card -->
+
+    <!-- A->B -->
+    <div class="card">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse" 
+               data-target="#collapseAB" 
+               aria-expanded="false" 
+               aria-controls="collapseAB">
+                <div id="A_AtoB" style="display:inline-block;">A</div> &rarr; 
+                <div id="B_AtoB" style="display:inline-block;">B</div>
+            </a>
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
+            <span id="collapseAB_ev_count"
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
+        </h5>
+        <div id="collapseAB" 
+             class="collapse">
+            <div class="card-body">
+                <div id="expl_A_to_B">&nbsp;</div>
+            </div>
+        </div> <!-- card-body -->
+    </div> <!-- card -->
+
+    <!-- B->A -->
+    <div class="card">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse" 
+               data-target="#collapseBA" 
+               aria-expanded="false" 
+               aria-controls="collapseBA">
+                <div id="B_BtoA" style="display:inline-block;">B</div> &rarr; 
+                <div id="A_BtoA" style="display:inline-block;">A</div>
+            </a>
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
+            <span id="collapseBA_ev_count" 
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">Statements: 0</span>
+        </h5>
+        <div id="collapseBA" 
+             class="collapse">
+            <div class="card-body">
+                <div id="expl_B_to_A">&nbsp;</div>
+            </div>
+        </div> <!-- card-body -->
+    </div> <!-- card -->
+
+    <!-- A->X->B -->
+    <div class="card">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapseAXB"
+               aria-expanded="false"
+               aria-controls="collapseAXB">
+                <div id="A_AXB" style="display:inline-block;">A</div> &rarr; 
+                <div id="X_AXB" style="display:inline-block;">X</div> &rarr; 
+                <div id="B_AXB" style="display:inline-block;">B</div>
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row x-dropdown">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="AXB_dropdown">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
+            <span id="collapseAXB_ev_count" 
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0
+            </span>
+        </h5>
+        <div id="collapseAXB" 
+             class="collapse">
+            <div class="card-body">
+                <div id="expl_A_to_X_to_B">&nbsp;
+                    <div id="AX_output_AXB"></div>
+                    <div id="XB_output_AXB"></div>
+                </div>
+            </div>
+        </div> <!-- card-body -->
+    </div> <!-- card -->
+
+    <!-- B->X->A -->
+    <div class="card">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapseBXA"
+               aria-expanded="false"
+               aria-controls="collapseBXA">
+                <div id="B_BXA" style="display:inline-block;">B</div> &rarr; 
+                <div id="X_BXA" style="display:inline-block;">X</div> &rarr; 
+                <div id="A_BXA" style="display:inline-block;">A</div>
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row x-dropdown">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="BXA_dropdown">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
+            <span id="collapseBXA_ev_count" 
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
+        </h5>
+        <div id="collapseBXA" 
+             class="collapse">
+            <div class="card-body">
+                <div id="expl_B_to_X_to_A">&nbsp;
+                    <div id="BX_output_BXA"></div>
+                    <div id="XA_output_BXA"></div>
+                </div>
+            </div>
+        </div> <!-- card-body -->
+    </div> <!-- card -->
+
+    <!-- B->X<-A -->
+    <div class="card">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle" 
+               data-toggle="collapse" 
+               data-target="#collapse_st" 
+               aria-expanded="false" 
+               aria-controls="collapse_st">
+                Shared target (<div id="A_ABtoX" style="display:inline-block;">A</div> &rarr; 
+                <div id="X_ABtoX" style="display:inline-block;">X</div> &larr; 
+                <div id="B_ABtoX" style="display:inline-block;">B</div>)
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row x-dropdown">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="ABtoX_dropdown">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
+            <span id="collapse_st_X_count" 
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
+        </h5>
+        <div id="collapse_st" 
+             class="collapse">
+            <div class="card-body">
+                <div id="expl_x_is_downstream">&nbsp;
+                    <div id="AX_output_ABtoX"></div>
+                    <div id="XB_output_ABtoX"></div>
+                </div>
+            </div>
+        </div> <!-- card-body -->
+    </div> <!-- card -->
+
+    <!-- B<-X->A -->
+    <div class="card">
+        <h5 class="card-header">
+            <a href="#"
+               class="stmt_toggle"
+               data-toggle="collapse"
+               data-target="#collapse_sr"
+               aria-expanded="false"
+               aria-controls="collapse_sr">
+                Shared regulator (<div id="A_XtoAB" style="display:inline-block;">A</div> &larr; 
+                <div id="X_XtoAB" style="display:inline-block;">X</div> &rarr; 
+                <div id="B_XtoAB" style="display:inline-block;">B</div>)
+            </a>
+            <!-- Dropdown for X -->
+            <div class="form-group row x-dropdown">
+                <div class="col-sm-4">
+                    <div class="dropdown" id="XtoAB_dropdown">
+                        <select id="select_X_sr" class="form-control" placeholder="Select a gene X..."></select>
+                    </div>
+                </div>
+            </div>
+            <!--/Dropdown for X -->
+            <div class="query-status-gif" style="display:inline-block; display: none;">
+              <img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">
+            </div>
+            <span style="display:inline-block;"><i class="query-status"></i></span>
+            <span id="collapse_sr_X_count" 
+                  class="badge badge-default float-right" 
+                  style="background-color:#BBB; color: #FFFFFF;">X: 0</span>
+        </h5>
+        <div id="collapse_sr" 
+             class="collapse">
+            <div class="card-body">
+                <div id="expl_x_is_upstream">&nbsp;
+                    <div id="AX_output_XtoAB"></div>
+                    <div id="XB_output_XtoAB"></div>
+                </div>
+            </div>
+        </div> <!-- card-body -->
+    </div> <!-- card -->
+
+    </div> <!-- closing div for class="container theme-showcase" role="main" -->
+
 </body>
 </html>

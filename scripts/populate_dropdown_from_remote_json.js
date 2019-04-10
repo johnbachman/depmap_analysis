@@ -9,10 +9,11 @@ $(function(){
     var first_select_list = "https://s3.amazonaws.com/depmap-public/explainable_ids_1534216288.json";
     var select_first_gene, $select_first_gene
     var select_second_gene, $select_second_gene
-    var indra_server_addr = "https://lsm6zea7gg.execute-api.us-east-1.amazonaws.com/production/statements/from_hashes";
+    var indra_html_assm_addr = "https://db.indra.bio/statements/from_hash/";
+    // var indra_html_assm_addr = "http://127.0.0.1:5000/statements/from_hash/";
+    var indra_server_addr = "https://db.indra.bio/statements/from_hashes";
     // var indra_server_addr = "https://l3zhe2uu9c.execute-api.us-east-1.amazonaws.com/dev/statements/from_hashes";
     var indra_english_asmb = "http://api.indra.bio:8000/assemblers/english";
-    var pubmed_fetch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
 
     // "GLOBAL" VARIABLE SCOPE
     var old_geneA = "A"
@@ -48,42 +49,42 @@ $(function(){
     // Output areas
     // Complex AB
     var output_AcB = $("#expl_A_complex_B")[0];
-    var output_ABcomplex = $("#AB_output_complex")[0];
+    // var output_ABcomplex = $("#AB_output_complex")[0];
     var AcB_ev_count = document.getElementById("collapseAcB_ev_count");
     // AB
     var output_AB = $("#expl_A_to_B")[0];
-    var output_AB_AB = $("#AB_output_AB")[0];
+    // var output_AB_AB = $("#AB_output_AB")[0];
     var AB_ev_count = document.getElementById("collapseAB_ev_count");
 
     // BA
     var output_BA = $("#expl_B_to_A")[0];
-    var output_BA_BA = $("#BA_output_BA")[0];
+    // var output_BA_BA = $("#BA_output_BA")[0];
     var BA_ev_count = document.getElementById("collapseBA_ev_count");
 
     // AXB
     var output_AXB = $("#expl_A_to_X_to_B")[0];
-    var AXB_dd_div = $("#AXB_dropdown")[0];
+    var AXB_dd_div = "AXB_dropdown";
     var output_AX_AXB = $("#AX_output_AXB")[0];
     var output_XB_AXB = $("#XB_output_AXB")[0];
     var AXB_ev_count = document.getElementById("collapseAXB_ev_count");
 
     // BXA
     var output_BXA = $("#expl_B_to_X_to_A")[0];
-    var BXA_dd_div = $("#BXA_dropdown")[0];
+    var BXA_dd_div = "BXA_dropdown";
     var output_BX_BXA = $("#BX_output_BXA")[0];
     var output_XB_BXA = $("#XA_output_BXA")[0];
     var BXA_ev_count = document.getElementById("collapseBXA_ev_count");
 
     // ABx
     var output_ABx = $('#expl_x_is_downstream')[0];
-    var ABtox_dd_div = $("#ABtoX_dropdown")[0];
+    var ABtox_dd_div = "ABtoX_dropdown";
     var output_AX_ABtoX = $("#AX_output_ABtoX")[0];
     var output_XB_ABtoX = $("#XB_output_ABtoX")[0];
     var ABx_ev_count = document.getElementById("collapse_st_X_count");
 
     // xAB
     var output_xAB = $('#expl_x_is_upstream')[0];
-    var XtoAB_dd_div = $("#XtoAB_dropdown")[0];
+    var XtoAB_dd_div = "XtoAB_dropdown";
     var output_AX_XtoAB = $("#AX_output_XtoAB")[0];
     var output_XB_XtoAB = $("#XB_output_XtoAB")[0];
     var xAB_ev_count = document.getElementById("collapse_sr_X_count");
@@ -110,41 +111,40 @@ $(function(){
         // Clean up the output areas so old output doesn't stick around
 
         // Complex AB
-        output_ABcomplex.innerHTML = null;
+        output_AcB.innerHTML = null;
+        // output_ABcomplex.innerHTML = null;
         AcB_ev_count.textContent = "Statements: 0";
-        AcB_ev_count.style = "background-color:#6E6E6E;";
+        AcB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->B
-        output_AB_AB.innerHTML = null;
+        output_AB.innerHTML = null;
+        // output_AB_AB.innerHTML = null;
         AB_ev_count.textContent = "Statements: 0";
-        AB_ev_count.style = "background-color:#6E6E6E;";
+        AB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // B->A
-        output_BA_BA.innerHTML = null;
+        output_BA.innerHTML = null;
+        // output_BA_BA.innerHTML = null;
         BA_ev_count.textContent = "Statements: 0";
-        BA_ev_count.style = "background-color:#6E6E6E;";
+        BA_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->X->B
-        AXB_dd_div.innerHTML = null;
         output_AX_AXB.innerHTML = null;
         output_XB_AXB.innerHTML = null;
         AXB_ev_count.textContent = "X: 0";
-        AXB_ev_count.style = "background-color:#6E6E6E;";
+        AXB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // B->X->A
-        BXA_dd_div.innerHTML = null;
         output_BX_BXA.innerHTML = null;
         output_XB_BXA.innerHTML = null;
         BXA_ev_count.textContent = "X: 0";
-        BXA_ev_count.style = "background-color:#6E6E6E;";
+        BXA_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A<-X->B
-        XtoAB_dd_div.innerHTML = null;
         output_AX_XtoAB.innerHTML = null;
         output_XB_XtoAB.innerHTML = null;
         xAB_ev_count.textContent = "X: 0";
-        xAB_ev_count.style = "background-color:#6E6E6E;";
+        xAB_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
         // A->X<-B
-        ABtox_dd_div.innerHTML = null;
         output_AX_ABtoX.innerHTML = null;
         output_XB_ABtoX.innerHTML = null;
         ABx_ev_count.textContent = "X: 0";
-        ABx_ev_count.style = "background-color:#6E6E6E;";
+        ABx_ev_count.style = "background-color:#BBB; color: #FFFFFF;";
     }
 
     function allAreComplex(stmts) {
@@ -186,9 +186,8 @@ $(function(){
         return eng_stmt
     };
 
-    function getStatementByHash(indra_query) {
+    function getStatementsByHash(indra_query) {
         var api_key = document.getElementById("api_key_input").value;
-        console.log(("api key: " + api_key))
         _url = indra_server_addr + "?api-key=" + api_key;
         stmts_db = $.ajax({
             url: _url,
@@ -200,63 +199,44 @@ $(function(){
         return stmts_db;
     };
 
-    function getPubMedMETAxmlByPMID(pmid) {
-        params_dict = {'db': 'pubmed',
-            'retmode': 'xml',
-            'rettype': 'docsum',
-            'id': pmid
-        };
-        PubMedMETAxml = $.ajax({
-            url: pubmed_fetch,
-            type: "POST",
-            dataType: "xml",
-            data: params_dict,
-        });
-        return PubMedMETAxml
-    };
+    function getHTMLByHash(hash) {
+        ev_limit = 3;
+        options = "&ev_limit=" + ev_limit
+        url = indra_html_assm_addr + hash + "?format=html" + options
+        return $.ajax({url: url})
+    }
 
-    function pmidXML2dict(XML) {
-        xml_dict = {};
-        for (child of XML.children) {
-            name = child.getAttribute("Name");
-            type = child.getAttribute("Type");
-            if (child.hasChildNodes() & type == "List") {
-                // Javascript can't really do nice recursive functions...
-                // special cases for "History" and "ArticleIds" which has unique inner Names
-                if (name == "ArticleIds" | name == "History") {
-                    innerDict = {};
-                    for (c of child.children) {
-                        innerDict[c.getAttribute("Name")] = c.textContent;
-                    }
-                    innerItems = innerDict;
-                } else {
-                    innerList = [];
-                    for (c of child.children) {
-                        innerList.push(c.textContent);
-                    }
-                    innerItems = innerList;
-                }
-                xml_dict[name] = innerItems
-            } else if (child.tagName == "Item") {
-                // Here just get the inner strings
-                xml_dict[name] = child.textContent;
-            } else if (child.tagName == "Id") {
-                // Special case
-                xml_dict["Id"] = child.textContent;
-            } else {
-                if (!xml_dict["no_key"]) {
-                    xml_dict["no_key"] = [child.textContent]
-                } else {
-                    xml_dict["no_key"].push(child.textContent)
-                }
-            }
-        }
-        return xml_dict;
+    function populateOutputDiv(outputDiv, curationHTMLtext) {
+        fullHTML = document.createElement('html');
+        fullHTML.innerHTML = curationHTMLtext;
+
+        // Get div-class == "statement" and div-class == "evidence"
+        statement = fullHTML.getElementsByClassName("statement")[0];
+        evidence = fullHTML.getElementsByClassName("evidence")[0];
+
+        // Append to output
+        outputDiv.appendChild(statement);
+        outputDiv.appendChild(evidence);
     }
 
     function grabJSON (url, callback) {
         return $.ajax({url: url, dataType: "json"});
     };
+
+    function toggleStatus(badgeDiv, show, msg) {
+        gifDiv = badgeDiv.parentNode.getElementsByClassName('query-status-gif')[0];
+        textTag = badgeDiv.parentNode.getElementsByClassName('query-status')[0];
+
+        // Toggle gif animation show
+        if (show) {
+            gifDiv.style = 'display: inline;';
+        } else {
+            gifDiv.style = 'display: none;';
+        }
+
+        // Display text message
+        textTag.textContent = msg;
+    }
 
     // MOUSE HOVER LOAD PAGE
     $(".tiptext").mouseover(function() {
@@ -280,22 +260,6 @@ $(function(){
 
         onChange: function(value) {
             geneB = document.getElementById("select_second_gene").textContent.split(":")[0];
-
-            // Refer to the div (or other object) where the output text should be
-            let output_text = $("#my_outputB")[0];
-
-            // Add an empty innerHTML object (otherwise it keeps appending to current HTML object)
-            output_text.innerHTML = null;
-            
-            // Build an element (here: "thingy") in the innerHTML that includes the selected value.
-            thingy = document.createElement("span");
-
-            // Get the text from the selected item dropdown 
-            // thingy.textContent = "Subject: " + subj_input.options[subj_input.selectedIndex].text
-            thingy.textContent = "Gene B: " + geneB;
-
-            // Append the element to the div object
-            output_text.appendChild(thingy)
 
             // Reset Output and Names
             resetNamesOutput();
@@ -338,20 +302,20 @@ $(function(){
                     correlation_AB = res[geneB]
 
                     var correlation_output = $("#show_correlation")[0];
-                    correlation_output.innerHTML = null;
-                    var correlation_output_element = document.createElement("a")
-                    var linkText = document.createTextNode("Link to depmap plot")
-                    correlation_output_element.appendChild(linkText);
-                    correlation_output_element.title = "Link to depmap plot for " + geneA + " vs " + geneB
-                    correlation_output_element.href = depmap1 + geneA + depmap2 + geneB + depmap3
-                    if (isNumeric(correlation_AB)) {
-                        correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " (" + parseFloat(correlation_AB).toFixed(3).toString() + ")" // DECIMAL PLACES IN CORRELATION
-                    } else {
-                        // When we don't have the correlation; If it happens, you probably need to update the correlation jsons
+                    //correlation_output.innerHTML = null;
+                    //var correlation_output_element = document.createElement("a")
+                    //var linkText = document.createTextNode("Link to depmap plot")
+                    //correlation_output_element.appendChild(linkText);
+                    //correlation_output_element.title = "Link to depmap plot for " + geneA + " vs " + geneB
+                    //correlation_output_element.href = depmap1 + geneA + depmap2 + geneB + depmap3
+                    correlation_output.href = depmap1 + geneA + depmap2 + geneB + depmap3
+                    correlation_output.class = "nav-link active"
+                    if (!isNumeric(correlation_AB)) {
+                        // If this happens, you probably need to update the correlation jsons
                         console.log('Correlation is not a valid number!')
-                        correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " not available."
+                        // correlation_output_element.textContent = "Link to depmap plot for " + geneA + " vs " + geneB + " not available."
                     }
-                    correlation_output.appendChild(correlation_output_element)
+                    // correlation_output.appendChild(correlation_output_element)
                 },
                 error: function() {
                     var correlation_output = $("#show_correlation")[0];
@@ -364,15 +328,57 @@ $(function(){
 
             // To be used so we can query common up/downstream on B-X-A when A->B gives back a result but not B->A;
             // Should also use it for avoiding double output.
-            var AcB_d_output = false
-            var AB_st_output = false
-            var AB_sr_output = false
+            var AcB_d_output = false;
+            var AB_st_output = false;
+            var AB_sr_output = false;
+            var calledPMIDtitle = false;
 
             // Query and output all subj:A -> obj:B
             var geneA_is_subj_promise = $.ajax({
                 url: geneA_is_subj_expl_address,
                 success: function(res) {
                     let obj = geneB
+
+                    // First to resolve: just set to true
+                    if (!calledPMIDtitle) {
+                        calledPMIDtitle = true;
+                    } else {
+                        var readyStateCheckInterval = setInterval(function() {
+                            console.log("Current document readyState: " + document.readyState)
+
+                            // options are "loading", "interactive", "complete"
+                            if (document.readyState === "complete") {
+                                clearInterval(readyStateCheckInterval);
+
+                                // Source the curation row toggle function
+                                $(function() {
+                                    console.log("Re-reading toggle function")
+                                    $("td[class='curation_toggle']").click(function(event) {
+                                        console.log("Curation toggle click")
+                                        event.stopPropagation();
+                                        var $target = $(event.target);
+                                        console.log($(event.target))
+                                        if (event.target.dataset.clicked == "true") {
+                                            console.log('trying to animate')
+                                            // Toggle (animation duration in msec)
+                                            $target.closest("tr").next().find("div").slideToggle(200);
+                                        // First click event
+                                        } else {
+                                            console.log('first click event')
+                                            // Stay down (animation duration in msec)
+                                            $target.closest("tr").next().find("div").slideDown(400);
+
+                                            // Change color of icon to light gray
+                                            event.target.style="color:#A4A4A4;"
+
+                                            // Set clicked to true
+                                            event.target.dataset.clicked = "true"
+                                        }
+                                    });
+                                });
+                            }
+                        }, 1000); // Time interval in milliseconds
+                    }
 
                     // Should return a dict of the format below
                     connection_type_list = res[obj]
@@ -407,7 +413,8 @@ $(function(){
                             Bname_complex.textContent = geneB;
 
                             // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                            output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
+                            // output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
+                            output_directs(output_AcB, output_AcB, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string);
                         }
                     }
 
@@ -420,7 +427,8 @@ $(function(){
                         Bname_AtoB.textContent = geneB;
 
                         // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                        output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
+                        // output_directs(output_AB, output_AB_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
+                        output_directs(output_AB, output_AB, AB_ev_count, connection_type_list.directed, geneA, geneB, debug_string);
                     }
 
                     // 'x_is_intermediary'; This is for A->X->B
@@ -431,7 +439,7 @@ $(function(){
                         Aname_AXB.textContent = geneA;
                         Bname_AXB.textContent = geneB;
 
-                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                         output_intermediary_new(output_AXB, output_AX_AXB, output_XB_AXB, AXB_ev_count, AXB_dd_div, connection_type_list.x_is_intermediary, geneA, geneB, geneA_is_subj_address, geneB_is_obj_address, debug_string)
                     }
 
@@ -447,7 +455,7 @@ $(function(){
 
                             AB_st_output = true;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_ABx, output_AX_ABtoX, output_XB_ABtoX, ABx_ev_count, ABtox_dd_div, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address, debug_string)
                         }
                     }
@@ -465,13 +473,12 @@ $(function(){
                             Aname_A_XtoAB.textContent = geneA;
                             Bname_XtoAB.textContent = geneB;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_xAB, output_AX_XtoAB, output_XB_XtoAB, xAB_ev_count, XtoAB_dd_div, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address, debug_string)
                         }
                     }
                 },
                 error: function() {
-                    var output_AB = $("#expl_A_to_B")[0];
                     output_AB.innerHTML = null;
                     let AB_output_element_err = document.createElement("div");
                     AB_output_element_err.textContent = "Could not query " + geneA_is_subj_expl_address;
@@ -485,6 +492,46 @@ $(function(){
                 url: geneB_is_subj_expl_address,
                 success: function(res) {
                     let obj = geneA
+
+                    // First to resolve: just set to true
+                    if (!calledPMIDtitle) {
+                        calledPMIDtitle = true;
+                    } else {
+                        var readyStateCheckInterval = setInterval(function() {
+                            // options are "loading", "interactive", "complete"
+                            if (document.readyState === "complete") {
+                                clearInterval(readyStateCheckInterval);
+
+                                // Source the curation row toggle function
+                                $(function() {
+                                    console.log("Re-reading toggle function")
+                                    $("td[class='curation_toggle']").click(function(event) {
+                                        console.log("Curation toggle click")
+                                        event.stopPropagation();
+                                        var $target = $(event.target);
+                                        if (event.target.dataset.clicked == "true") {
+                                            // Toggle (animation duration in msec)
+                                            console.log('trying to animate')
+                                            $target.closest("tr").next().find("div").slideToggle(200);
+                                        // First click event
+                                        } else {
+                                            console.log('first click event')
+                                            // Stay down (animation duration in msec)
+                                            $target.closest("tr").next().find("div").slideDown(400);
+
+                                            // Change color of icon to light gray
+                                            event.target.style="color:#A4A4A4;"
+
+                                            // Set clicked to true
+                                            event.target.dataset.clicked = "true"
+                                        }
+                                    });
+                                });
+                            }
+                        }, 1000); // Time interval in milliseconds
+                    }
+
+                    // Should return a dict of the format below
                     connection_type_list = res[obj]
 
                     // if connection undirected and not already printed
@@ -498,7 +545,8 @@ $(function(){
                             Bname_complex.textContent = geneB;
 
                             // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                            output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string)
+                            // output_directs(output_AcB, output_ABcomplex, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string)
+                            output_directs(output_AcB, output_AcB, AcB_ev_count, connection_type_list.undirected, geneA, geneB, debug_string)
                         }
                     }
 
@@ -511,7 +559,8 @@ $(function(){
                         Bname_BtoA.textContent = geneB;
 
                         // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                        output_directs(output_BA, output_BA_BA, BA_ev_count, connection_type_list.directed, geneB, geneA, debug_string)
+                        // output_directs(output_BA, output_BA_BA, BA_ev_count, connection_type_list.directed, geneB, geneA, debug_string)
+                        output_directs(output_BA, output_BA, BA_ev_count, connection_type_list.directed, geneB, geneA, debug_string)
                     }
 
                     // 'x_is_intermediary'; B->X->A
@@ -522,7 +571,7 @@ $(function(){
                         Aname_BXA.textContent = geneA;
                         Bname_BXA.textContent = geneB;
 
-                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                        // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                         output_intermediary_new(output_BXA, output_BX_BXA, output_XB_BXA, BXA_ev_count, BXA_dd_div, connection_type_list.x_is_intermediary, geneB, geneA, geneB_is_subj_address, geneA_is_obj_address, debug_string)
                     }
 
@@ -537,7 +586,7 @@ $(function(){
                             Aname_ABtoX.textContent = geneA;
                             Bname_ABtoX.textContent = geneB;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_ABx, output_AX_ABtoX, output_XB_ABtoX, ABx_ev_count, ABtox_dd_div, connection_type_list.x_is_downstream, geneA, geneB, geneA_is_subj_address, geneB_is_subj_address, debug_string)
                         }
                     }
@@ -554,7 +603,7 @@ $(function(){
                             Aname_A_XtoAB.textContent = geneA;
                             Bname_XtoAB.textContent = geneB;
 
-                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
+                            // output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string)
                             output_intermediary_new(output_xAB, output_AX_XtoAB, output_XB_XtoAB, xAB_ev_count, XtoAB_dd_div, connection_type_list.x_is_upstream, geneA, geneB, geneA_is_obj_address, geneB_is_obj_address, debug_string)
                         }
                     }
@@ -594,9 +643,6 @@ $(function(){
             // The name of the property to use as the value when an item is selected.
             valueField: "item",
 
-            // Allows the user to create new items not in the initial list.
-            // create: true,
-
             // An array of property names to analyze when filtering options.
             searchField: ["item"],
 
@@ -623,21 +669,6 @@ $(function(){
                 // Reset output and names
                 resetNamesOutput();
 
-                // Refer to the div (or other object) where the output text should be
-                let output_text = $("#my_outputA")[0];
-
-                // Add an empty innerHTML object (otherwise it keeps appending to current HTML object)
-                output_text.innerHTML = null;
-                
-                // build an element (here: "thingy") in the innerHTML that includes the selected value.
-                let thingy = document.createElement("span");
-
-                // Get the text from the selected item dropdown 
-                thingy.textContent = "Gene A: " + value
-
-                // Append the element to the div object
-                output_text.appendChild(thingy)
-                
                 // Set second query address example:
                 // https://s3.amazonaws.com/depmap-public/prior_filtered_neighbor_lookup/neighbors_to_BRCA1.json
                 // https://s3.amazonaws.com/depmap-public/neighbor_lookup/neighbors_to_A1BG.json
@@ -647,20 +678,22 @@ $(function(){
 
                 // Query for next dropdown
                 select_second_gene.load(function(callback) {
+                    $('#second-dropdown-status-gif').show()
+                    $('#second-dropdown-status').textContent = 'Loading genes correlated with ' + geneA;
                     var second_json = $.ajax({
                         url: second_dd_address,
                         success: function(results) {
                             // var second_items = results.map(function(x) { return {second_item: x}; })
                             var second_items = results.map(function(x) { return {second_item: x[0] + ": correlation " + parseFloat(x[1]).toFixed(3).toString(), name: x[0], correlation: Math.abs(x[1]) }; })
                             select_second_gene.enable();
+                            $('#second-dropdown-status-gif').hide()
+                            $('#second-dropdown-status').textContent = '';
                             callback(second_items);
                         },
                         error: function() {
-                            let output_text = $("#my_outputB")[0];
-                            output_text.innerHTML = null;
-                            let output_text_err = document.createElement("div")
-                            output_text_err.textContent = "Could not load from " + second_dd_address
-                            output_text.appendChild(output_text)
+                            console.log("Could not load from " + second_dd_address)
+                            $('#second-dropdown-status-gif').hide()
+                            $('#second-dropdown-status').textContent = "Could not load second gene. Select new first gene.";
                         }
                     })
                 });
@@ -675,6 +708,7 @@ $(function(){
     // Function for quering and outputting plain english description and statement evidence with PMIDs
     function output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string){
         // console.log("< < Entering new output_directs call > >")
+        toggleStatus(ev_counter_pointer, true, 'Loading...')
 
         // Create array to store each statement hash
         var hash_list = [];
@@ -683,281 +717,46 @@ $(function(){
         for (let i = 0; i < type_hash_array.length; i++) {
             hash_list.push(type_hash_array[i][1]);
         }
+        nStmts = hash_list.length;
+        ev_counter_pointer.textContent = "Statements: " + nStmts;
+        if (nStmts == 0) {
+            // No statements found, light gray
+            ev_counter_pointer.style = "background-color:#BBB; color: #FFFFFF;"
+        } else {
+            // Statements found, set to standard gray 
+            ev_counter_pointer.style = "background-color:#777; color: #FFFFFF;"
+        }
 
-        let hash_query = {"hashes": hash_list}
-        let stmts_promise = getStatementByHash(hash_query)
-        
-        stmts_promise.then(function(stmt_response){
-            console.log('stmt_response');
-            console.log(stmt_response);
+        curationHTMLpromiseArray = [];
+        for (let hash of hash_list) {
+            curationHTMLpromiseArray.push(getHTMLByHash(hash))
+        }
 
-            // statements is a dict keyed by hashes: {hash: stmt_json, ...}
-            var stmts = stmt_response.statements
-
-            var subj_obj_string = ""
-            if (allAreComplex(stmts) & hash_list.length > 0) {
-                subj_obj_string = " statements with " + subj + " and " + obj + " in a complex.";
-            } else {
-                subj_obj_string = " statements with " + subj + " as subject and " + obj + " as object.";
+        Promise.all(curationHTMLpromiseArray).then(function(curationHTMLtextArray) {
+            toggleStatus(ev_counter_pointer, false, '')
+            for (let curationHTMLtext of curationHTMLtextArray) {
+                populateOutputDiv(output_pointer, curationHTMLtext)
             }
-
-            // We could send an array of statement jsons, but then we 
-            // would have to keep track of which uuid is with which statement
-            // because I don't know if they're being returned in the same order
-            // as they were sent in. Instead, let's loop over statements and
-            // IDs for now
-
-            // Arrays to store query responses, uuids and hashes
-            var stmt_uuid_array = [];
-            var stmt_hash_array = [];
-            var eng_res_array = [];
-
-            // Loop hashes for stmt jsons and store uuid and plain english query response
-            for (let hash of hash_list) {
-                stmt_json = stmts[hash]
-                uuid = stmt_json.id
-                uuid_twin = uuid;
-                
-                // Check if entry for this uuid does NOT exists
-                if (uuid_stmtjson_dict[uuid] === undefined) {
-                    uuid_stmtjson_dict[uuid] = stmt_json // store stmt_json in global uuid_stmtjson dict
-                // If it already exists, that means there is another button with this UUID and we need to tweak the uuid entry
-                } else {
-                    // Run a while loop here and keep try adding uuids until the entry doen't exist like this:
-                    i=1;
-                    uuid_twin = uuid + "_duplicate_json_" + i; // Added string
-                    while (uuid_stmtjson_dict[uuid_twin] !== undefined) {
-                        i++;
-                        uuid_twin = uuid + "_duplicate_json_" + i;
-                    }
-                    uuid_stmtjson_dict[uuid_twin] = stmt_json;
-                }
-                stmt_uuid_array.push(uuid_twin)
-                stmt_hash_array.push(hash)
-                json_stmt_array = {"statements": [stmt_json]}
-                eng_res_array.push(getEnglishByJson(json_stmt_array))
-            }
-
-            // Array Promises; For docs, see:
-            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all
-            Promise.all(eng_res_array).then(function(eng_array) {
-                // console.log("< < eng_res_array promises resolved > >")
-                number_of_statements = eng_array.length
-
-                // Output statement count
-                let output_element_stmt_count = document.createElement("h4")
-                output_element_stmt_count.textContent = "Found " + number_of_statements + subj_obj_string;
-                output_element_stmt_count.style = "background-color:#F2F2F2;"
-                source_output_pointer.appendChild(output_element_stmt_count);
-
-                // Update the count in the badge for A-B. A-X-B updates their badges at the level of the A-X-B functions
-                ev_counter_pointer.textContent = "Statements: " + number_of_statements.toString() // EVIDENCE SOURCE COUNT
-                if (number_of_statements == 0) {
-                    // No statements found, gray out
-                    ev_counter_pointer.style = "background-color:#6E6E6E;"
-                } else {
-                    // Statements found, set to black
-                    ev_counter_pointer.style = "background-color:#000000;"
-                }
-
-                uuid_hash_type_plain_array = [];
-                
-                // Loop to add uuid, hash, type, plain english
-                for (let k = 0; k < number_of_statements; k++) {
-                    // Get uuid, english output
-                    uuid = stmt_uuid_array[k]
-                    hash = stmt_hash_array[k]
-                    type = uuid_stmtjson_dict[uuid].type
-                    eng_plain = eng_array[k].sentences[uuid]
-                    console.log("eng_plain");
-                    console.log(eng_plain);
-                    uuid_hash_type_plain_array.push([uuid, hash, type, eng_plain])
-                }
-
-                // Sort on type: see https://stackoverflow.com/questions/16096872/how-to-sort-2-dimensional-array-by-column-value
-                sortByCol(uuid_hash_type_plain_array, 2)
-
-                // Loop for plain english output
-                for (let k = 0; k < number_of_statements; k++) {
-                    uuid = uuid_hash_type_plain_array[k][0]
-                    hash = uuid_hash_type_plain_array[k][1]
-                    type = uuid_hash_type_plain_array[k][2]
-                    eng_plain = uuid_hash_type_plain_array[k][3]
-
-                    // Count evidence
-                    ev_len = uuid_stmtjson_dict[uuid].evidence.length
-
-                    // Container for english text and button
-                    let text_and_button_container = document.createElement("div")
-
-                    // Output for Plain English
-                    let output_element_pe = document.createElement("h4")
-                    output_element_pe.style = "display:inline-block; margin-right:10px;"; // For placement of text and buttons
-                    output_element_pe.textContent = (k+1) + ". " + type + ": " + eng_plain
-                    text_and_button_container.appendChild(output_element_pe)
-
-                    // EVIDENCE BUTTON
-                    let ev_button_div = document.createElement("div");
-                    ev_button_div.innerHTML = null;
-                    ev_button_div.style = "display:inline-block; margin-right:10px;";
-
-                    // Source output container
-                    let ev_button_output_text = document.createElement("span");
-                    ev_button_output_text.id = uuid; // OUTPUT IDENTIFIER
-                    ev_button_output_text.style = "display:inline-block; margin-right: 10px;";
-                    ev_button_output_text.textContent = ""
-
-                    // Actual button
-                    let ev_button = document.createElement("button");
-                    ev_button.classList.add("btn", "btn-default", "btn-evidence", "pull-right");
-                    ev_button.textContent = '(' + ev_len + ' sources)'; // BUTTON TEXT
-                    ev_button.dataset.index = hash // BUTTON INDEX
-                    ev_button.dataset.id = uuid; // BUTTON ID == UUID
-
-                    // Append all containers CHECK ORDER HERE TO SEE IF THAT FIXES SLIGHT MISALIGNMENT OF OUTPUT TEXT AND BUTTON
-                    ev_button_div.appendChild(ev_button)
-                    ev_button_div.appendChild(ev_button_output_text)
-                    text_and_button_container.appendChild(ev_button_div)
-                    source_output_pointer.appendChild(text_and_button_container)
-
-                }
-                output_pointer.appendChild(source_output_pointer)
-
-                $(".btn-evidence").off("click").on("click", function(b){
-                    // Loop through the evidence for the statement the button is linked to
-                    btn_id = b.currentTarget.dataset.id // BUTTON ID == UUID
-                    // console.log("< < Executing new button click " + btn_id + " > >")
-                    var stmt_json = uuid_stmtjson_dict[btn_id]
-                    console.log(('stmt_json for button ' + btn_id))
-                    console.log(stmt_json)
-
-                    var ev_output_div = $("#"+btn_id)[0];
-                    ev_output_div.innerHTML = null; // Delete what's already in there
-
-                    for (let k = 0; k < stmt_json.evidence.length; k++) {
-                        // console.log("< < In stmt_json.evidence loop > >")
-
-                        _pmid = stmt_json.evidence[k].pmid
-                        _api = stmt_json.evidence[k].source_api
-                        _id = stmt_json.evidence[k].source_id
-                        _text = stmt_json.evidence[k].text
-
-                        let source_api_text = "Source api: " + _api
-
-                        // Output for source link and MOUSE HOVER LOAD PAGE
-                        let output_element_link = document.createElement("a")
-                        output_element_link.class = "tiptext"
-
-                        // Ouput for evidence text or other when no text is present
-                        let output_element_ev = document.createElement("div")
-                        output_element_ev.innerHTML = null;
-                        if (_text) {
-                            output_element_ev.textContent = "\"" + _text + "\""
-                        } else {
-                            output_element_ev.textContent = "Follow link to source."
-                        }
-
-                        // Source output cases:
-                        // PMID: link to https://www.ncbi.nlm.nih.gov/pubmed/
-                        // BIOPAX: link to stmt_json.evidence[k].source_id; link text: "See on pathway commons"
-                        // BEL: (should have PMID?)
-                        // SIGNOR: https://signor.uniroma2.it/relation_result.php?id=P15056#BRAF_MAP2K1 <-- how do we link if we don't know the id (P15056)?
-                        // Check if json with SIGNOR provides alternative ids to search with...
-
-                        // if PMID
-                        if (_pmid) {
-                            output_element_link.href = "https://www.ncbi.nlm.nih.gov/pubmed/" + _pmid;
-                            output_element_link.textContent = "[See on PubMed] " + source_api_text;
-
-                            // HERE GRAB META DATA AND PUT INTO THE POPUP
-                            let pubmed_promise = getPubMedMETAxmlByPMID(_pmid);
-                            pubmed_promise.then(function(responseXML) {
-                                docsum_xml = responseXML.getElementsByTagName('DocSum')[0]
-                                pmid_meta_dict = pmidXML2dict(docsum_xml)
-                                console.log('pmid_meta_dict')
-                                console.log(pmid_meta_dict)
-
-                                authorlist = pmid_meta_dict.AuthorList
-                                if (authorlist.length > 3) {
-                                    authors = authorlist[0] + ", ... " + authorlist[authorlist.length-1];
-                                } else {
-                                    authors = authorlist.join(", ");
-                                }
-                                // Shortened journal name is in .Source, while full name is in .FullJournalName
-                                journal = pmid_meta_dict.Source
-                                SO = pmid_meta_dict.SO
-                                title = pmid_meta_dict.Title
-
-                                // Authors, Title, Journal Name, SO; For formatting see https://stackoverflow.com/questions/2011142/how-to-change-the-style-of-the-title-attribute-inside-an-anchor-tag
-                                output_element_link.title = authors + ", \"" + title + "\", " + journal + ", " + SO
-                            });
-                        // no PMID
-                        } else {
-                            // if BIOPAX
-                            if (_api == "biopax" & _id.length > 0) {
-                                // Example for biopax source without pmid: A: A1BG B: IL18 pick X: FOXA1 in shared regulator
-                                // output_element_link.href = _id;  // LINK BROKEN
-                                output_element_link.href = "http://apps.pathwaycommons.org/search?type=Pathway&q=" + subj + "%2C%20" + obj; // Links to search for one of the two ids
-                                output_element_link.title = "Meta Data for PathwayCommons source"
-                                output_element_link.textContent = "[See on pathway commons] " + source_api_text;
-                            } else if (_api == "signor") {
-                                // Example of SIGNOR source without PMID: 
-                                output_element_link.href = "https://signor.uniroma2.it/"; // Don't know URL for searching by signor ID
-                                output_element_link.title = "Meta Data for SIGNOR source"
-                                output_element_link.textContent = "[Search this on SIGNOR: " + _id + "] " + source_api_text;
-                            // if this shows up there is a source you haven't handled yet.
-                            } else {
-                                console.log('Unhandled source; Check statement json')
-                                // output_element_link.href = null;
-                                output_element_link.textContent = "[No source] " + source_api_text;
-                            }
-                        }
-
-                        ev_output_div.appendChild(output_element_link)
-                        ev_output_div.appendChild(output_element_ev)
-                    }
-                });
-            });
         })
     } // Closes the output_directs function bracket
 
     // Use this function for A-X-B (same for all four) the query needs to be over two json lookups: SUBJ_is_subj and OBJ_is_obj
-    function output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_div, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
+    function output_intermediary_new(output_pointer, SX_output_pointer, XO_output_pointer, x_counter_pointer, dd_select_id, x_array, geneA, geneB, geneA_lookup_address, geneB_lookup_address, debug_string){
         // console.log(('Called output_intermediary_new from ' + debug_string))
-        let dropdown_div = dd_div;
-        var dd_id = dropdown_div.id;
-        var rand_id = Number(Math.random()*10**17).toString(); // Just create a random id that you can refer to the dropdown
-        dropdown_div.class = "dropdown";
-        dropdown_div.style = "width: 360px; top: 36px; left: 0px; visibility: visible;";
-        let dropdown_ctrl_group = document.createElement("div");
-        dropdown_ctrl_group.class = "control-group";
-        let dropdown_label = document.createElement("label");
-        dropdown_label.for = rand_id;
-        let dropdown_select = document.createElement("select");
-        dropdown_select.id = rand_id;
-        dropdown_select.class = "demo-default";
-        dropdown_select.placeholder = "Select gene X...";
-
-        dropdown_ctrl_group.appendChild(dropdown_label)
-        dropdown_ctrl_group.appendChild(dropdown_select)
-        dropdown_div.appendChild(dropdown_ctrl_group)
-        // output_pointer.appendChild(dropdown_div)
-        
         var items = x_array.map(function(x) { return { x_value: x[0], item: x[0] + ": rank " + parseFloat(x[1]).toFixed(3).toString(), rank: x[1] }; })
 
         // Update the count of X in the badge
         x_counter_pointer.textContent = "X: " + x_array.length.toString()
         if (x_array.length == 0) {
-            // No X found, gray out
-            x_counter_pointer.style = "background-color:#6E6E6E;"
+            // No X found, gray out 
+            x_counter_pointer.style = "background-color:#BBB; color: #FFFFFF;"
         } else {
             // X found, set to black
-            x_counter_pointer.style = "background-color:#000000;"
+            x_counter_pointer.style = "background-color:#777; color: #FFFFFF;"
         }
-        
 
-        // Create dropdown with all X
-        $select_intermediate = $("#"+rand_id).selectize({
+        // Load list of X into dropdown; ALTERNATIVELY, MAKE DROPDOWN FUNCTIONS FOR EACH A-X-B EXPLICITLY
+        $select_intermediate = $("#"+dd_select_id).selectize({
             options: items,
             valueField: "x_value",
             labelField: "item",
@@ -968,6 +767,11 @@ $(function(){
                 field: "rank",
                 direction: "desc"
             },
+
+            // General settings
+            create: false, // Don't allow user to add options
+            maxItems: 1, // Only allow one item to be selected
+            placeholder: "Select gene X...", // Placeholder when nothing is selected
 
             // On select/change: Query A-X and B-X and output the english statements and their evidence
             // Also clear the output area so that a fresh one can be sent once a new X is selected
