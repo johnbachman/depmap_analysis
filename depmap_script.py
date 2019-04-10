@@ -228,7 +228,7 @@ def loop_body(args):
         uninteresting
 
     # Store bool(s) for found connection (either A-B or A-X-B)
-    found = set()  # Flag anythin found
+    found = set()  # Flag anything found
     dir_found = False  # Flag direct/complex connection
     im_found = False  # Flag intermediate connections
     sr_found = False  # Flag shared regulator connection
@@ -383,7 +383,7 @@ def loop_body(args):
             tuple_im_expl_count += 1
 
         # Count non shared regulators found
-        if non_sr_found:
+        if non_sr_found and not sr_found:
             any_expl_not_sr += 1
 
         # Count only shared regulators found
@@ -806,8 +806,11 @@ def main(args):
     long_string += '> Total correlations unexplained: %i' % len(unexplained)\
                    + '\n'
     long_string += '> Total correlations explained: %i' % any_expl + '\n'
+    long_string += '> Total correlations explained, not counting shared ' \
+                   'regulator only: %i' % any_expl_not_sr
     long_string += '> Total correlations explained, excluding shared ' \
-                   'regulator: %i' % any_expl_not_sr + '\n'
+                   'regulator (total - shared only): %i' % \
+                   (any_expl - tuple_sr_expl_only_count) + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
                    'common parent' % common_parent + '\n'
     if args.uninteresting:
