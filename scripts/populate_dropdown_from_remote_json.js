@@ -228,11 +228,7 @@ $(function(){
         textTag = badgeDiv.parentNode.getElementsByClassName('query-status')[0];
 
         // Toggle gif animation show
-        if (show) {
-            gifDiv.style = 'display: inline;';
-        } else {
-            gifDiv.style = 'display: none;';
-        }
+        gifDiv.style = show ? 'display: inline-block;' : 'display: none;';
 
         // Display text message
         textTag.textContent = msg;
@@ -787,33 +783,53 @@ $(function(){
                     geneA_lookup = two_jsons_ar[0];
                     geneB_lookup = two_jsons_ar[1];
 
-                    // Create pointers to nothing so that we can give the x_counter_pointer something
-                    let SX_fake_x_counter = document.createElement("div")
-                    let XO_fake_x_counter = document.createElement("div")
-
                     // null the output area and create new <div>s for both outputs
+                    let SX_html = '<h4 style="background-color: rgb(242, 242, 242);">' + 
+                                    '<span>' + geneA + "-" + x_value + '</span>' + '&nbsp;&nbsp;' + 
+                                    '<div class="query-status-gif" style="display: inline-block">' +
+                                        '<img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">' +
+                                    '</div>' + '&nbsp;&nbsp;' + 
+                                    '<span style="display:inline-block;">' +
+                                        '<i class="query-status"></i>' +
+                                    '</span>' + 
+                                    '<span class="badge badge-default float-right" style="background-color: rgb(119, 119, 119); color: rgb(255, 255, 255)">' +
+                                        'Statements:' + geneA_lookup[x_value].length +
+                                    '</span>' + 
+                                '</h4>'
+
+                    let XO_html = '<h4 style="background-color: rgb(242, 242, 242);">' + 
+                                    '<span>' + x_value + "-" + geneB + '</span>' + '&nbsp;&nbsp;' + 
+                                    '<div class="query-status-gif" style="display: inline-block">' +
+                                        '<img src="https://indralab.github.io/emmaa/dashboard/images/ajax-loader.gif">' +
+                                    '</div>' + '&nbsp;&nbsp;' + 
+                                    '<span style="display:inline-block;">' +
+                                        '<i class="query-status"></i>' +
+                                    '</span>' + 
+                                    '<span class="badge badge-default float-right" style="background-color: rgb(119, 119, 119); color: rgb(255, 255, 255)">' + 
+                                        'Statements:' + geneB_lookup[x_value].length +
+                                    '</span>' + 
+                                '</h4>'
+
+
                     // A-X OUTPUT
                     SX_output_pointer.innerHTML = null;
+                    SX_output_pointer.innerHTML = SX_html;
+                    let SX_ev_counter = SX_output_pointer.getElementsByClassName('badge')[0]
                     let SX_output_div = document.createElement("div")
-                    let SX_output_header = document.createElement("h4")
-                    SX_output_header.style = "background-color:#F2F2F2;"
-                    SX_output_header.textContent = geneA + ", " + x_value;
-                    SX_output_div.appendChild(SX_output_header)
                     SX_output_pointer.appendChild(SX_output_div)
                     output_pointer.appendChild(SX_output_pointer)
+
                     // X-B OUTPUT
                     XO_output_pointer.innerHTML = null;
+                    XO_output_pointer.innerHTML = XO_html;
+                    let XO_ev_counter = XO_output_pointer.getElementsByClassName('badge')[0]
                     let XO_output_div = document.createElement("div")
-                    let XO_output_header = document.createElement("h4")
-                    XO_output_header.style = "background-color:#F2F2F2;"
-                    XO_output_header.textContent = x_value + ", " + geneB;
-                    XO_output_div.appendChild(XO_output_header)
                     XO_output_pointer.appendChild(XO_output_div)
                     output_pointer.appendChild(XO_output_pointer)
 
                     // output_directs(output_pointer, source_output_pointer, ev_counter_pointer, type_hash_array, subj, obj, debug_string)
-                    output_directs(SX_output_pointer, SX_output_div, SX_fake_x_counter, geneA_lookup[x_value], geneA, x_value, debug_string)
-                    output_directs(XO_output_pointer, XO_output_div, XO_fake_x_counter, geneB_lookup[x_value], x_value, geneB, debug_string)
+                    output_directs(SX_output_pointer, SX_output_div, SX_ev_counter, geneA_lookup[x_value], geneA, x_value, debug_string)
+                    output_directs(XO_output_pointer, XO_output_div, XO_ev_counter, geneB_lookup[x_value], x_value, geneB, debug_string)
                 });
             }
         })
