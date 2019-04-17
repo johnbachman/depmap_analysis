@@ -1534,7 +1534,10 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
     sigma2: float
         Standard deviation of the correlations of the second dataset
     margin: float
-        How far off the correlations can be to pass as "similar"
+        Number to set as pass cutoff for some of the filters:
+        - z-score-mean: mean of the z-scores is smaller than the margin
+        - z-score-diff: difference of the z-scores is smaller than the margin
+        - corr-corr-corr: product of the z-scores is greater than the margin
     filter_type:
         The filter type to use
 
@@ -1544,7 +1547,9 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         If True, the correlations are similar enough as measured by their
         difference in their distance from the mean standard deviation.
     """
-    if filter_type == 'z-score-diff':
+    if filter_type == 'z-score-mean':
+        return _z_score_mean(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+    elif filter_type == 'z-score-diff':
         return _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'corr-corr-corr':
         return _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
@@ -1555,18 +1560,27 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         return True
 
 
+def _z_sc(num, mu, sigma):
+    """Return z-score of given num drawn from given distribution"""
+    return (num - mu) / sigma
+
+
+def _z_score_mean(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+    """Pass if the mean of the z-scores is greater than margin"""
+    return 0.5 * abs(_z_sc(corr1, mu1, sigma1)) + \
+        0.5 * abs(_z_sc(corr2, mu2, sigma2)) > margin and \
+        _same_sign(corr1, corr2)
+
+
 def _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
-    """Return True if the difference in the scaled distances from the mean
-    measured in number of standard deviations is smaller than the given margin.
+    """Pass if the difference in the z-score is smaller than margin
     """
-    return abs((corr1 - mu1) / sigma1 - (corr2 - mu2) / sigma2) < margin
+    return abs(_z_sc(corr1, mu1, sigma1) - _z_sc(corr2, mu2, sigma2)) < margin
 
 
 def _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
-    """Return True if the product of the scaled correlations is greater than
-    the given margin.
-    """
-    return ((corr1 - mu1) / sigma1) * ((corr2 - mu2) / sigma2) > margin
+    """Pass if the product of the z-scores is greater than margin"""
+    return _z_sc(corr1, mu1, sigma1) * _z_sc(corr2, mu2, sigma2) > margin
 
 
 def _same_sign(corr1, corr2):
