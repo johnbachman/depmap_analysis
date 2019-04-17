@@ -231,51 +231,51 @@ def _arg_dict(args_struct):
 
 def loop_body(args):
 
-    global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
-        both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
-        tuple_im_st_expl_count, tuple_im_sr_expl_count, \
-        tuple_sr_expl_only_count, explained_pairs, unexplained, \
+    global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
+        directed_im_expl_count, both_im_dir_expl_count, \
+        any_axb_non_sr_expl_count, sr_expl_count, \
+        shared_regulator_only_expl_count, explanations_of_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, \
         dataset_dict, dir_node_set, nx_dir_graph, uninteresting_set, \
-        uninteresting
+        uninteresting, sr_explanations, any_expl_ign_sr
 
-    # Store bool(s) for found connection (either A-B or A-X-B)
-    found = set()  # Flag anything found
-    dir_found = False  # Flag direct/complex connection
-    im_found = False  # Flag intermediate connections
-    sr_found = False  # Flag shared regulator connection
-    non_sr_found = False  # Flag any non shared regulator connection
+    # Store booleans for each found connection
+    found = False  # Flag anything found
+    directed = False  # Flag direct
+    undirected = False  # Flag complex
+    x_is_intermediary = False  # Flag intermediate connections
+    x_is_downstream = False  # Flag shared target
+    x_is_upstream = False  # Flag shared regulator connection
+    is_uninteresting = False  # Flag uniteresting
+    has_common_parent = False  # Flag common parent
 
     for subj, obj in itt.permutations((id1, id2), r=2):
         if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
-            both_dir_expl_count += 1
 
             # Get the statements
             stmts = nested_dict_statements[subj][obj]
 
             # check if directed, put in the explained nested dict
             dir_stmts, undir_stmts = dnf.get_directed(stmts)
+            directed = bool(dir_stmts)
+            undirected = bool(undir_stmts)
             explained_nested_dict[subj][obj]['directed'] = dir_stmts
             explained_nested_dict[subj][obj]['undirected'] = undir_stmts
 
             if args.verbosity:
                 logger.info('Found direct connection between %s and '
                             '%s' % (subj, obj))
-            found.add(True)
-            dir_found = True
-            non_sr_found = True
-            stmt_tuple = (subj, obj, 'direct', [], dataset_dict)
-            explained_pairs.append(stmt_tuple)
+            found = True
+            stmt_tuple = (subj, obj, 'direct', [], json.dumps(dataset_dict))
+            explanations_of_pairs.append(stmt_tuple)
 
         # Checking 1. "pathway": A -> X -> B and B -> X -> A
         if subj in dir_node_set and obj in dir_node_set:
             dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
                                   set(nx_dir_graph.pred[obj]))
             if dir_path_nodes:
-                found.add(True)
-                im_found = True
-                non_sr_found = True
-                both_im_dir_expl_count += 1
+                found = True
+                x_is_intermediary = True
                 if args.verbosity:
                     logger.info('Found directed path of length 2 '
                                 'between %s and %s' % (subj, obj))
@@ -290,49 +290,39 @@ def loop_body(args):
                 explained_nested_dict[subj][obj]['x_is_intermediary'] \
                     = dir_path_nodes_wb
                 stmt_tuple = (subj, obj, 'pathway',
-                              dir_path_nodes_wb, dataset_dict)
-                explained_pairs.append(stmt_tuple)
-
-            else:
-                found.add(False)
-
-        else:
-            found.add(False)
+                              dir_path_nodes_wb, json.dumps(dataset_dict))
+                explanations_of_pairs.append(stmt_tuple)
 
     # Check common parent
     if dnf.has_common_parent(id1=id1, id2=id2):
-        common_parent += 1
-        non_sr_found = True
-        found.add(True)
+        has_common_parent = True
+        found = True
         parents = list(dnf.common_parent(id1=id1, id2=id2))
         explained_nested_dict[id1][id2]['common_parents'] = parents
         explained_nested_dict[id2][id1]['common_parents'] = parents
-    else:
-        found.add(False)
+        stmt_tuple = (id1, id2, 'common_parents', parents, [])
+        explanations_of_pairs.append(stmt_tuple)
 
     # Check if both A and B are in list of "uninteresting genes"
-    if id1 in uninteresting_set and id2 in uninteresting_set:
+    if uninteresting_set and \
+            id1 in uninteresting_set and id2 in uninteresting_set:
         explained_nested_dict[id1][id2]['uninteresting'] = True
         explained_nested_dict[id2][id1]['uninteresting'] = True
-        uninteresting += 1
-        found.add(True)
-    else:
-        explained_nested_dict[id1][id2]['uninteresting'] = False
-        explained_nested_dict[id2][id1]['uninteresting'] = False
-        found.add(False)
+        found = True
+        is_uninteresting = True
+        stmt_tuple = (id1, id2, 'explained_set', [], [])
+        explanations_of_pairs.append(stmt_tuple)
 
     if id1 in dir_node_set and id2 in dir_node_set:
-        # Checking 2: share target/coregulator A -> X <- B
+        # Checking 2: shared target A -> X <- B
         downstream_share = list(set(nx_dir_graph.succ[id1]) &
                                 set(nx_dir_graph.succ[id2]))
-        # Checking 3: No correlator A <- X -> B
+        # Checking 3: shared regulator A <- X -> B
         upstream_share = list(set(nx_dir_graph.pred[id1]) &
                               set(nx_dir_graph.pred[id2]))
         if downstream_share:
-            found.add(True)
-            im_found = True
-            non_sr_found = True
-            tuple_im_st_expl_count += 1
+            found = True
+            x_is_downstream = True
             downstream_share_wb = dnf.rank_nodes(
                 node_list=downstream_share,
                 nested_dict_stmts=nested_dict_statements,
@@ -340,7 +330,7 @@ def loop_body(args):
                 gene_b=id2,
                 x_type='x_is_downstream')
             stmt_tuple = (id1, id2, 'shared_target',
-                          downstream_share_wb, dataset_dict)
+                          downstream_share_wb, json.dumps(dataset_dict))
             if args.verbosity:
                 logger.info('Found downstream share: %s and %s share '
                             '%i targets' %
@@ -349,13 +339,11 @@ def loop_body(args):
                 downstream_share_wb
             explained_nested_dict[id2][id1]['x_is_downstream'] = \
                 downstream_share_wb
-            explained_pairs.append(stmt_tuple)
+            explanations_of_pairs.append(stmt_tuple)
 
         if upstream_share:
-            found.add(True)
-            im_found = True
-            sr_found = True
-            tuple_im_sr_expl_count += 1
+            found = True
+            x_is_upstream = True
             upstream_share_wb = dnf.rank_nodes(
                 node_list=upstream_share,
                 nested_dict_stmts=nested_dict_statements,
@@ -363,7 +351,7 @@ def loop_body(args):
                 gene_b=id2,
                 x_type='x_is_upstream')
             stmt_tuple = (id1, id2, 'shared_upstream',
-                          upstream_share_wb, dataset_dict)
+                          upstream_share_wb, json.dumps(dataset_dict))
             if args.verbosity:
                 logger.info('Found upstream share: %s and %s are both '
                             'directly downstream of %i nodes' %
@@ -372,35 +360,64 @@ def loop_body(args):
                 upstream_share_wb
             explained_nested_dict[id2][id1]['x_is_upstream'] = \
                 upstream_share_wb
-            explained_pairs.append(stmt_tuple)
-
-        if not downstream_share and not upstream_share:
-            found.add(False)
-    else:
-        found.add(False)
+            sr_explanations.append(stmt_tuple)
 
     # Make sure the connection types we didn't find are empty lists.
     # Also add correlation so it can be queried for at the same time
     # as the items for the second drop down.
-    if any(found):
+    if found:
         # Any explanation found
         any_expl += 1
 
-        # Count A-B or B-A connections found per set(A,B)
-        if dir_found:
-            tuple_dir_expl_count += 1
-
-        # Count A-X-B connections found per set(A,B)
-        if im_found:
-            tuple_im_expl_count += 1
-
-        # Count non shared regulators found
-        if non_sr_found and not sr_found:
+        # Count explanations with only non-shared regulators
+        if not x_is_upstream and any([directed, undirected, x_is_intermediary,
+                                     x_is_downstream, has_common_parent,
+                                      is_uninteresting]):
             any_expl_not_sr += 1
 
-        # Count only shared regulators found
-        if sr_found and not non_sr_found:
-            tuple_sr_expl_only_count += 1
+        # Count explanations with common parents
+        if has_common_parent:
+            common_parent += 1
+
+        # Count explanations due to uninteresting genes
+        if is_uninteresting:
+            uninteresting += 1
+        else:
+            explained_nested_dict[id1][id2]['uninteresting'] = False
+            explained_nested_dict[id2][id1]['uninteresting'] = False
+
+        if any([directed, undirected, x_is_intermediary, x_is_downstream,
+                has_common_parent, is_uninteresting]):
+            any_expl_ign_sr += 1
+
+        # Count A-B or B-A connections found per set(A,B)
+        if directed or undirected:
+            ab_expl_count += 1
+
+        # Count directed A-X-B connections found per set(A,B)
+        if x_is_intermediary:
+            directed_im_expl_count += 1
+
+        # Count A-X-B, ignoring shared regulators
+        if x_is_intermediary or x_is_downstream:
+            any_axb_non_sr_expl_count += 1
+
+        if x_is_upstream:
+            sr_expl_count += 1
+
+        # Count when shared regulator is the only explanation
+        # NOTE: this should be equal to any_expl - any_expl_ign_sr
+        if all([not directed, not undirected, not x_is_intermediary,
+                not x_is_downstream, not has_common_parent,
+                not is_uninteresting]) and x_is_upstream:
+            shared_regulator_only_expl_count += 1
+            explained_nested_dict[id1][id2]['sr_only'] = True
+            explained_nested_dict[id2][id1]['sr_only'] = True
+        else:
+            explained_nested_dict[id1][id2]['sr_only'] = False
+            explained_nested_dict[id2][id1]['sr_only'] = False
+
+        assert shared_regulator_only_expl_count == (any_expl - any_expl_ign_sr)
 
         for s, o in itt.permutations((id1, id2), r=2):
             # Correlation/meta data
@@ -430,10 +447,10 @@ def loop_body(args):
                                          'x_is_downstream'):
                 explained_nested_dict[s][o]['x_is_downstream'] = []
 
-    # any(found) == True if at least one connection was found
-    # not any(found) == True is only True when no connection was found
-    if not any(found):
-        unexplained.append((id1, id2, dataset_dict))
+    # found == True if at least one connection was found
+    # not found == True is only True when no connection was found
+    if not found:
+        unexplained.append((id1, id2, json.dumps(dataset_dict)))
         if args.verbosity and args.verbosity > 1:
             logger.info('No explainable path found between %s and '
                         '%s.' % (id1, id2))
@@ -441,12 +458,13 @@ def loop_body(args):
 
 def main(args):
 
-    global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
-        both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
-        tuple_im_st_expl_count, tuple_im_sr_expl_count, \
-        tuple_sr_expl_only_count, explained_pairs, unexplained, \
+    global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
+        directed_im_expl_count, both_im_dir_expl_count, \
+        any_axb_non_sr_expl_count, sr_expl_count, \
+        shared_regulator_only_expl_count, explanations_of_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
-        avg_corr, dir_node_set, nx_dir_graph, uninteresting_set, uninteresting
+        avg_corr, dir_node_set, nx_dir_graph, uninteresting_set, uninteresting,\
+        sr_explanations, any_expl_ign_sr
 
     if args.cell_line_filter and not len(args.cell_line_filter) > 2:
         logger.info('Filtering to provided cell lines in correlation '
@@ -610,18 +628,19 @@ def main(args):
 
     # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
     any_expl = 0  # Count if any explanation per (A,B) correlation found
-    # Count any explanation per (A,B) found, excluding shared regulator
-    any_expl_not_sr = 0
+    any_expl_not_sr = 0  # Count any explanation, exlcuding when shared
+    # regulator is the only explanation
+    any_expl_ign_sr = 0  # Count any explanation, ingoring shared regulator
+    # explanations
     common_parent = 0  # Count if common parent found per set(A,B)
     uninteresting = 0  # Count pairs removed because they were "uninteresting"
-    tuple_dir_expl_count = 0  # Count A-B/B-A as one per set(A,B)
-    both_dir_expl_count = 0  # Count A-B and B-A separately per set(A,B)
-    tuple_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
-    both_im_dir_expl_count = 0  # Count A->X->B,B->X->A separately per set(A,B)
-    tuple_im_st_expl_count = 0  # Count if shared target found per set(A,B)
-    tuple_im_sr_expl_count = 0  # Count if shared regulator found per set(A,B)
-    tuple_sr_expl_only_count = 0  # Count if only shared regulator found
-    explained_pairs = []  # Saves all explanations
+    ab_expl_count = 0  # Count A-B/B-A as one per set(A,B)
+    directed_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
+    any_axb_non_sr_expl_count = 0  # Count if shared target found per set(A,B)
+    sr_expl_count = 0  # Count if shared regulator found per set(A,B)
+    shared_regulator_only_expl_count = 0  # Count if only shared regulator found
+    explanations_of_pairs = []  # Saves all non shared regulator explanations
+    sr_explanations = []  # Saves all shared regulator explanations
     unexplained = []  # Unexplained correlations
     skipped = 0
 
@@ -818,33 +837,28 @@ def main(args):
     long_string += '> Total correlations unexplained: %i' % len(unexplained)\
                    + '\n'
     long_string += '> Total correlations explained: %i' % any_expl + '\n'
-    long_string += '> Total correlations explained, not counting shared ' \
-                   'regulator only: %i' % any_expl_not_sr
+    long_string += '> Total correlations explained, ignoring shared ' \
+                   'regulator: %i' % any_expl_ign_sr + '\n'
     long_string += '> Total correlations explained, excluding shared ' \
                    'regulator (total - shared only): %i' % \
-                   (any_expl - tuple_sr_expl_only_count) + '\n'
+                   (any_expl - shared_regulator_only_expl_count) + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
                    'common parent' % common_parent + '\n'
     if args.uninteresting:
         long_string += '>    %i gene pairs were considered explained as part ' \
                        'of the "uninterested genes"' % uninteresting + '\n'
+    long_string += '>    %i explanations involving direct connection or ' \
+                   'complex' % ab_expl_count + '\n'
+    long_string += '>    %i correlations have a directed explanation ' \
+                   'involving an intermediate node (A->X->B/A<-X<-B)' \
+                   % directed_im_expl_count + '\n'
+    long_string += '>    %i correlations have an explanation involving an ' \
+                   'intermediate node excluding shared regulators' % \
+                   any_axb_non_sr_expl_count + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
-                   'direct connection' % tuple_dir_expl_count + \
-                   '\n'
-    long_string += '>    %i direct connections found (count A-B and B-A ' \
-                   'separately, including complexes)' % both_dir_expl_count + \
-                   '\n'
-    long_string += '>    %i correlations have an explanation ' \
-                   'involving an intermediate node (A-X-B).' \
-                   % tuple_im_expl_count + '\n'
-    long_string += '>    %i A->X->B or B->X->A connections found (one count ' \
-                   'per direction)' % both_im_dir_expl_count + '\n'
-    long_string += '>    %i correlations have an explanation involving a ' \
-                   'shared target (A->X<-B)' % tuple_im_st_expl_count + '\n'
-    long_string += '>    %i correlations have an explanation involving a ' \
-                   'shared regulator (A<-X->B)' % tuple_im_sr_expl_count + '\n'
+                   'shared regulator (A<-X->B)' % sr_expl_count + '\n'
     long_string += '>    %i correlations have shared regulator as only ' \
-                   'explanation' % tuple_sr_expl_only_count + '\n\n'
+                   'explanation' % shared_regulator_only_expl_count + '\n\n'
 
     long_string += 'Statistics of input data:' + '\n\n'
     if stats_dict and stats_dict.get('rnai'):
