@@ -1356,17 +1356,21 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
     standard deviation
 
     corr1: float
-        Correlation from first data set
+        Correlation of first dataset
+    mu1: float
+        Mean of the correlations of the first dataset
     sigma1: float
-        Standard deviation of first dataset
+        Standard deviation of the correlations of the first dataset
     corr2: float
         Correlation from second data set
+    mu2: float
+        Mean of the correlations of the second dataset
     sigma2: float
-        Standard deviation of second dataset
+        Standard deviation of the correlations of the second dataset
     margin: float
         How far off the correlations can be to pass as "similar"
     filter_type:
-        The filter type to use ("sigma-diff" is currently the only one)
+        The filter type to use
 
     Returns
     -------
@@ -1375,15 +1379,17 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         difference in their distance from the mean standard deviation.
     """
     if filter_type == 'sigma-diff':
-        return _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+        return _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'corr-corr-corr':
         return _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
-    # No filter; Add more filter types above
+    elif filter_type == 'sign':
+        return _same_sign(corr1, corr2)
+    # No filter/filter not recognized:
     else:
         return True
 
 
-def _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+def _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     """Return True if the difference in the scaled distances from the mean
     measured in number of standard deviations is smaller than the given margin.
     """
