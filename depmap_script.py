@@ -946,10 +946,13 @@ if __name__ == '__main__':
         
         Other important options are:
         
-        - -cc/-rc: precalculated correlation matrices in hdf format
-        - Pre-saved statement structures: -ndi: nested dictionary of INDRA 
-          statements of the format `d[gene][gene] = [stmts/stmt hashes]` OR 
-          -lw: a csv file with `gene,gene,stmt type,stmt hash` as columns.
+        -cc/-rc: precalculated correlation matrices in hdf format of 
+        crispr/rnai
+        
+        Either of
+        -ndi: nested dictionary of INDRA statements of the format `d[gene][
+        gene] = [stmts/stmt hashes]` OR 
+        -lw: a csv file with `gene,gene,stmt type,stmt hash` as columns.
         """
     )
 
