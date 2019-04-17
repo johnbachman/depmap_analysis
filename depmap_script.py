@@ -149,8 +149,8 @@ def _parse_cell_filter(cl_file, id2depmapid_pkl=None, namespace='CCLE_Name'):
     return cell_lines
 
 
-def _parse_uninteresting_genes(gene_set_file, check_column):
-    logger.info('Parsing uninteresting genes assuming column %s can be '
+def _parse_explained_genes(gene_set_file, check_column):
+    logger.info('Parsing explaind genes assuming column %s can be '
                 'mapped to boolean' % check_column)
     gene_df = pd.read_csv(gene_set_file, header=0)
     if check_column in gene_df.columns.values:
@@ -166,7 +166,7 @@ def _parse_uninteresting_genes(gene_set_file, check_column):
                 sys.exit('No column with name "gene" or "genes" found!')
     else:
         sys.exit('Cannot find column %s!' % check_column)
-    logger.info('Loaded %i uninteresting genes' % len(genes))
+    logger.info('Loaded %i explained genes' % len(genes))
     return genes
 
 
@@ -236,8 +236,8 @@ def loop_body(args):
         any_axb_non_sr_expl_count, sr_expl_count, \
         shared_regulator_only_expl_count, explanations_of_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, \
-        dataset_dict, dir_node_set, nx_dir_graph, uninteresting_set, \
-        uninteresting, sr_explanations, any_expl_ign_sr
+        dataset_dict, dir_node_set, nx_dir_graph, explained_set, \
+        part_of_explained, sr_explanations, any_expl_ign_sr
 
     # Store booleans for each found connection
     found = False  # Flag anything found
@@ -246,7 +246,7 @@ def loop_body(args):
     x_is_intermediary = False  # Flag intermediate connections
     x_is_downstream = False  # Flag shared target
     x_is_upstream = False  # Flag shared regulator connection
-    is_uninteresting = False  # Flag uniteresting
+    part_of_explained_set = False  # Flag uniteresting
     has_common_parent = False  # Flag common parent
 
     for subj, obj in itt.permutations((id1, id2), r=2):
@@ -304,12 +304,12 @@ def loop_body(args):
         explanations_of_pairs.append(stmt_tuple)
 
     # Check if both A and B are in list of "uninteresting genes"
-    if uninteresting_set and \
-            id1 in uninteresting_set and id2 in uninteresting_set:
-        explained_nested_dict[id1][id2]['uninteresting'] = True
-        explained_nested_dict[id2][id1]['uninteresting'] = True
+    if explained_set and \
+            id1 in explained_set and id2 in explained_set:
+        explained_nested_dict[id1][id2]['explained_set'] = True
+        explained_nested_dict[id2][id1]['explained_set'] = True
         found = True
-        is_uninteresting = True
+        part_of_explained_set = True
         stmt_tuple = (id1, id2, 'explained_set', [], [])
         explanations_of_pairs.append(stmt_tuple)
 
@@ -372,7 +372,7 @@ def loop_body(args):
         # Count explanations with only non-shared regulators
         if not x_is_upstream and any([directed, undirected, x_is_intermediary,
                                      x_is_downstream, has_common_parent,
-                                      is_uninteresting]):
+                                      part_of_explained_set]):
             any_expl_not_sr += 1
 
         # Count explanations with common parents
@@ -380,14 +380,14 @@ def loop_body(args):
             common_parent += 1
 
         # Count explanations due to uninteresting genes
-        if is_uninteresting:
-            uninteresting += 1
+        if part_of_explained_set:
+            part_of_explained += 1
         else:
-            explained_nested_dict[id1][id2]['uninteresting'] = False
-            explained_nested_dict[id2][id1]['uninteresting'] = False
+            explained_nested_dict[id1][id2]['explained_set'] = False
+            explained_nested_dict[id2][id1]['explained_set'] = False
 
         if any([directed, undirected, x_is_intermediary, x_is_downstream,
-                has_common_parent, is_uninteresting]):
+                has_common_parent, part_of_explained_set]):
             any_expl_ign_sr += 1
 
         # Count A-B or B-A connections found per set(A,B)
@@ -409,7 +409,7 @@ def loop_body(args):
         # NOTE: this should be equal to any_expl - any_expl_ign_sr
         if all([not directed, not undirected, not x_is_intermediary,
                 not x_is_downstream, not has_common_parent,
-                not is_uninteresting]) and x_is_upstream:
+                not part_of_explained_set]) and x_is_upstream:
             shared_regulator_only_expl_count += 1
             explained_nested_dict[id1][id2]['sr_only'] = True
             explained_nested_dict[id2][id1]['sr_only'] = True
@@ -463,7 +463,7 @@ def main(args):
         any_axb_non_sr_expl_count, sr_expl_count, \
         shared_regulator_only_expl_count, explanations_of_pairs, unexplained, \
         explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
-        avg_corr, dir_node_set, nx_dir_graph, uninteresting_set, uninteresting,\
+        avg_corr, dir_node_set, nx_dir_graph, explained_set, part_of_explained,\
         sr_explanations, any_expl_ign_sr
 
     if args.cell_line_filter and not len(args.cell_line_filter) > 2:
@@ -484,15 +484,15 @@ def main(args):
                     'correlation calculations.')
         cell_lines = []
 
-    # Parse "uninteresting genes"
-    if args.uninteresting and len(args.uninteresting) == 2:
-        uninteresting_set = _parse_uninteresting_genes(
-            gene_set_file=args.uninteresting[0],
-            check_column=args.uninteresting[1])
-        logger.info('Loading "uninteresting pairs."')
-    elif args.uninteresting and len(args.uninteresting) != 2:
-        sys.exit('Argument --uninteresting takes exactly two arguments: '
-                 '--uninteresting <file> <column name>')
+    # Parse "explained genes"
+    if args.explained_set and len(args.explained_set) == 2:
+        explained_set = _parse_explained_genes(
+            gene_set_file=args.explained_set[0],
+            check_column=args.explained_set[1])
+        logger.info('Loading "explained pairs."')
+    elif args.explained_set and len(args.explained_set) != 2:
+        sys.exit('Argument --explained-set takes exactly two arguments: '
+                 '--explained-set <file> <column name>')
 
     # Check if belief dict is provided
     if not args.belief_score_dict and not args.nested_dict_in:
@@ -634,7 +634,7 @@ def main(args):
     any_expl_ign_sr = 0  # Count any explanation, ingoring shared regulator
     # explanations
     common_parent = 0  # Count if common parent found per set(A,B)
-    uninteresting = 0  # Count pairs removed because they were "uninteresting"
+    part_of_explained = 0  # Count pairs part the "explained set"
     ab_expl_count = 0  # Count A-B/B-A as one per set(A,B)
     directed_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
     any_axb_non_sr_expl_count = 0  # Count if shared target found per set(A,B)
@@ -845,9 +845,9 @@ def main(args):
                    (any_expl - shared_regulator_only_expl_count) + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
                    'common parent' % common_parent + '\n'
-    if args.uninteresting:
+    if args.explained_set:
         long_string += '>    %i gene pairs were considered explained as part ' \
-                       'of the "uninterested genes"' % uninteresting + '\n'
+                       'of the "explained set"' % part_of_explained + '\n'
     long_string += '>    %i explanations involving direct connection or ' \
                    'complex' % ab_expl_count + '\n'
     long_string += '>    %i correlations have a directed explanation ' \
@@ -979,10 +979,10 @@ if __name__ == '__main__':
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
                         help='Precalculated RNAi correlations in h5 format')
-    parser.add_argument('--uninteresting', type=str, nargs='+',
-                        help='--uninteresting <filepath> <column name> | Load '
+    parser.add_argument('--explained-set', type=str, nargs='+',
+                        help='--explained-set <filepath> <column name> | Load '
         'a gene set file. The genes in this set will be considered '
-        '"uninteresting" when looking for explanations for a pair. If both '
+        '"explained" when looking for explanations for a pair. If both '
         'genes in the pair are members of the "uniunteresting set", the pair '
         'will be considered explained.')
     parser.add_argument('-gsf', '--gene-set-filter', type=str, help='Load a '
