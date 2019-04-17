@@ -1537,7 +1537,7 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         Number to set as pass cutoff for some of the filters:
         - z-score-mean: mean of the z-scores is smaller than the margin
         - z-score-diff: difference of the z-scores is smaller than the margin
-        - corr-corr-corr: product of the z-scores is greater than the margin
+        - z-score-product: product of the z-scores is greater than the margin
     filter_type:
         The filter type to use
 
@@ -1551,8 +1551,8 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         return _z_score_mean(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'z-score-diff':
         return _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
-    elif filter_type == 'corr-corr-corr':
-        return _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+    elif filter_type == 'z-score-product':
+        return _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'sign':
         return _same_sign(corr1, corr2)
     # No filter/filter not recognized:
@@ -1578,7 +1578,7 @@ def _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     return abs(_z_sc(corr1, mu1, sigma1) - _z_sc(corr2, mu2, sigma2)) < margin
 
 
-def _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+def _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     """Pass if the product of the z-scores is greater than margin"""
     return _z_sc(corr1, mu1, sigma1) * _z_sc(corr2, mu2, sigma2) > margin
 

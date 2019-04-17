@@ -970,13 +970,15 @@ if __name__ == '__main__':
         'difference in z-score between data sets to accept when filtering for '
         'correlations during merge. Default is 1 (i.e. 1 SD).')
     parser.add_argument('--filter-type', default='None', type=str,
-                        help='Type of filtering. Options are: `z-score-diff` - '
-        'The difference in z-score must be smaller than given by --margin. '
-        '`corr-corr-corr` - The product of the scaled correlations* must be '
-        'greater than given by --margin. `None` - No filter is applied when '
-        'merging the data sets. The resulting correlation dictionary will '
-        'simply be the intersection of the provided data sets. | *Scaled '
-        'Correlation = (corr-mean)/SD')
+                        help='Type of filtering for merging correlations from '
+        'multiple data sets. Options are: `z-score-diff` - The difference in '
+        'z-score must be smaller than given by --margin. `z-score-product` - '
+        'The product of the z-scores must be greater than given by --margin. '
+        '`z-score-mean` - The mean of the z-scores must be smaller than given '
+        'by --margin. `sign` - Only filter out correlations if they have '
+        'opposite signs. `None` - No filter is applied when merging the data '
+        'sets. The resulting correlation dictionary will simply be the '
+        'intersection of the provided data sets.')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp.')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
