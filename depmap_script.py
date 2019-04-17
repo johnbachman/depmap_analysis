@@ -1,4 +1,20 @@
+"""Script to analyze and try to explain gene knockout data from
+depmap.org. Minimum Working Example for running script:
+
+`python depmap_script.py -cf <crispr gene data csv file> -rf <rnai
+gene data csv file> -o <output file name>`
+
+
+Other important options are:
+
+- -cc/-rc: precalculated correlation matrices in hdf format
+- -ndi: nested dictionary of INDRA statements of the format
+  `d[gene][gene] = [stmts/stmt hashes]` OR -lw: a csv file with `gene,gene,
+  stmt type,stmt hash` as columns.
+"""
+
 import os
+import sys
 import csv
 import json
 import logging
@@ -10,13 +26,15 @@ import itertools as itt
 from numpy import float64
 from time import time, strftime
 from collections import defaultdict
+from random import choice as rnd_choice
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 from depmap_network_functions import create_nested_dict as nest_dict
 # There are pickled files using "nest_dict" in their preserved import settings
-# and we can therefore not use another name when using those files
+# and we can therefore not use another name when using those files until we
+# create new pickle files
 
-logger = logging.getLogger('depmap_script')
+logger = logging.getLogger('DepMap Script')
 
 # 1. no geneset -> use corr from full DepMap data, no filtering needed
 # 2. geneset, not strict -> interaction has to contain at least one gene from
@@ -44,16 +62,35 @@ def _dump_it_to_csv(fname, pyobj, separator=',', header=None):
         wrtr.writerows(pyobj)
 
 
-def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None):
+def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
+                           excl_sr=True):
     if header:
-        with open(fname, 'w') as fo:
+        with open(fname, 'w') as fo, \
+                open(fname.split('.')[0]+'_sr_only.csv', 'w') as fosro:
             fo.write(separator.join(header)+'\n')
-    with open(fname, 'a') as fo:
+            fosro.write(separator.join(header)+'\n')
+    with open(fname, 'a') as fo, \
+            open(fname.split('.')[0]+'_sr_only.csv', 'a') as fosro:
         for ok in nested_dict:
             for ik in nested_dict[ok]:
-                cd = nested_dict[ok][ik]['correlations']
+                if excl_sr and nested_dict[ok][ik]['sr_only']:
+                    logger.info('Skipping sr only: %s and %s' % (ik, ok))
+                    fosro.write('%s,%s,%s,%s\n' %
+                        (ok, ik,
+                         str(cd['crispr']) if cd and json.dumps(cd.get(
+                             'crispr'))
+                         else '0',
+                         str(cd['rnai']) if cd and json.dumps(cd.get('rnai'))
+                         else '0'))
+                    continue
+                cd = nested_dict[ok][ik]['meta_data']
                 fo.write('%s,%s,%s,%s\n' %
-                         (ok, ik, str(cd['crispr']), str(cd['rnai'])))
+                         (ok, ik, 
+                          str(cd['crispr']) if cd and json.dumps(cd.get(
+                              'crispr'))
+                          else '0',
+                          str(cd['rnai']) if cd and json.dumps(cd.get('rnai'))
+                          else '0'))
 
 
 def _pickle_open(file_path_to_pickle):
@@ -73,6 +110,66 @@ def _is_float(n):
         return False
 
 
+def _rnd_pair_gen(rgs):
+    return rnd_choice(rgs), rnd_choice(rgs)
+
+
+def _parse_cell_filter(cl_file, id2depmapid_pkl=None, namespace='CCLE_Name'):
+    logger.info('Parsing cell lines...')
+    cell_lines = []
+    with open(cl_file, 'r') as fi:
+        first_line = fi.readline()
+        if ',' in first_line:
+            col_separator = ','
+        else:
+            col_separator = None
+    with open(cl_file, 'r') as fi:
+        if id2depmapid_pkl:
+            id2depmapid_dict = _pickle_open(id2depmapid_pkl)
+            assert namespace in id2depmapid_dict.keys()
+            for n, cl in enumerate(fi.readlines()):
+                cl_name = cl.split(sep=col_separator)[0]
+                if n == 0:
+                    continue
+                else:
+                    try:
+                        cell_lines.append(id2depmapid_dict[namespace][cl_name])
+                    except KeyError:
+                        logger.warning('Could not find mapping for %s' %
+                                       cl_name)
+                        continue
+        else:
+            for n, cl in enumerate(fi.readlines()):
+                cl_name = cl.split(sep=col_separator)[0]
+                if n == 0:
+                    continue
+                else:
+                    cell_lines.append(cl_name)
+
+    return cell_lines
+
+
+def _parse_explained_genes(gene_set_file, check_column):
+    logger.info('Parsing explaind genes assuming column %s can be '
+                'mapped to boolean' % check_column)
+    gene_df = pd.read_csv(gene_set_file, header=0)
+    if check_column in gene_df.columns.values:
+        try:
+            genes = set(gene_df['gene'][gene_df[check_column].apply(
+                bool)].values)
+        except KeyError:
+            try:
+                genes = set(gene_df['genes'][gene_df[check_column].apply(
+                    bool)].values)
+            except KeyError as exception:
+                logger.warning(exception)
+                sys.exit('No column with name "gene" or "genes" found!')
+    else:
+        sys.exit('Cannot find column %s!' % check_column)
+    logger.info('Loaded %i explained genes' % len(genes))
+    return genes
+
+
 def _corr_web_latex(id1, id2, fmtcorr):
     web_text = r'\section{{{}, {}: {}}}'.format(id1, id2, fmtcorr) + '\n' + \
                r'See correlation plot \href{{' \
@@ -89,18 +186,16 @@ def _corr_web_latex(id1, id2, fmtcorr):
 def _arg_dict(args_struct):
     args_dict = dnf.create_nested_dict()
 
-    if not args_struct.crispr_data_file and not args_struct.rnai_data_file:
-        logger.error('Must provide at least one data set!')
-        raise FileNotFoundError
+    if not args_struct.crispr_data_file and not args_struct.rnai_data_file \
+            and not args_struct.brca_dependencies \
+            and not args_struct.sampling_gene_file:
+        sys.exit('Must provide at least one data set or a gene dependency '
+                 'dataset or a list of genes for random sampling!')
 
     # CRISPR
     if args_struct.crispr_data_file:
         args_dict['crispr']['data'] = args_struct.crispr_data_file
         args_dict['crispr']['corr'] = args_struct.crispr_corr_file
-        args_dict['crispr']['outbasename'] = args_struct.outbasename + '_crispr'
-        args_dict['crispr']['filter_gene_set'] = (
-            args_struct.geneset_file if args_struct.geneset_file else []
-        )
         args_dict['crispr']['ll'] = max(args_struct.crispr_corr_range[0], 0.0)
         args_dict['crispr']['ul'] = (args_struct.crispr_corr_range[1]
             if len(args_struct.crispr_corr_range) == 2 else None)
@@ -109,17 +204,11 @@ def _arg_dict(args_struct):
             args_struct.crispr_mean_sigma else None
         args_dict['crispr']['sigma'] = args_struct.crispr_mean_sigma[1] if \
             args_struct.crispr_mean_sigma else None
-        args_dict['crispr']['dump_unique_pairs'] = args_struct.dump_unique_pairs
-        args_dict['crispr']['strict'] = args_struct.strict
 
     # RNAi
     if args_struct.rnai_data_file:
         args_dict['rnai']['data'] = args_struct.rnai_data_file
         args_dict['rnai']['corr'] = args_struct.rnai_corr_file
-        args_dict['rnai']['outbasename'] = args_struct.outbasename + '_rnai'
-        args_dict['rnai']['filter_gene_set'] = (
-            args_struct.geneset_file if args_struct.geneset_file else []
-        )
         args_dict['rnai']['ll'] = max(args_struct.rnai_corr_range[0], 0.0)
         args_dict['rnai']['ul'] = (args_struct.rnai_corr_range[1]
             if len(args_struct.rnai_corr_range) == 2 else None)
@@ -128,68 +217,290 @@ def _arg_dict(args_struct):
             args_struct.rnai_mean_sigma else None
         args_dict['rnai']['sigma'] = args_struct.rnai_mean_sigma[1] if \
             args_struct.rnai_mean_sigma else None
-        args_dict['rnai']['dump_unique_pairs'] = args_struct.dump_unique_pairs
-        args_dict['rnai']['strict'] = args_struct.strict
+
+    # RANDOM SAMPLING
+    if args_struct.sampling_gene_file:
+        if not args_struct.max_pairs:
+            sys.exit('Must specify a maximum number of pairs for random '
+                     'sampling')
+        args_dict['sampling_gene_file'] = args_struct.sampling_gene_file
 
     args_dict.default_factory = None
     return args_dict
 
 
+def loop_body(args):
+
+    global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
+        directed_im_expl_count, both_im_dir_expl_count, \
+        any_axb_non_sr_expl_count, sr_expl_count, \
+        shared_regulator_only_expl_count, explanations_of_pairs, unexplained, \
+        explained_nested_dict, id1, id2, nested_dict_statements, \
+        dataset_dict, dir_node_set, nx_dir_graph, explained_set, \
+        part_of_explained, sr_explanations, any_expl_ign_sr
+
+    # Store booleans for each found connection
+    found = False  # Flag anything found
+    directed = False  # Flag direct
+    undirected = False  # Flag complex
+    x_is_intermediary = False  # Flag intermediate connections
+    x_is_downstream = False  # Flag shared target
+    x_is_upstream = False  # Flag shared regulator connection
+    part_of_explained_set = False  # Flag uniteresting
+    has_common_parent = False  # Flag common parent
+
+    for subj, obj in itt.permutations((id1, id2), r=2):
+        if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
+
+            # Get the statements
+            stmts = nested_dict_statements[subj][obj]
+
+            # check if directed, put in the explained nested dict
+            dir_stmts, undir_stmts = dnf.get_directed(stmts)
+            directed = bool(dir_stmts)
+            undirected = bool(undir_stmts)
+            explained_nested_dict[subj][obj]['directed'] = dir_stmts
+            explained_nested_dict[subj][obj]['undirected'] = undir_stmts
+
+            if args.verbosity:
+                logger.info('Found direct connection between %s and '
+                            '%s' % (subj, obj))
+            found = True
+            stmt_tuple = (subj, obj, 'direct', [], json.dumps(dataset_dict))
+            explanations_of_pairs.append(stmt_tuple)
+
+        # Checking 1. "pathway": A -> X -> B and B -> X -> A
+        if subj in dir_node_set and obj in dir_node_set:
+            dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
+                                  set(nx_dir_graph.pred[obj]))
+            if dir_path_nodes:
+                found = True
+                x_is_intermediary = True
+                if args.verbosity:
+                    logger.info('Found directed path of length 2 '
+                                'between %s and %s' % (subj, obj))
+
+                dir_path_nodes_wb = dnf.rank_nodes(
+                    node_list=dir_path_nodes,
+                    nested_dict_stmts=nested_dict_statements,
+                    gene_a=subj,
+                    gene_b=obj,
+                    x_type='x_is_intermediary')
+
+                explained_nested_dict[subj][obj]['x_is_intermediary'] \
+                    = dir_path_nodes_wb
+                stmt_tuple = (subj, obj, 'pathway',
+                              dir_path_nodes_wb, json.dumps(dataset_dict))
+                explanations_of_pairs.append(stmt_tuple)
+
+    # Check common parent
+    if dnf.has_common_parent(id1=id1, id2=id2):
+        has_common_parent = True
+        found = True
+        parents = list(dnf.common_parent(id1=id1, id2=id2))
+        explained_nested_dict[id1][id2]['common_parents'] = parents
+        explained_nested_dict[id2][id1]['common_parents'] = parents
+        stmt_tuple = (id1, id2, 'common_parents', parents, [])
+        explanations_of_pairs.append(stmt_tuple)
+
+    # Check if both A and B are in list of "uninteresting genes"
+    if explained_set and \
+            id1 in explained_set and id2 in explained_set:
+        explained_nested_dict[id1][id2]['explained_set'] = True
+        explained_nested_dict[id2][id1]['explained_set'] = True
+        found = True
+        part_of_explained_set = True
+        stmt_tuple = (id1, id2, 'explained_set', [], [])
+        explanations_of_pairs.append(stmt_tuple)
+
+    if id1 in dir_node_set and id2 in dir_node_set:
+        # Checking 2: shared target A -> X <- B
+        downstream_share = list(set(nx_dir_graph.succ[id1]) &
+                                set(nx_dir_graph.succ[id2]))
+        # Checking 3: shared regulator A <- X -> B
+        upstream_share = list(set(nx_dir_graph.pred[id1]) &
+                              set(nx_dir_graph.pred[id2]))
+        if downstream_share:
+            found = True
+            x_is_downstream = True
+            downstream_share_wb = dnf.rank_nodes(
+                node_list=downstream_share,
+                nested_dict_stmts=nested_dict_statements,
+                gene_a=id1,
+                gene_b=id2,
+                x_type='x_is_downstream')
+            stmt_tuple = (id1, id2, 'shared_target',
+                          downstream_share_wb, json.dumps(dataset_dict))
+            if args.verbosity:
+                logger.info('Found downstream share: %s and %s share '
+                            '%i targets' %
+                            (id1, id2, len(downstream_share)))
+            explained_nested_dict[id1][id2]['x_is_downstream'] = \
+                downstream_share_wb
+            explained_nested_dict[id2][id1]['x_is_downstream'] = \
+                downstream_share_wb
+            explanations_of_pairs.append(stmt_tuple)
+
+        if upstream_share:
+            found = True
+            x_is_upstream = True
+            upstream_share_wb = dnf.rank_nodes(
+                node_list=upstream_share,
+                nested_dict_stmts=nested_dict_statements,
+                gene_a=id1,
+                gene_b=id2,
+                x_type='x_is_upstream')
+            stmt_tuple = (id1, id2, 'shared_upstream',
+                          upstream_share_wb, json.dumps(dataset_dict))
+            if args.verbosity:
+                logger.info('Found upstream share: %s and %s are both '
+                            'directly downstream of %i nodes' %
+                            (id1, id2, len(upstream_share)))
+            explained_nested_dict[id1][id2]['x_is_upstream'] = \
+                upstream_share_wb
+            explained_nested_dict[id2][id1]['x_is_upstream'] = \
+                upstream_share_wb
+            sr_explanations.append(stmt_tuple)
+
+    # Make sure the connection types we didn't find are empty lists.
+    # Also add correlation so it can be queried for at the same time
+    # as the items for the second drop down.
+    if found:
+        # Any explanation found
+        any_expl += 1
+
+        # Count explanations with only non-shared regulators
+        if not x_is_upstream and any([directed, undirected, x_is_intermediary,
+                                     x_is_downstream, has_common_parent,
+                                      part_of_explained_set]):
+            any_expl_not_sr += 1
+
+        # Count explanations with common parents
+        if has_common_parent:
+            common_parent += 1
+
+        # Count explanations due to uninteresting genes
+        if part_of_explained_set:
+            part_of_explained += 1
+        else:
+            explained_nested_dict[id1][id2]['explained_set'] = False
+            explained_nested_dict[id2][id1]['explained_set'] = False
+
+        if any([directed, undirected, x_is_intermediary, x_is_downstream,
+                has_common_parent, part_of_explained_set]):
+            any_expl_ign_sr += 1
+
+        # Count A-B or B-A connections found per set(A,B)
+        if directed or undirected:
+            ab_expl_count += 1
+
+        # Count directed A-X-B connections found per set(A,B)
+        if x_is_intermediary:
+            directed_im_expl_count += 1
+
+        # Count A-X-B, ignoring shared regulators
+        if x_is_intermediary or x_is_downstream:
+            any_axb_non_sr_expl_count += 1
+
+        if x_is_upstream:
+            sr_expl_count += 1
+
+        # Count when shared regulator is the only explanation
+        # NOTE: this should be equal to any_expl - any_expl_ign_sr
+        if all([not directed, not undirected, not x_is_intermediary,
+                not x_is_downstream, not has_common_parent,
+                not part_of_explained_set]) and x_is_upstream:
+            shared_regulator_only_expl_count += 1
+            explained_nested_dict[id1][id2]['sr_only'] = True
+            explained_nested_dict[id2][id1]['sr_only'] = True
+        else:
+            explained_nested_dict[id1][id2]['sr_only'] = False
+            explained_nested_dict[id2][id1]['sr_only'] = False
+
+        assert shared_regulator_only_expl_count == (any_expl - any_expl_ign_sr)
+
+        for s, o in itt.permutations((id1, id2), r=2):
+            # Correlation/meta data
+            explained_nested_dict[s][o]['meta_data'] = dataset_dict
+            # common_parents
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'common_parents'):
+                explained_nested_dict[s][o]['common_parents'] = []
+            # directed
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'directed'):
+                explained_nested_dict[s][o]['directed'] = []
+            # undirected
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'undirected'):
+                explained_nested_dict[s][o]['undirected'] = []
+            # x_is_intermediary
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'x_is_intermediary'):
+                explained_nested_dict[s][o]['x_is_intermediary'] = []
+            # x_is_upstream
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'x_is_upstream'):
+                explained_nested_dict[s][o]['x_is_upstream'] = []
+            # x_is_downstream
+            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+                                         'x_is_downstream'):
+                explained_nested_dict[s][o]['x_is_downstream'] = []
+
+    # found == True if at least one connection was found
+    # not found == True is only True when no connection was found
+    if not found:
+        unexplained.append((id1, id2, json.dumps(dataset_dict)))
+        if args.verbosity and args.verbosity > 1:
+            logger.info('No explainable path found between %s and '
+                        '%s.' % (id1, id2))
+
+
 def main(args):
+
+    global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
+        directed_im_expl_count, both_im_dir_expl_count, \
+        any_axb_non_sr_expl_count, sr_expl_count, \
+        shared_regulator_only_expl_count, explanations_of_pairs, unexplained, \
+        explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
+        avg_corr, dir_node_set, nx_dir_graph, explained_set, part_of_explained,\
+        sr_explanations, any_expl_ign_sr
+
+    if args.cell_line_filter and not len(args.cell_line_filter) > 2:
+        logger.info('Filtering to provided cell lines in correlation '
+                    'calculations.')
+        cell_lines = _parse_cell_filter(*args.cell_line_filter)
+        assert len(cell_lines) > 0
+    elif args.cell_line_filter and len(args.cell_line_filter) > 2:
+        sys.exit('Argument --cell-line-filter only takes one or two arguments')
+    # No cell line dictionary and rnai data and filtering is requested
+    elif args.cell_line_filter and len(args.cell_line_filter) == 1 and \
+            args.rnai_data_file:
+        sys.exit('Need a translation dictionary if RNAi data is provided and '
+                 'filter is requested')
+    else:
+        # Should be empty only when --cell-line-filter is not provided
+        logger.info('No cell line filter provided. Using all cell lines in '
+                    'correlation calculations.')
+        cell_lines = []
+
+    # Parse "explained genes"
+    if args.explained_set and len(args.explained_set) == 2:
+        explained_set = _parse_explained_genes(
+            gene_set_file=args.explained_set[0],
+            check_column=args.explained_set[1])
+        logger.info('Loading "explained pairs."')
+    elif args.explained_set and len(args.explained_set) != 2:
+        sys.exit('Argument --explained-set takes exactly two arguments: '
+                 '--explained-set <file> <column name>')
 
     # Check if belief dict is provided
     if not args.belief_score_dict and not args.nested_dict_in:
-        logger.error('belief dict must be provided through the `-b ('
+        logger.error('Belief dict must be provided through the `-b ('
                      '--belief-score-dict)` argument if no nested dict '
                      'of statements with belief score is provided through the '
                      '`-ndi (--nested-dict-in)` argument.')
         raise FileNotFoundError
-
-    filter_settings = {'margin': args.margin,
-                       'filter_type':
-                       (args.filter_type if
-                        args.filter_type in ['sigma-diff', 'corr-corr-corr']
-                        else None)
-                       }
-
-    if not filter_settings['filter_type'] and \
-        args.crispr_data_file and \
-            args.rnai_data_file:
-        logger.info('No merge filter set. Output will be intersection of the '
-                    'two data sets.')
-
-    args_dict = _arg_dict(args)
-
-    master_corr_dict, all_hgnc_ids, stats_dict = dnf.get_combined_correlations(
-        dict_of_data_sets=args_dict, filter_settings=filter_settings)
-
-    # Count pairs in merged correlation dict
-    npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
-        fname=args.outbasename+'_merged_corr_pairs.csv',
-        nest_dict=master_corr_dict)
-
-    if args.geneset_file:
-        gene_filter_list = None
-        if args_dict.get('crispr') and not args_dict.get('rnai'):
-            gene_filter_list = dnf._read_gene_set_file(
-                gf=args_dict['crispr']['filter_gene_set'],
-                data=args_dict['crispr']['data'])
-        elif args_dict.get('rnai') and not args_dict.get('crispr'):
-            gene_filter_list = dnf._read_gene_set_file(
-                    gf=args_dict['rnai']['filter_gene_set'],
-                    data=args_dict['crispr']['data'])
-        elif args_dict.get('crispr') and args_dict.get('rnai'):
-            gene_filter_list = \
-                set(dnf._read_gene_set_file(
-                    gf=args_dict['crispr']['filter_gene_set'],
-                    data=args_dict['crispr']['data'])) & \
-                set(dnf._read_gene_set_file(
-                    gf=args_dict['rnai']['filter_gene_set'],
-                    data=args_dict['crispr']['data']))
-        assert gene_filter_list is not None
-
-    else:
-        gene_filter_list = None
 
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
@@ -198,6 +509,74 @@ def main(args):
             belief_dict = _json_open(args.belief_score_dict)
         elif args.belief_score_dict.endswith('.pkl'):
             belief_dict = _pickle_open(args.belief_score_dict)
+
+    args_dict = _arg_dict(args)
+    npairs = 0
+
+    filter_settings = {'gene_set_filter': args.gene_set_filter,
+                       'strict': args.strict,
+                       'cell_line_filter': cell_lines,
+                       'cell_line_translation_dict': _pickle_open(
+                                                     args.cell_line_filter[1])
+                       if args.cell_line_filter and len(args.cell_line_filter)
+                       == 2 else None,
+                       'margin': args.margin,
+                       'filter_type': (args.filter_type
+                                       if args.filter_type
+                                       else None)
+                       }
+
+    output_settings = {'dump_unique_pairs': args.dump_unique_pairs,
+                       'outbasename': args.outbasename}
+
+    # Parse CRISPR and/or RNAi data
+    if args_dict.get('crispr') or args_dict.get('rnai'):
+        if not filter_settings['filter_type'] and \
+            args.crispr_data_file and \
+                args.rnai_data_file:
+            logger.info('No merge filter set. Output will be intersection of '
+                        'the two data sets.')
+        elif filter_settings.get('filter_type'):
+            logger.info('Using filter type "%s"' %
+                        filter_settings['filter_type'])
+        master_corr_dict, all_hgnc_ids, stats_dict = \
+            dnf.get_combined_correlations(dict_of_data_sets=args_dict,
+                                          filter_settings=filter_settings,
+                                          output_settings=output_settings)
+
+        # Count pairs in merged correlation dict and dum it
+        npairs = dnf._dump_master_corr_dict_to_pairs_in_csv(
+            fname=args.outbasename+'_merged_corr_pairs.csv',
+            nest_dict=master_corr_dict)
+
+        if args.gene_set_filter:
+            gene_filter_list = None
+            if args_dict.get('crispr') and not args_dict.get('rnai'):
+                gene_filter_list = dnf._read_gene_set_file(
+                    gf=filter_settings['gene_set_filter'],
+                    data=pd.read_csv(args_dict['crispr']['data'],
+                                         index_col=0, header=0))
+            elif args_dict.get('rnai') and not args_dict.get('crispr'):
+                gene_filter_list = dnf._read_gene_set_file(
+                        gf=filter_settings['gene_set_filter'],
+                        data=pd.read_csv(args_dict['rnai']['data'],
+                                         index_col=0, header=0))
+            elif args_dict.get('crispr') and args_dict.get('rnai'):
+                gene_filter_list = \
+                    set(dnf._read_gene_set_file(
+                        gf=filter_settings['gene_set_filter'],
+                        data=pd.read_csv(args_dict['crispr']['data'],
+                                         index_col=0, header=0))) & \
+                    set(dnf._read_gene_set_file(
+                        gf=filter_settings['gene_set_filter'],
+                        data=pd.read_csv(args_dict['rnai']['data'],
+                                         index_col=0, header=0)))
+            assert gene_filter_list is not None
+
+        else:
+            gene_filter_list = None
+    else:
+        stats_dict = None
 
     # LOADING INDRA STATEMENTS
     # Get statements from file or from database that contain any gene from
@@ -209,11 +588,11 @@ def main(args):
             stmts_all = set(ac.load_statements(args.statements_in))
         # Use api to get statements. _NOT_ the same as querying for each ID
         else:
-            if args.geneset_file:
+            if args.gene_set_filter:
                 stmts_all = dnf.dbc_load_statements(gene_filter_list)
             else:
                 # if there is no gene set file, restrict to gene ids in
-                # correlation data
+                # input data
                 stmts_all = dnf.dbc_load_statements(list(all_hgnc_ids))
 
         # Dump statements to pickle file if output name has been given
@@ -250,18 +629,21 @@ def main(args):
 
     # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
     any_expl = 0  # Count if any explanation per (A,B) correlation found
-    # Count any explanation per (A,B) found, excluding shared regulator
-    any_expl_not_sr = 0
-    tuple_dir_expl_count = 0  # Count A-B/B-A as one per set(A,B)
-    both_dir_expl_count = 0  # Count A-B and B-A separately per set(A,B)
-    tuple_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
-    both_im_dir_expl_count = 0  # Count A->X->B,B->X->A separately per set(A,B)
-    tuple_im_st_expl_count = 0  # Count if shared target found per set(A,B)
-    tuple_im_sr_expl_count = 0  # Count if shared regulator found per set(A,B)
-    tuple_sr_expl_only_count = 0  # Count if only shared regulator found
-    explained_pairs = []  # Saves all explanations
-    explained_neg_pairs = []  # Saves all explanations with correlation < 0
+    any_expl_not_sr = 0  # Count any explanation, exlcuding when shared
+    # regulator is the only explanation
+    any_expl_ign_sr = 0  # Count any explanation, ingoring shared regulator
+    # explanations
+    common_parent = 0  # Count if common parent found per set(A,B)
+    part_of_explained = 0  # Count pairs part the "explained set"
+    ab_expl_count = 0  # Count A-B/B-A as one per set(A,B)
+    directed_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
+    any_axb_non_sr_expl_count = 0  # Count if shared target found per set(A,B)
+    sr_expl_count = 0  # Count if shared regulator found per set(A,B)
+    shared_regulator_only_expl_count = 0  # Count if only shared regulator found
+    explanations_of_pairs = []  # Saves all non shared regulator explanations
+    sr_explanations = []  # Saves all shared regulator explanations
     unexplained = []  # Unexplained correlations
+    skipped = 0
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
     # connection type or correlation).
@@ -275,6 +657,7 @@ def main(args):
     # d[subj][obj] = {correlation: {gene_set1: corr, gene_set2: corr, ...},
     #                 directed: [(stmt/stmt hash, belief score)],
     #                 undirected: [(stmt/stmt hash, belief score)],
+    #                 common_parents: [list of parents]
     #                 x_is_intermediary: [(X, belief rank)],
     #                 x_is_downstream: [(X, belief rank)],
     #                 x_is_upstream: [(X, belief rank)]}
@@ -287,220 +670,162 @@ def main(args):
     # 2. dir -> undir graph -> jsons to check all corr neighbors -> 2nd dropdown
     # 3. jsons to check if connection is direct or intermediary
 
+    # Using the following loop structure for counter variables:
+    # a = 2
+    # def for_loop_body():
+    #     global a
+    #     a += 1
+    # # Then loop like:
+    # if dict:
+    #     for pairs in dict:
+    #         for_loop_body(args)
+    # elif random:
+    #     for random pair:
+    #         for_loop_body(args)
+
     explained_nested_dict = dnf.create_nested_dict()
 
-    # Open files to write text/latex output
-    # with open(args.outbasename + '_connections_latex.tex', 'w') as f_con, \
-    #         open(args.outbasename + '_neg_conn_latex.tex', 'w') as f_neg_c:
-
-    logger.info('Looking for connections between %i pairs (pairs in master '
-                'correlation dict)' % npairs)
-
-    skipped = 0
-
-    for outer_id, do in master_corr_dict.items():
-        for inner_id, corr_dict in do.items():
-            if len(corr_dict.keys()) == 0:
-                skipped += 1
-                if args.verbosity:
-                    logger.info('Skipped outer_id=%s and inner_id=%s' %
-                            (outer_id, inner_id))
-                continue
-
-            avg_corrs = []
-            for set_name in corr_dict:
-                avg_corrs.append(corr_dict[set_name])
-
-            # Take the average correlation so it
-            avg_corr = sum(avg_corrs)/len(avg_corrs)
-            id1, id2 = outer_id, inner_id
-
-            # Store bool(s) for found connection (either A-B or A-X-B)
-            found = set()  # Flag anythin found
-            dir_found = False  # Flag direct/complex connection
-            im_found = False  # Flag intermediate connections
-            sr_found = False  # Flag shared regulator connection
-            not_sr_found = False  # Flag any non shared regulator connection
-
-            for subj, obj in itt.permutations((id1, id2), r=2):
-                if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
-                    both_dir_expl_count += 1
-
-                    # Get the statements
-                    stmts = nested_dict_statements[subj][obj]
-
-                    # check if directed, put in the explained nested dict
-                    dir_stmts, undir_stmts = dnf.get_directed(stmts)
-                    explained_nested_dict[subj][obj]['directed'] = dir_stmts
-                    explained_nested_dict[subj][obj]['undirected'] = undir_stmts
-
+    # Loop rnai and/or crispr only
+    if args_dict.get('rnai') or args_dict.get('crispr') and \
+            not args.brca_dependencies:
+        logger.info('Gene pairs generated from DepMap knockout screening data '
+                    'sets')
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
+        for outer_id, do in master_corr_dict.items():
+            for inner_id, dataset_dict in do.items():
+                if len(dataset_dict.keys()) == 0:
+                    skipped += 1
                     if args.verbosity:
-                        logger.info('Found direct connection between %s and '
-                                    '%s' % (subj, obj))
-                    found.add(True)
-                    dir_found = True
-                    not_sr_found = True
-                    stmt_tuple = (subj, obj, corr_dict['crispr'],
-                                  corr_dict['rnai'], 'direct', [])
-                    explained_pairs.append(stmt_tuple)
+                        logger.info('Skipped outer_id=%s and inner_id=%s' %
+                                (outer_id, inner_id))
+                    continue
 
-                    if avg_corr < 0:
-                        explained_neg_pairs.append(stmt_tuple)
-                        # f_neg_c.write(output)
+                id1, id2 = outer_id, inner_id
+                loop_body(args)
 
-                # Checking 1. "pathway": A -> X -> B and B -> X -> A
-                if subj in dir_node_set and obj in dir_node_set:
-                    dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
-                                          set(nx_dir_graph.pred[obj]))
-                    if dir_path_nodes:
-                        found.add(True)
-                        im_found = True
-                        not_sr_found = True
-                        both_im_dir_expl_count += 1
-                        if args.verbosity:
-                            logger.info('Found directed path of length 2 '
-                                        'between %s and %s' % (subj, obj))
+    # Loop rnai and/or crispr AND BRCA cell line dependencies
+    elif args_dict.get('rnai') or args_dict.get('crispr') and \
+            args.brca_dependencies:
+        logger.info('Gene pairs generated from combined knockout screens. '
+                    'Output data will incluide BRCA cell line dependency\n'
+                    'data as well as correlation data from knockout screens.')
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
 
-                        dir_path_nodes_wb = dnf.rank_nodes(
-                            node_list=dir_path_nodes,
-                            nested_dict_stmts=nested_dict_statements,
-                            gene_a=subj,
-                            gene_b=obj,
-                            x_type='x_is_intermediary')
+        # Load BRCA dependency data
+        brca_data_set = pd.read_csv(args.brca_dependencies, header=0)
+        depend_in_breast_genes = brca_data_set.drop(
+            axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
+                                                  'gene']
+        genes = set(depend_in_breast_genes['Gene/Compound'].values)
 
-                        explained_nested_dict[subj][obj]['x_is_intermediary']\
-                            = dir_path_nodes_wb
-                        stmt_tuple = (subj, obj, corr_dict['crispr'],
-                                      corr_dict['rnai'], 'pathway',
-                                      dir_path_nodes_wb)
-                        explained_pairs.append(stmt_tuple)
-                        if avg_corr < 0:
-                            explained_neg_pairs.append(stmt_tuple)
-                    else:
-                        found.add(False)
-
-                else:
-                    found.add(False)
-
-            if id1 in dir_node_set and id2 in dir_node_set:
-                # Checking 2: share target/coregulator A -> X <- B
-                downstream_share = list(set(nx_dir_graph.succ[id1]) &
-                                        set(nx_dir_graph.succ[id2]))
-                # Checking 3: No correlator A <- X -> B
-                upstream_share = list(set(nx_dir_graph.pred[id1]) &
-                                      set(nx_dir_graph.pred[id2]))
-                if downstream_share:
-                    found.add(True)
-                    im_found = True
-                    not_sr_found = True
-                    tuple_im_st_expl_count += 1
-                    downstream_share_wb = dnf.rank_nodes(
-                        node_list=downstream_share,
-                        nested_dict_stmts=nested_dict_statements,
-                        gene_a=id1,
-                        gene_b=id2,
-                        x_type='x_is_downstream')
-                    stmt_tuple = (id1, id2, corr_dict['crispr'], 
-                                  corr_dict['rnai'], 'shared_target',
-                                  downstream_share_wb)
+        for outer_id, do in master_corr_dict.items():
+            for inner_id, knockout_dict in do.items():
+                if len(knockout_dict.keys()) == 0:
+                    skipped += 1
                     if args.verbosity:
-                        logger.info('Found downstream share: %s and %s share '
-                                    '%i targets' %
-                                    (id1, id2, len(downstream_share)))
-                    explained_nested_dict[id1][id2]['x_is_downstream'] = \
-                        downstream_share_wb
-                    explained_nested_dict[id2][id1]['x_is_downstream'] = \
-                        downstream_share_wb
-                    explained_pairs.append(stmt_tuple)
-                    if avg_corr < 0:
-                        explained_neg_pairs.append(stmt_tuple)
+                        logger.info('Skipped outer_id=%s and inner_id=%s' %
+                                (outer_id, inner_id))
+                    continue
 
-                if upstream_share:
-                    found.add(True)
-                    im_found = True
-                    sr_found = True
-                    tuple_im_sr_expl_count += 1
-                    upstream_share_wb = dnf.rank_nodes(
-                        node_list=upstream_share,
-                        nested_dict_stmts=nested_dict_statements,
-                        gene_a=id1,
-                        gene_b=id2,
-                        x_type='x_is_upstream')
-                    stmt_tuple = (id1, id2, corr_dict['crispr'], 
-                                  corr_dict['rnai'], 'shared_upstream',
-                                  upstream_share_wb)
-                    if args.verbosity:
-                        logger.info('Found upstream share: %s and %s are both '
-                                    'directly downstream of %i nodes' %
-                                    (id1, id2, len(upstream_share)))
-                    explained_nested_dict[id1][id2]['x_is_upstream'] = \
-                        upstream_share_wb
-                    explained_nested_dict[id2][id1]['x_is_upstream'] = \
-                        upstream_share_wb
-                    explained_pairs.append(stmt_tuple)
-                    if avg_corr < 0:
-                        explained_neg_pairs.append(stmt_tuple)
+                id1, id2 = outer_id, inner_id
+                dataset_dict = {}
+                gene1_data = []
+                gene2_data = []
 
-                if not downstream_share and not upstream_share:
-                    found.add(False)
-            else:
-                found.add(False)
+                # Get BRCA dep data
+                if id1 in genes:
+                    for row in depend_in_breast_genes[
+                        depend_in_breast_genes[
+                            'Gene/Compound'] == id1].iterrows():
+                        gene1_data.append((row[1]['Dataset'],
+                                           row[1]['T-Statistic'],
+                                           row[1]['P-Value']))
+                if id2 in genes:
+                    for row in depend_in_breast_genes[
+                        depend_in_breast_genes[
+                            'Gene/Compound'] == id2].iterrows():
+                        gene2_data.append((row[1]['Dataset'],
+                                           row[1]['T-Statistic'],
+                                           row[1]['P-Value']))
 
-            # Make sure the connection types we didn't find are empty lists.
-            # Also add correlation so it can be queried for at the same time
-            # as the items for the second drop down.
-            if any(found):
-                # Any explanation found
-                any_expl += 1
+                dataset_dict[id1] = gene1_data
+                dataset_dict[id2] = gene2_data
 
-                # Count A-B or B-A connections found per set(A,B)
-                if dir_found:
-                    tuple_dir_expl_count += 1
+                dataset_dict['crispr'] = (knockout_dict['crispr'] if
+                                          knockout_dict.get('crispr')
+                                          else None),
+                dataset_dict['rnai'] = (knockout_dict['rnai'] if
+                                        knockout_dict.get('rnai')
+                                        else None)
 
-                # Count A-X-B connections found per set(A,B)
-                if im_found:
-                    tuple_im_expl_count += 1
+                if id1 not in genes and id2 not in genes:
+                    dataset_dict = knockout_dict
 
-                # Count non shared regulators found
-                if not_sr_found:
-                    any_expl_not_sr += 1
+                # Run loop body
+                loop_body(args)
 
-                # Count only shared regulators found
-                if sr_found and not not_sr_found:
-                    tuple_sr_expl_only_count += 1
+    # loop brca dependency ONLY
+    elif args.brca_dependencies and not \
+            (args_dict.get('rnai') or args_dict.get('crispr')):
+        logger.info('Gene pairs generated from BRCA gene enrichment data only.')
+        brca_data_set = pd.read_csv(args.brca_dependencies, header=0)
+        depend_in_breast_genes = brca_data_set.drop(
+            axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
+                                                  'gene']
+        genes = set(depend_in_breast_genes['Gene/Compound'].values)
+        npairs = len(list(itt.combinations(genes, 2)))
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
+        for id1, id2 in itt.combinations(genes, 2):
+            gene1_data = []
+            gene2_data = []
+            # For each non-diagonal pair in file, insert in dataset_dict:
+            # geneA, geneB,
+            # dataset for A, dataset for B,
+            # T-stat for A, T-stat for B,
+            # P-value for A, P-value
+            for row in depend_in_breast_genes[
+                 depend_in_breast_genes['Gene/Compound'] == id1].iterrows():
+                gene1_data.append((row[1]['Dataset'],
+                                   row[1]['T-Statistic'],
+                                   row[1]['P-Value']))
 
-                for s, o in itt.permutations((id1, id2), r=2):
-                    # Correlation
-                    explained_nested_dict[s][o]['correlations'] = corr_dict
-                    # Directed
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                            'directed'):
-                        explained_nested_dict[s][o]['directed'] = []
-                    # Undirected
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                            'undirected'):
-                        explained_nested_dict[s][o]['undirected'] = []
-                    # x_is_intermediary
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                        'x_is_intermediary'):
-                        explained_nested_dict[s][o]['x_is_intermediary'] = []
-                    # x_is_upstream
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                        'x_is_upstream'):
-                        explained_nested_dict[s][o]['x_is_upstream'] = []
-                    # x_is_downstream
-                    if not dnf._entry_exist_dict(explained_nested_dict[s], o,
-                                        'x_is_downstream'):
-                        explained_nested_dict[s][o]['x_is_downstream'] = []
+            for row in depend_in_breast_genes[
+                 depend_in_breast_genes['Gene/Compound'] == id2].iterrows():
+                gene2_data.append((row[1]['Dataset'],
+                                   row[1]['T-Statistic'],
+                                   row[1]['P-Value']))
+            # dataset_dict = {id1:
+            #                 [(dataset1, T-stat1, P-value1),
+            #                  (dataset2, T-stat2, P-value2)],
+            #                 id2:
+            #                  [(..., ...)],
+            #                  ...}
+            dataset_dict = {id1: gene1_data, id2: gene2_data}
+            loop_body(args)
 
-            # any(found) is True if at least one connection was found and
-            # therefore "not any" is only True when no connection was found
-            if not any(found):
-                unexplained.append((id1, id2, corr_dict['crispr'],
-                                    corr_dict['rnai']))
-                if args.verbosity and args.verbosity > 1:
-                    logger.info('No explainable path found between %s and '
-                                '%s.' % (id1, id2))
+    # loop random pairs from data set
+    elif args_dict.get('sampling_gene_file'):
+        logger.info('Gene pairs generated at random from %s' %
+                    args_dict['sampling_gene_file'])
+        with open(args_dict['sampling_gene_file'], 'r') as fi:
+            rnd_gene_set = [l.strip() for l in fi.readlines()]
+
+        npairs = args.max_pairs
+        dataset_dict = None
+        logger.info('Looking for connections between %i pairs' % (
+            npairs if npairs > 0 else args.max_pairs)
+        )
+        for _ in range(npairs):
+            id1, id2 = _rnd_pair_gen(rnd_gene_set)
+            assert not isinstance(id1, list)
+            loop_body(args)
+
     long_string = ''
     long_string += '-' * 63 + '\n'
     long_string += 'Summary for matching INDRA network to correlation pairs:'\
@@ -513,30 +838,34 @@ def main(args):
     long_string += '> Total correlations unexplained: %i' % len(unexplained)\
                    + '\n'
     long_string += '> Total correlations explained: %i' % any_expl + '\n'
+    long_string += '> Total correlations explained, ignoring shared ' \
+                   'regulator: %i' % any_expl_ign_sr + '\n'
     long_string += '> Total correlations explained, excluding shared ' \
-                   'regulator: %i' % any_expl_not_sr + '\n'
+                   'regulator (total - shared only): %i' % \
+                   (any_expl - shared_regulator_only_expl_count) + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
-                   'direct connection' % tuple_dir_expl_count + \
-                   '\n'
-    long_string += '>    %i direct connections found (count A-B and B-A ' \
-                   'separately, including complexes)' % both_dir_expl_count + \
-                   '\n'
-    long_string += '>    %i correlations have an explanation ' \
-                   'involving and intermediate node (A-X-B).' \
-                   % tuple_im_expl_count + '\n'
-    long_string += '>    %i A->X->B or B->X->A connections found (one count ' \
-                   'per direction)' % both_im_dir_expl_count + '\n'
+                   'common parent' % common_parent + '\n'
+    if args.explained_set:
+        long_string += '>    %i gene pairs were considered explained as part ' \
+                       'of the "explained set"' % part_of_explained + '\n'
+    long_string += '>    %i explanations involving direct connection or ' \
+                   'complex' % ab_expl_count + '\n'
+    long_string += '>    %i correlations have a directed explanation ' \
+                   'involving an intermediate node (A->X->B/A<-X<-B)' \
+                   % directed_im_expl_count + '\n'
+    long_string += '>    %i correlations have an explanation involving an ' \
+                   'intermediate node excluding shared regulators' % \
+                   any_axb_non_sr_expl_count + '\n'
     long_string += '>    %i correlations have an explanation involving a ' \
-                   'shared target (A->X<-B)' % tuple_im_st_expl_count + '\n'
-    long_string += '>    %i correlations have an explanation involving a ' \
-                   'shared regulator (A<-X->B)' % tuple_im_sr_expl_count + '\n'
+                   'shared regulator (A<-X->B)' % sr_expl_count + '\n'
     long_string += '>    %i correlations have shared regulator as only ' \
-                   'explanation' % tuple_sr_expl_only_count + '\n\n'
+                   'explanation' % shared_regulator_only_expl_count + '\n\n'
 
-    long_string += 'Statistics of input data:' + '\n\n'
-    if stats_dict.get('rnai'):
+    if stats_dict and (stats_dict.get('rnai') or stats_dict.get('crispr')):
+        long_string += 'Statistics of input data:' + '\n\n'
+    if stats_dict and stats_dict.get('rnai'):
         long_string += '  RNAi data ' + '\n'
-        long_string += '  ----------' + '\n'
+        long_string += ' -----------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
         long_string += '> SD: %f\n' % stats_dict['rnai']['sigma']
         long_string += '> lower bound: %.3f*SD = %.4f\n' % (
@@ -548,9 +877,9 @@ def main(args):
                 args_dict['rnai']['ul'],
                 args_dict['rnai']['ul'] * stats_dict['rnai']['sigma']
             )
-    if stats_dict.get('crispr'):
+    if stats_dict and stats_dict.get('crispr'):
         long_string += '  CRISPR data ' + '\n'
-        long_string += '  ------------' + '\n'
+        long_string += ' -------------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
         long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
         long_string += '> lower bound: %.3f*SD = %.4f\n' % (
@@ -574,7 +903,7 @@ def main(args):
         # 'explained_nodes' are used to produce first drop down
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
-        _dump_it_to_json(args.outbasename+'explainable_ids.json',
+        _dump_it_to_json(args.outbasename+'_explainable_ids.json',
                          explained_nodes)
 
         # Get undir graph and save each neighbor lookup as json for 2nd dropdown
@@ -582,18 +911,22 @@ def main(args):
         dnf.nx_undir_to_neighbor_lookup_json(
             expl_undir_graph=nx_expl_undir_graph, outbasename=args.outbasename)
 
-        _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
-                               nested_dict=explained_nested_dict,
-                               header=['gene1', 'gene2',
-                                       'crispr_corr', 'rnai_corr'])
+    # Easiest way to check if pairs are explained or not is to loop explained
+    # dict. Skip shared regulators.
+    _dump_nest_dict_to_csv(
+        fname=args.outbasename+'_explained_correlations.csv',
+        nested_dict=explained_nested_dict,
+        header=['gene1', 'gene2', 'meta_data'],
+        excl_sr=True)
 
     _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
                        pyobj=explained_nested_dict)
-    headers = ['subj', 'obj', 'crispr_corr', 'rnai_corr', 'type', 'X']
-    _dump_it_to_csv(fname=args.outbasename+'_expl_correlations.csv',
-                    pyobj=explained_pairs, header=headers)
-    _dump_it_to_csv(fname=args.outbasename+'_expl_neg_correlations.csv',
-                    pyobj=explained_neg_pairs, header=headers)
+    headers = ['subj', 'obj', 'type', 'X', 'meta_data']
+    _dump_it_to_csv(fname=args.outbasename+'_explanations_of_pairs.csv',
+                    pyobj=explanations_of_pairs, header=headers)
+    _dump_it_to_csv(fname=
+                    args.outbasename+'_explanations_of_shared_regulators.csv',
+                    pyobj=sr_explanations, header=headers)
     _dump_it_to_csv(fname=args.outbasename+'_unexpl_correlations.csv',
                     pyobj=unexplained, header=headers[:-2])
     with open(args.outbasename+'_script_summary.txt', 'w') as fo:
@@ -603,46 +936,75 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ap.ArgumentParser(
-        description='Script to analyze and try to explain gene knockout data '
-                    'from depmap.org. Minimum Working Example for running '
-                    'script:    python depmap_script.py -cf <crispr gene '
-                    'data csv file> -rf <rnai gene data csv file> '
-                    '-o <output file name> Other good options are:    '
-                    '-cc/-rc: precalculated correlation matrices in hdf '
-                    'format    -ndi: nested dictionary of INDRA statements of '
-                    'the format  `d[gene][gene] = [stmts/stmt hashes]`  OR    '
-                    '-lw: a csv file with  `gene,gene,stmt type,stmt hash`  as '
-                    'columns.')
+        description=
+        """Script to analyze and try to explain gene knockout data from 
+        depmap.org. Minimum Working Example for running script:
+        
+        
+        `python depmap_script.py -cf <crispr gene data csv file> -rf <rnai 
+        gene data csv file> -o <output file name>`
+        
+        Other important options are:
+        
+        -cc/-rc: precalculated correlation matrices in hdf format of 
+        crispr/rnai
+        
+        Either of
+        -ndi: nested dictionary of INDRA statements of the format `d[gene][
+        gene] = [stmts/stmt hashes]` OR 
+        -lw: a csv file with `gene,gene,stmt type,stmt hash` as columns.
+        """
+    )
 
-    either_of = parser.add_argument_group('One of the following two arguments')
-    required_args = parser.add_argument_group('Required Arguments')
+    either_of = parser.add_argument_group('One of the following arguments')
+    required_args = parser.add_argument_group('Required arguments')
     required_args.add_argument('-cf', '--crispr-data-file',
                                help='CRISPR gene dependency data in csv format')
     required_args.add_argument('-rf', '--rnai-data-file',
                                help='RNAi gene dependency data in csv format')
+    required_args.add_argument('-brca', '--brca-dependencies',
+                               help='`Dependencies enriched in breast` from '
+        'https://depmap.org/portal/context/breast')
+    required_args.add_argument('-sampl', '--sampling-gene-file',
+                               help='A file containing hgnc symbols that will '
+        'have pairs sampled from it at random. The pairs are then used to '
+        'generate statistics over the explanation ratio for random pairs.')
     either_of.add_argument('-b', '--belief-score-dict', help='Load a dict with '
         'stmt hash: belief score to be incorporated in the explainable '
         'network dict.')
-    either_of.add_argument('-ndi', '--nested-dict-in', help='Load '
-        'precalculated nested dict of statements of the form  d[subj][obj] = '
+    either_of.add_argument('-ndi', '--nested-dict-in', help='Load a nested '
+        'dict of statements of the form  d[subj][obj] = '
         '[(stmt/stmt hash, belief score)].')
     parser.add_argument('-cc', '--crispr-corr-file',
                         help='Precalculated CRISPR correlations in h5 format')
     parser.add_argument('-rc', '--rnai-corr-file',
                         help='Precalculated RNAi correlations in h5 format')
-    parser.add_argument('-g', '--geneset-file',
-                        help='Filter to interactions with gene set data file.')
+    parser.add_argument('--explained-set', type=str, nargs='+',
+                        help='--explained-set <filepath> <column name> | Load '
+        'a gene set file. The genes in this set will be considered '
+        '"explained" when looking for explanations for a pair. If both '
+        'genes in the pair are members of the "uniunteresting set", the pair '
+        'will be considered explained.')
+    parser.add_argument('-gsf', '--gene-set-filter', type=str, help='Load a '
+        'file with a gene set to filter to interactions with the gene set.')
+    parser.add_argument('-clf', '--cell-line-filter', type=str, nargs='+',
+        help='If one argument is provided, the script assumes it is a text '
+        'file with cell line identifiers in the DepMap ID format. If two '
+        'arguments are provided, the script assumes the first argument is a '
+        'text file with cell line identifiers of non DepMap ID format and the '
+        'second argument is a dictionary with mappings from the provided cell '
+        'line ID format to DepMap ID.')
     parser.add_argument('--margin', type=float, default=1.0, help='How large '
         'diff in terms of standard deviations to accept between data sets '
         'when filtering for correlations during merge. Default is 1 SD.')
-    parser.add_argument('--filter-type', default='sigma-diff', type=str,
+    parser.add_argument('--filter-type', default='None', type=str,
                         help='Type of filtering. Options are: `sigma-diff` - '
         'The difference in the distances from the mean measured in number of '
         'standard deviations must be smaller than given by --margin. '
         '`corr-corr-corr` - The product of the scaled correlations* must be '
         'greater than given by --margin. `None` - No filter is applied when '
         'merging the data sets. The resulting correlation dictionary will '
-        'simply be the intersection of the provided data sets. *Scaled '
+        'simply be the intersection of the provided data sets. | *Scaled '
         'Correlation = (corr-mean)/SD')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp.')

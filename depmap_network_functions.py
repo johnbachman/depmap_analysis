@@ -1,15 +1,19 @@
 import os
+import re
 import csv
+import sys
 import json
+import math
 import logging
-import numpy as np
-import pandas as pd
-import networkx as nx
 import itertools as itt
 from math import ceil, log10
 from collections import Mapping
-from collections import defaultdict
 from collections import OrderedDict
+from collections import defaultdict
+import numpy as np
+import pandas as pd
+import networkx as nx
+from scipy.special import gamma, hyp2f1
 from sqlalchemy.exc import StatementError
 from scipy import interpolate as interpol
 from scipy.optimize import curve_fit as opt_curve_fit
@@ -19,11 +23,11 @@ from indra_db import client as dbc
 from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.preassembler import hierarchy_manager as hm
-from indra.sources.indra_db_rest import client_api as capi
-from indra.sources.indra_db_rest.client_api import IndraDBRestError
+from indra.sources.indra_db_rest import api as db_api
+from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 
 db_prim = dbu.get_primary_db()
-dnf_logger = logging.getLogger('DepMapFunctions')
+dnf_logger = logging.getLogger('DepMap Functions')
 
 
 def rawincount(filename):
@@ -105,24 +109,27 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
-    assert all_pairs != 0
+    if all_pairs == 0:
+        dnf_logger.warning('Correlation matrix is empty')
+        sys.exit('Script aborted due to empty correlation matrix')
 
-    if max_pairs and max_pairs >= all_pairs:
-        dnf_logger.info('The requested number of correlation pairs is larger '
-                        'than the available number of pairs. Resetting '
-                        '`max_pairs` to %i' % all_pairs)
-        corr_df_sample = corrrelation_df_matrix
+    if max_pairs:
+        if max_pairs >= all_pairs:
+            dnf_logger.info('The requested number of correlation pairs is larger '
+                            'than the available number of pairs. Resetting '
+                            '`max_pairs` to %i' % all_pairs)
+            corr_df_sample = corrrelation_df_matrix
 
-    elif max_pairs and max_pairs < all_pairs:
-        n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
-        corr_df_sample = corrrelation_df_matrix.sample(
-            n, axis=0).sample(n, axis=1)
-
-        # Increase sample until number of extractable pairs exceed max_pairs
-        while corr_df_sample.notna().sum().sum() <= max_pairs:
-            n += 1
+        elif max_pairs < all_pairs:
+            n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
             corr_df_sample = corrrelation_df_matrix.sample(
                 n, axis=0).sample(n, axis=1)
+
+            # Increase sample until number of extractable pairs exceed max_pairs
+            while corr_df_sample.notna().sum().sum() <= max_pairs:
+                n += 1
+                corr_df_sample = corrrelation_df_matrix.sample(
+                    n, axis=0).sample(n, axis=1)
 
         dnf_logger.info('Created a random sample of the correlation matrix '
                         'with %i extractable correlation pairs.'
@@ -570,10 +577,19 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
 
 def _read_gene_set_file(gf, data):
     gset = []
+    try:
+        # Works if string is returned: we assume this is when we only have
+        # HGNC symbols
+        data.columns[0].split()
+        dset = set(data.columns)
+    except AttributeError:
+        # multi index
+        dset = set([t[0] for t in data.columns])
+
     with open(gf, 'rt') as f:
         for g in f.readlines():
             gn = g.upper().strip()
-            if gn in data.index:
+            if gn in dset:
                 gset.append(gn)
     return gset
 
@@ -614,14 +630,67 @@ def _manually_add_to_histo(hist, start, binsize, value):
     hist[_map2index(start, binsize, value)] += 1
 
 
+def histogram_from_tuple_generator(tuple_gen, binsize, first,
+                                   number_of_bins=None):
+    """Returns a histogram for large data sets represented as tuple generators
+
+    tuple_gen : generator object
+        tuple_generator object that generates A, B, value tuples
+    number_of_bins: int
+        the number fo bins to use
+    binsize : float
+        the size of bins
+    first : float
+        The left most (min(x)) edge of the bin edges
+
+    Returns
+    -------
+    home_brewed_histo: np.array
+        A histrogram of the data in fpath according to number of bins,
+        binsize and first.
+    """
+    if number_of_bins is None:
+        number_of_bins = int(2*abs(first) / binsize)
+    home_brewed_histo = np.zeros(number_of_bins, dtype=int)
+    for g1, g1, flt in tuple_gen:
+        home_brewed_histo[_map2index(start=first, binsize=binsize,
+                                     value=flt)] += 1
+    return home_brewed_histo
+
+
 def _my_gauss(x, a, x0, sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
+
+
+def _pdf_bivariate_normal(r, rho, n):
+    """PDF for the sample correlation coefficient r of a normal bivariate
+
+    See:
+    ( 'https://en.wikipedia.org/wiki/Pearson_correlation_coefficient'
+      '#Using_the_exact_distribution' )
+    and,
+    ( 'https://stats.stackexchange.com/questions/191937/what-is-the'
+      '-distribution-of-sample-correlation-coefficients-between-two-uncorrel' )
+
+    """
+    # RHO is mean of PDF?
+    # n is number of cell lines?
+    # gamma = scipy/reference/generated/scipy.special.gamma.html
+    # hyp2f1 = scipy/reference/generated/scipy.special.hyp2f1.html
+    gamma_n_1 = gamma(n-1)  # Gamma(n-1)
+    gamma_n_1_2 = gamma(n-0.5)  # Gamma(n-1.2)
+    gauss_hyperg = hyp2f1(0.5, 0.5, (2*n-1)/2, (rho*r+1)/1)
+
+    denom = (n-2)*gamma_n_1*(1-rho**2)**((n-1)/2)*(1-r)**((n-4)/2)  # upper
+    numer = np.sqrt(2*np.pi)*gamma_n_1_2*(1-rho*r)**(n-3/2)  # lower
+
+    return gauss_hyperg*denom/numer
 
 
 def get_stats(tuple_generator):
     """Get mean and standard deviation from large file with A,B-value pairs.
 
-    tuple_generator: tuple_generator
+    tuple_generator: generator object
         tuple_generator object that generates A, B, value tuples
 
     Returns
@@ -740,8 +809,8 @@ def merge_correlation_data(correlation_dicts_list, settings):
     """Merge multiple correlation data sets to one single iterable of
     (gene, gene, correlation_dict)
 
-    correlation_dicts_list: list[(gene_set_name, corr_dict, sigma_dict)]
-        List of name-corr_dict-distr_stats_dict tuples
+    correlation_dicts_list: list[(gene_set_name, dataset_dict, sigma_dict)]
+        List of name-dataset_dict-distr_stats_dict tuples
     settings:
 
     Returns
@@ -851,7 +920,8 @@ def merge_correlation_dicts_recursive(correlation_dicts_list):
     pass
 
 
-def get_combined_correlations(dict_of_data_sets, filter_settings):
+def get_combined_correlations(dict_of_data_sets, filter_settings,
+                              output_settings):
     """Return a combined dict of correlations given multiple gene data sets
 
     The input data [needs to be a collection of the gene expression data set.
@@ -864,7 +934,6 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         dataset_dict = {data: str (depmap filepath),
                         corr: str (depmap corr file),
                         outbasename: str (base name for all output files),
-                        filter_gene_set: list[genes to filter on],
                         ll: float (lower limit for correlation),
                         ul: float (upper limit for correlation),
                         max_pairs: int (max number of sampled pairs from corr)
@@ -872,15 +941,29 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                         sigma: float (st-dev of correlation distr),
                         filter_margin: float (st-dev diff for filtering distr),
                         dump_unique_pairs: Bool (Output unique corr pairs),
-                        strict: Bool (A,B both have to be in `filter_gene_set`)
                         }
 
     The filter settings should contain the following:
 
-        filter_settings = {'margin':      diff in terms of standard deviations
-                                          between correlations,
-                           'filter_type': Type of filtering
-                                          (Default: 'sigma-diff')}
+        filter_settings = {strict: Bool - If True, both A and B both have to
+                            be in `gene_set_filter`.
+                           gene_set_filter: list[genes to filter on]
+                           cell_line_filter: list - cell line names in DepMap
+                            ID format
+                           margin: float - diff in terms of standard
+                            deviations between correlations
+                           filter_type: str - Type of filtering (Default: None)
+                          }
+
+    The output settings should contain the following:
+
+        output_settings = {dump_unique_pairs: Bool - If True, dump a list of
+                                                     all the unique pairs of
+                                                     genes that have been
+                                                     looped over.
+                           outbasename: str - The output base name to be used
+                                              in any file dump.
+                           }
 
     The returned master correlation dict has the following format:
 
@@ -888,7 +971,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
                          gene_set2: correlation,
                          ...}
 
-    dict_of_data_sets: dict()
+    dict_of_data_sets: dict
         Dictionary containing the filepaths and settings for the data set
     filter_settings: dict
         Dictionary with filter settings
@@ -906,43 +989,71 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     gene_set_intersection = set()
     stats_dict = dict()
 
+    outbasename = output_settings['outbasename']
+
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
         dnf_logger.info('-' * 37)
         dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
         dnf_logger.info('-' * 37)
-
-        outbasename = dataset_dict['outbasename']
-
         dnf_logger.info('Loading gene data...')
-        gene_data = pd.read_csv(dataset_dict['data'],
-                                index_col=0, header=0)
+        gene_data = pd.read_csv(dataset_dict['data'], index_col=0, header=0)
         rows, cols = gene_data.shape
         if rows > cols:
             dnf_logger.info('Transposing data...')
             gene_data = gene_data.T
 
-        if dataset_dict['corr']:
-            dnf_logger.info('Reading pre-calculated correlation file.')
-            full_corr_matrix = pd.read_hdf(dataset_dict['corr'], 'correlations')
-        else:
-            dnf_logger.info('No correlation file provided, recalculating...')
-            full_corr_matrix = gene_data.corr()
-            full_corr_matrix.to_hdf(
-                outbasename + 'all_correlations.h5',
-                'correlations'
+        # If filtering on cell lines, check if cell line IDs need to be
+        # translated to DepMap ID (happens for RNAi)
+        if filter_settings.get('cell_line_filter') and not \
+                re.match('ACH-[0-9][0-9][0-9][0-9][0-9][0-9]',
+                         gene_data.index.values[0]):
+            assert filter_settings['cell_line_translation_dict'] is not None
+            dnf_logger.info('Translating cell line names to DepMap ID')
+            gene_data.rename(
+                filter_settings['cell_line_translation_dict']['CCLE_Name'],
+                inplace=True
             )
+
+        if filter_settings.get('cell_line_filter'):
+            dnf_logger.info('Filtering to provided cell lines')
+            gene_data = gene_data[gene_data.index.isin(
+                filter_settings['cell_line_filter'])]
+            assert len(gene_data) > 0
+            dnf_logger.info('Calculating Pearson correlation matrix from '
+                            'cell line filtered data')
+            full_corr_matrix = gene_data.corr()
+            full_corr_matrix.to_hdf(outbasename +
+                '_%s_cell_line_filtered_correlations.h5'
+                % gene_set_name, 'correlations')
+        else:
+            if dataset_dict.get('corr'):
+                dnf_logger.info('Reading pre-calculated correlation file.')
+                full_corr_matrix = pd.read_hdf(
+                    dataset_dict['corr'], 'correlations'
+                )
+            else:
+                dnf_logger.info('No correlation file provided calculating '
+                                'new Pearson correlation matrix...'
+                                )
+                full_corr_matrix = gene_data.corr()
+                full_corr_matrix.to_hdf(outbasename +
+                    '_%s_all_correlations.h5' % gene_set_name, 'correlations')
 
         dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
         full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
 
-        if dataset_dict['sigma']:
+        if full_corr_matrix.notna().sum().sum() == 0:
+            dnf_logger.warning('Correlation matrix is empty')
+            sys.exit('Script aborted due to empty correlation matrix')
+
+        if dataset_dict.get('sigma'):
             dnf_logger.info('Using provided sigma of %f for set %s' %
                             (dataset_dict['sigma'], gene_set_name))
             sigma_dict = {'mean': dataset_dict['mean'],
                           'sigma': dataset_dict['sigma']}
         else:
             dnf_logger.info('Calculating mean and standard deviation for set %s'
-                            'from %s' % (gene_set_name, dataset_dict['data']))
+                            ' from %s' % (gene_set_name, dataset_dict['data']))
             stats = get_stats(corr_matrix_to_generator(full_corr_matrix))
             sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
 
@@ -950,10 +1061,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
         filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids,\
             sym2id_dict, id2sym_dict = get_correlations(
                 depmap_data=gene_data,
-                geneset_file=dataset_dict['filter_gene_set'],  # [] for no set
+                filter_gene_set=filter_settings['gene_set_filter'],
                 pd_corr_matrix=full_corr_matrix,
-                strict=dataset_dict['strict'],
-                dump_unique_pairs=dataset_dict['dump_unique_pairs'],
+                strict=filter_settings['strict'],
+                dump_unique_pairs=output_settings['dump_unique_pairs'],
                 outbasename=outbasename,
                 sigma_dict=sigma_dict,
                 lower_limit=dataset_dict['ll'],
@@ -961,6 +1072,9 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
             )
         dnf_logger.info('Created tuple generator with %i unique genes from '
                         'set "%s"' % (len(set_hgnc_syms), gene_set_name))
+        if filtered_corr_matrix.notna().sum().sum() == 0:
+            dnf_logger.warning('Correlation matrix is empty')
+            sys.exit('Script aborted due to empty correlation matrix')
 
         dnf_logger.info('Dumping json HGNC symbol/id dictionaries...')
         _dump_it_to_json(outbasename+'_%s_sym2id_dict.json' % gene_set_name,
@@ -1000,7 +1114,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings):
     return master_corr_dict, gene_set_intersection, stats_dict
 
 
-def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
+def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
                      strict, dump_unique_pairs, outbasename, sigma_dict,
                      lower_limit=1.0, upper_limit=None):
     # todo make function take data dict as input or use args* + kwargs**
@@ -1009,12 +1123,12 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
 
     depmap_data: str
         Filepath to depmap data file to process
-    geneset_file: str
+    filter_gene_set: str
         Filepath to a geneset to filter data to.
     pd_corr_matrix: str
         Filepath to pre-calculated correlations of depmap_data.
     strict: Bool
-        If True, all genes in correlations have to exist in geneset_file
+        If True, both genes in the gene pair have to exist in filter_gene_set
     outbasename: str
         Basename to use for output files
     unique_pair_corr_file: str
@@ -1046,10 +1160,14 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
 
     filtered_correlation_matrix, sym2id_dict, id2sym_dict = _get_corr_df(
         depmap_data=depmap_data, corr_matrix=pd_corr_matrix,
-        geneset_file=geneset_file, strict=strict,
+        filter_gene_set=filter_gene_set, strict=strict,
         lower_limit=lower_limit, upper_limit=upper_limit,
         sigma_dict=sigma_dict
     )
+
+    if filtered_correlation_matrix.notna().sum().sum() == 0:
+        dnf_logger.warning('Correlation matrix is empty')
+        sys.exit('Script aborted due to empty correlation matrix')
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
@@ -1077,7 +1195,7 @@ def get_correlations(depmap_data, geneset_file, pd_corr_matrix,
         sym2id_dict, id2sym_dict
 
 
-def _get_corr_df(depmap_data, corr_matrix, geneset_file,
+def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
                  strict, lower_limit, upper_limit, sigma_dict):
     # todo make function take data dict as input or use args* + kwargs**
     multi_index_data = pd.MultiIndex.from_tuples(
@@ -1092,6 +1210,7 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
     if len(corr_matrix.index.values[0].split()) == 2:
         # split 'HGNCsymb (HGNCid)' to 'HGNCsymb' '(HGNCid)' multiindexing:
         # pandas.pydata.org/pandas-docs/stable/advanced.html
+        dnf_logger.info('Performing multi indexing of correlation matrix')
 
         # Get new indices
         hgnc_sym2id, hgnc_id2sym = {}, {}
@@ -1118,41 +1237,60 @@ def _get_corr_df(depmap_data, corr_matrix, geneset_file,
         dnf_logger.warning('Only one identifier found in index column. '
                            'Assuming it is HGNC symbol.')
     else:
-        dnf_logger.warning('Uknown index column. Your output dictionaries '
-                           'will likely be affected.')
+        dnf_logger.warning('Uknown index column. Output dictionaries will '
+                           'likely be affected.')
 
-    if geneset_file:
+    if filter_gene_set:
         # Read gene set to look at
         gene_filter_list = _read_gene_set_file(
-            gf=geneset_file, data=depmap_data
+            gf=filter_gene_set, data=depmap_data
         )
+        if len(gene_filter_list) == 0:
+            dnf_logger.warning('Gene filter empty, continuing without filter')
+            gene_filter_list = []
     else:
         gene_filter_list = []  # Evaluates to False
 
-    # 1. no loaded gene list OR 2. loaded gene list but not strict
-    #    -> filter correlation matrix to
-    corr_matrix_df = None
-    if not geneset_file or (geneset_file and not strict):
-        # No gene set file, leave 'corr_matrix' intact
-        if not geneset_file:
-            corr_matrix_df = corr_matrix
+    row, col = corr_matrix.shape
+    assert row > 0
 
-        # Gene set file present: filter
-        elif geneset_file and not strict:
+    corr_matrix_df = None
+    # 1. No gene set file, leave 'corr_matrix' intact
+    if not filter_gene_set:
+        dnf_logger.info('No gene filtering')
+        corr_matrix_df = corr_matrix
+
+    # 2. loaded gene list but not strict: filter correlation matrix to one of
+    # the two genes in the pair being the
+    elif filter_gene_set and not strict:
+        try:
+            # Try to split first item: raises AttributeError if tuple
+            corr_matrix.index.values[0].split()
             corr_matrix_df = corr_matrix[gene_filter_list]
+            dnf_logger.info('Non-strict gene filtering')
+        except AttributeError:
+            dnf_logger.info('Non-strict multi index gene filtering')
+            corr_matrix_df = corr_matrix[np.in1d(
+                corr_matrix.index.get_level_values(0),
+                gene_filter_list)]
 
     # 3. Strict: both genes in interaction must be from loaded set;
     #    Filter data, then calculate correlations and then unstack
-    elif geneset_file and strict:
-        corr_matrix_df[np.in1d(corr_matrix_df.index.get_level_values(0),
-                               gene_filter_list)].corr()
+    elif filter_gene_set and strict:
+        dnf_logger.info('Strict gene filtering')
+        corr_matrix_df = corr_matrix_df[np.in1d(
+            corr_matrix_df.index.get_level_values(0),
+            gene_filter_list)]
 
-    assert corr_matrix_df is not None
+    if corr_matrix_df is None or corr_matrix_df.notna().sum().sum() == 0:
+        dnf_logger.warning('Correlation matrix is empty')
+        sys.exit('Script aborted due to empty correlation matrix')
 
     # No filtering
     if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
             sigma_dict['mean']) / sigma_dict['sigma']):
-        dnf_logger.warning('No filtering is performed. Be aware of large RAM '
+        dnf_logger.warning('No correlation filtering is performed. Be aware '
+                           'of large RAM '
                           'usage.')
         return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
     # Filter correlations
@@ -1218,17 +1356,21 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
     standard deviation
 
     corr1: float
-        Correlation from first data set
+        Correlation of first dataset
+    mu1: float
+        Mean of the correlations of the first dataset
     sigma1: float
-        Standard deviation of first dataset
+        Standard deviation of the correlations of the first dataset
     corr2: float
         Correlation from second data set
+    mu2: float
+        Mean of the correlations of the second dataset
     sigma2: float
-        Standard deviation of second dataset
+        Standard deviation of the correlations of the second dataset
     margin: float
         How far off the correlations can be to pass as "similar"
     filter_type:
-        The filter type to use ("sigma-diff" is currently the only one)
+        The filter type to use
 
     Returns
     -------
@@ -1237,15 +1379,17 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         difference in their distance from the mean standard deviation.
     """
     if filter_type == 'sigma-diff':
-        return _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+        return _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'corr-corr-corr':
         return _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
-    # No filter; Add more filter types above
+    elif filter_type == 'sign':
+        return _same_sign(corr1, corr2)
+    # No filter/filter not recognized:
     else:
         return True
 
 
-def _sigma_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+def _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     """Return True if the difference in the scaled distances from the mean
     measured in number of standard deviations is smaller than the given margin.
     """
@@ -1257,6 +1401,41 @@ def _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     the given margin.
     """
     return ((corr1 - mu1) / sigma1) * ((corr2 - mu2) / sigma2) > margin
+
+
+def _same_sign(corr1, corr2):
+    """Return True if corr1 and corr2 have the same sign
+
+    Special cases:
+        zeros:
+            1. if corr1 == 0 AND corr2 == 0, return True
+            2. if corr1 == 0 XOR corr2 == 0, return False
+
+    """
+    # Catch non-numeric correlations
+    try:
+        if isinstance(corr1, str):
+            corr1 = float(corr1)
+        if isinstance(corr2, str):
+            corr2 = float(corr2)
+    except ValueError:
+        dnf_logger.warning('Correlation could not be interpreted as numeric. '
+                           'Skipping...')
+        return False
+
+    # Catch nan and inf
+    if not math.isfinite(corr1) or not math.isfinite(corr2):
+        dnf_logger.warning('Correlation is undefined. Skipping...')
+        return False
+
+    # Both zero
+    if corr1 == 0 and corr2 == 0:
+        return True
+    # XOR: if (corr1==0 or corr2==0) and not (corr1==0 and corr2==0)
+    elif (corr1 == 0) ^ (corr2 == 0):
+        return False
+
+    return math.copysign(1, corr1) == math.copysign(1, corr2)
 
 
 def get_directed(stmts, undirected_types=None):
@@ -1339,12 +1518,12 @@ def get_directed_actual_statements(stmts, undirected_types):
 
     stmts: list[:py:class:`indra.statements.Statement`]
         List of INDRA statements
-    undirected: [statement types]
+    undirected: list[statement types]
         A list of name strings considered to be undirected.
 
     Returns
     -------
-    dir_stmts, undir_stmts : ([stmts], [stmts])
+    dir_stmts, undir_stmts : [stmts], [stmts]
         Two lists of statements, one containiing all undirected statements
         and one contaning all directed statements.
     """
@@ -1488,7 +1667,7 @@ def nested_dict_of_stmts(stmts, belief_dict=None):
                 except KeyError:
                     nested_stmt_dicts[subj][obj] = [(st, bs)]
 
-            # Check common parent (same familiy or complex)
+            # Check common parent (same family or complex)
             for agent, other_agent in itt.permutations(agent_list, r=2):
                 if has_common_parent(id1=agent, id2=other_agent):
                     bs = None
@@ -1792,7 +1971,7 @@ def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
 
 
 def dbc_load_statements(hgnc_syms):
-    """Load statements where hgnc id is subject or object from indra.db.client
+    """Get statements where hgnc symbol is subject/object from indra.db.client
 
     Parameters
     ----------
@@ -1958,13 +2137,19 @@ def direct_relation_from_api(id1, id2, on_limit='sample'):
         A list of INDRA Statement instances.
     """
     try:
-        stmts = capi.get_statements(subject=id1, object=id2, on_limit=on_limit)
-        stmts + capi.get_statements(subject=id2, object=id1, on_limit=on_limit)
-    except IndraDBRestError:
-        stmts = capi.get_statements(subject=id1 + '@TEXT', object=id2 + '@TEXT',
-                                    on_limit=on_limit)
-        stmts + capi.get_statements(subject=id2 + '@TEXT', object=id1 + '@TEXT',
-                                    on_limit=on_limit)
+        stmts = db_api.get_statements(subject=id1,
+                                      object=id2,
+                                      on_limit=on_limit)
+        stmts + db_api.get_statements(subject=id2,
+                                      object=id1,
+                                      on_limit=on_limit)
+    except IndraDBRestAPIError:
+        stmts = db_api.get_statements(subject=id1 + '@TEXT',
+                                      object=id2 + '@TEXT',
+                                      on_limit=on_limit)
+        stmts + db_api.get_statements(subject=id2 + '@TEXT',
+                                      object=id1 + '@TEXT',
+                                      on_limit=on_limit)
     return stmts
 
 
@@ -2041,7 +2226,7 @@ def has_direct_relation(id1, id2, long_stmts=set()):
     Returns
     -------
     bool
-        True if the HGNC ids has a direct relation found in the
+        True if the HGNC symbols has a direct relation found in the
         indra.sources.indra_db_rest.client_api databases.
     """
     return bool(direct_relation(id1, id2, long_stmts=long_stmts))
@@ -2054,14 +2239,14 @@ def are_connected(id1, id2, long_stmts=set()):
     Parameters
     ----------
     id1/i2 : str
-        HGNC id
+        HGNC symbol
 
     Returns
     -------
     bool
-        True if the two HGNC ids either have a common parent or if they have a
-        direct relation found in the indra.sources.indra_db_rest.client_api
-        databases.
+        True if the two HGNC symbols either have a common parent or if they
+        have a direct relation found in the
+        indra.sources.indra_db_rest.client_api databases.
     """
     return has_common_parent(ns1='HGCN', id1=id1, ns2='HGCN', id2=id2) or \
         has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
@@ -2073,7 +2258,7 @@ def connection_types(id1, id2, long_stmts=set()):
     Parameters
     ----------
     id1/i2 : str
-        HGNC id
+        HGNC symbol
 
     Returns
     -------
