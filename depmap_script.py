@@ -42,13 +42,6 @@ logger = logging.getLogger('DepMap Script')
 # 3. geneset loaded, strict -> each correlation can only contain genes from
 #    the loaded data set
 
-global any_expl, any_expl_not_sr, common_parent, tuple_dir_expl_count, \
-    both_dir_expl_count, tuple_im_expl_count, both_im_dir_expl_count, \
-    tuple_im_st_expl_count, tuple_im_sr_expl_count, \
-    tuple_sr_expl_only_count, explained_pairs, unexplained, \
-    explained_nested_dict, id1, id2, nested_dict_statements, dataset_dict, \
-    dir_node_set, nx_dir_graph, uninteresting_set, uninteresting
-
 
 def _dump_it_to_pickle(fname, pyobj):
     with open(fname, 'wb') as po:
@@ -69,16 +62,35 @@ def _dump_it_to_csv(fname, pyobj, separator=',', header=None):
         wrtr.writerows(pyobj)
 
 
-def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None):
+def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
+                           excl_sr=True):
     if header:
-        with open(fname, 'w') as fo:
+        with open(fname, 'w') as fo, \
+                open(fname.split('.')[0]+'_sr_only.csv', 'w') as fosro:
             fo.write(separator.join(header)+'\n')
-    with open(fname, 'a') as fo:
+            fosro.write(separator.join(header)+'\n')
+    with open(fname, 'a') as fo, \
+            open(fname.split('.')[0]+'_sr_only.csv', 'a') as fosro:
         for ok in nested_dict:
             for ik in nested_dict[ok]:
+                if excl_sr and nested_dict[ok][ik]['sr_only']:
+                    logger.info('Skipping sr only: %s and %s' % (ik, ok))
+                    fosro.write('%s,%s,%s,%s\n' %
+                        (ok, ik,
+                         str(cd['crispr']) if cd and json.dumps(cd.get(
+                             'crispr'))
+                         else '0',
+                         str(cd['rnai']) if cd and json.dumps(cd.get('rnai'))
+                         else '0'))
+                    continue
                 cd = nested_dict[ok][ik]['meta_data']
                 fo.write('%s,%s,%s,%s\n' %
-                         (ok, ik, str(cd['crispr']), str(cd['rnai'])))
+                         (ok, ik, 
+                          str(cd['crispr']) if cd and json.dumps(cd.get(
+                              'crispr'))
+                          else '0',
+                          str(cd['rnai']) if cd and json.dumps(cd.get('rnai'))
+                          else '0'))
 
 
 def _pickle_open(file_path_to_pickle):
@@ -102,7 +114,7 @@ def _rnd_pair_gen(rgs):
     return rnd_choice(rgs), rnd_choice(rgs)
 
 
-def _parse_cell_filter(cl_file, id2depmapid_pickle=None, namespace='CCLE_Name'):
+def _parse_cell_filter(cl_file, id2depmapid_pkl=None, namespace='CCLE_Name'):
     logger.info('Parsing cell lines...')
     cell_lines = []
     with open(cl_file, 'r') as fi:
@@ -112,8 +124,8 @@ def _parse_cell_filter(cl_file, id2depmapid_pickle=None, namespace='CCLE_Name'):
         else:
             col_separator = None
     with open(cl_file, 'r') as fi:
-        if id2depmapid_pickle:
-            id2depmapid_dict = _pickle_open(id2depmapid_pickle)
+        if id2depmapid_pkl:
+            id2depmapid_dict = _pickle_open(id2depmapid_pkl)
             assert namespace in id2depmapid_dict.keys()
             for n, cl in enumerate(fi.readlines()):
                 cl_name = cl.split(sep=col_separator)[0]
