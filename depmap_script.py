@@ -860,10 +860,11 @@ def main(args):
     long_string += '>    %i correlations have shared regulator as only ' \
                    'explanation' % shared_regulator_only_expl_count + '\n\n'
 
-    long_string += 'Statistics of input data:' + '\n\n'
+    if stats_dict and (stats_dict.get('rnai') or stats_dict.get('crispr')):
+        long_string += 'Statistics of input data:' + '\n\n'
     if stats_dict and stats_dict.get('rnai'):
         long_string += '  RNAi data ' + '\n'
-        long_string += '  ----------' + '\n'
+        long_string += ' -----------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['rnai']['mean']
         long_string += '> SD: %f\n' % stats_dict['rnai']['sigma']
         long_string += '> lower bound: %.3f*SD = %.4f\n' % (
@@ -877,7 +878,7 @@ def main(args):
             )
     if stats_dict and stats_dict.get('crispr'):
         long_string += '  CRISPR data ' + '\n'
-        long_string += '  ------------' + '\n'
+        long_string += ' -------------' + '\n'
         long_string += '> mean: %f\n' % stats_dict['crispr']['mean']
         long_string += '> SD: %f\n' % stats_dict['crispr']['sigma']
         long_string += '> lower bound: %.3f*SD = %.4f\n' % (
@@ -901,7 +902,7 @@ def main(args):
         # 'explained_nodes' are used to produce first drop down
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
-        _dump_it_to_json(args.outbasename+'explainable_ids.json',
+        _dump_it_to_json(args.outbasename+'_explainable_ids.json',
                          explained_nodes)
 
         # Get undir graph and save each neighbor lookup as json for 2nd dropdown
@@ -909,15 +910,22 @@ def main(args):
         dnf.nx_undir_to_neighbor_lookup_json(
             expl_undir_graph=nx_expl_undir_graph, outbasename=args.outbasename)
 
-        _dump_nest_dict_to_csv(fname=args.outbasename+'_explained_pairs.csv',
-                               nested_dict=explained_nested_dict,
-                               header=['gene1', 'gene2', 'meta_data'])
+    # Easiest way to check if pairs are explained or not is to loop explained
+    # dict. Skip shared regulators.
+    _dump_nest_dict_to_csv(
+        fname=args.outbasename+'_explained_correlations.csv',
+        nested_dict=explained_nested_dict,
+        header=['gene1', 'gene2', 'meta_data'],
+        excl_sr=True)
 
     _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
                        pyobj=explained_nested_dict)
     headers = ['subj', 'obj', 'type', 'X', 'meta_data']
-    _dump_it_to_csv(fname=args.outbasename+'_expl_correlations.csv',
-                    pyobj=explained_pairs, header=headers)
+    _dump_it_to_csv(fname=args.outbasename+'_explanations_of_pairs.csv',
+                    pyobj=explanations_of_pairs, header=headers)
+    _dump_it_to_csv(fname=
+                    args.outbasename+'_explanations_of_shared_regulators.csv',
+                    pyobj=sr_explanations, header=headers)
     _dump_it_to_csv(fname=args.outbasename+'_unexpl_correlations.csv',
                     pyobj=unexplained, header=headers[:-2])
     with open(args.outbasename+'_script_summary.txt', 'w') as fo:
