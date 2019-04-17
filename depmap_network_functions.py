@@ -3,6 +3,7 @@ import re
 import csv
 import sys
 import json
+import math
 import logging
 import itertools as itt
 from math import ceil, log10
@@ -1394,6 +1395,41 @@ def _corr_corr_corr(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     the given margin.
     """
     return ((corr1 - mu1) / sigma1) * ((corr2 - mu2) / sigma2) > margin
+
+
+def _same_sign(corr1, corr2):
+    """Return True if corr1 and corr2 have the same sign
+
+    Special cases:
+        zeros:
+            1. if corr1 == 0 AND corr2 == 0, return True
+            2. if corr1 == 0 XOR corr2 == 0, return False
+
+    """
+    # Catch non-numeric correlations
+    try:
+        if isinstance(corr1, str):
+            corr1 = float(corr1)
+        if isinstance(corr2, str):
+            corr2 = float(corr2)
+    except ValueError:
+        dnf_logger.warning('Correlation could not be interpreted as numeric. '
+                           'Skipping...')
+        return False
+
+    # Catch nan and inf
+    if not math.isfinite(corr1) or not math.isfinite(corr2):
+        dnf_logger.warning('Correlation is undefined. Skipping...')
+        return False
+
+    # Both zero
+    if corr1 == 0 and corr2 == 0:
+        return True
+    # XOR: if (corr1==0 or corr2==0) and not (corr1==0 and corr2==0)
+    elif (corr1 == 0) ^ (corr2 == 0):
+        return False
+
+    return math.copysign(1, corr1) == math.copysign(1, corr2)
 
 
 def get_directed(stmts, undirected_types=None):
