@@ -522,8 +522,7 @@ def main(args):
                        == 2 else None,
                        'margin': args.margin,
                        'filter_type': (args.filter_type
-                                       if args.filter_type in ['sigma-diff',
-                                                               'corr-corr-corr']
+                                       if args.filter_type
                                        else None)
                        }
 
@@ -537,7 +536,9 @@ def main(args):
                 args.rnai_data_file:
             logger.info('No merge filter set. Output will be intersection of '
                         'the two data sets.')
-
+        elif filter_settings.get('filter_type'):
+            logger.info('Using filter type "%s"' %
+                        filter_settings['filter_type'])
         master_corr_dict, all_hgnc_ids, stats_dict = \
             dnf.get_combined_correlations(dict_of_data_sets=args_dict,
                                           filter_settings=filter_settings,
