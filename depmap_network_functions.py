@@ -576,6 +576,30 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     return corr_weight_graph
 
 
+def nx_directed_graph_from_sif_dataframe(fname):
+    """Read a pickled dataframe of a db dump"""
+    sif_df = _pickle_open(fname)
+    dnf_logger.info('Loaded pickle %s' % fname)
+    # Columns to be added for nodes:
+    # 'agA_ns', 'agA_id', 'agA_name', 'agB_ns', 'agB_id', 'agB_name',
+    # Columns to be added as edge attributes
+    # 'stmt_type', 'evidence_count', 'hash'
+
+    nx_dir = nx.DiGraph()
+    for index, row in sif_df.iterrows():
+        nx_dir.add_edge(row['agA_name'], row['agB_name'],
+                        stmt_type=row['stmt_type'],
+                        evidence_count=row['evidence_count'],
+                        stmt_hash=row['hash'])
+        nx_dir.nodes[row['agA_name']]['ns'] = row['agA_ns']
+        nx_dir.nodes[row['agA_name']]['id'] = row['agA_id']
+        nx_dir.nodes[row['agB_name']]['ns'] = row['agB_ns']
+        nx_dir.nodes[row['agB_name']]['id'] = row['agB_id']
+    logging.info('Loaded %i statements into directed graph' % index)
+
+    return nx_dir
+
+
 def _read_gene_set_file(gf, data):
     gset = []
     try:
