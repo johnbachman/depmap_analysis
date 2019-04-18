@@ -15,7 +15,6 @@ Other important options are:
 
 import os
 import sys
-import csv
 import json
 import logging
 import pandas as pd
@@ -30,6 +29,8 @@ from random import choice as rnd_choice
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
 from depmap_network_functions import create_nested_dict as nest_dict
+from util.io_functions import _dump_it_to_pickle, _pickle_open, \
+    _dump_it_to_csv, _dump_it_to_json, _json_open
 # There are pickled files using "nest_dict" in their preserved import settings
 # and we can therefore not use another name when using those files until we
 # create new pickle files
@@ -41,25 +42,6 @@ logger = logging.getLogger('DepMap Script')
 #    the loaded list
 # 3. geneset loaded, strict -> each correlation can only contain genes from
 #    the loaded data set
-
-
-def _dump_it_to_pickle(fname, pyobj):
-    with open(fname, 'wb') as po:
-        pkl.dump(obj=pyobj, file=po)
-
-
-def _dump_it_to_json(fname, pyobj):
-    with open(fname, 'w') as json_out:
-        json.dump(pyobj, json_out)
-
-
-def _dump_it_to_csv(fname, pyobj, separator=',', header=None):
-    if header:
-        with open(fname, 'w') as fo:
-            fo.write(','.join(header)+'\n')
-    with open(fname, 'a', newline='') as csvf:
-        wrtr = csv.writer(csvf, delimiter=separator)
-        wrtr.writerows(pyobj)
 
 
 def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
@@ -91,16 +73,6 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
                           else '0',
                           str(cd['rnai']) if cd and json.dumps(cd.get('rnai'))
                           else '0'))
-
-
-def _pickle_open(file_path_to_pickle):
-    with open(file_path_to_pickle, 'rb') as pi:
-        return pkl.load(file=pi)
-
-
-def _json_open(file_path_to_json):
-    with open(file_path_to_json, 'r') as jo:
-        return json.load(fp=jo)
 
 
 def _is_float(n):
