@@ -587,14 +587,24 @@ def nx_directed_graph_from_sif_dataframe(fname):
 
     nx_dir = nx.DiGraph()
     for index, row in sif_df.iterrows():
-        nx_dir.add_edge(row['agA_name'], row['agB_name'],
-                        stmt_type=row['stmt_type'],
-                        evidence_count=row['evidence_count'],
-                        stmt_hash=row['hash'])
-        nx_dir.nodes[row['agA_name']]['ns'] = row['agA_ns']
-        nx_dir.nodes[row['agA_name']]['id'] = row['agA_id']
-        nx_dir.nodes[row['agB_name']]['ns'] = row['agB_ns']
-        nx_dir.nodes[row['agB_name']]['id'] = row['agB_id']
+        # Add non-existing nodes
+        if row['agA_name'] not in nx_dir.nodes:
+            nx_dir.add_node(row['agA_name'])
+            nx_dir.nodes[row['agA_name']]['ns'] = row['agA_ns']
+            nx_dir.nodes[row['agA_name']]['id'] = row['agA_id']
+        if row['agB_name'] not in nx_dir.nodes:
+            nx_dir.add_node(row['agB_name'])
+            nx_dir.nodes[row['agB_name']]['ns'] = row['agB_ns']
+            nx_dir.nodes[row['agB_name']]['id'] = row['agB_id']
+
+        # Add non-existing edges, append to existing
+        stmt_tuple = (row['stmt_type'], row['evidence_count'], row['hash'])
+        if (row['agA_name'], row['agB_name']) in nx_dir.edges:
+            nx_dir.edges[(row['agA_name'], row['agB_name'])][
+                'stmt_list'].append(stmt_tuple)
+        else:
+            nx_dir.add_edge(row['agA_name'], row['agB_name'],
+                            stmt_list=[stmt_tuple])
     logging.info('Loaded %i statements into directed graph' % index)
 
     return nx_dir
