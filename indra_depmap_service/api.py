@@ -91,7 +91,9 @@ def load_indra_graph(graph_path, update=False):
         logging.info('Dumping latest indra db snapshot to pickle')
         _dump_it_to_pickle(graph_path, indra_graph)
     else:
+        logger.info('Loading indra network...')
         indra_graph = _pickle_open(graph_path)
+        logger.info('Finished loading indra network...')
     return indra_graph
 
 
