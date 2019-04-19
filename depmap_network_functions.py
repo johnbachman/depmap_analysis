@@ -580,8 +580,9 @@ def nx_directed_graph_from_sif_dataframe(fname):
     """Read a pickled dataframe of a db dump"""
     sif_df = _pickle_open(fname)
     dnf_logger.info('Loaded pickle %s' % fname)
-    # Columns to be added for nodes:
-    # 'agA_ns', 'agA_id', 'agA_name', 'agB_ns', 'agB_id', 'agB_name',
+    # Add as nodes: 'agA_name', 'agB_name'
+    # Columns to be added as node attributes:
+    # 'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
     # Columns to be added as edge attributes
     # 'stmt_type', 'evidence_count', 'hash'
 
