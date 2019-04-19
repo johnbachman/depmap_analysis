@@ -5,6 +5,7 @@ from os import path
 from jinja2 import Template
 from subprocess import call
 from datetime import datetime
+from networkx import NodeNotFound
 from flask import Flask, request, abort, Response, redirect, url_for
 
 from indra_db.util import dump_sif
@@ -49,6 +50,8 @@ class IndraNetwork:
             return nx.shortest_path(self.nx_graph_repr, source, target, weight)
         except NodeNotFound:
             return []
+        except nx.NetworkXNoPath:
+            return []
 
     def has_path(self, source, target):
         return nx.has_path(self.nx_graph_repr, source, target)
@@ -90,6 +93,14 @@ def load_indra_graph(graph_path, update=False):
     else:
         indra_graph = _pickle_open(graph_path)
     return indra_graph
+
+
+if path.isfile(INDRA_NETWORK_CACHE):
+    indra_network = IndraNetwork(load_indra_graph(INDRA_NETWORK_CACHE))
+else:
+    # Here should dump new cache instead, but raise error for now
+
+    raise FileExistsError('Could not find file: ' + INDRA_NETWORK_CACHE)
 
 # Need way to receive user queries for network search
 # Need way to return results
