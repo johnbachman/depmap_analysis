@@ -21,6 +21,8 @@ HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 
 INDRA_NETWORK_CACHE = path.join(CACHE, 'nx_dir_graph_db_dump_20190417.pkl')
+MAX_PATH = 10
+
 
 def _todays_date():
     return datetime.now().strftime('%Y%m%d')
@@ -44,14 +46,81 @@ class IndraNetwork:
         self.nx_graph_repr = indra_graph
         self.nodes = self.nx_graph_repr.nodes
         self.edges = self.nx_graph_repr.edges
+        self.MAX_PATH = MAX_PATH
 
-    def find_shortest_path(self, source, target, weight=None):
+    def find_shortest_path(self, source, target, weight=None, simple=True):
+        """Returns a list of nodes representing a shortest path"""
         try:
-            return nx.shortest_path(self.nx_graph_repr, source, target, weight)
-        except NodeNotFound:
-            return []
-        except nx.NetworkXNoPath:
-            return []
+            if not simple:
+                return nx.shortest_path(self.nx_graph_repr,
+                                        source, target, weight)
+            else:
+                return [] ###################
+        except NodeNotFound or nx.NetworkXNoPath:
+            return [] ###################
+
+    def _find_shortest_simple_path(self, source, target, weight=None):
+        return [] ###################
+
+    def find_shortest_paths(self, source, target, weight=None, simple=True):
+        """Returns a list of len <= self.MAX_PATH of shortest paths"""
+        try:
+            if not simple:
+                return nx.all_shortest_paths(self.nx_graph_repr, source,
+                                             target, weight)
+            else:
+                return self._find_shortest_simple_paths(source, target, weight)
+        except NodeNotFound or nx.NetworkXNoPath:
+            return [] ###################
+
+    def _find_shortest_paths(self, source, target, weight=None,
+                             max_len=0):
+        if max_len == 0:
+            max_len = self.MAX_PATH
+        return [] ###################
+
+    def _find_shortest_simple_paths(self, source, target, weight=None,
+                                    max_paths_found=0):
+        if max_paths_found == 0:
+            max_paths_found = self.MAX_PATH
+        elif max_paths_found > self.MAX_PATH:
+            max_paths_found = self.MAX_PATH
+        result = []
+        if source in self.nodes and target in self.nodes:
+            try:
+                paths = nx.shortest_simple_paths(self.nx_graph_repr, source,
+                                                 target, weight)
+                for c, path in enumerate(paths):
+                    path_len = 0
+                    try:
+                        if path_len == 0:
+                            path_len = len(path)
+                        elif path_len != 0 and len(path) > path_len:
+                            break
+
+                        if c > max_paths_found:
+                            logger.info('Max number of paths exceeded, '
+                                        'breaking.')
+                        hash_path = []
+                        for n in range(len(path)-1):
+                            hashes = {}
+                            for t in self.edges[(path[n],
+                                                 path[n+1])]['stmt_list']:
+                                hashes[t[0]] = t[2]
+                            hash_path.append(hashes)
+                        result.append({
+                            'stmts': hash_path,
+                            'path': path
+                        })
+                    except KeyError as e:
+                        logger.warning(repr(e))
+                        continue
+            except IndexError as e:
+                logger.warning(repr(e))
+            except nx.NetworkXNoPath as e:
+                logger.warning(repr(e))
+
+        return result
 
     def has_path(self, source, target):
         return nx.has_path(self.nx_graph_repr, source, target)
@@ -80,9 +149,6 @@ def dump_indra_db(path='.'):
 
     return stmts_file, dataframe_file, csv_file
 
-# Need way to create directed graph of sif dump: add function to depmap
-# network functions
-
 
 def load_indra_graph(graph_path, update=False):
     if update:
@@ -104,8 +170,7 @@ else:
 
     raise FileExistsError('Could not find file: ' + INDRA_NETWORK_CACHE)
 
-# Need way to receive user queries for network search
-# Need way to return results
+
 @app.route('/')
 @app.route('/query')
 def get_query_page():
@@ -117,7 +182,7 @@ def get_query_page():
 def process_query():
     """Processing queries to the indra network"""
     # Print inputs.
-    logger.info('Got model query')
+    logger.info('Got query')
     logger.info('Args -----------')
     logger.info(request.args)
     logger.info('Json -----------')
