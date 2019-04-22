@@ -587,6 +587,7 @@ def nx_directed_graph_from_sif_dataframe(fname):
     # 'stmt_type', 'evidence_count', 'hash'
 
     nx_dir = nx.DiGraph()
+    index = 0
     for index, row in sif_df.iterrows():
         # Add non-existing nodes
         if row['agA_name'] not in nx_dir.nodes:
