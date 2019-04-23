@@ -603,7 +603,7 @@ def nx_directed_graph_from_sif_dataframe(fname):
                         weight=row['evidence_count'],
                         stmt_type=row['stmt_type'],
                         stmt_hash=row['hash'])
-    logging.info('Loaded %i statements into directed multigraph' % index)
+    dnf_logger.info('Loaded %i statements into directed multigraph' % index)
 
     return nx_dir
 
