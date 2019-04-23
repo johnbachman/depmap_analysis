@@ -1,7 +1,9 @@
-notebooks/*.h5
-notebooks/*.json
+*.h5
+*.json
+
 notebooks/*.pkl
 notebooks/*.ai
+notebooks/data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
