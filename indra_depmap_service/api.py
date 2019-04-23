@@ -21,7 +21,8 @@ HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 
 INDRA_NETWORK_CACHE = path.join(CACHE, 'nx_dir_graph_db_dump_20190417.pkl')
-MAX_PATH = 10
+MAX_NUM_PATH = 10
+MAX_PATH_LEN = 6
 
 
 def _todays_date():
@@ -46,24 +47,23 @@ class IndraNetwork:
         self.nx_graph_repr = indra_graph
         self.nodes = self.nx_graph_repr.nodes
         self.edges = self.nx_graph_repr.edges
-        self.MAX_PATH = MAX_PATH
+        self.MAX_NUM_PATH = MAX_NUM_PATH
+        self.MAX_PATH_LEN = MAX_PATH_LEN
 
     def find_shortest_path(self, source, target, weight=None, simple=True):
         """Returns a list of nodes representing a shortest path"""
         try:
             if not simple:
-                return nx.shortest_path(self.nx_graph_repr,
-                                        source, target, weight)
+                return nx.shortest_path(self.nx_graph_repr, source, target,
+                                        weight)
             else:
-                return [] ###################
+                return self._find_shortest_simple_paths(source, target,
+                                                        weight, 1)
         except NodeNotFound or nx.NetworkXNoPath:
-            return [] ###################
-
-    def _find_shortest_simple_path(self, source, target, weight=None):
-        return [] ###################
+            return []
 
     def find_shortest_paths(self, source, target, weight=None, simple=True):
-        """Returns a list of len <= self.MAX_PATH of shortest paths"""
+        """Returns a list of len <= self.MAX_NUM_PATH of shortest paths"""
         try:
             if not simple:
                 return nx.all_shortest_paths(self.nx_graph_repr, source,
@@ -71,25 +71,18 @@ class IndraNetwork:
             else:
                 return self._find_shortest_simple_paths(source, target, weight)
         except NodeNotFound or nx.NetworkXNoPath:
-            return [] ###################
-
-    def _find_shortest_paths(self, source, target, weight=None,
-                             max_len=0):
-        if max_len == 0:
-            max_len = self.MAX_PATH
-        return [] ###################
+            return []
 
     def _find_shortest_simple_paths(self, source, target, weight=None,
                                     max_paths_found=0):
-        if max_paths_found == 0:
-            max_paths_found = self.MAX_PATH
-        elif max_paths_found > self.MAX_PATH:
-            max_paths_found = self.MAX_PATH
+        if max_paths_found == 0 or max_paths_found > self.MAX_NUM_PATH:
+            max_paths_found = self.MAX_NUM_PATH
         result = []
         if source in self.nodes and target in self.nodes:
             try:
                 paths = nx.shortest_simple_paths(self.nx_graph_repr, source,
                                                  target, weight)
+                path_len = 0
                 for c, path in enumerate(paths):
                     path_len = 0
                     try:
