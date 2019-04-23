@@ -580,34 +580,30 @@ def nx_directed_graph_from_sif_dataframe(fname):
     """Read a pickled dataframe of a db dump"""
     sif_df = _pickle_open(fname)
     dnf_logger.info('Loaded pickle %s' % fname)
-    # Add as nodes: 'agA_name', 'agB_name'
+    # Add as nodes:
+    #   'agA_name', 'agB_name'
     # Columns to be added as node attributes:
-    # 'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
+    #   'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
     # Columns to be added as edge attributes
-    # 'stmt_type', 'evidence_count', 'hash'
+    #   'stmt_type', 'evidence_count' (used as weight), 'hash'
 
-    nx_dir = nx.DiGraph()
+    nx_dir = nx.MultiDiGraph()
     index = 0
     for index, row in sif_df.iterrows():
         # Add non-existing nodes
         if row['agA_name'] not in nx_dir.nodes:
-            nx_dir.add_node(row['agA_name'])
-            nx_dir.nodes[row['agA_name']]['ns'] = row['agA_ns']
-            nx_dir.nodes[row['agA_name']]['id'] = row['agA_id']
+            nx_dir.add_node(row['agA_name'],
+                            ns=row['agA_ns'], id=row['agA_id'])
         if row['agB_name'] not in nx_dir.nodes:
-            nx_dir.add_node(row['agB_name'])
-            nx_dir.nodes[row['agB_name']]['ns'] = row['agB_ns']
-            nx_dir.nodes[row['agB_name']]['id'] = row['agB_id']
-
-        # Add non-existing edges, append to existing
-        stmt_tuple = (row['stmt_type'], row['evidence_count'], row['hash'])
-        if (row['agA_name'], row['agB_name']) in nx_dir.edges:
-            nx_dir.edges[(row['agA_name'], row['agB_name'])][
-                'stmt_list'].append(stmt_tuple)
-        else:
-            nx_dir.add_edge(row['agA_name'], row['agB_name'],
-                            stmt_list=[stmt_tuple])
-    logging.info('Loaded %i statements into directed graph' % index)
+            nx_dir.add_node(row['agB_name'],
+                            ns=row['agB_ns'], id=row['agB_id'])
+        # Add edges
+        nx_dir.add_edge(u_for_edge=row['agA_name'],
+                        v_for_edge=row['agB_name'],
+                        weight=row['evidence_count'],
+                        stmt_type=row['stmt_type'],
+                        stmt_hash=row['hash'])
+    logging.info('Loaded %i statements into directed multigraph' % index)
 
     return nx_dir
 
