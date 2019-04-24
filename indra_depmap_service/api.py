@@ -95,7 +95,6 @@ class IndraNetwork:
                                                  target, weight)
                 path_len = 0
                 for c, path in enumerate(paths):
-                    path_len = 0
                     try:
                         if path_len == 0:
                             path_len = len(path)
