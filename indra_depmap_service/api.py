@@ -196,12 +196,16 @@ def process_query():
     try:
         source = request.json['source']
         target = request.json['target']
-        # todo add flag for using weight or not
-        logger.info('Querying indra network for path between %s and %s' %
-                    (source, target))
+        weight = 'weigth' if request.json['weight'] == 'true' else None
+        if weight:
+            logger.info('Querying indra network for shortest weighted path '
+                        'between %s and %s' % (source, target))
+        else:
+            logger.info('Querying indra network for shortest non-weighted '
+                        'path between %s and %s' % (source, target))
         # fixme shortest simple graph not implemented for multi digraph
         result = indra_network.find_shortest_paths(source, target,
-                                                   weight='weight',
+                                                   weight=weight,
                                                    simple=False)
         if not result:
             logger.info('Query returned with no path found')

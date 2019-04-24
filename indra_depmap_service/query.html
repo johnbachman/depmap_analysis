@@ -23,6 +23,7 @@
       let queryDict = {
         source: document.getElementById('source').value,
         target: document.getElementById('target').value,
+        weight: document.getElementById('weighted-search').checked
       }
       let _url = SUBMIT_URL
       statusBox.textContent = 'Query submitted...'
@@ -58,10 +59,10 @@
         let tableBody = document.getElementById('query-results')
         tableBody.innerHTML = null;
         let pathsList = data.result;
-        for (let i = 0; i < pathsList.length; i++ ) {
+        for (path of pathsList) {
           let newRow = document.createElement('tr');
           let newPath = document.createElement('td');
-          newPath.textContent = pathsList.join('-');
+          newPath.textContent = path.join('-');
           newRow.appendChild(newPath)
           tableBody.appendChild(newRow);
         }
@@ -73,7 +74,9 @@
   </script>
 </head>
 <body>
-  <h1 class="display-5" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer 2.0</h1>
+  <div class="container">
+    <h1 class="display-5" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer 2.0</h1>
+  </div>
   <div class="container">
     <h2 class="display-6">Enter search</h2>
     <form>
@@ -85,6 +88,10 @@
           <input type="text" id="target" class="form-control" placeholder="Enter target">
         </div>
       </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="weighted-search">
+        <label class="custom-control-label" for="weighted-search">Use weighted search</label>
+      </div>
       <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
     </form>
   </div>
@@ -94,7 +101,7 @@
 
   <div class="container">
     <h2 class="display-6">Search Results</h2>
-    <table>
+    <table class="table">
       <thead class="table-head">
         <th>Path</th>
       </thead>
