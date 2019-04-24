@@ -600,7 +600,7 @@ def nx_directed_graph_from_sif_dataframe(fname):
         # Add edges
         nx_dir.add_edge(u_for_edge=row['agA_name'],
                         v_for_edge=row['agB_name'],
-                        weight=row['evidence_count'],
+                        weight=1/row['evidence_count'],
                         stmt_type=row['stmt_type'],
                         stmt_hash=row['hash'])
     dnf_logger.info('Loaded %i statements into directed multigraph' % index)
