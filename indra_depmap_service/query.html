@@ -54,18 +54,15 @@
     function fillResultsTable(data){
       console.log(data)
       var statusBox = document.getElementById('query-status')
-      if (data.result.length > 1) {
+      if (data.result.length > 0) {
         let tableBody = document.getElementById('query-results')
         tableBody.innerHTML = null;
-        let pathList = data.result;
-        for (let i = 0; i < pathList.length-1; i++ ) {
+        let pathsList = data.result;
+        for (let i = 0; i < pathsList.length; i++ ) {
           let newRow = document.createElement('tr');
-          let newSource = document.createElement('td');
-          newSource.textContent = pathList[i];
-          newRow.appendChild(newSource)
-          let newTarget = document.createElement('td');
-          newTarget.textContent = pathList[i+1];
-          newRow.appendChild(newTarget)
+          let newPath = document.createElement('td');
+          newPath.textContent = pathsList.join('-');
+          newRow.appendChild(newPath)
           tableBody.appendChild(newRow);
         }
       } else {
@@ -99,8 +96,7 @@
     <h2 class="display-6">Search Results</h2>
     <table>
       <thead class="table-head">
-        <th>Source</th>
-        <th>Target</th>
+        <th>Path</th>
       </thead>
       <tbody class="table-body" id="query-results"></tbody>
     </table>

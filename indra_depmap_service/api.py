@@ -66,12 +66,23 @@ class IndraNetwork:
         """Returns a list of len <= self.MAX_NUM_PATH of shortest paths"""
         try:
             if not simple:
-                return nx.all_shortest_paths(self.nx_graph_repr, source,
-                                             target, weight)
+                try:
+                    result = []
+                    for n, path in enumerate(nx.all_shortest_paths(
+                            self.nx_graph_repr, source, target, weight)):
+                        if n > self.MAX_NUM_PATH:
+                            return result
+                        result.append(path)
+                except nx.NetworkXNoPath:
+                    return []
+
             else:
                 return self._find_shortest_simple_paths(source, target, weight)
-        except NodeNotFound or nx.NetworkXNoPath:
+
+        except NodeNotFound:
             return []
+
+        return result
 
     def _find_shortest_simple_paths(self, source, target, weight=None,
                                     max_paths_found=0):
@@ -185,9 +196,13 @@ def process_query():
     try:
         source = request.json['source']
         target = request.json['target']
+        # todo add flag for using weight or not
         logger.info('Querying indra network for path between %s and %s' %
                     (source, target))
-        result = indra_network.find_shortest_path(source, target)
+        # fixme shortest simple graph not implemented for multi digraph
+        result = indra_network.find_shortest_paths(source, target,
+                                                   weight='weight',
+                                                   simple=False)
         if not result:
             logger.info('Query returned with no path found')
         res = {'result': result}
