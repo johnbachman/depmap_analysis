@@ -62,7 +62,7 @@
         for (path of pathsList) {
           let newRow = document.createElement('tr');
           let newPath = document.createElement('td');
-          newPath.textContent = path.join('-');
+          newPath.textContent = path.path.join('-');
           newRow.appendChild(newPath)
           tableBody.appendChild(newRow);
         }

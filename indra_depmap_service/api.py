@@ -52,10 +52,14 @@ class IndraNetwork:
 
     def find_shortest_path(self, source, target, weight=None, simple=True):
         """Returns a list of nodes representing a shortest path"""
+        result = []
         try:
             if not simple:
-                return nx.shortest_path(self.nx_graph_repr, source, target,
+                path = nx.shortest_path(self.nx_graph_repr, source, target,
                                         weight)
+                result.append({'stmts': self._get_hash_path(path),
+                               'path': path})
+                return result
             else:
                 return self._find_shortest_simple_paths(source, target,
                                                         weight, 1)
@@ -71,8 +75,11 @@ class IndraNetwork:
                     for n, path in enumerate(nx.all_shortest_paths(
                             self.nx_graph_repr, source, target, weight)):
                         if n > self.MAX_NUM_PATH:
+                            logger.info('Max number of paths exceeded, '
+                                        'breaking.')
                             return result
-                        result.append(path)
+                        result.append({'stmts': self._get_hash_path(path),
+                                       'path': path})
                 except nx.NetworkXNoPath:
                     return []
 
@@ -104,15 +111,8 @@ class IndraNetwork:
                         if c > max_paths_found:
                             logger.info('Max number of paths exceeded, '
                                         'breaking.')
-                        hash_path = []
-                        for n in range(len(path)-1):
-                            hashes = {}
-                            for t in self.edges[(path[n],
-                                                 path[n+1])]['stmt_list']:
-                                hashes[t[0]] = t[2]
-                            hash_path.append(hashes)
                         result.append({
-                            'stmts': hash_path,
+                            'stmts': self._get_hash_path(path),
                             'path': path
                         })
                     except KeyError as e:
@@ -127,6 +127,19 @@ class IndraNetwork:
 
     def has_path(self, source, target):
         return nx.has_path(self.nx_graph_repr, source, target)
+
+    def _get_hash_path(self, path):
+        hash_path = []
+        for n in range(len(path) - 1):
+            edges = []
+            e = 0
+            edge = self.edges.get((path[n], path[n + 1], e))
+            while edge:
+                edges.append({**edge, 'subj': path[n], 'obj': path[n + 1]})
+                e += 1
+                edge = self.edges.get((path[n], path[n + 1], e))
+            hash_path.append(edges)
+        return hash_path
 
 
 def dump_indra_db(path='.'):
