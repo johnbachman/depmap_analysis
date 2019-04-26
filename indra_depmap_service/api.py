@@ -50,7 +50,37 @@ class IndraNetwork:
         self.MAX_NUM_PATH = MAX_NUM_PATH
         self.MAX_PATH_LEN = MAX_PATH_LEN
 
-    def find_shortest_path(self, source, target, weight=None, simple=True):
+    def handle_query(self, **kwargs):
+        """Handles path query from client. Returns query result."""
+        logger.info('Handling query: %s' % repr(kwargs))
+        try:
+            # possible keys (* = mandatory):
+            # *'source', *'target', 'path_length', 'spec_len_only', 'sign',
+            # 'weighted', 'direct_only', 'curated_db_only'
+            keys = kwargs.keys()
+            # 'source' & 'target' are mandatory
+            if 'source' not in keys or 'target' not in keys:
+                raise KeyError('Missing mandatory parameters "source" or '
+                               '"target"')
+            options = {k: v for k, v in kwargs.items()
+                       if k not in ['path_length', 'sign']}  # Handled below
+            for k, v in kwargs.items():
+                if k == 'weighted':
+                    logger.info('Doing weighted path search') if v \
+                        else logger.info('Doing unweighted path search')
+                if k == 'path_length':
+                    options['path_length'] = -1 if v == 'no_limit' else int(v)
+                if k == 'sign':
+                    options['sign'] = 1 if v == 'plus' \
+                        else (-1 if v == 'minus' else 0)
+
+            # Todo MultiDiGrap can't do simple graphs
+
+            return self.find_shortest_paths(**options)
+        except Exception as e:
+            logger.warning('Exception: ', repr(e))
+
+    def find_shortest_path(self, source, target, weight=None, simple=False):
         """Returns a list of nodes representing a shortest path"""
         result = []
         try:
@@ -66,7 +96,8 @@ class IndraNetwork:
         except NodeNotFound or nx.NetworkXNoPath:
             return []
 
-    def find_shortest_paths(self, source, target, weight=None, simple=True):
+    def find_shortest_paths(self, source, target, weight=False, simple=True,
+                            **kwargs):
         """Returns a list of len <= self.MAX_NUM_PATH of shortest paths"""
         try:
             if not simple:
@@ -86,7 +117,7 @@ class IndraNetwork:
             else:
                 return self._find_shortest_simple_paths(source, target, weight)
 
-        except NodeNotFound:
+        except nx.NodeNotFound:
             return []
 
         return result
@@ -200,25 +231,13 @@ def process_query():
     # Print inputs.
     logger.info('Got query')
     logger.info('Args -----------')
-    logger.info(request.args)
-    logger.info('Json -----------')
+    logger.info(repr(request.args))
+    logger.info('Incoming Json ----------------------')
     logger.info(str(request.json))
-    logger.info('------------------')
+    logger.info('------------------------------------')
 
     try:
-        source = request.json['source']
-        target = request.json['target']
-        weight = 'weigth' if request.json['weight'] == 'true' else None
-        if weight:
-            logger.info('Querying indra network for shortest weighted path '
-                        'between %s and %s' % (source, target))
-        else:
-            logger.info('Querying indra network for shortest non-weighted '
-                        'path between %s and %s' % (source, target))
-        # fixme shortest simple graph not implemented for multi digraph
-        result = indra_network.find_shortest_paths(source, target,
-                                                   weight=weight,
-                                                   simple=False)
+        result = indra_network.handle_query(**request.json.copy())
         if not result:
             logger.info('Query returned with no path found')
         res = {'result': result}
@@ -227,7 +246,11 @@ def process_query():
 
     except KeyError:
         # return 400 badly formatted
-        abort(Response('Badly formatted json/missing parameters', 400))
+        abort(Response('Missing parameters', 400))
+
+    except ValueError:
+        # Bad values in json, but entry existed
+        abort(Response('Badly formatted json', 400))
 
 
 if __name__ == '__main__':
