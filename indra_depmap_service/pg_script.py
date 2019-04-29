@@ -14,7 +14,6 @@ print("Done loading network")
 source = 'NCKAP1'
 target = 'TEAD1'
 max_depth = 5
-cur_length = 3
 num_samples = 20000
 
 print("Getting reachable sets")
