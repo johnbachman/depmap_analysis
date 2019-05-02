@@ -78,85 +78,96 @@ class IndraNetwork:
                     options['sign'] = 1 if v == 'plus' \
                         else (-1 if v == 'minus' else 0)
 
-            # Todo MultiDiGrap can't do simple graphs
+            # Todo MultiDiGrap can't do simple graphs: resolve by loading
+            #  both a MultiDiGraph and a simple DiGraph - find the simple
+            #  paths in the DiGraph and check them in the Multi-DiGraph.
 
             return self.find_shortest_paths(**options)
         except Exception as e:
             logger.warning('Exception: ', repr(e))
 
-    def find_shortest_path(self, source, target, weight=None, simple=False):
+    def find_shortest_path(self, source, target, weight=None, simple=False,
+                           **kwargs):
         """Returns a list of nodes representing a shortest path"""
         try:
             if not simple:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
-                result.append({'stmts': self._get_hash_path(path),
-                               'path': path})
-                return result
+                return {len(path): [{
+                    'stmts': self._get_hash_path(path),
+                    'path': path
+                }]}
             else:
                 return self._find_shortest_simple_paths(source, target,
-                                                        weight, 1)
+                                                        weight, **kwargs)
         except NodeNotFound or nx.NetworkXNoPath:
-            return []
+            return {}
 
     def find_shortest_paths(self, source, target, weight=False, simple=True,
                             **kwargs):
-        """Returns a list of len <= self.MAX_NUM_PATH of shortest paths"""
+        """Returns a list of shortest paths in ascending order"""
+        path_len = kwargs['path_length']
+        if path_len > self.MAX_PATH_LEN:
+            logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
+                           'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
+            path_len = self.MAX_PATH_LEN
+        spec_len_only = kwargs['spec_len_only']
         try:
             if not simple:
-                try:
-                    result = []
-                    for n, path in enumerate(nx.all_shortest_paths(
-                            self.nx_graph_repr, source, target, weight)):
-                        if n > self.MAX_NUM_PATH:
-                            logger.info('Max number of paths exceeded, '
-                                        'breaking.')
-                            return result
-                        result.append({'stmts': self._get_hash_path(path),
-                                       'path': path})
-                except nx.NetworkXNoPath:
-                    return []
-
+                logger.info('Doing non-simple path search')
+                paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
+                                              source, target, weight)
+                return self._loop_paths(paths, path_len, spec_len_only)
             else:
-                return self._find_shortest_simple_paths(source, target, weight)
-
-        except nx.NodeNotFound:
-            return []
-
-        return result
+                logger.info('Doing simple path search')
+                return self._find_shortest_simple_paths(source, target,
+                                                        weight, **kwargs)
+        except nx.NodeNotFound as e:
+            logger.warning(repr(e))
+            return {}
+        except nx.NetworkXNoPath as e:
+            logger.warning(repr(e))
+            return {}
 
     def _find_shortest_simple_paths(self, source, target, weight=None,
-                                    max_paths_found=0):
-        if max_paths_found == 0 or max_paths_found > self.MAX_NUM_PATH:
-            max_paths_found = self.MAX_NUM_PATH
-        result = []
-        if source in self.nodes and target in self.nodes:
+                                    **kwargs):
+        """Returns a list of shortest simple paths in ascending order"""
+        path_len = kwargs['path_length']
+        if path_len > self.MAX_PATH_LEN:
+            logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
+                           'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
+            path_len = self.MAX_PATH_LEN
+        spec_len_only = kwargs['spec_len_only']
+        simple_paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
+                                                source, target, weight)
+        return self._loop_paths(simple_paths, path_len, spec_len_only)
+
+    def _loop_paths(self, paths_gen, path_len, len_only):
+        result = {'paths_by_length': {}}
+        for n, path in enumerate(paths_gen):
+            pd = {'stmts': self._get_hash_path(path), 'path': path}
             try:
-                paths = nx.shortest_simple_paths(self.nx_graph_repr, source,
-                                                 target, weight)
-                path_len = 0
-                for c, path in enumerate(paths):
-                    try:
-                        if path_len == 0:
-                            path_len = len(path)
-                        elif path_len != 0 and len(path) > path_len:
-                            break
-
-                        if c > max_paths_found:
-                            logger.info('Max number of paths exceeded, '
-                                        'breaking.')
-                        result.append({
-                            'stmts': self._get_hash_path(path),
-                            'path': path
-                        })
-                    except KeyError as e:
-                        logger.warning(repr(e))
-                        continue
-            except IndexError as e:
-                logger.warning(repr(e))
-            except nx.NetworkXNoPath as e:
-                logger.warning(repr(e))
-
+                if not len_only and \
+                        len(result['paths_by_length'][len(path)]) \
+                        < self.MAX_NUM_PATH:
+                    result['paths_by_length'][len(path)].append(pd)
+                elif len_only and \
+                        len(result['paths_by_length'][len(path)]) \
+                        < self.MAX_NUM_PATH \
+                        and len(path) == path_len:
+                    result['paths_by_length'][len(path)].append(pd)
+                elif len(result['paths_by_length'][len(path)]) \
+                        >= self.MAX_NUM_PATH:
+                    continue
+            except KeyError:
+                try:
+                    if len_only and len(path) == path_len:
+                        result['paths_by_length'][len(path)] = [pd]
+                    elif not len_only:
+                        result['paths_by_length'][len(path)] = [pd]
+                except KeyError as ke:
+                    logger.warning('Unexpected KeyError: ' + repr(ke))
+                    continue
         return result
 
     def has_path(self, source, target):

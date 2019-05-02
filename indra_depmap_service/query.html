@@ -22,7 +22,8 @@
 
   <!-- custom scripts -->
   <script type="text/javascript">
-    var SUBMIT_URL = 'http://localhost:5000/query/submit'
+    const SUBMIT_URL = 'http://localhost:5000/query/submit';
+    const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
 
     function submitQuery() {
       var statusBox = document.getElementById('query-status')
@@ -34,7 +35,9 @@
         sign: document.getElementById('sign-dd').value,
         weighted: document.getElementById('weighted-search').checked,
         direct_only: document.getElementById('direct-only').checked,
-        curated_db_only: document.getElementById('curated-db-only').checked
+        curated_db_only: document.getElementById('curated-db-only').checked,
+        simple: false
+        // simple: true // Should be what we want
       }
       let _url = SUBMIT_URL
       statusBox.textContent = 'Query submitted...'
@@ -59,33 +62,66 @@
       })
       console.log(response)
       response.then(function(json){
+        clearAllTables()
         fillResultsTable(json)
       })
     }
 
     function fillResultsTable(data){
       console.log(data)
-      var statusBox = document.getElementById('query-status')
-      if (data.result.length > 0) {
-        let tableBody = document.getElementById('query-results')
-        tableBody.innerHTML = null;
-        let pathsList = data.result;
-        for (path of pathsList) {
-          let newRow = document.createElement('tr');
-          let newPath = document.createElement('td');
-          newPath.textContent = path.path.join('-');
-          newRow.appendChild(newPath)
-          tableBody.appendChild(newRow);
+      if (Object.keys(data.result).length > 0) {
+        // for each path length:
+        //   for each path:
+        //     Output: path | list supporting statements per edge
+        let pathsKeyedArray = data.result.paths_by_length;
+
+        for (len in pathsKeyedArray) {
+          let tableBody = document.getElementById('query-results-' + len)
+          console.log(tableBody.id)
+          for (pathArray of pathsKeyedArray[len]) {
+            let newRow = document.createElement('tr');
+            // Add current path
+            let newPath = document.createElement('td');
+            newPath.innerHTML = pathArray.path.join('&rarr;');
+            newRow.appendChild(newPath)
+
+            let newSupport = document.createElement('td');
+            newSupport.innerHTML = generatePathLinkout(pathArray.stmts)
+            newRow.appendChild(newSupport)
+
+            tableBody.appendChild(newRow);
+          }
         }
       } else {
-        statusBox.textContent = 'No path found!'
+        document.getElementById('query-status').textContent = 'No path found!'
+      }
+    }
+
+    function clearAllTables() {
+      for (tb of document.getElementsByClassName('table-body')) {
+        tb.innerHTML = null;
       }
     }
 
     // Function to put stmts from path in a HTML format with linkouts
-    // function generatePathLinkout(path) {
-    //   return [];  // NOT DONE HERE!!
-    // }
+    function generatePathLinkout(stmtsArray) {
+      // Build an html string of the paths
+      // stmtsArray is a list of lists:
+      // stmtsArray[i] gives edge i
+      // stmtsArray[i][j] gives stmt j of edge i
+      let htmlString = ''
+      for (edgeList of stmtsArray) {
+        htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + 
+          edgeList[0].obj + '</b><br>'
+        for (stmt of edgeList) {
+          let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
+            '?format=html&ev_limit=1'
+          htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ',' + 
+            stmt.stmt_type + ',' + stmt.obj + '</a><br>'
+        }
+      }
+      return htmlString.substring(0, htmlString.length-4);
+    }
 
   </script>
 </head>
@@ -118,7 +154,7 @@
       </div>
       <div class="row" style="padding-top: 5px;">
         <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
-          <select id="path-length" disabled>
+          <select id="path-length">
             <option value="" selected="selected" disabled="disabled" hidden="hidden">Path length</option>
             <option value=1>1</option>
             <option selected="selected" value=2>2</option>
@@ -129,7 +165,7 @@
           </select>
         </div>
         <div class="custom-control custom-checkbox">
-          <input type="checkbox" class="custom-control-input" id="selected-length-only" disabled>
+          <input type="checkbox" class="custom-control-input" id="selected-length-only">
           <label class="custom-control-label" for="selected-length-only">Check for selected length only</label>
         </div>
       </div>
@@ -151,12 +187,81 @@
 
   <div class="container">
     <h2 class="display-6">Search Results</h2>
-    <table class="table">
-      <thead class="table-head">
-        <th>Path</th>
-      </thead>
-      <tbody class="table-body" id="query-results"></tbody>
-    </table>
+    <!-- Direct paths: a-b -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="display-7">Direct Paths</h3>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead class="table-head">
+            <th>Path</th>
+            <th>Support</th>
+          </thead>
+          <tbody class="table-body" id="query-results-1"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Path len 2: a-b-c -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="display-7">2-Edge Paths</h3>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead class="table-head">
+            <th>Path</th>
+            <th>Support</th>
+          </thead>
+          <tbody class="table-body" id="query-results-2"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Path len 3: a-b-c-d -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="display-7">3-Edge Paths</h3>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead class="table-head">
+            <th>Path</th>
+            <th>Support</th>
+          </thead>
+          <tbody class="table-body" id="query-results-3"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Path len 4: a-b-c-d -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="display-7">4-Edge Paths</h3>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead class="table-head">
+            <th>Path</th>
+            <th>Support</th>
+          </thead>
+          <tbody class="table-body" id="query-results-4"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Path len 5: a-b-c-d-e-f -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="display-7">5-Edge Paths</h3>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead class="table-head">
+            <th>Path</th>
+            <th>Support</th>
+          </thead>
+          <tbody class="table-body" id="query-results-5"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <footer class="footer text-muted" id="about" style="background: #F5F5F5;">
