@@ -576,8 +576,68 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     return corr_weight_graph
 
 
-def nx_directed_graph_from_sif_dataframe(fname):
-    """Read a pickled dataframe of a db dump"""
+# def _WIP_nx_digraph_from_sif_dataframe(fname, belief_dict=None, multi=False):
+#     """Return a NetworkX (multi) digraph from a pickled db dump dataframe."""
+#     sif_df = _pickle_open(fname)
+#     if belief_dict:
+#         bsd = _pickle_open(belief_dict)
+#     else:
+#         dnf_logger.warning('No belief dict provided, weights will be set to '
+#                            '1/evidence count')
+#     # Add as nodes:
+#     #   'agA_name', 'agB_name'
+#     # Columns to be added as node attributes:
+#     #   'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
+#     # Columns to be added as edge attributes
+#     #   'stmt_type', 'evidence_count' (used as weight), 'hash'
+#     if multi:
+#         nx_graph = nx.MultiDiGraph()
+#     else:
+#         nx_graph = nx.DiGraph()
+#     index = 0
+#     for index, row in sif_df.iterrows():
+#         # Add non-existing nodes
+#         if row['agA_name'] not in nx_graph.nodes:
+#             nx_graph.add_node(row['agA_name'],
+#                             ns=row['agA_ns'], id=row['agA_id'])
+#         if row['agB_name'] not in nx_graph.nodes:
+#             nx_graph.add_node(row['agB_name'],
+#                             ns=row['agB_ns'], id=row['agB_id'])
+#         # Add edges
+#         if belief_dict:
+#             try:
+#                 weight = bsd[row['hash']]
+#                 bs = bsd[row['hash']]
+#             except KeyError:
+#                 dnf_logger.warning('KeyError for hash: %s is missing' %
+#                                    str(row['hash']))
+#                 weight = 1/row['evidence_count']
+#                 bs = None
+#
+#             ed = {'u_for_edge': row['agA_name'],
+#                   'v_for_edge': row['agB_name'],
+#                   'weight': weight,
+#                   'stmt_type': row['stmt_type'],
+#                   'stmt_hash': row['hash'],
+#                   'evidence_count': row['evidence_count'],
+#                   'bs': bs}
+#             nx_graph.add_edge(**ed)
+#         else:
+#             bs = None
+#             # Add non-existing edges, append to existing
+#             stmt_dict = {'stmt_type': row['stmt_type'],
+#                          'weight': 1 / row['evidence_count'],
+#                          'stmt_hash': row['hash']}
+#             if (row['agA_name'], row['agB_name']) in nx_graph.edges:
+#                 nx_graph.edges[(row['agA_name'], row['agB_name'])][
+#                     'stmt_list'].append(stmt_dict)
+#             else:
+#                 nx_graph.add_edge(row['agA_name'], row['agB_name'],
+#                                       stmt_list=[stmt_dict])
+
+
+def nx_multi_digraph_from_sif_dataframe(fname):
+    """Return a NetworkX multi digraph from a pickled db dump dataframe."""
     sif_df = _pickle_open(fname)
     dnf_logger.info('Loaded pickle %s' % fname)
     # Add as nodes:
@@ -587,25 +647,61 @@ def nx_directed_graph_from_sif_dataframe(fname):
     # Columns to be added as edge attributes
     #   'stmt_type', 'evidence_count' (used as weight), 'hash'
 
-    nx_dir = nx.MultiDiGraph()
+    nx_mdg = nx.MultiDiGraph()
     index = 0
     for index, row in sif_df.iterrows():
         # Add non-existing nodes
-        if row['agA_name'] not in nx_dir.nodes:
-            nx_dir.add_node(row['agA_name'],
+        if row['agA_name'] not in nx_mdg.nodes:
+            nx_mdg.add_node(row['agA_name'],
                             ns=row['agA_ns'], id=row['agA_id'])
-        if row['agB_name'] not in nx_dir.nodes:
-            nx_dir.add_node(row['agB_name'],
+        if row['agB_name'] not in nx_mdg.nodes:
+            nx_mdg.add_node(row['agB_name'],
                             ns=row['agB_ns'], id=row['agB_id'])
         # Add edges
-        nx_dir.add_edge(u_for_edge=row['agA_name'],
+        nx_mdg.add_edge(u_for_edge=row['agA_name'],
                         v_for_edge=row['agB_name'],
                         weight=1/row['evidence_count'],
                         stmt_type=row['stmt_type'],
                         stmt_hash=row['hash'])
     dnf_logger.info('Loaded %i statements into directed multigraph' % index)
 
-    return nx_dir
+    return nx_mdg
+
+
+def nx_directed_graph_from_sif_dataframe(fname):
+    """Return a NetworkX digraph from a pickled db dump dataframe."""
+    sif_df = _pickle_open(fname)
+    dnf_logger.info('Loaded pickle %s' % fname)
+    # Add as nodes:
+    #   'agA_name', 'agB_name'
+    # Columns to be added as node attributes:
+    #   'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
+    # Columns to be added as edge attributes
+    #   'stmt_type', 'evidence_count' (used as weight), 'hash'
+
+    nx_dir_graph = nx.DiGraph()
+    index = 0
+    for index, row in sif_df.iterrows():
+        # Add non-existing nodes
+        if row['agA_name'] not in nx_dir_graph.nodes:
+            nx_dir_graph.add_node(row['agA_name'],
+                            ns=row['agA_ns'], id=row['agA_id'])
+        if row['agB_name'] not in nx_dir_graph.nodes:
+            nx_dir_graph.add_node(row['agB_name'],
+                            ns=row['agB_ns'], id=row['agB_id'])
+        # Add non-existing edges, append to existing
+        stmt_dict = {'stmt_type': row['stmt_type'],
+                     'weight': 1/row['evidence_count'],
+                     'stmt_hash': row['hash']}
+        if (row['agA_name'], row['agB_name']) in nx_dir_graph.edges:
+            nx_dir_graph.edges[(row['agA_name'], row['agB_name'])][
+                'stmt_list'].append(stmt_dict)
+        else:
+            nx_dir_graph.add_edge(row['agA_name'], row['agB_name'],
+                            stmt_list=[stmt_dict])
+    dnf_logger.info('Loaded %i statements into directed multigraph' % index)
+
+    return nx_dir_graph
 
 
 def _read_gene_set_file(gf, data):
