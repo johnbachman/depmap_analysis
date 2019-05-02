@@ -115,9 +115,9 @@
           edgeList[0].obj + '</b><br>'
         for (stmt of edgeList) {
           let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
-            '?format=html&ev_limit=1'
-          htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ',' + 
-            stmt.stmt_type + ',' + stmt.obj + '</a><br>'
+            '?format=html'
+          htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
+            stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
         }
       }
       return htmlString.substring(0, htmlString.length-4);
