@@ -20,7 +20,9 @@ logger = logging.getLogger('INDRA GDE API')
 HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 
-INDRA_NETWORK_CACHE = path.join(CACHE, 'nx_multi_digraph_db_dump_20190417.pkl')
+INDRA_MDG_NETWORK_CACHE = path.join(CACHE,
+                                  'nx_multi_digraph_db_dump_20190417.pkl')
+INDRA_DG_NETWORK_CACHE = path.join(CACHE, 'nx_dir_graph_db_dump_20190417.pkl')
 MAX_NUM_PATH = 10
 MAX_PATH_LEN = 6
 
@@ -43,10 +45,12 @@ QUERY = _load_template('query.html')
 
 class IndraNetwork:
     """Handle searches and graph output of the INDRA DB network"""
-    def __init__(self, indra_graph):
-        self.nx_graph_repr = indra_graph
-        self.nodes = self.nx_graph_repr.nodes
-        self.edges = self.nx_graph_repr.edges
+    def __init__(self, indra_dir_graph, indra_multi_dir_graph):
+        self.nx_dir_graph_repr = indra_dir_graph
+        self.nx_md_graph_repr = indra_multi_dir_graph
+        self.nodes = self.nx_dir_graph_repr.nodes
+        self.dir_edges = self.nx_dir_graph_repr.edges
+        self.mdg_edges = self.nx_md_graph_repr.edges
         self.MAX_NUM_PATH = MAX_NUM_PATH
         self.MAX_PATH_LEN = MAX_PATH_LEN
 
@@ -82,10 +86,9 @@ class IndraNetwork:
 
     def find_shortest_path(self, source, target, weight=None, simple=False):
         """Returns a list of nodes representing a shortest path"""
-        result = []
         try:
             if not simple:
-                path = nx.shortest_path(self.nx_graph_repr, source, target,
+                path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
                 result.append({'stmts': self._get_hash_path(path),
                                'path': path})
@@ -157,18 +160,35 @@ class IndraNetwork:
         return result
 
     def has_path(self, source, target):
-        return nx.has_path(self.nx_graph_repr, source, target)
+        """Return true if there is a path from source to target"""
+        return nx.has_path(self.nx_dir_graph_repr, source, target)
 
-    def _get_hash_path(self, path):
+    def _get_edge(self, s, o, index, directed):
+        if directed:
+            try:
+                stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
+            except IndexError:
+                stmt_edge = None  # To keep it consistent with
+            return stmt_edge
+        else:
+            return self.mdg_edges.get((s, o, index))
+
+    def _get_hash_path(self, path, simple_dir=True):
+        """Return a list of n-1 lists of dicts containing of stmts connected
+        by the n nodes in the input path. if simple_dir is True, query edges
+        from directed graph and not from MultiDiGraph representation"""
+
         hash_path = []
         for n in range(len(path) - 1):
             edges = []
             e = 0
-            edge = self.edges.get((path[n], path[n + 1], e))
-            while edge:
-                edges.append({**edge, 'subj': path[n], 'obj': path[n + 1]})
+            edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
+            while edge_stmt:
+                # convert hash to string for javascript compatability
+                edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
+                edges.append({**edge_stmt, 'subj': path[n], 'obj': path[n + 1]})
                 e += 1
-                edge = self.edges.get((path[n], path[n + 1], e))
+                edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
             hash_path.append(edges)
         return hash_path
 
@@ -192,7 +212,7 @@ def dump_indra_db(path='.'):
         else:
             logger.info('Script finished ' + str(retcode))
     except OSError as e:
-        logger.error('Script failed: ' + e.strerror)
+        logger.error('Script failed: ' + repr(e))
 
     return stmts_file, dataframe_file, csv_file
 
@@ -200,22 +220,27 @@ def dump_indra_db(path='.'):
 def load_indra_graph(graph_path, update=False):
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
-        indra_graph = dnf.nx_directed_graph_from_sif_dataframe(dataframe_file)
+        indra_graph = dnf.nx_multi_digraph_from_sif_dataframe(dataframe_file)
         logging.info('Dumping latest indra db snapshot to pickle')
         _dump_it_to_pickle(graph_path, indra_graph)
     else:
-        logger.info('Loading indra network...')
+        logger.info('Loading indra network from %s' % graph_path)
         indra_graph = _pickle_open(graph_path)
-        logger.info('Finished loading indra network...')
+        logger.info('Finished loading indra network.')
     return indra_graph
 
 
-if path.isfile(INDRA_NETWORK_CACHE):
-    indra_network = IndraNetwork(load_indra_graph(INDRA_NETWORK_CACHE))
+if path.isfile(INDRA_DG_NETWORK_CACHE) and path.isfile(
+        INDRA_MDG_NETWORK_CACHE):
+    indra_network = \
+        IndraNetwork(load_indra_graph(INDRA_DG_NETWORK_CACHE),
+                     load_indra_graph(INDRA_MDG_NETWORK_CACHE))
 else:
     # Here should dump new cache instead, but raise error for now
 
-    raise FileExistsError('Could not find file: ' + INDRA_NETWORK_CACHE)
+    raise FileExistsError(
+        'Could not find one or both of %s and %s' %
+        (INDRA_DG_NETWORK_CACHE, INDRA_MDG_NETWORK_CACHE))
 
 
 @app.route('/')
@@ -230,7 +255,7 @@ def process_query():
     """Processing queries to the indra network"""
     # Print inputs.
     logger.info('Got query')
-    logger.info('Args -----------')
+    logger.info('Incoming Args -----------')
     logger.info(repr(request.args))
     logger.info('Incoming Json ----------------------')
     logger.info(str(request.json))
