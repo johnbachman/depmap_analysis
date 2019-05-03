@@ -21,8 +21,9 @@ HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 
 INDRA_MDG_NETWORK_CACHE = path.join(CACHE,
-                                  'nx_multi_digraph_db_dump_20190417.pkl')
-INDRA_DG_NETWORK_CACHE = path.join(CACHE, 'nx_dir_graph_db_dump_20190417.pkl')
+                                    'nx_bs_multi_digraph_db_dump_20190417.pkl')
+INDRA_DG_NETWORK_CACHE = path.join(CACHE,
+                                   'nx_bs_dir_graph_db_dump_20190417.pkl')
 MAX_NUM_PATH = 10
 MAX_PATH_LEN = 6
 
