@@ -244,9 +244,11 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
         _dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
         INDRA_MDG_NETWORK_CACHE = path.join(CACHE, multi_digraph_path)
     else:
-        logger.info('Loading indra network from %s' % dir_graph_path)
+        logger.info('Loading indra networks %s and %s' %
+                    (dir_graph_path, multi_digraph_path))
         indra_dir_graph = _pickle_open(dir_graph_path)
-        logger.info('Finished loading indra network.')
+        indra_multi_digraph = _pickle_open(multi_digraph_path)
+        logger.info('Finished loading indra networks.')
     return indra_dir_graph, indra_multi_digraph
 
 
