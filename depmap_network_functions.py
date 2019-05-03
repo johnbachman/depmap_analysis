@@ -576,7 +576,8 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     return corr_weight_graph
 
 
-def nx_digraph_from_sif_dataframe(fname, belief_dict=None, multi=False):
+def nx_digraph_from_sif_dataframe(fname, belief_dict=None, multi=False,
+                                  verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
     By default an nx.DiGraph is returned. By setting multi=True,
@@ -609,8 +610,12 @@ def nx_digraph_from_sif_dataframe(fname, belief_dict=None, multi=False):
         # Add edges
         if belief_dict:
             try:
-                weight = bsd[row['hash']]
-                bs = bsd[row['hash']]
+                if bsd[row['hash']] == 1 and verbosity > 0:
+                    dnf_logger.info('Resetting weight from belief score to '
+                                    '1.0 for %s' % str(row['hash']))
+                b_s = bsd[row['hash']]
+                weight = -math.log(max(b_s - 1e-7, 1e-7))
+                bs = b_s
             except KeyError:
                 dnf_logger.warning('KeyError for hash: %s is missing' %
                                    str(row['hash']))
