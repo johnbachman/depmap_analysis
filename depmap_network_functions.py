@@ -625,8 +625,8 @@ def nx_digraph_from_sif_dataframe(fname, belief_dict=None, multi=False,
             weight = 1 / row['evidence_count']
             bs = None
 
-        ed = {'u_for_edge': row['agA_name'],
-              'v_for_edge': row['agB_name'],
+        ed = {'subj': row['agA_name'],
+              'obj': row['agB_name'],
               'weight': weight,
               'stmt_type': row['stmt_type'],
               'stmt_hash': row['hash'],
