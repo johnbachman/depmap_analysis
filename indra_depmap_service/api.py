@@ -232,6 +232,7 @@ def dump_indra_db(path='.'):
 
 
 def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
+    global INDRA_DG_NETWORK_CACHE, INDRA_MDG_NETWORK_CACHE
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
         indra_dir_graph = dnf.nx_digraph_from_sif_dataframe(dataframe_file)
