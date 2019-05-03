@@ -25,7 +25,7 @@ INDRA_MDG_NETWORK_CACHE = path.join(CACHE,
 INDRA_DG_NETWORK_CACHE = path.join(CACHE,
                                    'nx_bs_dir_graph_db_dump_20190417.pkl')
 MAX_NUM_PATH = 10
-MAX_PATH_LEN = 6
+MAX_PATH_LEN = 5
 
 
 def _todays_date():
