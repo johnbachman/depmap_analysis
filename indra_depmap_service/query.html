@@ -26,6 +26,11 @@
     const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
 
     function submitQuery() {
+      if (!document.getElementById('path-length').value) {
+        alert('Please select a path length')
+        return;
+      }
+
       var statusBox = document.getElementById('query-status')
       let queryDict = {
         source: document.getElementById('source').value,
@@ -36,8 +41,9 @@
         weighted: document.getElementById('weighted-search').checked,
         direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
+        parents: document.getElementById('parents').checked,
         simple: false
-        // simple: true // Should be what we want
+        // simple: true // What we really want
       }
       let _url = SUBMIT_URL
       statusBox.textContent = 'Query submitted...'
@@ -141,27 +147,35 @@
         </div>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="weighted-search">
-        <label class="custom-control-label" for="weighted-search">Weighted search</label>
-      </div>
-      <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="direct-only" disabled>
         <label class="custom-control-label" for="direct-only">Direct only</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="simple-paths" disabled>
+        <label class="custom-control-label" for="simple-paths">Simple path search</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="weighted-search">
+        <label class="custom-control-label" for="weighted-search">Weighted search</label>
       </div>
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="curated-db-only" disabled>
         <label class="custom-control-label" for="curated-db-only">Curated databases only</label>
       </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="parents" disabled>
+        <label class="custom-control-label" for="parents">Include FamPlex families and complexes</label>
+      </div>
       <div class="row" style="padding-top: 5px;">
         <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
           <select id="path-length">
-            <option value="" selected="selected" disabled="disabled" hidden="hidden">Path length</option>
+            <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
             <option value=1>1</option>
-            <option selected="selected" value=2>2</option>
+            <option value=2>2</option>
             <option value=3>3</option>
             <option value=4>4</option>
             <option value=5>5</option>
-            <option value="no_limit">No Limit</option>
+            <option value="no_limit" disabled>No Limit</option>
           </select>
         </div>
         <div class="custom-control custom-checkbox">
@@ -190,7 +204,7 @@
     <!-- Direct paths: a-b -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">Direct Paths</h3>
+        <h3 class="display-7">Direct Paths (A&rarr;B)</h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -205,7 +219,7 @@
     <!-- Path len 2: a-b-c -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">2-Edge Paths</h3>
+        <h3 class="display-7">2-Edge Paths (A&rarr;U&rarr;B)</h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -220,7 +234,7 @@
     <!-- Path len 3: a-b-c-d -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">3-Edge Paths</h3>
+        <h3 class="display-7">3-Edge Paths (A&rarr;U&rarr;V&rarr;B)</h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -235,7 +249,7 @@
     <!-- Path len 4: a-b-c-d -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">4-Edge Paths</h3>
+        <h3 class="display-7">4-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;B)</h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -250,7 +264,7 @@
     <!-- Path len 5: a-b-c-d-e-f -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">5-Edge Paths</h3>
+        <h3 class="display-7">5-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;Y&rarr;B)</h3>
       </div>
       <div class="card-body">
         <table class="table">
