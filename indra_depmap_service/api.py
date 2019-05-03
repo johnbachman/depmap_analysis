@@ -231,24 +231,29 @@ def dump_indra_db(path='.'):
     return stmts_file, dataframe_file, csv_file
 
 
-def load_indra_graph(graph_path, update=False):
+def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
-        indra_graph = dnf.nx_multi_digraph_from_sif_dataframe(dataframe_file)
+        indra_dir_graph = dnf.nx_digraph_from_sif_dataframe(dataframe_file)
+        indra_multi_digraph = dnf.nx_digraph_from_sif_dataframe(dataframe_file,
+                                                                multi=True)
         logging.info('Dumping latest indra db snapshot to pickle')
-        _dump_it_to_pickle(graph_path, indra_graph)
+        _dump_it_to_pickle(dir_graph_path, indra_dir_graph)
+        INDRA_DG_NETWORK_CACHE = path.join(CACHE, dir_graph_path)
+        _dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
+        INDRA_MDG_NETWORK_CACHE = path.join(CACHE, multi_digraph_path)
     else:
-        logger.info('Loading indra network from %s' % graph_path)
-        indra_graph = _pickle_open(graph_path)
+        logger.info('Loading indra network from %s' % dir_graph_path)
+        indra_dir_graph = _pickle_open(dir_graph_path)
         logger.info('Finished loading indra network.')
-    return indra_graph
+    return indra_dir_graph, indra_multi_digraph
 
 
 if path.isfile(INDRA_DG_NETWORK_CACHE) and path.isfile(
         INDRA_MDG_NETWORK_CACHE):
     indra_network = \
-        IndraNetwork(load_indra_graph(INDRA_DG_NETWORK_CACHE),
-                     load_indra_graph(INDRA_MDG_NETWORK_CACHE))
+        IndraNetwork(*load_indra_graph(INDRA_DG_NETWORK_CACHE,
+                                       INDRA_MDG_NETWORK_CACHE))
 else:
     # Here should dump new cache instead, but raise error for now
 
