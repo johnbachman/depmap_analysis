@@ -112,13 +112,14 @@ class IndraNetwork:
             logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
                            'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
             path_len = self.MAX_PATH_LEN
-        spec_len_only = kwargs['spec_len_only']
         try:
             if not simple:
                 logger.info('Doing non-simple path search')
-                paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
+                # paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
+                #                               source, target, weight)
+                paths = nx.all_shortest_paths(self.nx_md_graph_repr,
                                               source, target, weight)
-                return self._loop_paths(paths, path_len, spec_len_only)
+                return self._loop_paths(paths, path_len, **kwargs)
             else:
                 logger.info('Doing simple path search')
                 return self._find_shortest_simple_paths(source, target,
@@ -138,15 +139,19 @@ class IndraNetwork:
             logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
                            'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
             path_len = self.MAX_PATH_LEN
-        spec_len_only = kwargs['spec_len_only']
         simple_paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
                                                 source, target, weight)
-        return self._loop_paths(simple_paths, path_len, spec_len_only)
+        return self._loop_paths(simple_paths, path_len, **kwargs)
 
-    def _loop_paths(self, paths_gen, path_len, len_only):
+    def _loop_paths(self, paths_gen, path_len, **kwargs):
+        len_only = kwargs['spec_len_only']
+        belief_cutoff = kwargs['bsco']
         result = {'paths_by_length': {}}
         for n, path in enumerate(paths_gen):
-            pd = {'stmts': self._get_hash_path(path), 'path': path}
+            hash_path = self._get_hash_path(path, belief_cutoff)
+            if not hash_path:
+                return {}
+            pd = {'stmts': hash_path, 'path': path}
             try:
                 if not len_only and \
                         len(result['paths_by_length'][len(path)]) \
@@ -187,7 +192,7 @@ class IndraNetwork:
         else:
             return self.mdg_edges.get((s, o, index))
 
-    def _get_hash_path(self, path, simple_dir=True):
+    def _get_hash_path(self, path, belief_cutoff, simple_dir=True):
         """Return a list of n-1 lists of dicts containing of stmts connected
         by the n nodes in the input path. if simple_dir is True, query edges
         from directed graph and not from MultiDiGraph representation"""
@@ -197,12 +202,16 @@ class IndraNetwork:
             edges = []
             e = 0
             edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
+            if edge_stmt['bs'] < belief_cutoff:
+                return []
             while edge_stmt:
                 # convert hash to string for javascript compatability
                 edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
                 edges.append({**edge_stmt, 'subj': path[n], 'obj': path[n + 1]})
                 e += 1
                 edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
+                if edge_stmt and edge_stmt['bs'] < belief_cutoff:
+                    return []
             hash_path.append(edges)
         return hash_path
 
