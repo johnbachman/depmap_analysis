@@ -27,11 +27,15 @@
 
     function submitQuery() {
       if (!document.getElementById('path-length').value) {
-        alert('Please select a path length')
+        alert('Please select a path length');
         return;
       }
-
-      var statusBox = document.getElementById('query-status')
+      let beliefEntry = parseFloat(document.getElementById('belief-cutoff').value || 0);
+      if (beliefEntry < 0 || beliefEntry > 1) {
+        alert('Enter a belief score between 0 and 1');
+        return;
+      }
+      var statusBox = document.getElementById('query-status');
       let queryDict = {
         source: document.getElementById('source').value,
         target: document.getElementById('target').value,
@@ -39,6 +43,7 @@
         spec_len_only: document.getElementById('selected-length-only').checked,
         sign: document.getElementById('sign-dd').value,
         weighted: document.getElementById('weighted-search').checked,
+        bsco: beliefEntry,
         direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
         parents: document.getElementById('parents').checked,
@@ -109,6 +114,10 @@
       }
     }
 
+    function isNumeric(n) {
+      return !isNaN(parseFloat(n)) && isFinite(n);
+    }
+
     // Function to put stmts from path in a HTML format with linkouts
     function generatePathLinkout(stmtsArray) {
       // Build an html string of the paths
@@ -146,6 +155,38 @@
           <input type="text" id="target" class="form-control" placeholder="Enter target">
         </div>
       </div>
+      <div class="row" style="padding-top: 5px;">
+        <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
+          <select id="path-length">
+            <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
+            <option value=1>1</option>
+            <option value=2>2</option>
+            <option value=3>3</option>
+            <option value=4>4</option>
+            <option value=5>5</option>
+          </select>
+        </div>
+        <div class="custom-control custom-checkbox">
+          <input type="checkbox" class="custom-control-input" id="selected-length-only">
+          <label class="custom-control-label" for="selected-length-only">Check for selected length only</label>
+        </div>
+      </div>
+      <div class="row" style="padding-top: 5px;">
+        <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
+          <label><select id="sign-dd" disabled>
+            <option selected="selected" value="no_sign">No sign</option>
+            <option value="plus">+</option>
+            <option value="minus">-</option>
+          </select>&nbsp;&nbsp;Sign</label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <label><div class="container" style="width: 90px; float: left; padding: 0px;">
+            <input class="form-control" type="number" step="0.01" name="belief_cutoff" id="belief-cutoff" min="0" max="1">
+          </div>&nbsp;&nbsp;Belief Score cut-off (0 to 1)</label>
+        </div>
+      </div>
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="direct-only" disabled>
         <label class="custom-control-label" for="direct-only">Direct only</label>
@@ -165,32 +206,6 @@
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="parents" disabled>
         <label class="custom-control-label" for="parents">Include FamPlex families and complexes</label>
-      </div>
-      <div class="row" style="padding-top: 5px;">
-        <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
-          <select id="path-length">
-            <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
-            <option value=1>1</option>
-            <option value=2>2</option>
-            <option value=3>3</option>
-            <option value=4>4</option>
-            <option value=5>5</option>
-            <option value="no_limit" disabled>No Limit</option>
-          </select>
-        </div>
-        <div class="custom-control custom-checkbox">
-          <input type="checkbox" class="custom-control-input" id="selected-length-only">
-          <label class="custom-control-label" for="selected-length-only">Check for selected length only</label>
-        </div>
-      </div>
-      <div class="row" style="padding-top: 5px;">
-        <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
-          <label><select id="sign-dd" disabled>
-            <option selected="selected" value="no_sign">No sign</option>
-            <option value="plus">+</option>
-            <option value="minus">-</option>
-          </select>&nbsp;&nbsp;Sign</label>
-        </div>
       </div>
       <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
     </form>

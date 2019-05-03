@@ -21,10 +21,11 @@ HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 
 INDRA_MDG_NETWORK_CACHE = path.join(CACHE,
-                                  'nx_multi_digraph_db_dump_20190417.pkl')
-INDRA_DG_NETWORK_CACHE = path.join(CACHE, 'nx_dir_graph_db_dump_20190417.pkl')
+                                    'nx_bs_multi_digraph_db_dump_20190417.pkl')
+INDRA_DG_NETWORK_CACHE = path.join(CACHE,
+                                   'nx_bs_dir_graph_db_dump_20190417.pkl')
 MAX_NUM_PATH = 10
-MAX_PATH_LEN = 6
+MAX_PATH_LEN = 5
 
 
 def _todays_date():
@@ -103,7 +104,7 @@ class IndraNetwork:
         except NodeNotFound or nx.NetworkXNoPath:
             return {}
 
-    def find_shortest_paths(self, source, target, weight=False, simple=True,
+    def find_shortest_paths(self, source, target, weight=None, simple=True,
                             **kwargs):
         """Returns a list of shortest paths in ascending order"""
         path_len = kwargs['path_length']
@@ -111,13 +112,14 @@ class IndraNetwork:
             logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
                            'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
             path_len = self.MAX_PATH_LEN
-        spec_len_only = kwargs['spec_len_only']
         try:
             if not simple:
                 logger.info('Doing non-simple path search')
-                paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
+                # paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
+                #                               source, target, weight)
+                paths = nx.all_shortest_paths(self.nx_md_graph_repr,
                                               source, target, weight)
-                return self._loop_paths(paths, path_len, spec_len_only)
+                return self._loop_paths(paths, path_len, **kwargs)
             else:
                 logger.info('Doing simple path search')
                 return self._find_shortest_simple_paths(source, target,
@@ -137,15 +139,19 @@ class IndraNetwork:
             logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
                            'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
             path_len = self.MAX_PATH_LEN
-        spec_len_only = kwargs['spec_len_only']
         simple_paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
                                                 source, target, weight)
-        return self._loop_paths(simple_paths, path_len, spec_len_only)
+        return self._loop_paths(simple_paths, path_len, **kwargs)
 
-    def _loop_paths(self, paths_gen, path_len, len_only):
+    def _loop_paths(self, paths_gen, path_len, **kwargs):
+        len_only = kwargs['spec_len_only']
+        belief_cutoff = kwargs['bsco']
         result = {'paths_by_length': {}}
         for n, path in enumerate(paths_gen):
-            pd = {'stmts': self._get_hash_path(path), 'path': path}
+            hash_path = self._get_hash_path(path, belief_cutoff)
+            if not hash_path:
+                return {}
+            pd = {'stmts': hash_path, 'path': path}
             try:
                 if not len_only and \
                         len(result['paths_by_length'][len(path)]) \
@@ -175,16 +181,18 @@ class IndraNetwork:
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
     def _get_edge(self, s, o, index, directed):
+        """Formats edges from both DiGraph and MultiDigraph to the same
+        format for conformity"""
         if directed:
             try:
                 stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
             except IndexError:
-                stmt_edge = None  # To keep it consistent with
+                stmt_edge = None  # To keep it consistent with Multi DiGraph
             return stmt_edge
         else:
             return self.mdg_edges.get((s, o, index))
 
-    def _get_hash_path(self, path, simple_dir=True):
+    def _get_hash_path(self, path, belief_cutoff, simple_dir=True):
         """Return a list of n-1 lists of dicts containing of stmts connected
         by the n nodes in the input path. if simple_dir is True, query edges
         from directed graph and not from MultiDiGraph representation"""
@@ -194,12 +202,16 @@ class IndraNetwork:
             edges = []
             e = 0
             edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
+            if edge_stmt['bs'] < belief_cutoff:
+                return []
             while edge_stmt:
                 # convert hash to string for javascript compatability
                 edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
                 edges.append({**edge_stmt, 'subj': path[n], 'obj': path[n + 1]})
                 e += 1
                 edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
+                if edge_stmt and edge_stmt['bs'] < belief_cutoff:
+                    return []
             hash_path.append(edges)
         return hash_path
 
@@ -228,24 +240,32 @@ def dump_indra_db(path='.'):
     return stmts_file, dataframe_file, csv_file
 
 
-def load_indra_graph(graph_path, update=False):
+def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
+    global INDRA_DG_NETWORK_CACHE, INDRA_MDG_NETWORK_CACHE
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
-        indra_graph = dnf.nx_multi_digraph_from_sif_dataframe(dataframe_file)
+        indra_dir_graph = dnf.nx_digraph_from_sif_dataframe(dataframe_file)
+        indra_multi_digraph = dnf.nx_digraph_from_sif_dataframe(dataframe_file,
+                                                                multi=True)
         logging.info('Dumping latest indra db snapshot to pickle')
-        _dump_it_to_pickle(graph_path, indra_graph)
+        _dump_it_to_pickle(dir_graph_path, indra_dir_graph)
+        INDRA_DG_NETWORK_CACHE = path.join(CACHE, dir_graph_path)
+        _dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
+        INDRA_MDG_NETWORK_CACHE = path.join(CACHE, multi_digraph_path)
     else:
-        logger.info('Loading indra network from %s' % graph_path)
-        indra_graph = _pickle_open(graph_path)
-        logger.info('Finished loading indra network.')
-    return indra_graph
+        logger.info('Loading indra networks %s and %s' %
+                    (dir_graph_path, multi_digraph_path))
+        indra_dir_graph = _pickle_open(dir_graph_path)
+        indra_multi_digraph = _pickle_open(multi_digraph_path)
+        logger.info('Finished loading indra networks.')
+    return indra_dir_graph, indra_multi_digraph
 
 
 if path.isfile(INDRA_DG_NETWORK_CACHE) and path.isfile(
         INDRA_MDG_NETWORK_CACHE):
     indra_network = \
-        IndraNetwork(load_indra_graph(INDRA_DG_NETWORK_CACHE),
-                     load_indra_graph(INDRA_MDG_NETWORK_CACHE))
+        IndraNetwork(*load_indra_graph(INDRA_DG_NETWORK_CACHE,
+                                       INDRA_MDG_NETWORK_CACHE))
 else:
     # Here should dump new cache instead, but raise error for now
 
