@@ -104,7 +104,7 @@ class IndraNetwork:
         except NodeNotFound or nx.NetworkXNoPath:
             return {}
 
-    def find_shortest_paths(self, source, target, weight=False, simple=True,
+    def find_shortest_paths(self, source, target, weight=None, simple=True,
                             **kwargs):
         """Returns a list of shortest paths in ascending order"""
         path_len = kwargs['path_length']
@@ -176,11 +176,13 @@ class IndraNetwork:
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
     def _get_edge(self, s, o, index, directed):
+        """Formats edges from both DiGraph and MultiDigraph to the same
+        format for conformity"""
         if directed:
             try:
                 stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
             except IndexError:
-                stmt_edge = None  # To keep it consistent with
+                stmt_edge = None  # To keep it consistent with Multi DiGraph
             return stmt_edge
         else:
             return self.mdg_edges.get((s, o, index))
