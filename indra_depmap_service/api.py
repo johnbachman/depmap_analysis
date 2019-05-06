@@ -306,8 +306,9 @@ def process_query():
     except ValueError:
         # Bad values in json, but entry existed
         abort(Response('Badly formatted json', 400))
-    finally:
+    except Exception as e:
         # Anything else: bug or networkx error, not the user's fault
+        logger.warning('Unhandled internal error: ' + repr(e))
         abort(Response('Error handling query', 500))
 
 
