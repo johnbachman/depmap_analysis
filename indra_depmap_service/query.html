@@ -139,6 +139,12 @@
     }
 
   </script>
+  <style>
+    h3 a.stmt_toggle {
+      cursor: pointer;
+      color: #000000;
+    }    
+  </style>
 </head>
 <body>
   <div class="container">
@@ -219,76 +225,137 @@
     <!-- Direct paths: a-b -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">Direct Paths (A&rarr;B)<span id="npaths-1" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
+        <h3 class="display-7">
+          <a href="#"
+             class="stmt_toggle"
+             data-toggle="collapse"
+             data-target="#collapse-paths-1"
+             aria-expanded="false" 
+             aria-controls="collapse-paths-1">
+            Direct Paths (A&rarr;B)
+          </a>
+          <span id="npaths-1" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+
+        </h3>
       </div>
-      <div class="card-body">
-        <table class="table">
-          <thead class="table-head">
-            <th>Path</th>
-            <th>Support</th>
-          </thead>
-          <tbody class="table-body" id="query-results-1"></tbody>
-        </table>
+      <div id="collapse-paths-1" class="collapse">
+        <div class="card-body">
+          <table class="table">
+            <thead class="table-head">
+              <th>Path</th>
+              <th>Support</th>
+            </thead>
+            <tbody class="table-body" id="query-results-1"></tbody>
+          </table>
+        </div>
       </div>
     </div>
     <!-- Path len 2: a-b-c -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">2-Edge Paths (A&rarr;U&rarr;B)<span id="npaths-2" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
+        <h3 class="display-7">
+          <a href="#"
+             class="stmt_toggle"
+             data-toggle="collapse"
+             data-target="#collapse-paths-2"
+             aria-expanded="false" 
+             aria-controls="collapse-paths-2">
+            2-Edge Paths (A&rarr;U&rarr;B)
+          </a>
+          <span id="npaths-2" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+        </h3>
       </div>
-      <div class="card-body">
-        <table class="table">
-          <thead class="table-head">
-            <th>Path</th>
-            <th>Support</th>
-          </thead>
-          <tbody class="table-body" id="query-results-2"></tbody>
-        </table>
+      <div id="collapse-paths-2" class="collapse">
+        <div class="card-body">
+          <table class="table">
+            <thead class="table-head">
+              <th>Path</th>
+              <th>Support</th>
+            </thead>
+            <tbody class="table-body" id="query-results-2"></tbody>
+          </table>
+        </div>
       </div>
     </div>
     <!-- Path len 3: a-b-c-d -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">3-Edge Paths (A&rarr;U&rarr;V&rarr;B)<span id="npaths-3" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
+        <h3 class="display-7">
+          <a href="#"
+             class="stmt_toggle"
+             data-toggle="collapse"
+             data-target="#collapse-paths-3"
+             aria-expanded="false" 
+             aria-controls="collapse-paths-3">
+            3-Edge Paths (A&rarr;U&rarr;V&rarr;B)
+          </a>
+          <span id="npaths-3" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+        </h3>
       </div>
-      <div class="card-body">
-        <table class="table">
-          <thead class="table-head">
-            <th>Path</th>
-            <th>Support</th>
-          </thead>
-          <tbody class="table-body" id="query-results-3"></tbody>
-        </table>
+      <div id="collapse-paths-3" class="collapse">
+        <div class="card-body">
+          <table class="table">
+            <thead class="table-head">
+              <th>Path</th>
+              <th>Support</th>
+            </thead>
+            <tbody class="table-body" id="query-results-3"></tbody>
+          </table>
+        </div>
       </div>
     </div>
     <!-- Path len 4: a-b-c-d -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">4-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;B)<span id="npaths-4" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
+        <h3 class="display-7">
+          <a href="#"
+             class="stmt_toggle"
+             data-toggle="collapse"
+             data-target="#collapse-paths-4"
+             aria-expanded="false" 
+             aria-controls="collapse-paths-4">
+            4-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;B)
+          </a>
+          <span id="npaths-4" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+        </h3>
       </div>
-      <div class="card-body">
-        <table class="table">
-          <thead class="table-head">
-            <th>Path</th>
-            <th>Support</th>
-          </thead>
-          <tbody class="table-body" id="query-results-4"></tbody>
-        </table>
+      <div id="collapse-paths-4" class="collapse">
+        <div class="card-body">
+          <table class="table">
+            <thead class="table-head">
+              <th>Path</th>
+              <th>Support</th>
+            </thead>
+            <tbody class="table-body" id="query-results-4"></tbody>
+          </table>
+        </div>
       </div>
     </div>
     <!-- Path len 5: a-b-c-d-e-f -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">5-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;Y&rarr;B)<span id="npaths-5" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
+        <h3 class="display-7">
+          <a href="#"
+             class="stmt_toggle"
+             data-toggle="collapse"
+             data-target="#collapse-paths-5"
+             aria-expanded="false" 
+             aria-controls="collapse-paths-5">
+            5-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;Y&rarr;B)
+          </a>
+          <span id="npaths-5" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+        </h3>
       </div>
-      <div class="card-body">
-        <table class="table">
-          <thead class="table-head">
-            <th>Path</th>
-            <th>Support</th>
-          </thead>
-          <tbody class="table-body" id="query-results-5"></tbody>
-        </table>
+      <div id="collapse-paths-5" class="collapse">
+        <div class="card-body">
+          <table class="table">
+            <thead class="table-head">
+              <th>Path</th>
+              <th>Support</th>
+            </thead>
+            <tbody class="table-body" id="query-results-5"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
