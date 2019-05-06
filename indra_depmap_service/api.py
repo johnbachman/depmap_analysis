@@ -95,7 +95,7 @@ class IndraNetwork:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
                 return {len(path): [{
-                    'stmts': self._get_hash_path(path),
+                    'stmts': self._get_hash_path(path, kwargs['bsco']),
                     'path': path
                 }]}
             else:
@@ -147,7 +147,12 @@ class IndraNetwork:
         len_only = kwargs['spec_len_only']
         belief_cutoff = kwargs['bsco']
         result = {'paths_by_node_count': {}}
+        first_flag = True
+        cur_len = 0
         for n, path in enumerate(paths_gen):
+            if len(path) > cur_len:
+                first_flag = True
+                cur_len = len(path)
             hash_path = self._get_hash_path(path, belief_cutoff)
             if not hash_path:
                 return {}
@@ -164,6 +169,16 @@ class IndraNetwork:
                     result['paths_by_node_count'][len(path)].append(pd)
                 elif len(result['paths_by_node_count'][len(path)]) \
                         >= self.MAX_NUM_PATH:
+                    if first_flag:
+                        first_flag = False
+                        logger.info('Max number of paths exceeded for paths '
+                                    'of length %d. Skipping all subequent '
+                                    'paths' % len(path))
+                    if len(path) >= self.MAX_PATH_LEN:
+                        logger.info('Reached maximum number of paths '
+                                    'at longest allowed length path length. '
+                                    'Returing results')
+                        return result
                     continue
             except KeyError:
                 try:
