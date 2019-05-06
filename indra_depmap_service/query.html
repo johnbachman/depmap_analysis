@@ -127,7 +127,7 @@
       let htmlString = ''
       for (edgeList of stmtsArray) {
         htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + 
-          edgeList[0].obj + '</b><br>'
+          edgeList[0].obj + '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + edgeList.length + '</span><br>'
         for (stmt of edgeList) {
           let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
             '?format=html'
@@ -219,7 +219,7 @@
     <!-- Direct paths: a-b -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">Direct Paths (A&rarr;B)</h3>
+        <h3 class="display-7">Direct Paths (A&rarr;B)<span id="npaths-1" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -234,7 +234,7 @@
     <!-- Path len 2: a-b-c -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">2-Edge Paths (A&rarr;U&rarr;B)</h3>
+        <h3 class="display-7">2-Edge Paths (A&rarr;U&rarr;B)<span id="npaths-2" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -249,7 +249,7 @@
     <!-- Path len 3: a-b-c-d -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">3-Edge Paths (A&rarr;U&rarr;V&rarr;B)</h3>
+        <h3 class="display-7">3-Edge Paths (A&rarr;U&rarr;V&rarr;B)<span id="npaths-3" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -264,7 +264,7 @@
     <!-- Path len 4: a-b-c-d -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">4-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;B)</h3>
+        <h3 class="display-7">4-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;B)<span id="npaths-4" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
       </div>
       <div class="card-body">
         <table class="table">
@@ -279,7 +279,7 @@
     <!-- Path len 5: a-b-c-d-e-f -->
     <div class="card">
       <div class="card-header">
-        <h3 class="display-7">5-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;Y&rarr;B)</h3>
+        <h3 class="display-7">5-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;Y&rarr;B)<span id="npaths-5" class="badge badge-primary badge-pill float-right">Paths: 0</span></h3>
       </div>
       <div class="card-body">
         <table class="table">
