@@ -146,7 +146,7 @@ class IndraNetwork:
     def _loop_paths(self, paths_gen, path_len, **kwargs):
         len_only = kwargs['spec_len_only']
         belief_cutoff = kwargs['bsco']
-        result = {'paths_by_length': {}}
+        result = {'paths_by_node_count': {}}
         for n, path in enumerate(paths_gen):
             hash_path = self._get_hash_path(path, belief_cutoff)
             if not hash_path:
@@ -154,23 +154,23 @@ class IndraNetwork:
             pd = {'stmts': hash_path, 'path': path}
             try:
                 if not len_only and \
-                        len(result['paths_by_length'][len(path)]) \
+                        len(result['paths_by_node_count'][len(path)]) \
                         < self.MAX_NUM_PATH:
-                    result['paths_by_length'][len(path)].append(pd)
+                    result['paths_by_node_count'][len(path)].append(pd)
                 elif len_only and \
-                        len(result['paths_by_length'][len(path)]) \
+                        len(result['paths_by_node_count'][len(path)]) \
                         < self.MAX_NUM_PATH \
                         and len(path) == path_len:
-                    result['paths_by_length'][len(path)].append(pd)
-                elif len(result['paths_by_length'][len(path)]) \
+                    result['paths_by_node_count'][len(path)].append(pd)
+                elif len(result['paths_by_node_count'][len(path)]) \
                         >= self.MAX_NUM_PATH:
                     continue
             except KeyError:
                 try:
                     if len_only and len(path) == path_len:
-                        result['paths_by_length'][len(path)] = [pd]
+                        result['paths_by_node_count'][len(path)] = [pd]
                     elif not len_only:
-                        result['paths_by_length'][len(path)] = [pd]
+                        result['paths_by_node_count'][len(path)] = [pd]
                 except KeyError as ke:
                     logger.warning('Unexpected KeyError: ' + repr(ke))
                     continue

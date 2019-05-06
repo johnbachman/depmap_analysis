@@ -84,10 +84,10 @@
         // for each path length:
         //   for each path:
         //     Output: path | list supporting statements per edge
-        let pathsKeyedArray = data.result.paths_by_length;
+        let pathsKeyedArray = data.result.paths_by_node_count;
 
         for (len in pathsKeyedArray) {
-          let tableBody = document.getElementById('query-results-' + len)
+          let tableBody = document.getElementById('query-results-' + (len-1))
           console.log(tableBody.id)
           for (pathArray of pathsKeyedArray[len]) {
             let newRow = document.createElement('tr');
