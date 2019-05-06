@@ -25,7 +25,7 @@ INDRA_MDG_NETWORK_CACHE = path.join(CACHE,
 INDRA_DG_NETWORK_CACHE = path.join(CACHE,
                                    'nx_bs_dir_graph_db_dump_20190417.pkl')
 MAX_NUM_PATH = 10
-MAX_PATH_LEN = 5
+MAX_PATH_LEN = 4
 
 
 def _todays_date():
@@ -95,7 +95,7 @@ class IndraNetwork:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
                 return {len(path): [{
-                    'stmts': self._get_hash_path(path),
+                    'stmts': self._get_hash_path(path, kwargs['bsco']),
                     'path': path
                 }]}
             else:
@@ -147,7 +147,12 @@ class IndraNetwork:
         len_only = kwargs['spec_len_only']
         belief_cutoff = kwargs['bsco']
         result = {'paths_by_node_count': {}}
+        first_flag = True
+        cur_len = 0
         for n, path in enumerate(paths_gen):
+            if len(path) > cur_len:
+                first_flag = True
+                cur_len = len(path)
             hash_path = self._get_hash_path(path, belief_cutoff)
             if not hash_path:
                 return {}
@@ -164,6 +169,16 @@ class IndraNetwork:
                     result['paths_by_node_count'][len(path)].append(pd)
                 elif len(result['paths_by_node_count'][len(path)]) \
                         >= self.MAX_NUM_PATH:
+                    if first_flag:
+                        first_flag = False
+                        logger.info('Max number of paths exceeded for paths '
+                                    'of length %d. Skipping all subequent '
+                                    'paths' % len(path))
+                    if len(path) >= self.MAX_PATH_LEN:
+                        logger.info('Reached maximum number of paths '
+                                    'at longest allowed length path length. '
+                                    'Returing results')
+                        return result
                     continue
             except KeyError:
                 try:
@@ -173,7 +188,7 @@ class IndraNetwork:
                         result['paths_by_node_count'][len(path)] = [pd]
                 except KeyError as ke:
                     logger.warning('Unexpected KeyError: ' + repr(ke))
-                    continue
+                    raise ke
         return result
 
     def has_path(self, source, target):
@@ -181,8 +196,7 @@ class IndraNetwork:
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
     def _get_edge(self, s, o, index, directed):
-        """Formats edges from both DiGraph and MultiDigraph to the same
-        format for conformity"""
+        """Return edges from DiGraph or MultiDigraph in a uniform format"""
         if directed:
             try:
                 stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
@@ -307,6 +321,10 @@ def process_query():
     except ValueError:
         # Bad values in json, but entry existed
         abort(Response('Badly formatted json', 400))
+    except Exception as e:
+        # Anything else: bug or networkx error, not the user's fault
+        logger.warning('Unhandled internal error: ' + repr(e))
+        abort(Response('Error handling query', 500))
 
 
 if __name__ == '__main__':

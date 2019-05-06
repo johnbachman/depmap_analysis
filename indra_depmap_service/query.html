@@ -39,7 +39,7 @@
       let queryDict = {
         source: document.getElementById('source').value,
         target: document.getElementById('target').value,
-        path_length: document.getElementById('path-length').value,
+        path_length: parseInt(document.getElementById('path-length').value),
         spec_len_only: document.getElementById('selected-length-only').checked,
         sign: document.getElementById('sign-dd').value,
         weighted: document.getElementById('weighted-search').checked,
@@ -47,11 +47,12 @@
         direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
         parents: document.getElementById('parents').checked,
-        simple: false
-        // simple: true // What we really want
+        simple: document.getElementById('simple-paths').checked
       }
       let _url = SUBMIT_URL
       statusBox.textContent = 'Query submitted...'
+      console.log('Query submitted:')
+      console.log(queryDict)
       let response = $.ajax({
         url: _url,
         type: 'POST',
@@ -169,7 +170,7 @@
             <option value=2>2</option>
             <option value=3>3</option>
             <option value=4>4</option>
-            <option value=5>5</option>
+            <!-- <option value=5>5</option> -->
           </select>
         </div>
         <div class="custom-control custom-checkbox">
@@ -198,7 +199,7 @@
         <label class="custom-control-label" for="direct-only">Direct only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="simple-paths" disabled>
+        <input type="checkbox" class="custom-control-input" id="simple-paths" checked>
         <label class="custom-control-label" for="simple-paths">Simple path search</label>
       </div>
       <div class="custom-control custom-checkbox">
@@ -332,7 +333,7 @@
       </div>
     </div>
     <!-- Path len 5: a-b-c-d-e-f -->
-    <div class="card">
+<!--     <div class="card">
       <div class="card-header">
         <h3 class="display-7">
           <a href="#"
@@ -357,7 +358,7 @@
           </table>
         </div>
       </div>
-    </div>
+    </div> -->
   </div>
 
   <footer class="footer text-muted" id="about" style="background: #F5F5F5;">
