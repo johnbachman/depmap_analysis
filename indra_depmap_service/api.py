@@ -25,7 +25,7 @@ INDRA_MDG_NETWORK_CACHE = path.join(CACHE,
 INDRA_DG_NETWORK_CACHE = path.join(CACHE,
                                    'nx_bs_dir_graph_db_dump_20190417.pkl')
 MAX_NUM_PATH = 10
-MAX_PATH_LEN = 5
+MAX_PATH_LEN = 4
 
 
 def _todays_date():
@@ -181,8 +181,7 @@ class IndraNetwork:
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
     def _get_edge(self, s, o, index, directed):
-        """Formats edges from both DiGraph and MultiDigraph to the same
-        format for conformity"""
+        """Return edges from DiGraph or MultiDigraph in a uniform format"""
         if directed:
             try:
                 stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
