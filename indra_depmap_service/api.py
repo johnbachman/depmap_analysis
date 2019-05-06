@@ -173,7 +173,7 @@ class IndraNetwork:
                         result['paths_by_node_count'][len(path)] = [pd]
                 except KeyError as ke:
                     logger.warning('Unexpected KeyError: ' + repr(ke))
-                    continue
+                    raise ke
         return result
 
     def has_path(self, source, target):
@@ -307,6 +307,9 @@ def process_query():
     except ValueError:
         # Bad values in json, but entry existed
         abort(Response('Badly formatted json', 400))
+    finally:
+        # Anything else: bug or networkx error, not the user's fault
+        abort(Response('Error handling query', 500))
 
 
 if __name__ == '__main__':
