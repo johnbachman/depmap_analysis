@@ -88,7 +88,7 @@
 
         for (len in pathsKeyedArray) {
           let tableBody = document.getElementById('query-results-' + (len-1))
-          console.log(tableBody.id)
+          document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
           for (pathArray of pathsKeyedArray[len]) {
             let newRow = document.createElement('tr');
             // Add current path
@@ -135,7 +135,7 @@
             stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
         }
       }
-      return htmlString.substring(0, htmlString.length-4);
+      return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
     }
 
   </script>
