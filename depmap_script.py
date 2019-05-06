@@ -971,10 +971,10 @@ if __name__ == '__main__':
         'correlations during merge. Default is 1 (i.e. 1 SD).')
     parser.add_argument('--filter-type', default='None', type=str,
                         help='Type of filtering for merging correlations from '
-        'multiple data sets. Options are: `z-score-diff` - The difference in '
-        'z-score must be smaller than given by --margin. `z-score-product` - '
+        'multiple data sets. Options are: `z_score_diff` - The difference in '
+        'z-score must be smaller than given by --margin. `z_score_product` - '
         'The product of the z-scores must be greater than given by --margin. '
-        '`z-score-mean` - The mean of the z-scores must be smaller than given '
+        '`z_score_mean` - The mean of the z-scores must be smaller than given '
         'by --margin. `sign` - Only filter out correlations if they have '
         'opposite signs. `None` - No filter is applied when merging the data '
         'sets. The resulting correlation dictionary will simply be the '

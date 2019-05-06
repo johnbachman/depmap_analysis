@@ -173,7 +173,7 @@ def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
                 vals = []
                 for name in id_:
                     vals.append(id_[name])
-                fo.write('%s,%s,%s\n' % (ok, ik, str(vals)))
+                fo.write('%s,%s,"%s"\n' % (ok, ik, str(vals)))
                 pairs += 1
     return pairs
 
@@ -1050,6 +1050,15 @@ def merge_correlation_data(correlation_dicts_list, settings):
                         merged_corr_dict[o_gene][i_gene][set_name] = corr
                         merged_corr_dict[o_gene][i_gene][other_name] = \
                             other_corr
+                        if 'z_score_mean' == settings['filter_type']:
+                            merged_corr_dict[o_gene][i_gene][
+                                'combined_z_score'] = \
+                                0.5 * _z_sc(num=corr,
+                                            mu=sigma_dict['mean'],
+                                            sigma=sigma_dict['sigma']) + \
+                                0.5 * _z_sc(num=other_corr,
+                                            mu=other_sigma_dict['mean'],
+                                            sigma=other_sigma_dict['sigma'])
                         assert merged_corr_dict[o_gene][i_gene].get(set_name)\
                             is not None
                         assert merged_corr_dict[o_gene][i_gene].get(other_name)\
@@ -1517,7 +1526,7 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
 
 
 def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
-                filter_type='z-scor-diff'):
+                filter_type='z_scor_diff'):
     """Filter for passing correlation scores based on their difference in
     standard deviation
 
@@ -1547,11 +1556,11 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         If True, the correlations are similar enough as measured by their
         difference in their distance from the mean standard deviation.
     """
-    if filter_type == 'z-score-mean':
-        return _z_score_mean(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
-    elif filter_type == 'z-score-diff':
+    if filter_type == 'z_score_mean':
+        return _z_score_mean_co(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
+    elif filter_type == 'z_score_diff':
         return _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
-    elif filter_type == 'z-score-product':
+    elif filter_type == 'z_score_product':
         return _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'sign':
         return _same_sign(corr1, corr2)
@@ -1565,11 +1574,10 @@ def _z_sc(num, mu, sigma):
     return (num - mu) / sigma
 
 
-def _z_score_mean(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
+def _z_score_mean_co(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     """Pass if the mean of the z-scores is greater than margin"""
-    return 0.5 * abs(_z_sc(corr1, mu1, sigma1)) + \
-        0.5 * abs(_z_sc(corr2, mu2, sigma2)) > margin and \
-        _same_sign(corr1, corr2)
+    return 0.5 * _z_sc(corr1, mu1, sigma1) + \
+        0.5 * _z_sc(corr2, mu2, sigma2) > margin
 
 
 def _z_score_diff(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
