@@ -1,5 +1,6 @@
 import json
 import logging
+import argparse
 import networkx as nx
 from os import path
 from jinja2 import Template
@@ -328,4 +329,10 @@ def process_query():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Run the Indra DepMap Service.')
+    parser.add_argument('--host', default='127.0.0.1')
+    parser.add_argument('--port', default=5000, type=int)
+    parser.add_argument('--preload', action='store_true')
+    args = parser.parse_args()
+
     app.run()
