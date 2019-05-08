@@ -26,7 +26,7 @@ INDRA_MDG_CACHE = path.join(CACHE, 'nx_bs_multi_digraph_db_dump_20190417.pkl')
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_dir_graph_db_dump_20190417.pkl')
 
-MAX_NUM_PATH = 10
+MAX_PATHS = 100
 MAX_PATH_LEN = 4
 
 
@@ -55,7 +55,7 @@ class IndraNetwork:
         self.nodes = self.nx_dir_graph_repr.nodes
         self.dir_edges = self.nx_dir_graph_repr.edges
         self.mdg_edges = self.nx_md_graph_repr.edges
-        self.MAX_NUM_PATH = MAX_NUM_PATH
+        self.MAX_PATHS = MAX_PATHS
         self.MAX_PATH_LEN = MAX_PATH_LEN
 
     def handle_query(self, **kwargs):
@@ -81,6 +81,9 @@ class IndraNetwork:
                 if k == 'sign':
                     options['sign'] = 1 if v == 'plus' \
                         else (-1 if v == 'minus' else 0)
+            k_shortest = kwargs.pop('k_shortest')
+            self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
+            logger.info('Lookng for no more than %d paths' % self.MAX_PATHS)
 
             # Todo MultiDiGrap can't do simple graphs: resolve by loading
             #  both a MultiDiGraph and a simple DiGraph - find the simple
@@ -150,50 +153,42 @@ class IndraNetwork:
         len_only = kwargs['spec_len_only']
         belief_cutoff = kwargs['bsco']
         result = {'paths_by_node_count': {}}
-        first_flag = True
-        cur_len = 0
-        for n, path in enumerate(paths_gen):
+        added_paths = 0
+        for path in paths_gen:
+            if added_paths >= self.MAX_PATHS:
+                logger.info('Found k shortest paths')
+                return result
             if len(path) >= self.MAX_PATH_LEN:
                 if not result['paths_by_node_count']:
                     logger.info('No paths shorther than %d found.' %
                                 self.MAX_PATH_LEN)
                     return {}
 
-                logger.info('Reached maximum number of paths '
-                            'at longest allowed length path length. '
-                            'Returing results')
+                logger.info('Reached longest allowed path length. Returning '
+                            'results')
                 return result
-            if len(path) > cur_len:
-                first_flag = True
-                cur_len = len(path)
+
             hash_path = self._get_hash_path(path, belief_cutoff)
             if not hash_path:
                 return {}
             pd = {'stmts': hash_path, 'path': path}
             try:
-                if not len_only and \
-                        len(result['paths_by_node_count'][len(path)]) \
-                        < self.MAX_NUM_PATH:
+                if not len_only:
                     result['paths_by_node_count'][len(path)].append(pd)
-                elif len_only and \
-                        len(result['paths_by_node_count'][len(path)]) \
-                        < self.MAX_NUM_PATH \
-                        and len(path) == path_len:
+                    added_paths += 1
+                elif len_only and len(path) == path_len:
                     result['paths_by_node_count'][len(path)].append(pd)
-                elif len(result['paths_by_node_count'][len(path)]) \
-                        >= self.MAX_NUM_PATH:
-                    if first_flag:
-                        first_flag = False
-                        logger.info('Max number of paths exceeded for length '
-                                    '%d. Skipping all subequent paths' %
-                                    len(path))
+                    added_paths += 1
+                elif len_only and len(path) != path_len:
                     continue
             except KeyError:
                 try:
                     if len_only and len(path) == path_len:
                         result['paths_by_node_count'][len(path)] = [pd]
+                        added_paths += 1
                     elif not len_only:
                         result['paths_by_node_count'][len(path)] = [pd]
+                        added_paths += 1
                 except KeyError as ke:
                     logger.warning('Unexpected KeyError: ' + repr(ke))
                     raise ke
