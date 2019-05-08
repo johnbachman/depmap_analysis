@@ -576,13 +576,25 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     return corr_weight_graph
 
 
-def nx_digraph_from_sif_dataframe(fname, belief_dict=None, multi=False,
+def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                                   verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
-    By default an nx.DiGraph is returned. By setting multi=True,
-    an nx.MultiDiGraph is returned instead."""
-    sif_df = _pickle_open(fname)
+    Arguments:
+        df : str or pandas.DataFrame - A dataframe, either as a file path to
+            a pickle or a pandas DataFrame
+        belief_dict : str - The file path to a belief dict that is keyed by
+            statement hashes corresponding to the statement hashes loaded in df
+        multi : bool - Default: False; Return an nx.MultiDiGraph if True,
+            otherwise return an nx.DiGraph
+        verbosity: int - Output various messages if > 0
+
+    By default an nx.DiGraph is returned. By setting multi=True, an
+    nx.MultiDiGraph is returned instead."""
+    if isinstance(df, str):
+        sif_df = _pickle_open(df)
+    else:
+        sif_df = df
     if belief_dict:
         bsd = _pickle_open(belief_dict)
     else:
@@ -636,6 +648,8 @@ def nx_digraph_from_sif_dataframe(fname, belief_dict=None, multi=False,
         if multi:
             nx_graph.add_edge(**ed)
         else:
+            if ed.pop('u_for_edge', None):
+                ed.pop('v_for_edge', None)
             # Add non-existing edges, append to existing
             if (row['agA_name'], row['agB_name']) in nx_graph.edges:
                 nx_graph.edges[(row['agA_name'],
