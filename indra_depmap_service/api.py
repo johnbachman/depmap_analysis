@@ -47,7 +47,8 @@ QUERY = _load_template('query.html')
 
 class IndraNetwork:
     """Handle searches and graph output of the INDRA DB network"""
-    def __init__(self, indra_dir_graph, indra_multi_dir_graph):
+    def __init__(self, indra_dir_graph=nx.DiGraph(),
+                 indra_multi_dir_graph=nx.MultiDiGraph()):
         self.nx_dir_graph_repr = indra_dir_graph
         self.nx_md_graph_repr = indra_multi_dir_graph
         self.nodes = self.nx_dir_graph_repr.nodes
@@ -151,6 +152,16 @@ class IndraNetwork:
         first_flag = True
         cur_len = 0
         for n, path in enumerate(paths_gen):
+            if len(path) >= self.MAX_PATH_LEN:
+                if not result['paths_by_node_count']:
+                    logger.info('No paths shorther than %d found.' %
+                                self.MAX_PATH_LEN)
+                    return {}
+
+                logger.info('Reached maximum number of paths '
+                            'at longest allowed length path length. '
+                            'Returing results')
+                return result
             if len(path) > cur_len:
                 first_flag = True
                 cur_len = len(path)
@@ -175,11 +186,6 @@ class IndraNetwork:
                         logger.info('Max number of paths exceeded for paths '
                                     'of length %d. Skipping all subequent '
                                     'paths' % len(path))
-                    if len(path) >= self.MAX_PATH_LEN:
-                        logger.info('Reached maximum number of paths '
-                                    'at longest allowed length path length. '
-                                    'Returing results')
-                        return result
                     continue
             except KeyError:
                 try:
