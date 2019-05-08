@@ -24,6 +24,7 @@
   <script type="text/javascript">
     const SUBMIT_URL = 'http://localhost:5000/query/submit';
     const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
+    const MAX_K_PATHS = 50
 
     function submitQuery() {
       if (!document.getElementById('path-length').value) {
@@ -34,6 +35,10 @@
       if (beliefEntry < 0 || beliefEntry > 1) {
         alert('Enter a belief score between 0 and 1');
         return;
+      }
+      let kShortestEntry = parseInt(document.getElementById('k-shortest').value || false);
+      if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
+        alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths')
       }
       var statusBox = document.getElementById('query-status');
       let queryDict = {
@@ -47,7 +52,8 @@
         direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
         parents: document.getElementById('parents').checked,
-        simple: document.getElementById('simple-paths').checked
+        simple: document.getElementById('simple-paths').checked,
+        k_shortest: kShortestEntry
       }
       let _url = SUBMIT_URL
       statusBox.textContent = 'Query submitted...'
@@ -81,7 +87,7 @@
 
     function fillResultsTable(data){
       console.log(data)
-      if (Object.keys(data.result).length > 0) {
+      if (data.result && Object.keys(data.result).length > 0) {
         // for each path length:
         //   for each path:
         //     Output: path | list supporting statements per edge
@@ -163,19 +169,25 @@
         </div>
       </div>
       <div class="row" style="padding-top: 5px;">
-        <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
-          <select id="path-length">
-            <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
-            <option value=1>1</option>
-            <option value=2>2</option>
-            <option value=3>3</option>
-            <option value=4>4</option>
-            <!-- <option value=5>5</option> -->
-          </select>
+        <div class="col">
+          <div class="dropdown">
+            <select id="path-length">
+              <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
+              <option value=1>1</option>
+              <option value=2>2</option>
+              <option value=3>3</option>
+              <option value=4>4</option>
+            </select>
+            <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input" id="selected-length-only">
+              <label class="custom-control-label" for="selected-length-only">Check for selected length only</label>
+            </div>
+          </div>
         </div>
-        <div class="custom-control custom-checkbox">
-          <input type="checkbox" class="custom-control-input" id="selected-length-only">
-          <label class="custom-control-label" for="selected-length-only">Check for selected length only</label>
+        <div class="col">
+          <div class="container" style="width: 160px; float: left; padding: 0px;">
+            <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50" placeholder="max # paths">
+          </div>
         </div>
       </div>
       <div class="row" style="padding-top: 5px;">
@@ -332,33 +344,6 @@
         </div>
       </div>
     </div>
-    <!-- Path len 5: a-b-c-d-e-f -->
-<!--     <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-5"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-5">
-            5-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;Y&rarr;B)
-          </a>
-          <span id="npaths-5" class="badge badge-primary badge-pill float-right">Paths: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-5" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-5"></tbody>
-          </table>
-        </div>
-      </div>
-    </div> -->
   </div>
 
   <footer class="footer text-muted" id="about" style="background: #F5F5F5;">
