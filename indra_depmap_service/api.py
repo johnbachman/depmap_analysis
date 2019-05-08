@@ -57,6 +57,7 @@ class IndraNetwork:
         self.mdg_edges = self.nx_md_graph_repr.edges
         self.MAX_PATHS = MAX_PATHS
         self.MAX_PATH_LEN = MAX_PATH_LEN
+        self.small = False
 
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result."""
@@ -343,5 +344,6 @@ if __name__ == '__main__':
     indra_network = \
         IndraNetwork(*load_indra_graph(INDRA_DG_CACHE,
                                        INDRA_MDG_CACHE))
-    indra_network.small = True
+    if args.test:
+        indra_network.small = True
     app.run(host=args.host, port=args.port)
