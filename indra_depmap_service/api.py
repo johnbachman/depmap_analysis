@@ -21,10 +21,11 @@ logger = logging.getLogger('INDRA GDE API')
 HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 
-INDRA_MDG_NETWORK_CACHE = path.join(CACHE,
-                                    'nx_bs_multi_digraph_db_dump_20190417.pkl')
-INDRA_DG_NETWORK_CACHE = path.join(CACHE,
-                                   'nx_bs_dir_graph_db_dump_20190417.pkl')
+TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
+INDRA_MDG_CACHE = path.join(CACHE, 'nx_bs_multi_digraph_db_dump_20190417.pkl')
+TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
+INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_dir_graph_db_dump_20190417.pkl')
+
 MAX_NUM_PATH = 10
 MAX_PATH_LEN = 4
 
@@ -183,9 +184,9 @@ class IndraNetwork:
                         >= self.MAX_NUM_PATH:
                     if first_flag:
                         first_flag = False
-                        logger.info('Max number of paths exceeded for paths '
-                                    'of length %d. Skipping all subequent '
-                                    'paths' % len(path))
+                        logger.info('Max number of paths exceeded for length '
+                                    '%d. Skipping all subequent paths' %
+                                    len(path))
                     continue
             except KeyError:
                 try:
@@ -262,7 +263,7 @@ def dump_indra_db(path='.'):
 
 
 def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
-    global INDRA_DG_NETWORK_CACHE, INDRA_MDG_NETWORK_CACHE
+    global INDRA_DG_CACHE, INDRA_MDG_CACHE
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
         indra_dir_graph = dnf.nx_digraph_from_sif_dataframe(dataframe_file)
@@ -270,9 +271,9 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
                                                                 multi=True)
         logging.info('Dumping latest indra db snapshot to pickle')
         _dump_it_to_pickle(dir_graph_path, indra_dir_graph)
-        INDRA_DG_NETWORK_CACHE = path.join(CACHE, dir_graph_path)
+        INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
         _dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
-        INDRA_MDG_NETWORK_CACHE = path.join(CACHE, multi_digraph_path)
+        INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
     else:
         logger.info('Loading indra networks %s and %s' %
                     (dir_graph_path, multi_digraph_path))
@@ -282,17 +283,15 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
     return indra_dir_graph, indra_multi_digraph
 
 
-if path.isfile(INDRA_DG_NETWORK_CACHE) and path.isfile(
-        INDRA_MDG_NETWORK_CACHE):
-    indra_network = \
-        IndraNetwork(*load_indra_graph(INDRA_DG_NETWORK_CACHE,
-                                       INDRA_MDG_NETWORK_CACHE))
+if path.isfile(INDRA_DG_CACHE) and path.isfile(
+        INDRA_MDG_CACHE):
+    indra_network = IndraNetwork()
 else:
     # Here should dump new cache instead, but raise error for now
 
     raise FileExistsError(
         'Could not find one or both of %s and %s' %
-        (INDRA_DG_NETWORK_CACHE, INDRA_MDG_NETWORK_CACHE))
+        (INDRA_DG_CACHE, INDRA_MDG_CACHE))
 
 
 @app.route('/')
@@ -338,7 +337,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Run the Indra DepMap Service.')
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', default=5000, type=int)
-    parser.add_argument('--preload', action='store_true')
+    parser.add_argument('--test', action='store_true')
     args = parser.parse_args()
 
-    app.run()
+    if args.test:
+        logger.info('Running test network')
+        INDRA_DG_CACHE = TEST_DG_CACHE
+        INDRA_MDG_CACHE = TEST_MDG_CACHE
+
+    indra_network = \
+        IndraNetwork(*load_indra_graph(INDRA_DG_CACHE,
+                                       INDRA_MDG_CACHE))
+    indra_network.small = True
+    app.run(host=args.host, port=args.port)
