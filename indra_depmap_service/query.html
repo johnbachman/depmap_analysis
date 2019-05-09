@@ -80,14 +80,27 @@
         alert('Enter a belief score between 0 and 1');
         return;
       }
-      let kShortestEntry = parseInt(document.getElementById('k-shortest').value || false);
+      let kShortestEntry = parseInt(document.getElementById('k-shortest').value) || false;
+      if (!kShortestEntry) {
+        kShortestEntry = false;
+      }
       if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
         alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths')
+      }
+      var nodeFilterList = []
+      for (c of document.getElementById('node-filter').children) {
+        nodeFilterList.push(c.value)
+      }
+      var stmtFilterList = []
+      for (c of document.getElementById('stmt-filter').children) {
+        stmtFilterList.push(c.value)
       }
       var statusBox = document.getElementById('query-status');
       let queryDict = {
         source: document.getElementById('source').value,
         target: document.getElementById('target').value,
+        stmt_filter: stmtFilterList,
+        node_filter: nodeFilterList,
         path_length: parseInt(document.getElementById('path-length').value),
         spec_len_only: document.getElementById('selected-length-only').checked,
         sign: document.getElementById('sign-dd').value,
