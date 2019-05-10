@@ -230,6 +230,23 @@ class IndraNetwork:
             hash_path.append(edges)
         return hash_path
 
+    def _pass_stmt(self, subj, obj, edge_stmt, **kwargs):
+        if not edge_stmt:
+            if self.verbose:
+                logger.info('No edge statement')
+            return False
+        if edge_stmt['bs'] < kwargs['bsco']:
+            if self.verbose:
+                logger.info('Did not pass belief score')
+            return False
+        if edge_stmt['stmt_type'].lower() in kwargs['stmt_filter']:
+            if self.verbose:
+                logger.info('statement type %s filtered out as part filter %s'
+                            % (edge_stmt['stmt_type'],
+                               str(kwargs['stmt_filter'])))
+            return False
+        return True
+
 
 def dump_indra_db(path='.'):
     base_name = 'db_dump_' + _todays_date()
