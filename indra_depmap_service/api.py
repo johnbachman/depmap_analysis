@@ -58,6 +58,7 @@ class IndraNetwork:
         self.MAX_PATHS = MAX_PATHS
         self.MAX_PATH_LEN = MAX_PATH_LEN
         self.small = False
+        self.verbose = 0
 
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result."""
@@ -330,6 +331,7 @@ if __name__ == '__main__':
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', default=5000, type=int)
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
 
     if args.test:
@@ -342,4 +344,7 @@ if __name__ == '__main__':
                                        INDRA_MDG_CACHE))
     if args.test:
         indra_network.small = True
+    if args.verbose:
+        logger.info('Verbose level %d' % args.verbose)
+        indra_network.verbose = args.verbose
     app.run(host=args.host, port=args.port)
