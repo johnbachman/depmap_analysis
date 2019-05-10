@@ -62,37 +62,34 @@ class IndraNetwork:
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result."""
         logger.info('Handling query: %s' % repr(kwargs))
-        try:
-            # possible keys (* = mandatory):
-            # *'source', *'target', 'path_length', 'spec_len_only', 'sign',
-            # 'weighted', 'direct_only', 'curated_db_only'
-            keys = kwargs.keys()
-            # 'source' & 'target' are mandatory
-            if 'source' not in keys or 'target' not in keys:
-                raise KeyError('Missing mandatory parameters "source" or '
-                               '"target"')
-            options = {k: v for k, v in kwargs.items()
-                       if k not in ['path_length', 'sign']}  # Handled below
-            for k, v in kwargs.items():
-                if k == 'weighted':
-                    logger.info('Doing weighted path search') if v \
-                        else logger.info('Doing unweighted path search')
-                if k == 'path_length':
-                    options['path_length'] = -1 if v == 'no_limit' else int(v)
-                if k == 'sign':
-                    options['sign'] = 1 if v == 'plus' \
-                        else (-1 if v == 'minus' else 0)
-            k_shortest = kwargs.pop('k_shortest')
-            self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
-            logger.info('Lookng for no more than %d paths' % self.MAX_PATHS)
+        # possible keys (* = mandatory):
+        # *'source', *'target', 'path_length', 'spec_len_only', 'sign',
+        # 'weighted', 'direct_only', 'curated_db_only'
+        keys = kwargs.keys()
+        # 'source' & 'target' are mandatory
+        if 'source' not in keys or 'target' not in keys:
+            raise KeyError('Missing mandatory parameters "source" or '
+                           '"target"')
+        options = {k: v for k, v in kwargs.items()
+                   if k not in ['path_length', 'sign']}  # Handled below
+        for k, v in kwargs.items():
+            if k == 'weighted':
+                logger.info('Doing weighted path search') if v \
+                    else logger.info('Doing unweighted path search')
+            if k == 'path_length':
+                options['path_length'] = -1 if v == 'no_limit' else int(v)
+            if k == 'sign':
+                options['sign'] = 1 if v == 'plus' \
+                    else (-1 if v == 'minus' else 0)
+        k_shortest = kwargs.pop('k_shortest', None)
+        self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
+        logger.info('Lookng for no more than %d paths' % self.MAX_PATHS)
 
-            # Todo MultiDiGrap can't do simple graphs: resolve by loading
-            #  both a MultiDiGraph and a simple DiGraph - find the simple
-            #  paths in the DiGraph and check them in the Multi-DiGraph.
+        # Todo MultiDiGrap can't do simple graphs: resolve by loading
+        #  both a MultiDiGraph and a simple DiGraph - find the simple
+        #  paths in the DiGraph and check them in the Multi-DiGraph.
 
-            return self.find_shortest_paths(**options)
-        except Exception as e:
-            logger.warning('Exception: ', repr(e))
+        return self.find_shortest_paths(**options)
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):
