@@ -207,7 +207,10 @@
     h3 a.stmt_toggle {
       cursor: pointer;
       color: #000000;
-    }    
+    }
+    .row {
+      padding-bottom: 5px;
+    }
   </style>
 </head>
 <body>
@@ -225,7 +228,7 @@
           <input type="text" id="target" class="form-control" placeholder="Enter target">
         </div>
       </div>
-      <div class="row" style="padding-top: 5px;">
+      <div class="row">
         <div class="col">
           <div class="dropdown">
             <select id="path-length">
@@ -247,7 +250,7 @@
           </div>
         </div>
       </div>
-      <div class="row" style="padding-top: 10px;">
+      <div class="row">
         <div class="col">
           <div class="form-select">
             <select name="stmt-filter" id="stmt-filter" placeholder="Statement types excluded from path" multiple>
@@ -263,12 +266,12 @@
       </div>
       <div class="row">
         <div class="col">
-          <label><div class="container" style="width: 90px; float: left; padding: 0px;">
+          <label style="margin: 0px;"><div class="container" style="width: 90px; float: left; padding: 0px;">
             <input class="form-control" type="number" step="0.01" name="belief_cutoff" id="belief-cutoff" min="0" max="1">
           </div>&nbsp;&nbsp;Belief Score cut-off (0 to 1)</label>
         </div>
       </div>
-      <div class="row" style="padding-top: 5px;">
+      <div class="row">
         <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
           <label><select id="sign-dd" disabled>
             <option selected="selected" value="no_sign">No sign</option>
