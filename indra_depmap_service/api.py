@@ -168,6 +168,8 @@ class IndraNetwork:
                             'results')
                 return result
             hash_path = self._get_hash_path(path, **kwargs)
+            if self.verbose > 1:
+                logger.info('Got hash path: %s' % repr(hash_path))
             if hash_path:
                 pd = {'stmts': hash_path, 'path': path}
                 try:
@@ -179,6 +181,8 @@ class IndraNetwork:
                         added_paths += 1
                     elif len_only and len(path) != path_len:
                         continue
+                    else:
+                        logger.warning('This option should not happen')
                 except KeyError:
                     try:
                         if len_only and len(path) == path_len:
@@ -190,6 +194,9 @@ class IndraNetwork:
                     except KeyError as ke:
                         logger.warning('Unexpected KeyError: ' + repr(ke))
                         raise ke
+        if self.verbose:
+            logger.info('Done loopngi paths. Returning result: %s' %
+                        repr(result))
         return result
 
     def has_path(self, source, target):
@@ -202,7 +209,8 @@ class IndraNetwork:
             try:
                 stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
             except IndexError:
-                stmt_edge = None  # To keep it consistent with Multi DiGraph
+                # To keep it consistent with below Multi DiGraph implementation
+                stmt_edge = None
             return stmt_edge
         else:
             return self.mdg_edges.get((s, o, index))
@@ -212,6 +220,8 @@ class IndraNetwork:
         by the n nodes in the input path. if simple_dir is True, query edges
         from directed graph and not from MultiDiGraph representation"""
         hash_path = []
+        if self.verbose:
+            logger.info('Building evidence for path %s' % str(path))
         for n in range(len(path) - 1):
             edges = []
             subj = path[n]
@@ -243,6 +253,8 @@ class IndraNetwork:
             if self.verbose:
                 logger.info('Appending %s to hash path list' % repr(edges))
             hash_path.append(edges)
+        if self.verbose and len(hash_path) > 0:
+            logger.info('Returning hash path: %s' % repr(hash_path))
         return hash_path
 
     def _pass_stmt(self, subj, obj, edge_stmt, **kwargs):
@@ -347,15 +359,17 @@ def process_query():
 
     except KeyError:
         # return 400 badly formatted
+        logger.warning('Missing parameters in query')
         abort(Response('Missing parameters', 400))
 
     except ValueError:
         # Bad values in json, but entry existed
+        logger.warning('Badly formatted json')
         abort(Response('Badly formatted json', 400))
     except Exception as e:
-        # Anything else: bug or networkx error, not the user's fault
+        # Anything else: probably bug or networkx error, not the user's fault
         logger.warning('Unhandled internal error: ' + repr(e))
-        abort(Response('Error handling query', 500))
+        abort(Response('Server error during handling of query', 500))
 
 
 if __name__ == '__main__':
