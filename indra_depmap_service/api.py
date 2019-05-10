@@ -102,7 +102,8 @@ class IndraNetwork:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
                 return {len(path): [{
-                    'stmts': self._get_hash_path(path, kwargs['bsco']),
+
+                    'stmts': self._get_hash_path(path, **kwargs),
                     'path': path
                 }]}
             else:
@@ -152,47 +153,45 @@ class IndraNetwork:
 
     def _loop_paths(self, paths_gen, path_len, **kwargs):
         len_only = kwargs['spec_len_only']
-        belief_cutoff = kwargs['bsco']
         result = {'paths_by_node_count': {}}
         added_paths = 0
         for path in paths_gen:
+            # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found k shortest paths')
                 return result
+            # Check if we path exceeds MAX_PATH_LEN
             if len(path) >= self.MAX_PATH_LEN:
                 if not result['paths_by_node_count']:
                     logger.info('No paths shorther than %d found.' %
                                 self.MAX_PATH_LEN)
                     return {}
-
                 logger.info('Reached longest allowed path length. Returning '
                             'results')
                 return result
-
-            hash_path = self._get_hash_path(path, belief_cutoff)
-            if not hash_path:
-                return {}
-            pd = {'stmts': hash_path, 'path': path}
-            try:
-                if not len_only:
-                    result['paths_by_node_count'][len(path)].append(pd)
-                    added_paths += 1
-                elif len_only and len(path) == path_len:
-                    result['paths_by_node_count'][len(path)].append(pd)
-                    added_paths += 1
-                elif len_only and len(path) != path_len:
-                    continue
-            except KeyError:
+            hash_path = self._get_hash_path(path, **kwargs)
+            if hash_path:
+                pd = {'stmts': hash_path, 'path': path}
                 try:
-                    if len_only and len(path) == path_len:
-                        result['paths_by_node_count'][len(path)] = [pd]
+                    if not len_only:
+                        result['paths_by_node_count'][len(path)].append(pd)
                         added_paths += 1
-                    elif not len_only:
-                        result['paths_by_node_count'][len(path)] = [pd]
+                    elif len_only and len(path) == path_len:
+                        result['paths_by_node_count'][len(path)].append(pd)
                         added_paths += 1
-                except KeyError as ke:
-                    logger.warning('Unexpected KeyError: ' + repr(ke))
-                    raise ke
+                    elif len_only and len(path) != path_len:
+                        continue
+                except KeyError:
+                    try:
+                        if len_only and len(path) == path_len:
+                            result['paths_by_node_count'][len(path)] = [pd]
+                            added_paths += 1
+                        elif not len_only:
+                            result['paths_by_node_count'][len(path)] = [pd]
+                            added_paths += 1
+                    except KeyError as ke:
+                        logger.warning('Unexpected KeyError: ' + repr(ke))
+                        raise ke
         return result
 
     def has_path(self, source, target):
@@ -210,7 +209,7 @@ class IndraNetwork:
         else:
             return self.mdg_edges.get((s, o, index))
 
-    def _get_hash_path(self, path, belief_cutoff, simple_dir=True):
+    def _get_hash_path(self, path, simple_dir=True, **kwargs):
         """Return a list of n-1 lists of dicts containing of stmts connected
         by the n nodes in the input path. if simple_dir is True, query edges
         from directed graph and not from MultiDiGraph representation"""
