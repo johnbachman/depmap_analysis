@@ -211,22 +211,37 @@ class IndraNetwork:
         """Return a list of n-1 lists of dicts containing of stmts connected
         by the n nodes in the input path. if simple_dir is True, query edges
         from directed graph and not from MultiDiGraph representation"""
-
         hash_path = []
         for n in range(len(path) - 1):
             edges = []
-            e = 0
-            edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
-            if edge_stmt['bs'] < belief_cutoff:
+            subj = path[n]
+            obj = path[n+1]
+            if self.nodes[subj]['ns'] in kwargs['node_filter'] \
+                    or self.nodes[obj]['ns'] in kwargs['node_filter']:
+                if self.verbose:
+                    logger.info('Node namespace %s or %s filtered out using '
+                                '%s' % (self.nodes[subj]['ns'],
+                                        self.nodes[obj]['ns'],
+                                        kwargs['node_filter']))
                 return []
+            e = 0
+            edge_stmt = self._get_edge(subj, obj, e, simple_dir)
+            if self.verbose > 2:
+                logger.info('edge stmt %s' % repr(edge_stmt))
             while edge_stmt:
-                # convert hash to string for javascript compatability
-                edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
-                edges.append({**edge_stmt, 'subj': path[n], 'obj': path[n + 1]})
+                if self._pass_stmt(subj, obj, edge_stmt, **kwargs):
+                    if self.verbose > 3:
+                        logger.info('edge stmt passed filter, appending to '
+                                    'edge list.')
+                    # convert hash to string for javascript compatability
+                    edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
+                    edges.append({**edge_stmt,
+                                  'subj': subj,
+                                  'obj': obj})
                 e += 1
-                edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
-                if edge_stmt and edge_stmt['bs'] < belief_cutoff:
-                    return []
+                edge_stmt = self._get_edge(subj, obj, e, simple_dir)
+            if self.verbose:
+                logger.info('Appending %s to hash path list' % repr(edges))
             hash_path.append(edges)
         return hash_path
 
