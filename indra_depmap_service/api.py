@@ -58,41 +58,39 @@ class IndraNetwork:
         self.MAX_PATHS = MAX_PATHS
         self.MAX_PATH_LEN = MAX_PATH_LEN
         self.small = False
+        self.verbose = 0
 
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result."""
         logger.info('Handling query: %s' % repr(kwargs))
-        try:
-            # possible keys (* = mandatory):
-            # *'source', *'target', 'path_length', 'spec_len_only', 'sign',
-            # 'weighted', 'direct_only', 'curated_db_only'
-            keys = kwargs.keys()
-            # 'source' & 'target' are mandatory
-            if 'source' not in keys or 'target' not in keys:
-                raise KeyError('Missing mandatory parameters "source" or '
-                               '"target"')
-            options = {k: v for k, v in kwargs.items()
-                       if k not in ['path_length', 'sign']}  # Handled below
-            for k, v in kwargs.items():
-                if k == 'weighted':
-                    logger.info('Doing weighted path search') if v \
-                        else logger.info('Doing unweighted path search')
-                if k == 'path_length':
-                    options['path_length'] = -1 if v == 'no_limit' else int(v)
-                if k == 'sign':
-                    options['sign'] = 1 if v == 'plus' \
-                        else (-1 if v == 'minus' else 0)
-            k_shortest = kwargs.pop('k_shortest')
-            self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
-            logger.info('Lookng for no more than %d paths' % self.MAX_PATHS)
+        # possible keys (* = mandatory):
+        # *'source', *'target', 'path_length', 'spec_len_only', 'sign',
+        # 'weighted', 'direct_only', 'curated_db_only'
+        keys = kwargs.keys()
+        # 'source' & 'target' are mandatory
+        if 'source' not in keys or 'target' not in keys:
+            raise KeyError('Missing mandatory parameters "source" or '
+                           '"target"')
+        options = {k: v for k, v in kwargs.items()
+                   if k not in ['path_length', 'sign']}  # Handled below
+        for k, v in kwargs.items():
+            if k == 'weighted':
+                logger.info('Doing weighted path search') if v \
+                    else logger.info('Doing unweighted path search')
+            if k == 'path_length':
+                options['path_length'] = -1 if v == 'no_limit' else int(v)
+            if k == 'sign':
+                options['sign'] = 1 if v == 'plus' \
+                    else (-1 if v == 'minus' else 0)
+        k_shortest = kwargs.pop('k_shortest', None)
+        self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
+        logger.info('Lookng for no more than %d paths' % self.MAX_PATHS)
 
-            # Todo MultiDiGrap can't do simple graphs: resolve by loading
-            #  both a MultiDiGraph and a simple DiGraph - find the simple
-            #  paths in the DiGraph and check them in the Multi-DiGraph.
+        # Todo MultiDiGrap can't do simple graphs: resolve by loading
+        #  both a MultiDiGraph and a simple DiGraph - find the simple
+        #  paths in the DiGraph and check them in the Multi-DiGraph.
 
-            return self.find_shortest_paths(**options)
-        except Exception as e:
-            logger.warning('Exception: ', repr(e))
+        return self.find_shortest_paths(**options)
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):
@@ -102,7 +100,8 @@ class IndraNetwork:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
                 return {len(path): [{
-                    'stmts': self._get_hash_path(path, kwargs['bsco']),
+
+                    'stmts': self._get_hash_path(path, **kwargs),
                     'path': path
                 }]}
             else:
@@ -152,47 +151,52 @@ class IndraNetwork:
 
     def _loop_paths(self, paths_gen, path_len, **kwargs):
         len_only = kwargs['spec_len_only']
-        belief_cutoff = kwargs['bsco']
         result = {'paths_by_node_count': {}}
         added_paths = 0
         for path in paths_gen:
+            # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found k shortest paths')
                 return result
+            # Check if we path exceeds MAX_PATH_LEN
             if len(path) >= self.MAX_PATH_LEN:
                 if not result['paths_by_node_count']:
                     logger.info('No paths shorther than %d found.' %
                                 self.MAX_PATH_LEN)
                     return {}
-
                 logger.info('Reached longest allowed path length. Returning '
                             'results')
                 return result
-
-            hash_path = self._get_hash_path(path, belief_cutoff)
-            if not hash_path:
-                return {}
-            pd = {'stmts': hash_path, 'path': path}
-            try:
-                if not len_only:
-                    result['paths_by_node_count'][len(path)].append(pd)
-                    added_paths += 1
-                elif len_only and len(path) == path_len:
-                    result['paths_by_node_count'][len(path)].append(pd)
-                    added_paths += 1
-                elif len_only and len(path) != path_len:
-                    continue
-            except KeyError:
+            hash_path = self._get_hash_path(path, **kwargs)
+            if self.verbose > 1:
+                logger.info('Got hash path: %s' % repr(hash_path))
+            if hash_path:
+                pd = {'stmts': hash_path, 'path': path}
                 try:
-                    if len_only and len(path) == path_len:
-                        result['paths_by_node_count'][len(path)] = [pd]
+                    if not len_only:
+                        result['paths_by_node_count'][len(path)].append(pd)
                         added_paths += 1
-                    elif not len_only:
-                        result['paths_by_node_count'][len(path)] = [pd]
+                    elif len_only and len(path) == path_len:
+                        result['paths_by_node_count'][len(path)].append(pd)
                         added_paths += 1
-                except KeyError as ke:
-                    logger.warning('Unexpected KeyError: ' + repr(ke))
-                    raise ke
+                    elif len_only and len(path) != path_len:
+                        continue
+                    else:
+                        logger.warning('This option should not happen')
+                except KeyError:
+                    try:
+                        if len_only and len(path) == path_len:
+                            result['paths_by_node_count'][len(path)] = [pd]
+                            added_paths += 1
+                        elif not len_only:
+                            result['paths_by_node_count'][len(path)] = [pd]
+                            added_paths += 1
+                    except KeyError as ke:
+                        logger.warning('Unexpected KeyError: ' + repr(ke))
+                        raise ke
+        if self.verbose:
+            logger.info('Done loopngi paths. Returning result: %s' %
+                        repr(result))
         return result
 
     def has_path(self, source, target):
@@ -205,33 +209,70 @@ class IndraNetwork:
             try:
                 stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
             except IndexError:
-                stmt_edge = None  # To keep it consistent with Multi DiGraph
+                # To keep it consistent with below Multi DiGraph implementation
+                stmt_edge = None
             return stmt_edge
         else:
             return self.mdg_edges.get((s, o, index))
 
-    def _get_hash_path(self, path, belief_cutoff, simple_dir=True):
+    def _get_hash_path(self, path, simple_dir=True, **kwargs):
         """Return a list of n-1 lists of dicts containing of stmts connected
         by the n nodes in the input path. if simple_dir is True, query edges
         from directed graph and not from MultiDiGraph representation"""
-
         hash_path = []
+        if self.verbose:
+            logger.info('Building evidence for path %s' % str(path))
         for n in range(len(path) - 1):
             edges = []
-            e = 0
-            edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
-            if edge_stmt['bs'] < belief_cutoff:
+            subj = path[n]
+            obj = path[n+1]
+            if self.nodes[subj]['ns'] in kwargs['node_filter'] \
+                    or self.nodes[obj]['ns'] in kwargs['node_filter']:
+                if self.verbose:
+                    logger.info('Node namespace %s or %s filtered out using '
+                                '%s' % (self.nodes[subj]['ns'],
+                                        self.nodes[obj]['ns'],
+                                        kwargs['node_filter']))
                 return []
+            e = 0
+            edge_stmt = self._get_edge(subj, obj, e, simple_dir)
+            if self.verbose > 2:
+                logger.info('edge stmt %s' % repr(edge_stmt))
             while edge_stmt:
-                # convert hash to string for javascript compatability
-                edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
-                edges.append({**edge_stmt, 'subj': path[n], 'obj': path[n + 1]})
+                if self._pass_stmt(subj, obj, edge_stmt, **kwargs):
+                    if self.verbose > 3:
+                        logger.info('edge stmt passed filter, appending to '
+                                    'edge list.')
+                    # convert hash to string for javascript compatability
+                    edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
+                    edges.append({**edge_stmt,
+                                  'subj': subj,
+                                  'obj': obj})
                 e += 1
-                edge_stmt = self._get_edge(path[n], path[n + 1], e, simple_dir)
-                if edge_stmt and edge_stmt['bs'] < belief_cutoff:
-                    return []
+                edge_stmt = self._get_edge(subj, obj, e, simple_dir)
+            if self.verbose:
+                logger.info('Appending %s to hash path list' % repr(edges))
             hash_path.append(edges)
+        if self.verbose and len(hash_path) > 0:
+            logger.info('Returning hash path: %s' % repr(hash_path))
         return hash_path
+
+    def _pass_stmt(self, subj, obj, edge_stmt, **kwargs):
+        if not edge_stmt:
+            if self.verbose:
+                logger.info('No edge statement')
+            return False
+        if edge_stmt['bs'] < kwargs['bsco']:
+            if self.verbose:
+                logger.info('Did not pass belief score')
+            return False
+        if edge_stmt['stmt_type'].lower() in kwargs['stmt_filter']:
+            if self.verbose:
+                logger.info('statement type %s filtered out as part filter %s'
+                            % (edge_stmt['stmt_type'],
+                               str(kwargs['stmt_filter'])))
+            return False
+        return True
 
 
 def dump_indra_db(path='.'):
@@ -318,15 +359,17 @@ def process_query():
 
     except KeyError:
         # return 400 badly formatted
+        logger.warning('Missing parameters in query')
         abort(Response('Missing parameters', 400))
 
     except ValueError:
         # Bad values in json, but entry existed
+        logger.warning('Badly formatted json')
         abort(Response('Badly formatted json', 400))
     except Exception as e:
-        # Anything else: bug or networkx error, not the user's fault
+        # Anything else: probably bug or networkx error, not the user's fault
         logger.warning('Unhandled internal error: ' + repr(e))
-        abort(Response('Error handling query', 500))
+        abort(Response('Server error during handling of query', 500))
 
 
 if __name__ == '__main__':
@@ -334,6 +377,7 @@ if __name__ == '__main__':
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', default=5000, type=int)
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
 
     if args.test:
@@ -346,4 +390,7 @@ if __name__ == '__main__':
                                        INDRA_MDG_CACHE))
     if args.test:
         indra_network.small = True
+    if args.verbose:
+        logger.info('Verbose level %d' % args.verbose)
+        indra_network.verbose = args.verbose
     app.run(host=args.host, port=args.port)
