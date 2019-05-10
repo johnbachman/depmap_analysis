@@ -86,6 +86,7 @@
       }
       if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
         alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths')
+        return;
       }
       var nodeFilterList = []
       for (c of document.getElementById('node-filter').children) {
@@ -137,6 +138,7 @@
       })
       console.log(response)
       response.then(function(json){
+        resetCounters()
         clearAllTables()
         fillResultsTable(json)
       })
@@ -175,6 +177,12 @@
     function clearAllTables() {
       for (tb of document.getElementsByClassName('table-body')) {
         tb.innerHTML = null;
+      }
+    }
+
+    function resetCounters() {
+      for (c of document.getElementsByClassName('path-count')) {
+        c.textContent = 'Paths: 0';
       }
     }
 
@@ -321,7 +329,7 @@
              aria-controls="collapse-paths-1">
             Direct Paths (A&rarr;B)
           </a>
-          <span id="npaths-1" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+          <span id="npaths-1" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
 
         </h3>
       </div>
@@ -349,7 +357,7 @@
              aria-controls="collapse-paths-2">
             2-Edge Paths (A&rarr;U&rarr;B)
           </a>
-          <span id="npaths-2" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+          <span id="npaths-2" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
         </h3>
       </div>
       <div id="collapse-paths-2" class="collapse">
@@ -376,7 +384,7 @@
              aria-controls="collapse-paths-3">
             3-Edge Paths (A&rarr;U&rarr;V&rarr;B)
           </a>
-          <span id="npaths-3" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+          <span id="npaths-3" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
         </h3>
       </div>
       <div id="collapse-paths-3" class="collapse">
@@ -403,7 +411,7 @@
              aria-controls="collapse-paths-4">
             4-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;B)
           </a>
-          <span id="npaths-4" class="badge badge-primary badge-pill float-right">Paths: 0</span>
+          <span id="npaths-4" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
         </h3>
       </div>
       <div id="collapse-paths-4" class="collapse">
