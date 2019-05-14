@@ -193,7 +193,7 @@ class IndraNetwork:
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found k shortest paths')
                 return result
-            # Check if we path exceeds MAX_PATH_LEN
+            # Check if path exceeds MAX_PATH_LEN
             if len(path) >= self.MAX_PATH_LEN:
                 if not result['paths_by_node_count']:
                     logger.info('No paths shorther than %d found.' %
@@ -251,9 +251,9 @@ class IndraNetwork:
             return self.mdg_edges.get((s, o, index))
 
     def _get_hash_path(self, path, simple_dir=True, **kwargs):
-        """Return a list of n-1 lists of dicts containing of stmts connected
-        by the n nodes in the input path. if simple_dir is True, query edges
-        from directed graph and not from MultiDiGraph representation"""
+        """Return a list of n-1 lists of dicts containing of stmts connecting
+        the n nodes in path. If simple_dir is True, query edges from DiGraph
+        and not from MultiDiGraph representation"""
         hash_path = []
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
