@@ -149,6 +149,41 @@ class IndraNetwork:
                                                 source, target, weight)
         return self._loop_paths(simple_paths, path_len, **kwargs)
 
+    def find_common_targets(self,**kwargs):
+        """Returns a list of statement(?) pairs that explain common targets
+        for source and target"""
+        source_succ = set(self.nx_dir_graph_repr.succ[kwargs['source']].keys())
+        target_succ = set(self.nx_dir_graph_repr.succ[kwargs['target']].keys())
+        common = source_succ & target_succ
+
+        if common:
+            return self._loop_common_targets(common_targets=common, **kwargs)
+
+        return []
+
+    def _loop_common_targets(self, common_targets, **kwargs):
+        """Order common_targets targets by lowest bs in pair."""
+        ordered_commons = []
+        source = kwargs['source']
+        target = kwargs['target']
+        for ct in common_targets:
+            paths1 = self._get_hash_path(path=[source, ct], **kwargs)[0]
+            paths2 = self._get_hash_path(path=[target, ct], **kwargs)[0]
+            if paths1 and paths2:
+                max_bs1 = max([st['bs'] for st in paths1])
+                max_bs2 = max([st['bs'] for st in paths2])
+                ordered_commons.append({
+                    ct: [sorted(paths1, key=lambda k: k['bs'], reverse=True),
+                         sorted(paths2, key=lambda k: k['bs'], reverse=True)],
+                    'lowest_highest_belief': min(max_bs1, max_bs2)
+                })
+        if ordered_commons:
+            return sorted(ordered_commons,
+                          key=lambda k: k['lowest_highest_belief'],
+                          reverse=True)
+        else:
+            return []
+
     def _loop_paths(self, paths_gen, path_len, **kwargs):
         len_only = kwargs['spec_len_only']
         result = {'paths_by_node_count': {}}
