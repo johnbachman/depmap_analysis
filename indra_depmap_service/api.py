@@ -89,8 +89,9 @@ class IndraNetwork:
         # Todo MultiDiGrap can't do simple graphs: resolve by loading
         #  both a MultiDiGraph and a simple DiGraph - find the simple
         #  paths in the DiGraph and check them in the Multi-DiGraph.
-
-        return self.find_shortest_paths(**options)
+        ksp = self.find_shortest_paths(**options)
+        ct = self.find_common_targets(**options)
+        return {**ksp, 'common_targets': ct}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):
@@ -149,6 +150,41 @@ class IndraNetwork:
                                                 source, target, weight)
         return self._loop_paths(simple_paths, path_len, **kwargs)
 
+    def find_common_targets(self,**kwargs):
+        """Returns a list of statement(?) pairs that explain common targets
+        for source and target"""
+        source_succ = set(self.nx_dir_graph_repr.succ[kwargs['source']].keys())
+        target_succ = set(self.nx_dir_graph_repr.succ[kwargs['target']].keys())
+        common = source_succ & target_succ
+
+        if common:
+            return self._loop_common_targets(common_targets=common, **kwargs)
+
+        return []
+
+    def _loop_common_targets(self, common_targets, **kwargs):
+        """Order common_targets targets by lowest bs in pair."""
+        ordered_commons = []
+        source = kwargs['source']
+        target = kwargs['target']
+        for ct in common_targets:
+            paths1 = self._get_hash_path(path=[source, ct], **kwargs)[0]
+            paths2 = self._get_hash_path(path=[target, ct], **kwargs)[0]
+            if paths1 and paths2:
+                max_bs1 = max([st['bs'] for st in paths1])
+                max_bs2 = max([st['bs'] for st in paths2])
+                ordered_commons.append({
+                    ct: [sorted(paths1, key=lambda k: k['bs'], reverse=True),
+                         sorted(paths2, key=lambda k: k['bs'], reverse=True)],
+                    'lowest_highest_belief': min(max_bs1, max_bs2)
+                })
+        if ordered_commons:
+            return sorted(ordered_commons,
+                          key=lambda k: k['lowest_highest_belief'],
+                          reverse=True)
+        else:
+            return []
+
     def _loop_paths(self, paths_gen, path_len, **kwargs):
         len_only = kwargs['spec_len_only']
         result = {'paths_by_node_count': {}}
@@ -158,7 +194,7 @@ class IndraNetwork:
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found k shortest paths')
                 return result
-            # Check if we path exceeds MAX_PATH_LEN
+            # Check if path exceeds MAX_PATH_LEN
             if len(path) >= self.MAX_PATH_LEN:
                 if not result['paths_by_node_count']:
                     logger.info('No paths shorther than %d found.' %
@@ -216,9 +252,9 @@ class IndraNetwork:
             return self.mdg_edges.get((s, o, index))
 
     def _get_hash_path(self, path, simple_dir=True, **kwargs):
-        """Return a list of n-1 lists of dicts containing of stmts connected
-        by the n nodes in the input path. if simple_dir is True, query edges
-        from directed graph and not from MultiDiGraph representation"""
+        """Return a list of n-1 lists of dicts containing of stmts connecting
+        the n nodes in path. If simple_dir is True, query edges from DiGraph
+        and not from MultiDiGraph representation"""
         hash_path = []
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
@@ -357,19 +393,27 @@ def process_query():
         logger.info('Result: %s' % str(res))
         return Response(json.dumps(res), mimetype='application/json')
 
-    except KeyError:
+    except KeyError as e:
         # return 400 badly formatted
         logger.warning('Missing parameters in query')
         abort(Response('Missing parameters', 400))
+        if indra_network.small and indra_network.verbose:
+            raise e
 
-    except ValueError:
+    except ValueError as e:
         # Bad values in json, but entry existed
         logger.warning('Badly formatted json')
         abort(Response('Badly formatted json', 400))
+        if indra_network.small and indra_network.verbose:
+            raise e
+
     except Exception as e:
         # Anything else: probably bug or networkx error, not the user's fault
+        # Comment this out to get full error traceback
         logger.warning('Unhandled internal error: ' + repr(e))
         abort(Response('Server error during handling of query', 500))
+        if indra_network.small and indra_network.verbose:
+            raise e
 
 
 if __name__ == '__main__':
