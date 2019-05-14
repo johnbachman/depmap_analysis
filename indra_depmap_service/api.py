@@ -89,8 +89,9 @@ class IndraNetwork:
         # Todo MultiDiGrap can't do simple graphs: resolve by loading
         #  both a MultiDiGraph and a simple DiGraph - find the simple
         #  paths in the DiGraph and check them in the Multi-DiGraph.
-
-        return self.find_shortest_paths(**options)
+        ksp = self.find_shortest_paths(**options)
+        ct = self.find_common_targets(**options)
+        return {**ksp, 'common_targets': ct}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):

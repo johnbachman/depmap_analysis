@@ -155,6 +155,7 @@
         //   for each path:
         //     Output: path | list supporting statements per edge
         let pathsKeyedArray = data.result.paths_by_node_count;
+        let simpleCommonTargets = data.result.common_targets;
 
         // Fill directed paths
         for (len in pathsKeyedArray) {
@@ -174,6 +175,32 @@
             newRow.appendChild(newSupport)
 
             tableBody.appendChild(newRow);
+          }
+        }
+
+        // Fill common targets table
+        if (simpleCommonTargets && simpleCommonTargets.length > 0) {
+          let ctTableBody = document.getElementById('query-results-common-targets');
+          document.getElementById('common-targets').textContent = 'Targets: ' + 
+            simpleCommonTargets.length;
+          document.getElementById('subject-placeholder-ct').textContent = source;
+          document.getElementById('object-placeholder-ct').textContent = target;
+          for (targetDict of simpleCommonTargets) {
+            for (key in targetDict) {
+              if (key != 'lowest_highest_belief') {
+                let newRow = document.createElement('tr');
+
+                let newTargetCol = document.createElement('td');
+                newTargetCol.textContent = key;
+                newRow.appendChild(newTargetCol);
+
+                let newTargetPaths = document.createElement('td');
+                newTargetPaths.innerHTML = generateTargetLinkout(targetDict[key]);
+                newRow.appendChild(newTargetPaths);
+
+                ctTableBody.appendChild(newRow);
+              }
+            }
           }
         }
       } else {
@@ -217,6 +244,22 @@
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
+    }
+
+    function generateTargetLinkout(pathPair) {
+      let htmlString = ''
+      for (path of pathPair) {
+        htmlString += '<b>' + path[0].subj + ' &rarr; ' + path[0].obj + 
+        '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
+        path.length + '</span><br>'
+        for (stmt of path) {
+          let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
+            '?format=html'
+          htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
+            stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+        }
+      }
+      return htmlString.substring(0, htmlString.length-4); // Cut out the last <br> 
     }
 
   </script>
