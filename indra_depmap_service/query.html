@@ -97,9 +97,11 @@
         stmtFilterList.push(c.value)
       }
       var statusBox = document.getElementById('query-status');
+      var source = document.getElementById('source').value;
+      var target = document.getElementById('target').value
       let queryDict = {
-        source: document.getElementById('source').value,
-        target: document.getElementById('target').value,
+        source: source,
+        target: target,
         stmt_filter: stmtFilterList,
         node_filter: nodeFilterList,
         path_length: parseInt(document.getElementById('path-length').value),
@@ -124,13 +126,15 @@
         contentType: 'application/json',
         data: JSON.stringify(queryDict),
         complete: function(xhr, statustText) {
+          console.log(xhr)
+          console.log(statustText)
           switch (xhr.status) {
             case 200:
               statusBox.textContent = 'Query resolved!';
               break;
             default:
               console.log('Submission error: check ajax response');
-              statusBox.textContent = 'Submission error:' + xhr.status;
+              statusBox.textContent = 'error: ' + xhr.status;
               break;
           }
         }
@@ -140,11 +144,11 @@
       response.then(function(json){
         resetCounters()
         clearAllTables()
-        fillResultsTable(json)
+        fillResultsTable(json, source, target)
       })
     }
 
-    function fillResultsTable(data){
+    function fillResultsTable(data, source, target){
       console.log(data)
       if (data.result && Object.keys(data.result).length > 0) {
         // for each path length:
@@ -152,9 +156,12 @@
         //     Output: path | list supporting statements per edge
         let pathsKeyedArray = data.result.paths_by_node_count;
 
+        // Fill directed paths
         for (len in pathsKeyedArray) {
           let tableBody = document.getElementById('query-results-' + (len-1))
           document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
+          document.getElementById('subject-placeholder-' + len).textContent = source;
+          document.getElementById('object-placeholder-' + len).textContent = target;
           for (pathArray of pathsKeyedArray[len]) {
             let newRow = document.createElement('tr');
             // Add current path
@@ -182,7 +189,8 @@
 
     function resetCounters() {
       for (c of document.getElementsByClassName('path-count')) {
-        c.textContent = 'Paths: 0';
+        let text = c.textContent.split(': ')[0]
+        c.textContent = text + ': 0';
       }
     }
 
@@ -198,8 +206,9 @@
       // stmtsArray[i][j] gives stmt j of edge i
       let htmlString = ''
       for (edgeList of stmtsArray) {
-        htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + 
-          edgeList[0].obj + '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + edgeList.length + '</span><br>'
+        htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
+        '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
+        edgeList.length + '</span><br>'
         for (stmt of edgeList) {
           let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
             '?format=html'
@@ -218,6 +227,9 @@
     }
     .row {
       padding-bottom: 5px;
+    }
+    .placeholder {
+      display: inline-block;
     }
   </style>
 </head>
@@ -327,7 +339,7 @@
              data-target="#collapse-paths-1"
              aria-expanded="false" 
              aria-controls="collapse-paths-1">
-            Direct Paths (A&rarr;B)
+            Direct Paths (<div id="subject-placeholder-1" class="placeholder">A</div>&rarr;<div id="object-placeholder-1" class="placeholder">B</div>)
           </a>
           <span id="npaths-1" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
 
@@ -355,7 +367,7 @@
              data-target="#collapse-paths-2"
              aria-expanded="false" 
              aria-controls="collapse-paths-2">
-            2-Edge Paths (A&rarr;U&rarr;B)
+            2-Edge Paths (<div id="subject-placeholder-2" class="placeholder">A</div>&rarr;U&rarr;<div id="object-placeholder-2" class="placeholder">B</div>)
           </a>
           <span id="npaths-2" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
         </h3>
@@ -382,7 +394,7 @@
              data-target="#collapse-paths-3"
              aria-expanded="false" 
              aria-controls="collapse-paths-3">
-            3-Edge Paths (A&rarr;U&rarr;V&rarr;B)
+            3-Edge Paths (<div id="subject-placeholder-3" class="placeholder">A</div>&rarr;U&rarr;V&rarr;<div id="object-placeholder-3" class="placeholder">B</div>)
           </a>
           <span id="npaths-3" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
         </h3>
@@ -409,7 +421,7 @@
              data-target="#collapse-paths-4"
              aria-expanded="false" 
              aria-controls="collapse-paths-4">
-            4-Edge Paths (A&rarr;U&rarr;V&rarr;X&rarr;B)
+            4-Edge Paths (<div id="subject-placeholder-4" class="placeholder">A</div>&rarr;U&rarr;V&rarr;X&rarr;<div id="object-placeholder-4" class="placeholder">B</div>)
           </a>
           <span id="npaths-4" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
         </h3>
@@ -436,16 +448,16 @@
              data-target="#collapse-common-targets"
              aria-expanded="false"
              aria-controls="collapse-common-targets">
-            Common Targets (A&rarr;Z&larr;B)
+            Common Targets (<div id="subject-placeholder-ct" class="placeholder">A</div>&rarr;Z&larr;<div id="object-placeholder-ct" class="placeholder">B</div>)
           </a>
-          <span id="common-targets" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
+          <span id="common-targets" class="badge badge-primary badge-pill float-right path-count">Targets: 0</span>
         </h3>
       </div>
       <div id="collapse-common-targets" class="collapse">
         <div class="card-body">
           <table class="table">
             <thead class="table-head">
-              <th>Path</th>
+              <th>Target (Z)</th>
               <th>Support</th>
             </thead>
             <tbody class="table-body" id="query-results-common-targets"></tbody>
