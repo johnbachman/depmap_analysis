@@ -392,19 +392,27 @@ def process_query():
         logger.info('Result: %s' % str(res))
         return Response(json.dumps(res), mimetype='application/json')
 
-    except KeyError:
+    except KeyError as e:
         # return 400 badly formatted
         logger.warning('Missing parameters in query')
         abort(Response('Missing parameters', 400))
+        if indra_network.small and indra_network.verbose:
+            raise e
 
-    except ValueError:
+    except ValueError as e:
         # Bad values in json, but entry existed
         logger.warning('Badly formatted json')
         abort(Response('Badly formatted json', 400))
+        if indra_network.small and indra_network.verbose:
+            raise e
+
     except Exception as e:
         # Anything else: probably bug or networkx error, not the user's fault
+        # Comment this out to get full error traceback
         logger.warning('Unhandled internal error: ' + repr(e))
         abort(Response('Server error during handling of query', 500))
+        if indra_network.small and indra_network.verbose:
+            raise e
 
 
 if __name__ == '__main__':
