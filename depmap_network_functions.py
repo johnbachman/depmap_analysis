@@ -591,6 +591,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
 
     By default an nx.DiGraph is returned. By setting multi=True, an
     nx.MultiDiGraph is returned instead."""
+    bsd = None
     if isinstance(df, str):
         sif_df = _pickle_open(df)
     else:
@@ -657,9 +658,9 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
             else:
                 nx_graph.add_edge(row['agA_name'], row['agB_name'],
                                   stmt_list=[ed])
+    dnf_logger.info('Loaded %i statements into %sDiGraph' %
+                    (index, 'Multi' if multi else ''))
 
-    dnf_logger.info('Loaded %i statements into directed %sgraph' %
-                    (index, 'multi' if multi else ''))
     return nx_graph
 
 
