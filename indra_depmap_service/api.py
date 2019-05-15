@@ -100,11 +100,8 @@ class IndraNetwork:
             if not simple:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
-                return {len(path): [{
-
-                    'stmts': self._get_hash_path(path, **kwargs),
-                    'path': path
-                }]}
+                return {len(path): [{'path': path,
+                    'stmts': self._get_hash_path(path, **kwargs)}]}
             else:
                 return self._find_shortest_simple_paths(source, target,
                                                         weight, **kwargs)
