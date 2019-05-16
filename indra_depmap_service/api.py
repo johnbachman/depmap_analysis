@@ -231,8 +231,8 @@ class IndraNetwork:
                     except KeyError as ke:
                         logger.warning('Unexpected KeyError: ' + repr(ke))
                         raise ke
-        if self.verbose:
-            logger.info('Done loopngi paths. Returning result: %s' %
+        if self.verbose > 2:
+            logger.info('Done looping paths. Returning result: %s' %
                         repr(result))
         return result
 
@@ -287,7 +287,7 @@ class IndraNetwork:
                                   'obj': obj})
                 e += 1
                 edge_stmt = self._get_edge(subj, obj, e, simple_dir)
-            if self.verbose:
+            if self.verbose > 4:
                 logger.info('Appending %s to hash path list' % repr(edges))
             hash_path.append(edges)
         if self.verbose and len(hash_path) > 0:
@@ -391,7 +391,8 @@ def process_query():
         if not result:
             logger.info('Query returned with no path found')
         res = {'result': result}
-        logger.info('Result: %s' % str(res))
+        if indra_network.verbose > 5:
+            logger.info('Result: %s' % str(res))
         return Response(json.dumps(res), mimetype='application/json')
 
     except KeyError as e:
@@ -435,6 +436,7 @@ if __name__ == '__main__':
                                        INDRA_MDG_CACHE))
     if args.test:
         indra_network.small = True
+        indra_network.verbose = args.verbose if args.verbose else 1
     if args.verbose:
         logger.info('Verbose level %d' % args.verbose)
         indra_network.verbose = args.verbose
