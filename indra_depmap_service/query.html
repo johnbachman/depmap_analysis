@@ -257,14 +257,16 @@
       // stmtsArray[i][j] gives stmt j of edge i
       let htmlString = ''
       for (edgeList of stmtsArray) {
-        htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
-        '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-        edgeList.length + '</span><br>'
-        for (stmt of edgeList) {
-          let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
-            '?format=html'
-          htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
-            stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+        if (edgeList.length > 0) {
+          htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
+          '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
+          edgeList.length + '</span><br>'
+          for (stmt of edgeList) {
+            let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
+              '?format=html'
+            htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
+              stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+          }
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
