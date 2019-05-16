@@ -91,7 +91,8 @@ class IndraNetwork:
         #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
         ct = self.find_common_targets(**options)
-        return {**ksp, 'common_targets': ct}
+        cp = self.get_common_parents(**options) if kwargs['parents'] else {}
+        return {**ksp, 'common_targets': ct, 'common_parents': cp}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):
