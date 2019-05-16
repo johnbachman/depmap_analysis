@@ -165,14 +165,18 @@ class IndraNetwork:
         source = kwargs['source']
         target = kwargs['target']
         for ct in common_targets:
-            paths1 = self._get_hash_path(path=[source, ct], **kwargs)[0]
-            paths2 = self._get_hash_path(path=[target, ct], **kwargs)[0]
-            if paths1 and paths2:
-                max_bs1 = max([st['bs'] for st in paths1])
-                max_bs2 = max([st['bs'] for st in paths2])
+            paths1 = self._get_hash_path(path=[source, ct], **kwargs)
+            paths2 = self._get_hash_path(path=[target, ct], **kwargs)
+            if paths1 and paths2 and paths1[0] and paths2[0]:
+                max_bs1 = max([st['bs'] for st in paths1[0]])
+                max_bs2 = max([st['bs'] for st in paths2[0]])
                 ordered_commons.append({
-                    ct: [sorted(paths1, key=lambda k: k['bs'], reverse=True),
-                         sorted(paths2, key=lambda k: k['bs'], reverse=True)],
+                    ct: [sorted(paths1[0],
+                                key=lambda k: k['bs'],
+                                reverse=True),
+                         sorted(paths2[0],
+                                key=lambda k: k['bs'],
+                                reverse=True)],
                     'lowest_highest_belief': min(max_bs1, max_bs2)
                 })
         if ordered_commons:
