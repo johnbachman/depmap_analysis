@@ -41,7 +41,8 @@
       'Depalmitoylation', 'Dephosphorylation', 'Deribosylation', 'Desumoylation', 
       'Deubiquitination', 'Farnesylation', 'Gap', 'Gef', 'Glycosylation', 'GtpActivation', 
       'Hydroxylation', 'IncreaseAmount', 'Inhibition', 'Methylation', 'Myristoylation', 
-      'Palmitoylation', 'Phosphorylation', 'Ribosylation', 'Sumoylation', 'Ubiquitination']
+      'Palmitoylation', 'Phosphorylation', 'Ribosylation', 'Sumoylation', 'Ubiquitination', 
+      'parent']
     const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM']
 
     $(document).ready(function() {
@@ -372,6 +373,34 @@
 
   <div class="container">
     <h2 class="display-6">Search Results</h2>
+    <!-- Common parents complexes and families -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="display-7">
+          <a href="#"
+             class="stmt_toggle"
+             data-toggle="collapse"
+             data-target="#collapse-paths-cp"
+             aria-expanded="false" 
+             aria-controls="collapse-paths-cp">
+            Complexes and Families (<div id="subject-placeholder-cp" class="placeholder">A</div>-<div id="object-placeholder-cp" class="placeholder">B</div>)
+          </a>
+          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
+
+        </h3>
+      </div>
+      <div id="collapse-paths-cp" class="collapse">
+        <div class="card-body">
+          <table class="table">
+            <thead class="table-head">
+              <th>Path</th>
+              <th>Support</th>
+            </thead>
+            <tbody class="table-body" id="query-results-cp"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     <!-- Direct paths: a-b -->
     <div class="card">
       <div class="card-header">
