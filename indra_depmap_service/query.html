@@ -41,8 +41,7 @@
       'Depalmitoylation', 'Dephosphorylation', 'Deribosylation', 'Desumoylation', 
       'Deubiquitination', 'Farnesylation', 'Gap', 'Gef', 'Glycosylation', 'GtpActivation', 
       'Hydroxylation', 'IncreaseAmount', 'Inhibition', 'Methylation', 'Myristoylation', 
-      'Palmitoylation', 'Phosphorylation', 'Ribosylation', 'Sumoylation', 'Ubiquitination', 
-      'parent']
+      'Palmitoylation', 'Phosphorylation', 'Ribosylation', 'Sumoylation', 'Ubiquitination']
     const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM']
 
     $(document).ready(function() {
@@ -361,7 +360,7 @@
         <label class="custom-control-label" for="curated-db-only">Curated databases only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="parents" disabled>
+        <input type="checkbox" class="custom-control-input" id="parents" checked>
         <label class="custom-control-label" for="parents">Include FamPlex families and complexes</label>
       </div>
       <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
