@@ -154,15 +154,39 @@
         // for each path length:
         //   for each path:
         //     Output: path | list supporting statements per edge
+        let commonParents = data.result.common_parents;
         let pathsKeyedArray = data.result.paths_by_node_count;
         let simpleCommonTargets = data.result.common_targets;
+
+        // Fill common parents table
+        if (Object.keys(commonParents).length > 0) {
+          document.getElementById('subject-placeholder-cp').textContent = 
+            commonParents.source_id + '@' + commonParents.source_ns;
+          document.getElementById('object-placeholder-cp').textContent = 
+            commonParents.target_id + '@' + commonParents.target_ns;
+          cpTableBody = document.getElementById('query-results-cp')
+          for (par of commonParents.common_parents) {
+            let newRow = document.createElement('tr');
+
+            let newIdCol = document.createElement('td');
+            let hs = '<a href="' + par + '">' + par.split('/')[par.split('/').length-1] + '</a>'
+            newIdCol.innerHTML = hs;
+            newRow.appendChild(newIdCol);
+
+            let newNsCol = document.createElement('td')
+            newNsCol.textContent = par.split('/')[par.split('/').length-2].toUpperCase()
+            newRow.appendChild(newNsCol)
+
+            cpTableBody.appendChild(newRow)
+          }
+        }
 
         // Fill directed paths
         for (len in pathsKeyedArray) {
           let tableBody = document.getElementById('query-results-' + (len-1))
           document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
-          document.getElementById('subject-placeholder-' + len).textContent = source;
-          document.getElementById('object-placeholder-' + len).textContent = target;
+          document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
+          document.getElementById('object-placeholder-' + (len-1)).textContent = target;
           for (pathArray of pathsKeyedArray[len]) {
             let newRow = document.createElement('tr');
             // Add current path
@@ -392,8 +416,8 @@
         <div class="card-body">
           <table class="table">
             <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
+              <th>Family/Complex</th>
+              <th>Namespaces</th>
             </thead>
             <tbody class="table-body" id="query-results-cp"></tbody>
           </table>
