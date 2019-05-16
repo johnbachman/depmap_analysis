@@ -240,6 +240,82 @@ class IndraNetwork:
         """Return true if there is a path from source to target"""
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
+    def get_common_parents(self, **kwargs):
+        source_ns = None
+        target_ns = None
+        # Get ids and ns
+        if kwargs['source'] in self.nodes:
+            source_id = self.nodes[kwargs['source']]['id']
+            source_ns = self.nodes[kwargs['source']]['ns']
+        else:
+            source_id = kwargs['source']
+        if kwargs['target'] in self.nodes:
+            target_id = self.nodes[kwargs['target']]['id']
+            target_ns = self.nodes[kwargs['target']]['ns']
+        else:
+            target_id = kwargs['target']
+
+        if source_ns in kwargs['node_filter'] or \
+                target_ns in kwargs['node_filter']:
+            logger.info('The namespaces for %s and/or %s are in node filter. '
+                        'Aborting common parent search.' %
+                        (source_id, target_id))
+            return {}
+
+        # Try different iterations of ns
+        if source_ns and target_ns:
+            if self.verbose > 1:
+                logger.info('Looking for common parents using namespaces '
+                            'found in network')
+            cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                                   ns2=target_ns, id2=target_id)
+        if not source_ns and target_ns:
+            if self.verbose > 1:
+                logger.info('No namespace found for %s, trying HGNC and '
+                            'FPLX.' % source_id)
+            for ns in ['HGNC', 'FPLX']:
+                cp = dnf.common_parent(ns1=ns, id1=source_id,
+                                       ns2=target_ns, id2=target_id)
+                if cp:
+                    break
+        if source_ns and not target_ns:
+            if self.verbose > 1:
+                logger.info('No namespace found for %s, trying HGNC and '
+                            'FPLX.' % target_id)
+            for ns in ['HGNC', 'FPLX']:
+                cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                                       ns2=ns, id2=target_id)
+                if cp:
+                    break
+
+        # If no namespaces exist
+        if not source_ns and not target_ns:
+            if self.verbose > 1:
+                logger.info('No namespaces found for %s and %s, trying HGNC '
+                            'and FPLX' % (source_id, target_id))
+            for source_ns in ['HGNC', 'FPLX']:
+                for target_ns in ['HGNC', 'FPLX']:
+                    cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                                           ns2=target_ns, id2=target_id)
+                    if cp:
+                        break
+        if not cp:
+            logger.info('No common parents found')
+            return {}
+        else:
+            return {'source_ns': source_ns, 'source_id': source_id,
+                    'target_ns': target_ns, 'target_id': target_id,
+                    'common_parents': sorted(list(cp))}
+
+    def find_parent_paths(self, id1, id2, ns1='HGNC', n2='HGNC', depth=0):
+        # This function should be the wrapper for the recursive function (not
+        # yet built) that recursively tries to find paths of increasing
+        # length wher eone of the edges is a common parent connection
+        if depth >= 3:
+            return set()
+
+        return dnf.common_parent()
+
     def _get_edge(self, s, o, index, directed):
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
         if directed:
