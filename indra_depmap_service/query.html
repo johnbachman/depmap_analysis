@@ -154,15 +154,39 @@
         // for each path length:
         //   for each path:
         //     Output: path | list supporting statements per edge
+        let commonParents = data.result.common_parents;
         let pathsKeyedArray = data.result.paths_by_node_count;
         let simpleCommonTargets = data.result.common_targets;
+
+        // Fill common parents table
+        if (Object.keys(commonParents).length > 0) {
+          document.getElementById('subject-placeholder-cp').textContent = 
+            commonParents.source_id + '@' + commonParents.source_ns;
+          document.getElementById('object-placeholder-cp').textContent = 
+            commonParents.target_id + '@' + commonParents.target_ns;
+          cpTableBody = document.getElementById('query-results-cp')
+          for (par of commonParents.common_parents) {
+            let newRow = document.createElement('tr');
+
+            let newIdCol = document.createElement('td');
+            let hs = '<a href="' + par + '">' + par.split('/')[par.split('/').length-1] + '</a>'
+            newIdCol.innerHTML = hs;
+            newRow.appendChild(newIdCol);
+
+            let newNsCol = document.createElement('td')
+            newNsCol.textContent = par.split('/')[par.split('/').length-2].toUpperCase()
+            newRow.appendChild(newNsCol)
+
+            cpTableBody.appendChild(newRow)
+          }
+        }
 
         // Fill directed paths
         for (len in pathsKeyedArray) {
           let tableBody = document.getElementById('query-results-' + (len-1))
           document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
-          document.getElementById('subject-placeholder-' + len).textContent = source;
-          document.getElementById('object-placeholder-' + len).textContent = target;
+          document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
+          document.getElementById('object-placeholder-' + (len-1)).textContent = target;
           for (pathArray of pathsKeyedArray[len]) {
             let newRow = document.createElement('tr');
             // Add current path
@@ -233,14 +257,16 @@
       // stmtsArray[i][j] gives stmt j of edge i
       let htmlString = ''
       for (edgeList of stmtsArray) {
-        htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
-        '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-        edgeList.length + '</span><br>'
-        for (stmt of edgeList) {
-          let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
-            '?format=html'
-          htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
-            stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+        if (edgeList.length > 0) {
+          htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
+          '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
+          edgeList.length + '</span><br>'
+          for (stmt of edgeList) {
+            let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
+              '?format=html'
+            htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
+              stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+          }
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
@@ -360,7 +386,7 @@
         <label class="custom-control-label" for="curated-db-only">Curated databases only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="parents" disabled>
+        <input type="checkbox" class="custom-control-input" id="parents" checked>
         <label class="custom-control-label" for="parents">Include FamPlex families and complexes</label>
       </div>
       <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
@@ -372,6 +398,34 @@
 
   <div class="container">
     <h2 class="display-6">Search Results</h2>
+    <!-- Common parents complexes and families -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="display-7">
+          <a href="#"
+             class="stmt_toggle"
+             data-toggle="collapse"
+             data-target="#collapse-paths-cp"
+             aria-expanded="false" 
+             aria-controls="collapse-paths-cp">
+            Complexes and Families (<div id="subject-placeholder-cp" class="placeholder">A</div>-<div id="object-placeholder-cp" class="placeholder">B</div>)
+          </a>
+          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
+
+        </h3>
+      </div>
+      <div id="collapse-paths-cp" class="collapse">
+        <div class="card-body">
+          <table class="table">
+            <thead class="table-head">
+              <th>Family/Complex</th>
+              <th>Namespaces</th>
+            </thead>
+            <tbody class="table-body" id="query-results-cp"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     <!-- Direct paths: a-b -->
     <div class="card">
       <div class="card-header">

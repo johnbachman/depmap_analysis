@@ -91,7 +91,8 @@ class IndraNetwork:
         #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
         ct = self.find_common_targets(**options)
-        return {**ksp, 'common_targets': ct}
+        cp = self.get_common_parents(**options) if kwargs['parents'] else {}
+        return {**ksp, 'common_targets': ct, 'common_parents': cp}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):
@@ -100,11 +101,8 @@ class IndraNetwork:
             if not simple:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
-                return {len(path): [{
-
-                    'stmts': self._get_hash_path(path, **kwargs),
-                    'path': path
-                }]}
+                return {len(path): [{'path': path,
+                    'stmts': self._get_hash_path(path, **kwargs)}]}
             else:
                 return self._find_shortest_simple_paths(source, target,
                                                         weight, **kwargs)
@@ -168,14 +166,18 @@ class IndraNetwork:
         source = kwargs['source']
         target = kwargs['target']
         for ct in common_targets:
-            paths1 = self._get_hash_path(path=[source, ct], **kwargs)[0]
-            paths2 = self._get_hash_path(path=[target, ct], **kwargs)[0]
-            if paths1 and paths2:
-                max_bs1 = max([st['bs'] for st in paths1])
-                max_bs2 = max([st['bs'] for st in paths2])
+            paths1 = self._get_hash_path(path=[source, ct], **kwargs)
+            paths2 = self._get_hash_path(path=[target, ct], **kwargs)
+            if paths1 and paths2 and paths1[0] and paths2[0]:
+                max_bs1 = max([st['bs'] for st in paths1[0]])
+                max_bs2 = max([st['bs'] for st in paths2[0]])
                 ordered_commons.append({
-                    ct: [sorted(paths1, key=lambda k: k['bs'], reverse=True),
-                         sorted(paths2, key=lambda k: k['bs'], reverse=True)],
+                    ct: [sorted(paths1[0],
+                                key=lambda k: k['bs'],
+                                reverse=True),
+                         sorted(paths2[0],
+                                key=lambda k: k['bs'],
+                                reverse=True)],
                     'lowest_highest_belief': min(max_bs1, max_bs2)
                 })
         if ordered_commons:
@@ -230,14 +232,90 @@ class IndraNetwork:
                     except KeyError as ke:
                         logger.warning('Unexpected KeyError: ' + repr(ke))
                         raise ke
-        if self.verbose:
-            logger.info('Done loopngi paths. Returning result: %s' %
+        if self.verbose > 2:
+            logger.info('Done looping paths. Returning result: %s' %
                         repr(result))
         return result
 
     def has_path(self, source, target):
         """Return true if there is a path from source to target"""
         return nx.has_path(self.nx_dir_graph_repr, source, target)
+
+    def get_common_parents(self, **kwargs):
+        source_ns = None
+        target_ns = None
+        # Get ids and ns
+        if kwargs['source'] in self.nodes:
+            source_id = self.nodes[kwargs['source']]['id']
+            source_ns = self.nodes[kwargs['source']]['ns']
+        else:
+            source_id = kwargs['source']
+        if kwargs['target'] in self.nodes:
+            target_id = self.nodes[kwargs['target']]['id']
+            target_ns = self.nodes[kwargs['target']]['ns']
+        else:
+            target_id = kwargs['target']
+
+        if source_ns in kwargs['node_filter'] or \
+                target_ns in kwargs['node_filter']:
+            logger.info('The namespaces for %s and/or %s are in node filter. '
+                        'Aborting common parent search.' %
+                        (source_id, target_id))
+            return {}
+
+        # Try different iterations of ns
+        if source_ns and target_ns:
+            if self.verbose > 1:
+                logger.info('Looking for common parents using namespaces '
+                            'found in network')
+            cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                                   ns2=target_ns, id2=target_id)
+        if not source_ns and target_ns:
+            if self.verbose > 1:
+                logger.info('No namespace found for %s, trying HGNC and '
+                            'FPLX.' % source_id)
+            for ns in ['HGNC', 'FPLX']:
+                cp = dnf.common_parent(ns1=ns, id1=source_id,
+                                       ns2=target_ns, id2=target_id)
+                if cp:
+                    break
+        if source_ns and not target_ns:
+            if self.verbose > 1:
+                logger.info('No namespace found for %s, trying HGNC and '
+                            'FPLX.' % target_id)
+            for ns in ['HGNC', 'FPLX']:
+                cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                                       ns2=ns, id2=target_id)
+                if cp:
+                    break
+
+        # If no namespaces exist
+        if not source_ns and not target_ns:
+            if self.verbose > 1:
+                logger.info('No namespaces found for %s and %s, trying HGNC '
+                            'and FPLX' % (source_id, target_id))
+            for source_ns in ['HGNC', 'FPLX']:
+                for target_ns in ['HGNC', 'FPLX']:
+                    cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                                           ns2=target_ns, id2=target_id)
+                    if cp:
+                        break
+        if not cp:
+            logger.info('No common parents found')
+            return {}
+        else:
+            return {'source_ns': source_ns, 'source_id': source_id,
+                    'target_ns': target_ns, 'target_id': target_id,
+                    'common_parents': sorted(list(cp))}
+
+    def find_parent_paths(self, id1, id2, ns1='HGNC', n2='HGNC', depth=0):
+        # This function should be the wrapper for the recursive function (not
+        # yet built) that recursively tries to find paths of increasing
+        # length wher eone of the edges is a common parent connection
+        if depth >= 3:
+            return set()
+
+        return dnf.common_parent()
 
     def _get_edge(self, s, o, index, directed):
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
@@ -286,7 +364,7 @@ class IndraNetwork:
                                   'obj': obj})
                 e += 1
                 edge_stmt = self._get_edge(subj, obj, e, simple_dir)
-            if self.verbose:
+            if self.verbose > 4:
                 logger.info('Appending %s to hash path list' % repr(edges))
             hash_path.append(edges)
         if self.verbose and len(hash_path) > 0:
@@ -390,7 +468,8 @@ def process_query():
         if not result:
             logger.info('Query returned with no path found')
         res = {'result': result}
-        logger.info('Result: %s' % str(res))
+        if indra_network.verbose > 5:
+            logger.info('Result: %s' % str(res))
         return Response(json.dumps(res), mimetype='application/json')
 
     except KeyError as e:
@@ -434,6 +513,7 @@ if __name__ == '__main__':
                                        INDRA_MDG_CACHE))
     if args.test:
         indra_network.small = True
+        indra_network.verbose = args.verbose if args.verbose else 1
     if args.verbose:
         logger.info('Verbose level %d' % args.verbose)
         indra_network.verbose = args.verbose
