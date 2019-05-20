@@ -2096,6 +2096,35 @@ def dbc_load_statements(hgnc_syms):
     return stmts
 
 
+def construct_entity_relationships(eh=hm.hierarchies['entity']):
+    """Construct a dict-of-dicts for looking up children keyed by parents or vv
+
+    eh : HierarchyManager object
+        A HierarchyManager object initialized to an entities HierarchyManager.
+
+    Returns
+    -------
+    rel_dict : dict
+        A dictionary keyed by namespace, id tuples with keys either being
+        parents or children
+    """
+    rel_dict = {'children_by_parent': {}, 'parents_by_children': {}}
+    eh.initialize()
+    entities_keyed_by_parent = eh._children
+    for parent_uri, children_uris in entities_keyed_by_parent.items():
+        pns, pid = eh.ns_id_from_uri(parent_uri)
+        ns_id_child_set = set([eh.ns_id_from_uri(p)
+                      for p in entities_keyed_by_parent[parent_uri]])
+        rel_dict['children_by_parent'][(pns, pid)] = list(ns_id_child_set)
+        for cns, cid in ns_id_child_set:
+            try:
+                rel_dict['parents_by_child'][(cns, cid)].append((pns, pid))
+            except KeyError:
+                rel_dict['parents_by_child'][(cns, cid)] = [(pns, pid)]
+
+    return rel_dict
+
+
 def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
                 id_=None, type_='all'):
     """A wrapper function for he.get_parents to make the functionality more
