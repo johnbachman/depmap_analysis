@@ -96,6 +96,12 @@
       for (c of document.getElementById('stmt-filter').children) {
         stmtFilterList.push(c.value)
       }
+      if (document.getElementById('fplx-fam-edges').checked) {
+        stmtFilterList.push('isa')
+      }
+      if (document.getElementById('fplx-cplx-edges').checked) {
+        stmtFilterList.push('part_of')
+      }
       var statusBox = document.getElementById('query-status');
       var source = document.getElementById('source').value;
       var target = document.getElementById('target').value
@@ -112,8 +118,6 @@
         direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
         fplx_expand: document.getElementById('fplx-expand').checked,
-        isa_edges: document.getElementById('fplx-fam-edges').checked,
-        part_of_edges: document.getElementById('fplx-cplx-edges').checked,
         simple: document.getElementById('simple-paths').checked,
         k_shortest: kShortestEntry
       }
@@ -333,7 +337,7 @@
             </select>
             <div class="custom-control custom-checkbox">
               <input type="checkbox" class="custom-control-input" id="selected-length-only">
-              <label class="custom-control-label" for="selected-length-only">Check for selected length only</label>
+              <label class="custom-control-label" for="selected-length-only">Selected length only</label>
             </div>
           </div>
         </div>
@@ -346,13 +350,13 @@
       <div class="row">
         <div class="col">
           <div class="form-select">
-            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types excluded from path" multiple>
+            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types included in path" multiple>
             </select>
           </div>
         </div>
         <div class="col">
           <div class="form-select">
-            <select name="node-filter" id="node-filter" placeholder="Node namespaces excluded from path" multiple>
+            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
         </div>
