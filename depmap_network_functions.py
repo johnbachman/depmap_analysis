@@ -700,7 +700,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                       'v_for_edge': isa_id,
                       'weight': 1.0,
                       'stmt_type': 'isa',
-                      'stmt_hash': None,
+                      'stmt_hash': isa_uri,
                       'evidence_count': 1,
                       'bs': 1.0}
                 if multi:
@@ -723,7 +723,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                       'v_for_edge': part_of_id,
                       'weight': 1.0,
                       'stmt_type': 'part_of',
-                      'stmt_hash': None,
+                      'stmt_hash': part_of_uri,
                       'evidence_count': 1,
                       'bs': 1.0}
                 if multi:
