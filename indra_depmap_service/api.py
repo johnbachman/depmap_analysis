@@ -165,6 +165,7 @@ class IndraNetwork:
         ordered_commons = []
         source = kwargs['source']
         target = kwargs['target']
+        added_targets = 0
         for ct in common_targets:
             paths1 = self._get_hash_path(path=[source, ct], **kwargs)
             paths2 = self._get_hash_path(path=[target, ct], **kwargs)
@@ -180,6 +181,12 @@ class IndraNetwork:
                                 reverse=True)],
                     'lowest_highest_belief': min(max_bs1, max_bs2)
                 })
+                added_targets += 1
+                if added_targets >= self.MAX_PATHS:
+                    if self.verbose:
+                        logger.info('Max number of common targets reached. '
+                                    'Breaking loop')
+                    break
         if ordered_commons:
             return sorted(ordered_commons,
                           key=lambda k: k['lowest_highest_belief'],
