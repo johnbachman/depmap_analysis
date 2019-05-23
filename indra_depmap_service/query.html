@@ -111,7 +111,9 @@
         bsco: beliefEntry,
         direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
-        parents: document.getElementById('parents').checked,
+        fplx_expand: document.getElementById('fplx-expand').checked,
+        isa_edges: document.getElementById('fplx-fam-edges').checked,
+        part_of_edges: document.getElementById('fplx-cplx-edges').checked,
         simple: document.getElementById('simple-paths').checked,
         k_shortest: kShortestEntry
       }
@@ -374,20 +376,28 @@
         <label class="custom-control-label" for="direct-only">Direct only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="simple-paths" checked>
-        <label class="custom-control-label" for="simple-paths">Simple path search</label>
-      </div>
-      <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="weighted-search">
         <label class="custom-control-label" for="weighted-search">Weighted search</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="simple-paths" checked>
+        <label class="custom-control-label" for="simple-paths">Simple path search</label>
       </div>
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="curated-db-only" disabled>
         <label class="custom-control-label" for="curated-db-only">Curated databases only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="parents" checked>
-        <label class="custom-control-label" for="parents">Include FamPlex families and complexes</label>
+        <input type="checkbox" class="custom-control-input" id="fplx-fam-edges">
+        <label class="custom-control-label" for="fplx-fam-edges">Include FamPlex Families as edges</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="fplx-cplx-edges">
+        <label class="custom-control-label" for="fplx-cplx-edges">Include FamPlex Complexes as edges</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="fplx-expand">
+        <label class="custom-control-label" for="fplx-expand">Expand search to FamPlex families and complexes when paths are not found</label>
       </div>
       <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
     </form>
