@@ -313,15 +313,6 @@ class IndraNetwork:
                     'target_ns': target_ns, 'target_id': target_id,
                     'common_parents': sorted(list(cp))}
 
-    def find_parent_paths(self, id1, id2, ns1='HGNC', n2='HGNC', depth=0):
-        # This function should be the wrapper for the recursive function (not
-        # yet built) that recursively tries to find paths of increasing
-        # length wher eone of the edges is a common parent connection
-        if depth >= 3:
-            return set()
-
-        return dnf.common_parent()
-
     def _get_edge(self, s, o, index, directed):
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
         if directed:
