@@ -6,6 +6,7 @@ from os import path
 from jinja2 import Template
 from subprocess import call
 from datetime import datetime
+from itertools import product
 from networkx import NodeNotFound
 from flask import Flask, request, abort, Response, redirect, url_for
 
@@ -56,6 +57,8 @@ class IndraNetwork:
         self.nodes = self.nx_dir_graph_repr.nodes
         self.dir_edges = self.nx_dir_graph_repr.edges
         self.mdg_edges = self.nx_md_graph_repr.edges
+        self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
+        self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS
         self.MAX_PATH_LEN = MAX_PATH_LEN
         self.small = False
@@ -91,6 +94,70 @@ class IndraNetwork:
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
         return {**ksp, 'common_targets': ct, 'common_parents': cp}
+
+    def try_parents(self, **ckwargs):
+        """Retry search with sources' and targets' parents
+
+        Search for paths between combinations of the parents of source and
+        target.
+        """
+        source = ckwargs['source']
+        target = ckwargs['target']
+
+        if self.verbose > 1:
+            logger.info('Parents search: source=%s, target=%s' % \
+                        (ckwargs['source'], ckwargs['target']))
+
+        # Get closures for source and target
+        source_parent_closure = self._get_closure(source)
+        target_parent_closure = self._get_closure(target)
+        if self.verbose > 3:
+            logger.info('Got source_parent_closure: %s' %
+                        repr(source_parent_closure))
+            logger.info('Got target_parent_closure: %s' %
+                        repr(target_parent_closure))
+
+        # Base case: no further closures found, return empty dict
+        if not source_parent_closure and not target_parent_closure:
+            return {}
+
+        # First try current source with all target parents
+        if target_parent_closure:
+            for tp_uri in target_parent_closure:
+                ckwargs['target'] = self.node_by_uri[tp_uri]
+                if self.verbose > 4:
+                    logger.info('Parents search: source=%s, target=%s' % \
+                                (ckwargs['source'], ckwargs['target']))
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
+
+        # Then, try current target with all source parents
+        if source_parent_closure:
+            for sp_uri in source_parent_closure:
+                ckwargs['source'] = self.node_by_uri[sp_uri]
+                if self.verbose > 4:
+                    logger.info('Parents search: source=%s, target=%s' % \
+                                (ckwargs['source'], ckwargs['target']))
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
+
+        # Lastly try all possible pairs of source and target parents
+        if source_parent_closure and target_parent_closure:
+            for sp_uri, tp_uri in product(source_parent_closure,
+                                          target_parent_closure):
+                    ckwargs['source'] = self.node_by_uri[sp_uri]
+                    ckwargs['target'] = self.node_by_uri[tp_uri]
+                    if self.verbose > 4:
+                        logger.info('Parents search: source=%s, target=%s' % \
+                                    (ckwargs['source'], ckwargs['target']))
+                    ksp = self.find_shortest_paths(**ckwargs)
+                    if ksp:
+                        return ksp
+
+        # If we get this far, no path was found
+        return {}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):
@@ -393,6 +460,19 @@ class IndraNetwork:
 
         # Return True is all filters were passed
         return True
+
+    def _uri_by_node(self, node):
+        """Check existence of node outside function"""
+        node_id = self.nodes[node]['id']
+        node_ns = self.nodes[node]['ns']
+        return self.ehm.get_uri(id=node_id, ns=node_ns)
+
+    def _get_closure(self, node):
+        if self.nodes.get(node):
+            return set(self.ehm.isa_or_partof_closure.get(self._uri_by_node(
+                node), []))
+        else:
+            return set()
 
 
 def dump_indra_db(path='.'):
