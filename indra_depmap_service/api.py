@@ -280,7 +280,10 @@ class IndraNetwork:
             hash_path = self._get_hash_path(path, **kwargs)
             if self.verbose > 1:
                 logger.info('Got hash path: %s' % repr(hash_path))
-            if all(hash_path):
+            if hash_path and all(hash_path):
+                if self.verbose > 1:
+                    logger.info('Adding stmts and path from %s to path list' %
+                                repr(hash_path))
                 pd = {'stmts': hash_path, 'path': path}
                 try:
                     if not len_only:
@@ -414,18 +417,19 @@ class IndraNetwork:
                 return []
             e = 0
             edge_stmt = self._get_edge(subj, obj, e, simple_dir)
-            if self.verbose > 2:
+            if self.verbose > 3:
                 logger.info('edge stmt %s' % repr(edge_stmt))
             while edge_stmt:
                 if self._pass_stmt(subj, obj, edge_stmt, **kwargs):
-                    if self.verbose > 3:
-                        logger.info('edge stmt passed filter, appending to '
-                                    'edge list.')
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
                     edges.append({**edge_stmt,
                                   'subj': subj,
                                   'obj': obj})
+                    if self.verbose > 3:
+                        logger.info('edge stmt passed filter, appending to '
+                                    'edge list.')
+                        logger.info('Next edge stmt %s' % repr(edge_stmt))
                 e += 1
                 edge_stmt = self._get_edge(subj, obj, e, simple_dir)
             if edges:
