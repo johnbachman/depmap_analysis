@@ -64,9 +64,6 @@ class IndraNetwork:
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result."""
         logger.info('Handling query: %s' % repr(kwargs))
-        # possible keys (* = mandatory):
-        # *'source', *'target', 'path_length', 'spec_len_only', 'sign',
-        # 'weighted', 'direct_only', 'curated_db_only'
         keys = kwargs.keys()
         # 'source' & 'target' are mandatory
         if 'source' not in keys or 'target' not in keys:
@@ -85,7 +82,7 @@ class IndraNetwork:
                     else (-1 if v == 'minus' else 0)
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
-        logger.info('Lookng for no more than %d paths' % self.MAX_PATHS)
+        logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
 
         # Todo MultiDiGrap can't do simple graphs: resolve by loading
         #  both a MultiDiGraph and a simple DiGraph - find the simple
@@ -380,20 +377,26 @@ class IndraNetwork:
         return hash_path
 
     def _pass_stmt(self, subj, obj, edge_stmt, **kwargs):
+        """Returns True if edge_stmt passes the below filters"""
+        # Failsafe for empty statements are sent
         if not edge_stmt:
             if self.verbose:
                 logger.info('No edge statement')
             return False
+
+        # Filter belief score
         if edge_stmt['bs'] < kwargs['bsco']:
             if self.verbose:
                 logger.info('Did not pass belief score')
             return False
         if edge_stmt['stmt_type'].lower() in kwargs['stmt_filter']:
             if self.verbose:
-                logger.info('statement type %s filtered out as part filter %s'
+                logger.info('statement type %s not found in filter %s'
                             % (edge_stmt['stmt_type'],
                                str(kwargs['stmt_filter'])))
             return False
+
+        # Return True is all filters were passed
         return True
 
 
@@ -482,25 +485,24 @@ def process_query():
 
     except KeyError as e:
         # return 400 badly formatted
-        logger.warning('Missing parameters in query')
+        if indra_network.verbose:
+            logger.exception(e)
+        else:
+            logger.warning('Missing parameters in query')
         abort(Response('Missing parameters', 400))
-        if indra_network.small and indra_network.verbose:
-            raise e
 
     except ValueError as e:
         # Bad values in json, but entry existed
-        logger.warning('Badly formatted json')
+        if indra_network.verbose:
+            logger.exception(e)
+        else:
+            logger.warning('Badly formatted json')
         abort(Response('Badly formatted json', 400))
-        if indra_network.small and indra_network.verbose:
-            raise e
 
     except Exception as e:
-        # Anything else: probably bug or networkx error, not the user's fault
-        # Comment this out to get full error traceback
-        logger.warning('Unhandled internal error: ' + repr(e))
+        logger.exception(e)
+        logger.warning('Unhandled internal error, see above error messages')
         abort(Response('Server error during handling of query', 500))
-        if indra_network.small and indra_network.verbose:
-            raise e
 
 
 if __name__ == '__main__':
