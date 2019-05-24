@@ -402,10 +402,8 @@ class IndraNetwork:
         hash_path = []
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
-        for n in range(len(path) - 1):
+        for subj, obj in zip(path[:-1], path[1:]):
             edges = []
-            subj = path[n]
-            obj = path[n+1]
             if self.nodes[subj]['ns'] not in kwargs['node_filter'] \
                     or self.nodes[obj]['ns'] not in kwargs['node_filter']:
                 if self.verbose:
