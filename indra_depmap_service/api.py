@@ -89,7 +89,7 @@ class IndraNetwork:
         #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
         ct = self.find_common_targets(**options)
-        cp = self.get_common_parents(**options) if kwargs['parents'] else {}
+        cp = self.get_common_parents(**options)
         return {**ksp, 'common_targets': ct, 'common_parents': cp}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
@@ -213,7 +213,7 @@ class IndraNetwork:
             hash_path = self._get_hash_path(path, **kwargs)
             if self.verbose > 1:
                 logger.info('Got hash path: %s' % repr(hash_path))
-            if hash_path:
+            if all(hash_path):
                 pd = {'stmts': hash_path, 'path': path}
                 try:
                     if not len_only:
@@ -261,8 +261,8 @@ class IndraNetwork:
         else:
             target_id = kwargs['target']
 
-        if source_ns in kwargs['node_filter'] or \
-                target_ns in kwargs['node_filter']:
+        if source_ns not in kwargs['node_filter'] or \
+                target_ns not in kwargs['node_filter']:
             logger.info('The namespaces for %s and/or %s are in node filter. '
                         'Aborting common parent search.' %
                         (source_id, target_id))
@@ -345,13 +345,14 @@ class IndraNetwork:
             edges = []
             subj = path[n]
             obj = path[n+1]
-            if self.nodes[subj]['ns'] in kwargs['node_filter'] \
-                    or self.nodes[obj]['ns'] in kwargs['node_filter']:
+            if self.nodes[subj]['ns'] not in kwargs['node_filter'] \
+                    or self.nodes[obj]['ns'] not in kwargs['node_filter']:
                 if self.verbose:
-                    logger.info('Node namespace %s or %s filtered out using '
-                                '%s' % (self.nodes[subj]['ns'],
-                                        self.nodes[obj]['ns'],
-                                        kwargs['node_filter']))
+                    logger.info('Node namespace %s or %s not part of '
+                                'acceptable namespaces %s' %
+                                (self.nodes[subj]['ns'],
+                                 self.nodes[obj]['ns'],
+                                 kwargs['node_filter']))
                 return []
             e = 0
             edge_stmt = self._get_edge(subj, obj, e, simple_dir)
@@ -389,7 +390,9 @@ class IndraNetwork:
             if self.verbose:
                 logger.info('Did not pass belief score')
             return False
-        if edge_stmt['stmt_type'].lower() in kwargs['stmt_filter']:
+
+        # Filter statement type
+        if edge_stmt['stmt_type'].lower() not in kwargs['stmt_filter']:
             if self.verbose:
                 logger.info('statement type %s not found in filter %s'
                             % (edge_stmt['stmt_type'],
