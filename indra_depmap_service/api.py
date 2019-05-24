@@ -91,6 +91,15 @@ class IndraNetwork:
         #  both a MultiDiGraph and a simple DiGraph - find the simple
         #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
+        if not ksp:
+            if kwargs['fplx_expand']:
+                logger.info('No directed path found, looking for paths '
+                            'connected by common parents of source and/or '
+                            'target')
+                ckwargs = options.copy()
+                ksp = self.try_parents(**ckwargs)
+            else:
+                logger.info('No directed path found')
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
         return {**ksp, 'common_targets': ct, 'common_parents': cp}
