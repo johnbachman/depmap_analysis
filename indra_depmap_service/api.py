@@ -361,10 +361,11 @@ class IndraNetwork:
                                   'obj': obj})
                 e += 1
                 edge_stmt = self._get_edge(subj, obj, e, simple_dir)
-            if self.verbose > 4:
-                logger.info('Appending %s to hash path list' % repr(edges))
-            hash_path.append(edges)
-        if self.verbose and len(hash_path) > 0:
+            if edges:
+                if self.verbose > 4:
+                    logger.info('Appending %s to hash path list' % repr(edges))
+                hash_path.append(edges)
+        if self.verbose > 1 and len(hash_path) > 0:
             logger.info('Returning hash path: %s' % repr(hash_path))
         return hash_path
 
