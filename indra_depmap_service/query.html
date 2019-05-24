@@ -187,7 +187,7 @@
           }
         }
 
-        // Fill directed paths
+        // Fill directed paths tables
         if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
           for (len in pathsKeyedArray) {
             let tableBody = document.getElementById('query-results-' + (len-1))
@@ -270,8 +270,9 @@
           '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
           edgeList.length + '</span><br>'
           for (stmt of edgeList) {
-            let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
-              '?format=html'
+            let dbLink = ''
+            if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
+            else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
             htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
               stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
           }
@@ -287,8 +288,9 @@
         '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
         path.length + '</span><br>'
         for (stmt of path) {
-          let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
-            '?format=html'
+          let dbLink = ''
+          if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
+          else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
           htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
             stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
         }
