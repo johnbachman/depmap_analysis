@@ -116,9 +116,9 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
 
     if max_pairs:
         if max_pairs >= all_pairs:
-            dnf_logger.info('The requested number of correlation pairs is larger '
-                            'than the available number of pairs. Resetting '
-                            '`max_pairs` to %i' % all_pairs)
+            dnf_logger.info('The requested number of correlation pairs is '
+                            'larger than the available number of pairs. '
+                            'Resetting `max_pairs` to %i' % all_pairs)
             corr_df_sample = corrrelation_df_matrix
 
         elif max_pairs < all_pairs:
