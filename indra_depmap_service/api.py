@@ -227,12 +227,20 @@ class IndraNetwork:
     def find_common_targets(self,**kwargs):
         """Returns a list of statement(?) pairs that explain common targets
         for source and target"""
-        source_succ = set(self.nx_dir_graph_repr.succ[kwargs['source']].keys())
-        target_succ = set(self.nx_dir_graph_repr.succ[kwargs['target']].keys())
-        common = source_succ & target_succ
-
-        if common:
-            return self._loop_common_targets(common_targets=common, **kwargs)
+        if kwargs['source'] in self.nodes and kwargs['target'] in self.nodes:
+            source_succ = set(self.nx_dir_graph_repr.succ[
+                                  kwargs['source']].keys())
+            target_succ = set(self.nx_dir_graph_repr.succ[
+                                  kwargs['target']].keys())
+            common = source_succ & target_succ
+            if common:
+                try:
+                    return self._loop_common_targets(common_targets=common,
+                                                     **kwargs)
+                except nx.NodeNotFound as e:
+                    logger.warning(repr(e))
+                except nx.NetworkXNoPath as e:
+                    logger.warning(repr(e))
 
         return []
 
@@ -451,7 +459,7 @@ class IndraNetwork:
                 e += 1
                 edge_stmt = self._get_edge(subj, obj, e, simple_dir)
 
-            # If edges list contains anything, append to hash_path list, 
+            # If edges list contains anything, append to hash_path list
             if edges:
                 if self.verbose > 4:
                     logger.info('Appending %s to hash path list' % repr(edges))
