@@ -28,7 +28,7 @@ INDRA_MDG_CACHE = path.join(CACHE,
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_dump_20190417.pkl')
 
-MAX_PATHS = 100
+MAX_PATHS = 50
 MAX_PATH_LEN = 4
 
 
@@ -98,6 +98,8 @@ class IndraNetwork:
                             'target')
                 ckwargs = options.copy()
                 ksp = self.try_parents(**ckwargs)
+                if self.verbose > 2:
+                    logger.info('Got parents search result: %s' % repr(ksp))
             else:
                 logger.info('No directed path found')
         ct = self.find_common_targets(**options)
@@ -287,8 +289,6 @@ class IndraNetwork:
                             'results')
                 return result
             hash_path = self._get_hash_path(path, **kwargs)
-            if self.verbose > 1:
-                logger.info('Got hash path: %s' % repr(hash_path))
             if hash_path and all(hash_path):
                 if self.verbose > 1:
                     logger.info('Adding stmts and path from %s to path list' %
@@ -463,7 +463,7 @@ class IndraNetwork:
 
         # Filter statement type
         if edge_stmt['stmt_type'].lower() not in kwargs['stmt_filter']:
-            if self.verbose:
+            if self.verbose > 4:
                 logger.info('statement type %s not found in filter %s'
                             % (edge_stmt['stmt_type'],
                                str(kwargs['stmt_filter'])))
