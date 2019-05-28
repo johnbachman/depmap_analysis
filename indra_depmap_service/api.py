@@ -412,7 +412,7 @@ class IndraNetwork:
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
         for subj, obj in zip(path[:-1], path[1:]):
-            edges = []
+            # Check node filter
             if self.nodes[subj]['ns'] not in kwargs['node_filter'] \
                     or self.nodes[obj]['ns'] not in kwargs['node_filter']:
                 if self.verbose:
@@ -422,11 +422,20 @@ class IndraNetwork:
                                  self.nodes[obj]['ns'],
                                  kwargs['node_filter']))
                 return []
+
+            # Initialize edges list, statement index
+            edges = []
             e = 0
+
+            # Get first edge statement
             edge_stmt = self._get_edge(subj, obj, e, simple_dir)
             if self.verbose > 3:
-                logger.info('edge stmt %s' % repr(edge_stmt))
+                logger.info('First edge stmt %s' % repr(edge_stmt))
+
+            # Exhaustively loop through all edge statments
             while edge_stmt:
+
+                # If edge statement passes, append to edges list
                 if self._pass_stmt(subj, obj, edge_stmt, **kwargs):
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
@@ -437,12 +446,18 @@ class IndraNetwork:
                         logger.info('edge stmt passed filter, appending to '
                                     'edge list.')
                         logger.info('Next edge stmt %s' % repr(edge_stmt))
+
+                # Incr statement index, get next edge statement
                 e += 1
                 edge_stmt = self._get_edge(subj, obj, e, simple_dir)
+
+            # If edges list contains anything, append to hash_path list, 
             if edges:
                 if self.verbose > 4:
                     logger.info('Appending %s to hash path list' % repr(edges))
                 hash_path.append(edges)
+            else:
+                return []
         if self.verbose > 1 and len(hash_path) > 0:
             logger.info('Returning hash path: %s' % repr(hash_path))
         return hash_path
