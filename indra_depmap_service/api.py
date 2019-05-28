@@ -6,6 +6,7 @@ from os import path
 from jinja2 import Template
 from subprocess import call
 from datetime import datetime
+from itertools import product
 from networkx import NodeNotFound
 from flask import Flask, request, abort, Response, redirect, url_for
 
@@ -22,11 +23,12 @@ HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
-INDRA_MDG_CACHE = path.join(CACHE, 'nx_bs_multi_digraph_db_dump_20190417.pkl')
+INDRA_MDG_CACHE = path.join(CACHE,
+                            'nx_bs_fam_multi_digraph_db_dump_20190417.pkl')
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
-INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_dir_graph_db_dump_20190417.pkl')
+INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_dump_20190417.pkl')
 
-MAX_PATHS = 100
+MAX_PATHS = 50
 MAX_PATH_LEN = 4
 
 
@@ -55,6 +57,8 @@ class IndraNetwork:
         self.nodes = self.nx_dir_graph_repr.nodes
         self.dir_edges = self.nx_dir_graph_repr.edges
         self.mdg_edges = self.nx_md_graph_repr.edges
+        self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
+        self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS
         self.MAX_PATH_LEN = MAX_PATH_LEN
         self.small = False
@@ -63,9 +67,6 @@ class IndraNetwork:
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result."""
         logger.info('Handling query: %s' % repr(kwargs))
-        # possible keys (* = mandatory):
-        # *'source', *'target', 'path_length', 'spec_len_only', 'sign',
-        # 'weighted', 'direct_only', 'curated_db_only'
         keys = kwargs.keys()
         # 'source' & 'target' are mandatory
         if 'source' not in keys or 'target' not in keys:
@@ -84,15 +85,90 @@ class IndraNetwork:
                     else (-1 if v == 'minus' else 0)
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
-        logger.info('Lookng for no more than %d paths' % self.MAX_PATHS)
+        logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
 
         # Todo MultiDiGrap can't do simple graphs: resolve by loading
         #  both a MultiDiGraph and a simple DiGraph - find the simple
         #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
+        if not ksp:
+            if kwargs['fplx_expand']:
+                logger.info('No directed path found, looking for paths '
+                            'connected by common parents of source and/or '
+                            'target')
+                ckwargs = options.copy()
+                ksp = self.try_parents(**ckwargs)
+                if self.verbose > 2:
+                    logger.info('Got parents search result: %s' % repr(ksp))
+            else:
+                logger.info('No directed path found')
         ct = self.find_common_targets(**options)
-        cp = self.get_common_parents(**options) if kwargs['parents'] else {}
+        cp = self.get_common_parents(**options)
         return {**ksp, 'common_targets': ct, 'common_parents': cp}
+
+    def try_parents(self, **ckwargs):
+        """Retry search with sources' and targets' parents
+
+        Search for paths between combinations of the parents of source and
+        target.
+        """
+        source = ckwargs['source']
+        target = ckwargs['target']
+
+        if self.verbose > 1:
+            logger.info('Parents search: source=%s, target=%s' % \
+                        (ckwargs['source'], ckwargs['target']))
+
+        # Get closures for source and target
+        source_parent_closure = self._get_closure(source)
+        target_parent_closure = self._get_closure(target)
+        if self.verbose > 3:
+            logger.info('Got source_parent_closure: %s' %
+                        repr(source_parent_closure))
+            logger.info('Got target_parent_closure: %s' %
+                        repr(target_parent_closure))
+
+        # Base case: no further closures found, return empty dict
+        if not source_parent_closure and not target_parent_closure:
+            return {}
+
+        # First try current source with all target parents
+        if target_parent_closure:
+            for tp_uri in target_parent_closure:
+                ckwargs['target'] = self.node_by_uri[tp_uri]
+                if self.verbose > 4:
+                    logger.info('Parents search: source=%s, target=%s' % \
+                                (ckwargs['source'], ckwargs['target']))
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
+
+        # Then, try current target with all source parents
+        if source_parent_closure:
+            for sp_uri in source_parent_closure:
+                ckwargs['source'] = self.node_by_uri[sp_uri]
+                if self.verbose > 4:
+                    logger.info('Parents search: source=%s, target=%s' % \
+                                (ckwargs['source'], ckwargs['target']))
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
+
+        # Lastly try all possible pairs of source and target parents
+        if source_parent_closure and target_parent_closure:
+            for sp_uri, tp_uri in product(source_parent_closure,
+                                          target_parent_closure):
+                    ckwargs['source'] = self.node_by_uri[sp_uri]
+                    ckwargs['target'] = self.node_by_uri[tp_uri]
+                    if self.verbose > 4:
+                        logger.info('Parents search: source=%s, target=%s' % \
+                                    (ckwargs['source'], ckwargs['target']))
+                    ksp = self.find_shortest_paths(**ckwargs)
+                    if ksp:
+                        return ksp
+
+        # If we get this far, no path was found
+        return {}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
                            **kwargs):
@@ -151,12 +227,20 @@ class IndraNetwork:
     def find_common_targets(self,**kwargs):
         """Returns a list of statement(?) pairs that explain common targets
         for source and target"""
-        source_succ = set(self.nx_dir_graph_repr.succ[kwargs['source']].keys())
-        target_succ = set(self.nx_dir_graph_repr.succ[kwargs['target']].keys())
-        common = source_succ & target_succ
-
-        if common:
-            return self._loop_common_targets(common_targets=common, **kwargs)
+        if kwargs['source'] in self.nodes and kwargs['target'] in self.nodes:
+            source_succ = set(self.nx_dir_graph_repr.succ[
+                                  kwargs['source']].keys())
+            target_succ = set(self.nx_dir_graph_repr.succ[
+                                  kwargs['target']].keys())
+            common = source_succ & target_succ
+            if common:
+                try:
+                    return self._loop_common_targets(common_targets=common,
+                                                     **kwargs)
+                except nx.NodeNotFound as e:
+                    logger.warning(repr(e))
+                except nx.NetworkXNoPath as e:
+                    logger.warning(repr(e))
 
         return []
 
@@ -213,9 +297,10 @@ class IndraNetwork:
                             'results')
                 return result
             hash_path = self._get_hash_path(path, **kwargs)
-            if self.verbose > 1:
-                logger.info('Got hash path: %s' % repr(hash_path))
-            if hash_path:
+            if hash_path and all(hash_path):
+                if self.verbose > 1:
+                    logger.info('Adding stmts and path from %s to path list' %
+                                repr(hash_path))
                 pd = {'stmts': hash_path, 'path': path}
                 try:
                     if not len_only:
@@ -263,8 +348,8 @@ class IndraNetwork:
         else:
             target_id = kwargs['target']
 
-        if source_ns in kwargs['node_filter'] or \
-                target_ns in kwargs['node_filter']:
+        if source_ns not in kwargs['node_filter'] or \
+                target_ns not in kwargs['node_filter']:
             logger.info('The namespaces for %s and/or %s are in node filter. '
                         'Aborting common parent search.' %
                         (source_id, target_id))
@@ -315,15 +400,6 @@ class IndraNetwork:
                     'target_ns': target_ns, 'target_id': target_id,
                     'common_parents': sorted(list(cp))}
 
-    def find_parent_paths(self, id1, id2, ns1='HGNC', n2='HGNC', depth=0):
-        # This function should be the wrapper for the recursive function (not
-        # yet built) that recursively tries to find paths of increasing
-        # length wher eone of the edges is a common parent connection
-        if depth >= 3:
-            return set()
-
-        return dnf.common_parent()
-
     def _get_edge(self, s, o, index, directed):
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
         if directed:
@@ -343,57 +419,94 @@ class IndraNetwork:
         hash_path = []
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
-        for n in range(len(path) - 1):
-            edges = []
-            subj = path[n]
-            obj = path[n+1]
-            if self.nodes[subj]['ns'] in kwargs['node_filter'] \
-                    or self.nodes[obj]['ns'] in kwargs['node_filter']:
+        for subj, obj in zip(path[:-1], path[1:]):
+            # Check node filter
+            if self.nodes[subj]['ns'] not in kwargs['node_filter'] \
+                    or self.nodes[obj]['ns'] not in kwargs['node_filter']:
                 if self.verbose:
-                    logger.info('Node namespace %s or %s filtered out using '
-                                '%s' % (self.nodes[subj]['ns'],
-                                        self.nodes[obj]['ns'],
-                                        kwargs['node_filter']))
+                    logger.info('Node namespace %s or %s not part of '
+                                'acceptable namespaces %s' %
+                                (self.nodes[subj]['ns'],
+                                 self.nodes[obj]['ns'],
+                                 kwargs['node_filter']))
                 return []
+
+            # Initialize edges list, statement index
+            edges = []
             e = 0
+
+            # Get first edge statement
             edge_stmt = self._get_edge(subj, obj, e, simple_dir)
-            if self.verbose > 2:
-                logger.info('edge stmt %s' % repr(edge_stmt))
+            if self.verbose > 3:
+                logger.info('First edge stmt %s' % repr(edge_stmt))
+
+            # Exhaustively loop through all edge statments
             while edge_stmt:
+
+                # If edge statement passes, append to edges list
                 if self._pass_stmt(subj, obj, edge_stmt, **kwargs):
-                    if self.verbose > 3:
-                        logger.info('edge stmt passed filter, appending to '
-                                    'edge list.')
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
                     edges.append({**edge_stmt,
                                   'subj': subj,
                                   'obj': obj})
+                    if self.verbose > 3:
+                        logger.info('edge stmt passed filter, appending to '
+                                    'edge list.')
+                        logger.info('Next edge stmt %s' % repr(edge_stmt))
+
+                # Incr statement index, get next edge statement
                 e += 1
                 edge_stmt = self._get_edge(subj, obj, e, simple_dir)
-            if self.verbose > 4:
-                logger.info('Appending %s to hash path list' % repr(edges))
-            hash_path.append(edges)
-        if self.verbose and len(hash_path) > 0:
+
+            # If edges list contains anything, append to hash_path list
+            if edges:
+                if self.verbose > 4:
+                    logger.info('Appending %s to hash path list' % repr(edges))
+                hash_path.append(edges)
+            else:
+                return []
+        if self.verbose > 1 and len(hash_path) > 0:
             logger.info('Returning hash path: %s' % repr(hash_path))
         return hash_path
 
     def _pass_stmt(self, subj, obj, edge_stmt, **kwargs):
+        """Returns True if edge_stmt passes the below filters"""
+        # Failsafe for empty statements are sent
         if not edge_stmt:
             if self.verbose:
                 logger.info('No edge statement')
             return False
+
+        # Filter belief score
         if edge_stmt['bs'] < kwargs['bsco']:
             if self.verbose:
                 logger.info('Did not pass belief score')
             return False
-        if edge_stmt['stmt_type'].lower() in kwargs['stmt_filter']:
-            if self.verbose:
-                logger.info('statement type %s filtered out as part filter %s'
+
+        # Filter statement type
+        if edge_stmt['stmt_type'].lower() not in kwargs['stmt_filter']:
+            if self.verbose > 4:
+                logger.info('statement type %s not found in filter %s'
                             % (edge_stmt['stmt_type'],
                                str(kwargs['stmt_filter'])))
             return False
+
+        # Return True is all filters were passed
         return True
+
+    def _uri_by_node(self, node):
+        """Check existence of node outside function"""
+        node_id = self.nodes[node]['id']
+        node_ns = self.nodes[node]['ns']
+        return self.ehm.get_uri(id=node_id, ns=node_ns)
+
+    def _get_closure(self, node):
+        if self.nodes.get(node):
+            return set(self.ehm.isa_or_partof_closure.get(self._uri_by_node(
+                node), []))
+        else:
+            return set()
 
 
 def dump_indra_db(path='.'):
@@ -481,25 +594,24 @@ def process_query():
 
     except KeyError as e:
         # return 400 badly formatted
-        logger.warning('Missing parameters in query')
+        if indra_network.verbose:
+            logger.exception(e)
+        else:
+            logger.warning('Missing parameters in query')
         abort(Response('Missing parameters', 400))
-        if indra_network.small and indra_network.verbose:
-            raise e
 
     except ValueError as e:
         # Bad values in json, but entry existed
-        logger.warning('Badly formatted json')
+        if indra_network.verbose:
+            logger.exception(e)
+        else:
+            logger.warning('Badly formatted json')
         abort(Response('Badly formatted json', 400))
-        if indra_network.small and indra_network.verbose:
-            raise e
 
     except Exception as e:
-        # Anything else: probably bug or networkx error, not the user's fault
-        # Comment this out to get full error traceback
-        logger.warning('Unhandled internal error: ' + repr(e))
+        logger.exception(e)
+        logger.warning('Unhandled internal error, see above error messages')
         abort(Response('Server error during handling of query', 500))
-        if indra_network.small and indra_network.verbose:
-            raise e
 
 
 if __name__ == '__main__':

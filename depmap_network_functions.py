@@ -116,9 +116,9 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
 
     if max_pairs:
         if max_pairs >= all_pairs:
-            dnf_logger.info('The requested number of correlation pairs is larger '
-                            'than the available number of pairs. Resetting '
-                            '`max_pairs` to %i' % all_pairs)
+            dnf_logger.info('The requested number of correlation pairs is '
+                            'larger than the available number of pairs. '
+                            'Resetting `max_pairs` to %i' % all_pairs)
             corr_df_sample = corrrelation_df_matrix
 
         elif max_pairs < all_pairs:
@@ -577,20 +577,29 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
 
 
 def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
+                                  include_entity_hierarchies=True,
                                   verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
-    Arguments:
-        df : str or pandas.DataFrame - A dataframe, either as a file path to
-            a pickle or a pandas DataFrame
-        belief_dict : str - The file path to a belief dict that is keyed by
-            statement hashes corresponding to the statement hashes loaded in df
-        multi : bool - Default: False; Return an nx.MultiDiGraph if True,
-            otherwise return an nx.DiGraph
-        verbosity: int - Output various messages if > 0
+    df : str or pandas.DataFrame
+        A dataframe, either as a file path to a pickle or a pandas
+        DataFrame
+    belief_dict : str
+        The file path to a belief dict that is keyed by statement hashes
+        corresponding to the statement hashes loaded in df
+    multi : bool
+        Default: False; Return an nx.MultiDiGraph if True, otherwise
+        return an nx.DiGraph
+    include_entity_hierarchies : bool
+        Default: True
+    verbosity: int
+        Output various messages if > 0
 
-    By default an nx.DiGraph is returned. By setting multi=True, an
-    nx.MultiDiGraph is returned instead."""
+    Returns
+    -------
+    nx_graph : nx.DiGraph or nx.MultiDiGraph
+        By default an nx.DiGraph is returned. By setting multi=True,
+        an nx.MultiDiGraph is returned instead."""
     bsd = None
     if isinstance(df, str):
         sif_df = _pickle_open(df)
@@ -661,6 +670,74 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
     dnf_logger.info('Loaded %i statements into %sDiGraph' %
                     (index, 'Multi' if multi else ''))
 
+    if include_entity_hierarchies:
+        dnf_logger.info('Fetching entity hierarchy relationsships')
+        child_parent_list = get_all_entities()
+        ehm = hm.hierarchies['entity']
+        ehm.initialize()
+        dnf_logger.info('Adding entity hierarchy manager as graph attribute')
+        nx_graph.graph['entity_hierarchy_manager'] = ehm
+        node_by_uri = {}
+        dnf_logger.info('Adding entity relations as edges in graph')
+        entities = 0
+        for ns, id, uri in child_parent_list:
+            node_by_uri[uri] = id
+            if id not in nx_graph.nodes:
+                nx_graph.add_node(id, ns=ns, id=id)
+
+            # Get closures
+            isa_closure = set(ehm.isa_closure.get(uri, []))
+            part_of_closure = set(ehm.partof_closure.get(uri, []))
+
+            # Add isa (familiy) edges
+            for isa_uri in isa_closure:
+                entities += 1
+                isa_ns, isa_id = ehm.ns_id_from_uri(isa_uri)
+                node_by_uri[isa_uri] = isa_id
+                if isa_id not in nx_graph.nodes:
+                    nx_graph.add_node(isa_id, ns=isa_ns, id=isa_id)
+                ed = {'u_for_edge': id,
+                      'v_for_edge': isa_id,
+                      'weight': 1.0,
+                      'stmt_type': 'isa',
+                      'stmt_hash': isa_uri,
+                      'evidence_count': 1,
+                      'bs': 1.0}
+                if multi:
+                    nx_graph.add_edge(**ed)
+                else:
+                    if ed.pop(id, None):
+                        ed.pop(isa_id, None)
+                    if (id, isa_id) in nx_graph.edges:
+                        nx_graph.edges[(id, isa_id)]['stmt_list'].append(ed)
+                    else:
+                        nx_graph.add_edge(id, isa_id, stmt_list=[ed])
+
+            # Add partof (complexes) edges
+            for part_of_uri in part_of_closure:
+                part_of_ns, part_of_id = ehm.ns_id_from_uri(part_of_uri)
+                node_by_uri[part_of_uri] = part_of_id
+                if part_of_id not in nx_graph.nodes:
+                    nx_graph.add_node(part_of_id, ns=part_of_ns, id=part_of_id)
+                ed = {'u_for_edge': id,
+                      'v_for_edge': part_of_id,
+                      'weight': 1.0,
+                      'stmt_type': 'part_of',
+                      'stmt_hash': part_of_uri,
+                      'evidence_count': 1,
+                      'bs': 1.0}
+                if multi:
+                    nx_graph.add_edge(**ed)
+                else:
+                    if ed.pop(id, None):
+                        ed.pop(part_of_id, None)
+                    if (id, part_of_id) in nx_graph.edges:
+                        nx_graph.edges[(id, part_of_id)]['stmt_list'].append(ed)
+                    else:
+                        nx_graph.add_edge(id, part_of_id, stmt_list=[ed])
+        dnf_logger.info('Loaded %d entity relations into %sDiGraph' %
+                        (entities, 'Multi' if multi else ''))
+        nx_graph.graph['node_by_uri'] = node_by_uri
     return nx_graph
 
 
@@ -2094,6 +2171,33 @@ def dbc_load_statements(hgnc_syms):
         db_prim.session.rollback()
         raise e
     return stmts
+
+
+def get_all_entities(eh=hm.hierarchies['entity']):
+    """Get a list of all entities included in HierarchyManager['entity']
+
+    Parameters
+    ----------
+    eh : HierarchyManager object
+        A HierarchyManager object initialized to an entities HierarchyManager.
+
+    Returns
+    -------
+    entity_list : list
+        A list of namespace, id, uri_id tuples
+    """
+    ent_list = []
+    eh.initialize()
+    entities_keyed_by_parent = eh._children
+    for puri, children_uris in entities_keyed_by_parent.items():
+        pns, pid = eh.ns_id_from_uri(puri)
+        ent_list.append((pns, pid, puri))
+        ns_id_child_set = set([(*eh.ns_id_from_uri(p), p)
+                               for p in entities_keyed_by_parent[puri]])
+        for cns, cid, curi in ns_id_child_set:
+            ent_list.append((cns, cid, curi))
+
+    return ent_list
 
 
 def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',

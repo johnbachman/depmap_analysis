@@ -96,6 +96,12 @@
       for (c of document.getElementById('stmt-filter').children) {
         stmtFilterList.push(c.value)
       }
+      if (document.getElementById('fplx-fam-edges').checked) {
+        stmtFilterList.push('isa')
+      }
+      if (document.getElementById('fplx-cplx-edges').checked) {
+        stmtFilterList.push('part_of')
+      }
       var statusBox = document.getElementById('query-status');
       var source = document.getElementById('source').value;
       var target = document.getElementById('target').value
@@ -111,7 +117,7 @@
         bsco: beliefEntry,
         direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
-        parents: document.getElementById('parents').checked,
+        fplx_expand: document.getElementById('fplx-expand').checked,
         simple: document.getElementById('simple-paths').checked,
         k_shortest: kShortestEntry
       }
@@ -181,24 +187,26 @@
           }
         }
 
-        // Fill directed paths
-        for (len in pathsKeyedArray) {
-          let tableBody = document.getElementById('query-results-' + (len-1))
-          document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
-          document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
-          document.getElementById('object-placeholder-' + (len-1)).textContent = target;
-          for (pathArray of pathsKeyedArray[len]) {
-            let newRow = document.createElement('tr');
-            // Add current path
-            let newPath = document.createElement('td');
-            newPath.innerHTML = pathArray.path.join('&rarr;');
-            newRow.appendChild(newPath)
+        // Fill directed paths tables
+        if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
+          for (len in pathsKeyedArray) {
+            let tableBody = document.getElementById('query-results-' + (len-1))
+            document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
+            document.getElementById('object-placeholder-' + (len-1)).textContent = target;
+            for (pathArray of pathsKeyedArray[len]) {
+              let newRow = document.createElement('tr');
+              // Add current path
+              let newPath = document.createElement('td');
+              newPath.innerHTML = pathArray.path.join('&rarr;');
+              newRow.appendChild(newPath)
 
-            let newSupport = document.createElement('td');
-            newSupport.innerHTML = generatePathLinkout(pathArray.stmts)
-            newRow.appendChild(newSupport)
+              let newSupport = document.createElement('td');
+              newSupport.innerHTML = generatePathLinkout(pathArray.stmts)
+              newRow.appendChild(newSupport)
 
-            tableBody.appendChild(newRow);
+              tableBody.appendChild(newRow);
+            }
           }
         }
 
@@ -262,8 +270,9 @@
           '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
           edgeList.length + '</span><br>'
           for (stmt of edgeList) {
-            let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
-              '?format=html'
+            let dbLink = ''
+            if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
+            else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
             htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
               stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
           }
@@ -279,8 +288,9 @@
         '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
         path.length + '</span><br>'
         for (stmt of path) {
-          let dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + 
-            '?format=html'
+          let dbLink = ''
+          if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
+          else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
           htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
             stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
         }
@@ -329,7 +339,7 @@
             </select>
             <div class="custom-control custom-checkbox">
               <input type="checkbox" class="custom-control-input" id="selected-length-only">
-              <label class="custom-control-label" for="selected-length-only">Check for selected length only</label>
+              <label class="custom-control-label" for="selected-length-only">Selected length only</label>
             </div>
           </div>
         </div>
@@ -342,13 +352,13 @@
       <div class="row">
         <div class="col">
           <div class="form-select">
-            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types excluded from path" multiple>
+            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types included in path" multiple>
             </select>
           </div>
         </div>
         <div class="col">
           <div class="form-select">
-            <select name="node-filter" id="node-filter" placeholder="Node namespaces excluded from path" multiple>
+            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
         </div>
@@ -374,20 +384,28 @@
         <label class="custom-control-label" for="direct-only">Direct only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="simple-paths" checked>
-        <label class="custom-control-label" for="simple-paths">Simple path search</label>
-      </div>
-      <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="weighted-search">
         <label class="custom-control-label" for="weighted-search">Weighted search</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="simple-paths" checked>
+        <label class="custom-control-label" for="simple-paths">Simple path search</label>
       </div>
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="curated-db-only" disabled>
         <label class="custom-control-label" for="curated-db-only">Curated databases only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="parents" checked>
-        <label class="custom-control-label" for="parents">Include FamPlex families and complexes</label>
+        <input type="checkbox" class="custom-control-input" id="fplx-fam-edges">
+        <label class="custom-control-label" for="fplx-fam-edges">Include FamPlex Families as edges</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="fplx-cplx-edges">
+        <label class="custom-control-label" for="fplx-cplx-edges">Include FamPlex Complexes as edges</label>
+      </div>
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="fplx-expand">
+        <label class="custom-control-label" for="fplx-expand">Expand search to FamPlex families and complexes when paths are not found</label>
       </div>
       <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
     </form>
