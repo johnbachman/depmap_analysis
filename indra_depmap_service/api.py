@@ -334,19 +334,18 @@ class IndraNetwork:
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
     def get_common_parents(self, **kwargs):
+        """Find common parents between source and target"""
+        source_id = kwargs['source']
         source_ns = None
+        target_id = kwargs['target']
         target_ns = None
-        # Get ids and ns
+        cp = {}
+
+        # Get ns
         if kwargs['source'] in self.nodes:
-            source_id = self.nodes[kwargs['source']]['id']
             source_ns = self.nodes[kwargs['source']]['ns']
-        else:
-            source_id = kwargs['source']
         if kwargs['target'] in self.nodes:
-            target_id = self.nodes[kwargs['target']]['id']
             target_ns = self.nodes[kwargs['target']]['ns']
-        else:
-            target_id = kwargs['target']
 
         # Try different combinations of ns combinations
 
