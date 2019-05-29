@@ -334,52 +334,73 @@ class IndraNetwork:
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
     def get_common_parents(self, **kwargs):
+        """Find common parents between source and target"""
+        source_id = kwargs['source']
         source_ns = None
+        target_id = kwargs['target']
         target_ns = None
-        # Get ids and ns
+        cp = {}
+
+        # Get ns
         if kwargs['source'] in self.nodes:
-            source_id = self.nodes[kwargs['source']]['id']
             source_ns = self.nodes[kwargs['source']]['ns']
-        else:
-            source_id = kwargs['source']
         if kwargs['target'] in self.nodes:
-            target_id = self.nodes[kwargs['target']]['id']
             target_ns = self.nodes[kwargs['target']]['ns']
-        else:
-            target_id = kwargs['target']
 
-        if source_ns not in kwargs['node_filter'] or \
-                target_ns not in kwargs['node_filter']:
-            logger.info('The namespaces for %s and/or %s are in node filter. '
-                        'Aborting common parent search.' %
-                        (source_id, target_id))
-            return {}
+        # Try different combinations of ns combinations
 
-        # Try different iterations of ns
+        # If both source and target are given
         if source_ns and target_ns:
-            if self.verbose > 1:
-                logger.info('Looking for common parents using namespaces '
-                            'found in network')
-            cp = dnf.common_parent(ns1=source_ns, id1=source_id,
-                                   ns2=target_ns, id2=target_id)
-        if not source_ns and target_ns:
-            if self.verbose > 1:
-                logger.info('No namespace found for %s, trying HGNC and '
-                            'FPLX.' % source_id)
-            for ns in ['HGNC', 'FPLX']:
-                cp = dnf.common_parent(ns1=ns, id1=source_id,
-                                       ns2=target_ns, id2=target_id)
-                if cp:
-                    break
-        if source_ns and not target_ns:
-            if self.verbose > 1:
-                logger.info('No namespace found for %s, trying HGNC and '
-                            'FPLX.' % target_id)
-            for ns in ['HGNC', 'FPLX']:
+            if source_ns in kwargs['node_filter'] and \
+                    target_ns in kwargs['node_filter']:
+                if self.verbose > 1:
+                    logger.info('Looking for common parents using namespaces '
+                                'found in network')
                 cp = dnf.common_parent(ns1=source_ns, id1=source_id,
-                                       ns2=ns, id2=target_id)
-                if cp:
-                    break
+                                       ns2=target_ns, id2=target_id)
+            else:
+                logger.info('The namespaces for %s and/or %s are not in node '
+                            'filter. Aborting common parent search.' %
+                            (source_id, target_id))
+                return {}
+
+        # If only target ns is given
+        if not source_ns and target_ns:
+            if target_ns in kwargs['node_filter']:
+                if self.verbose > 1:
+                    logger.info('No namespace found for %s, trying HGNC and '
+                                'FPLX.' % source_id)
+                for sns in ['HGNC', 'FPLX']:
+                    if sns not in kwargs['node_filter']:
+                        continue
+                    else:
+                        cp = dnf.common_parent(ns1=sns, id1=source_id,
+                                               ns2=target_ns, id2=target_id)
+                        if cp:
+                            break
+            else:
+                logger.info('The namespaces for %s is not in node filter. '
+                            'Aborting common parent search.' % target_id)
+                return {}
+
+        # If only source ns is given
+        if not target_ns and source_ns:
+            if source_ns in kwargs['node_filter']:
+                if self.verbose > 1:
+                    logger.info('No namespace found for %s, trying HGNC and '
+                                'FPLX.' % target_id)
+                for tns in ['HGNC', 'FPLX']:
+                    if tns not in kwargs['node_filter']:
+                        continue
+                    else:
+                        cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                                               ns2=tns, id2=target_id)
+                        if cp:
+                            break
+            else:
+                logger.info('The namespaces for %s is not in node filter. '
+                            'Aborting common parent search.' % source_id)
+                return {}
 
         # If no namespaces exist
         if not source_ns and not target_ns:
@@ -387,11 +408,16 @@ class IndraNetwork:
                 logger.info('No namespaces found for %s and %s, trying HGNC '
                             'and FPLX' % (source_id, target_id))
             for source_ns in ['HGNC', 'FPLX']:
+                if source_ns not in kwargs['node_filter']:
+                    continue
                 for target_ns in ['HGNC', 'FPLX']:
+                    if target_ns not in kwargs['node_filter']:
+                        continue
                     cp = dnf.common_parent(ns1=source_ns, id1=source_id,
                                            ns2=target_ns, id2=target_id)
                     if cp:
                         break
+
         if not cp:
             logger.info('No common parents found')
             return {}
