@@ -171,6 +171,7 @@
           document.getElementById('object-placeholder-cp').textContent = 
             commonParents.target_id + '@' + commonParents.target_ns;
           cpTableBody = document.getElementById('query-results-cp')
+          document.getElementById('npaths-cp').textContent = 'Entitites: ' + commonParents.common_parents.length;
           for (par of commonParents.common_parents) {
             let newRow = document.createElement('tr');
 
@@ -248,7 +249,7 @@
 
     function resetCounters() {
       for (c of document.getElementsByClassName('path-count')) {
-        let text = c.textContent.split(': ')[0]
+        let text = c.textContent.split(': ')[0];
         c.textContent = text + ': 0';
       }
     }
@@ -428,7 +429,7 @@
              aria-controls="collapse-paths-cp">
             Complexes and Families (<div id="subject-placeholder-cp" class="placeholder">A</div>-<div id="object-placeholder-cp" class="placeholder">B</div>)
           </a>
-          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
+          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Entitites: 0</span>
 
         </h3>
       </div>
