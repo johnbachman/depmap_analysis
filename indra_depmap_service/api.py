@@ -8,7 +8,7 @@ from subprocess import call
 from datetime import datetime
 from itertools import product
 from networkx import NodeNotFound
-from flask import Flask, request, abort, Response, redirect, url_for
+from flask import Flask, request, abort, Response
 
 from indra_db.util import dump_sif
 
@@ -114,11 +114,13 @@ class IndraNetwork:
             allowed value.
         """
         logger.info('Handling query: %s' % repr(kwargs))
-        keys = kwargs.keys()
-        # 'source' & 'target' are mandatory
-        if 'source' not in keys or 'target' not in keys:
-            raise KeyError('Missing mandatory parameters "source" or '
-                           '"target"')
+        mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
+                     'path_length', 'spec_len_only', 'sign', 'weighted',
+                     'bsco', 'direct_only', 'curated_db_only', 'fplx_expand',
+                     'simple', 'k_shortest']
+        if not all([key in mandatory for key in kwargs]):
+            miss = [key in mandatory for key in kwargs].index(False)
+            raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
         options = {k: v for k, v in kwargs.items()
                    if k not in ['path_length', 'sign']}  # Handled below
         for k, v in kwargs.items():
