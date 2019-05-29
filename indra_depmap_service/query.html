@@ -92,7 +92,11 @@
       for (c of document.getElementById('node-filter').children) {
         nodeFilterList.push(c.value)
       }
-      var stmtFilterList = []
+      if (nodeFilterList.length == 0) {
+        alert('Must select at least one node namespace to include in path');
+        return;
+      }
+      var stmtFilterList = [];
       for (c of document.getElementById('stmt-filter').children) {
         stmtFilterList.push(c.value)
       }
@@ -101,6 +105,10 @@
       }
       if (document.getElementById('fplx-cplx-edges').checked) {
         stmtFilterList.push('part_of')
+      }
+      if (stmtFilterList.length == 0) {
+        alert('Must select at least one statement type or FamPlex entity type to include in path');
+        return;
       }
       var statusBox = document.getElementById('query-status');
       var source = document.getElementById('source').value;
