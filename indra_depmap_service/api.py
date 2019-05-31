@@ -84,6 +84,9 @@ class IndraNetwork:
             the path
         node_filter: [str]
             a list of node namespaces *to include* in the path
+        blacklist: [str]
+            a list of node names to ignore. If a path contains a node in this
+            list the path will be discarded.
         path_length: int <=4
             a positive integer <= 4 stating the maximum number of edges in
             the path
@@ -510,6 +513,12 @@ class IndraNetwork:
                                  self.nodes[obj]['ns'],
                                  kwargs['node_filter']))
                 return []
+            elif kwargs.get('blacklist', None):
+                if subj in kwargs['blacklist'] or obj in kwargs['blacklist']:
+                    if self.verbose:
+                        logger.info('%s or %s part of node blacklist, '
+                                    'skipping path' % (subj, obj))
+                    return []
 
             # Initialize edges list, statement index
             edges = []
