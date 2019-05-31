@@ -1,8 +1,7 @@
 INDRA DepMap Service
 --------------------
 
-Currently, while the being under development, the service is only available
-to be run locally.
+Currently, during development, the service is only available to be run locally.
 
 Setup
 =====
