@@ -22,8 +22,8 @@ To run the service locally, three things are needed:
 3. Make sure the constants ``INDRA_DG_CACHE`` and ``INDRA_MDG_CACHE`` in
    ``api.py`` corresond to the files downloaded in the previous step.
 
-Running the Service
-===================
+Running the Service Locally
+===========================
 
 Running the service locally requires Python 3.5+. Dependencies are the same
 as for INDRA and INDRA_DB::
