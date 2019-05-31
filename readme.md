@@ -11,9 +11,9 @@ We use the CRISPr data from the Dependency Map
 ## Indra DepMap Service
 
 The INDRA DepMap Service is a web service that exposes the (pre-)assembled 
-knowledge in INDRA for network path searches. Currently the service can only be run locally. See the 
-[documentation](link-to-ipython-notebook-instructions) for instructions on how to run the service 
-locally.  
+knowledge in INDRA for network path searches. Currently the service can only 
+be run locally. For an example, see the 
+[notebook](https://github.com/kkaris/depmap_analysis/blob/readme/notebooks/Run%20Local%20Service.ipynb).
 
 ## Funding
 
