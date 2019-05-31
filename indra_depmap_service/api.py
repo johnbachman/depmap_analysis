@@ -121,11 +121,11 @@ class IndraNetwork:
         """
         logger.info('Handling query: %s' % repr(kwargs))
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
-                     'path_length', 'spec_len_only', 'sign', 'weighted',
-                     'bsco', 'direct_only', 'curated_db_only', 'fplx_expand',
+                     'path_length', 'spec_len_only', 'weighted',
+                     'bsco', 'direct_only', 'fplx_expand',
                      'simple', 'k_shortest']
-        if not all([key in mandatory for key in kwargs]):
-            miss = [key in mandatory for key in kwargs].index(False)
+        if not all([key in kwargs for key in mandatory]):
+            miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
         options = {k: v for k, v in kwargs.items()
                    if k not in ['path_length', 'sign']}  # Handled below
