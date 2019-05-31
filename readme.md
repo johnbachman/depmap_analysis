@@ -6,7 +6,8 @@ for explaining high-throughput scientific data.
 ## Source of crispr data
 
 We use the CRISPr data from the Dependency Map 
-[portal](https://depmap.org/portal/) managed by the Broad Institute.
+[portal](https://depmap.org/portal/) managed by the Broad Institute to look at
+genetic dependency on viability. Specifically, we look at the gene effect data.
 
 ## Indra DepMap Service
 
