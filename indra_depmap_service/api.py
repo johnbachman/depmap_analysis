@@ -67,51 +67,57 @@ class IndraNetwork:
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result.
 
-        A query is a json-friendly key-value structure contained in kwargs
-        with the following format:
+        The query is a json-friendly key-value structure contained in kwargs
+        with the following parameters:
 
-        {'source': str,
-         'target': str,
-         'stmt_filter': [str],
-         'node_filter': [str],
-         'path_length': int <=4,
-         'spec_len_only': Bool,
-         'sign': 'no_sign'|'plus'|'minus', **currently not implemented**
-         'weighted': Bool,
-         'bsco': 0 <= float <= 1.0,
-         'direct_only': Bool, **currently not implemented**
-         'curated_db_only': Bool, **currently not implemented**
-         'fplx_expand': Bool,
-         'simple': Bool,
-         'k_shortest': Bool|int}
+        (Note that parameters that are not yet implemented are not mandatory
+        and have no effect on the path search if provided)
 
-
-        source - the source for the path
-        target - the target for the path
-        stmt_filter - a list of valid indra statement or FamPlex types
-            _to include_ in the path.
-        node_filter - a list of node namespaces _to include_ in the path
-        path_length - a positive integer <= 0 stating the maximum number of
-            edges in the path
-        spec_len_only - If True, only search for paths with number of edges
-            given by path_lenth
-        sign - Placeholder for future implementation of path searches in
-            signed graphs
-        weigthed - If True, do a weighted path search. Weights in the network
-            are currently assigned as -log(belief score)
-        bsco - Belief Score Cut-Off, a positive decimal number < 1.0
-            indicating at what beliefscore an edge statement should be ignored
-        direct_only - Placeholder for future implementation of allowing to
-            filter edges on the annotation 'direct' in indra statements
-        curated_db_only - Placeholder for future implementation allowing to
-            filter edges on if they are sourced from curated databases
-        fplx_expand - If True, when no path is found in the initial search,
-            look for paths between the parents of the source and target
-        simple - If True, do a simple path search
-        k_shortest - An integer stating the maximum number of directed paths
-            to return in the result. The maximum allowed value is 50. If False,
+        Parameters
+        ----------
+        source: str
+            the source node for the path
+        target: str
+            the target for the path
+        stmt_filter: [str]
+            a list of valid indra statement or FamPlex types *to include* in
+            the path
+        node_filter: [str]
+            a list of node namespaces *to include* in the path
+        path_length: int <=4
+            a positive integer <= 4 stating the maximum number of edges in
+            the path
+        spec_len_only: Bool
+            If True, only search for paths with number of edges given by
+            path_lenth
+        sign: str ['no_sign'|'plus'|'minus'] **currently not implemented**
+            Placeholder for future implementation of path searches in signed
+            graphs
+        weighted: Bool
+            If True, do a weighted path search. Weights in the network are
+            assigned as -log(belief score)
+        bsco: 0 <= float <= 1.0
+            Belief Score Cut-Off, a positive decimal number < 1.0 indicating
+            at what belief score an edge statement should be ignored
+        direct_only: Bool **currently not implemented**
+            Placeholder for future implementation of allowing to filter edges
+            on the annotation 'direct' in indra statements
+        curated_db_only: Bool **currently not implemented**
+            Placeholder for future implementation allowing filtering to edges
+            that are sourced from curated databases only
+        fplx_expand: Bool
+            If True, when no path is found in the initial search, look for
+            paths between the parents of the source and target
+        simple: Bool
+            If True, do a simple path search
+        k_shortest: Bool|int
+            An integer stating the maximum number of directed paths to return
+            in the result. The maximum allowed value is 50. If False,
             the maximum number of paths returned will be set to the maximum
             allowed value.
+
+        Returns
+        -------
         """
         logger.info('Handling query: %s' % repr(kwargs))
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
