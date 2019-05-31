@@ -35,24 +35,24 @@
   <script type="text/javascript">
     const SUBMIT_URL = 'http://localhost:5000/query/submit';
     const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
-    const MAX_K_PATHS = 50
+    const MAX_K_PATHS = 50;
     const stmtOptions = ['Acetylation', 'Activation', 'Deacetylation', 'DecreaseAmount', 
       'Defarnesylation', 'Deglycosylation', 'Dehydroxylation', 'Demethylation', 
       'Depalmitoylation', 'Dephosphorylation', 'Deribosylation', 'Desumoylation', 
       'Deubiquitination', 'Farnesylation', 'Gap', 'Gef', 'Glycosylation', 'GtpActivation', 
       'Hydroxylation', 'IncreaseAmount', 'Inhibition', 'Methylation', 'Myristoylation', 
-      'Palmitoylation', 'Phosphorylation', 'Ribosylation', 'Sumoylation', 'Ubiquitination']
-    const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM']
+      'Palmitoylation', 'Phosphorylation', 'Ribosylation', 'Sumoylation', 'Ubiquitination'];
+    const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
 
     $(document).ready(function() {
-      populateOptions()
-      var stmtFilter = new Choices('#stmt-filter')
-      var nodeFilter = new Choices('#node-filter')
-    })
+      populateOptions();
+      var stmtFilter = new Choices('#stmt-filter');
+      var nodeFilter = new Choices('#node-filter');
+    });
 
     function populateOptions() {
       // Edge filters
-      let ssel = document.getElementById('stmt-filter')
+      let ssel = document.getElementById('stmt-filter');
       for (s of stmtOptions) {
         let o = document.createElement('option');
         o.value = s.toLowerCase();
@@ -61,7 +61,7 @@
       }
 
       // Node filters
-      let nsel = document.getElementById('node-filter')
+      let nsel = document.getElementById('node-filter');
       for (n of nodeOptions) {
         let o = document.createElement('option');
         o.value = n;
@@ -85,14 +85,18 @@
         kShortestEntry = false;
       }
       if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
-        alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths')
+        alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths');
         return;
       }
-      var nodeFilterList = []
+      var nodeFilterList = [];
       for (c of document.getElementById('node-filter').children) {
         nodeFilterList.push(c.value)
       }
-      var stmtFilterList = []
+      if (nodeFilterList.length == 0) {
+        alert('Must select at least one node namespace to include in path');
+        return;
+      }
+      var stmtFilterList = [];
       for (c of document.getElementById('stmt-filter').children) {
         stmtFilterList.push(c.value)
       }
@@ -102,9 +106,13 @@
       if (document.getElementById('fplx-cplx-edges').checked) {
         stmtFilterList.push('part_of')
       }
+      if (stmtFilterList.length == 0) {
+        alert('Must select at least one statement type or FamPlex entity type to include in path');
+        return;
+      }
       var statusBox = document.getElementById('query-status');
       var source = document.getElementById('source').value;
-      var target = document.getElementById('target').value
+      var target = document.getElementById('target').value;
       let queryDict = {
         source: source,
         target: target,
@@ -120,11 +128,11 @@
         fplx_expand: document.getElementById('fplx-expand').checked,
         simple: document.getElementById('simple-paths').checked,
         k_shortest: kShortestEntry
-      }
-      let _url = SUBMIT_URL
-      statusBox.textContent = 'Query submitted...'
-      console.log('Query submitted:')
-      console.log(queryDict)
+      };
+      let _url = SUBMIT_URL;
+      statusBox.textContent = 'Query submitted...';
+      console.log('Query submitted:');
+      console.log(queryDict);
       let response = $.ajax({
         url: _url,
         type: 'POST',
@@ -132,8 +140,8 @@
         contentType: 'application/json',
         data: JSON.stringify(queryDict),
         complete: function(xhr, statustText) {
-          console.log(xhr)
-          console.log(statustText)
+          console.log(xhr);
+          console.log(statustText);
           switch (xhr.status) {
             case 200:
               statusBox.textContent = 'Query resolved!';
@@ -145,17 +153,17 @@
           }
         }
 
-      })
-      console.log(response)
+      });
+      console.log(response);
       response.then(function(json){
-        resetCounters()
-        clearAllTables()
+        resetCounters();
+        clearAllTables();
         fillResultsTable(json, source, target)
       })
     }
 
     function fillResultsTable(data, source, target){
-      console.log(data)
+      console.log(data);
       if (data.result && Object.keys(data.result).length > 0) {
         // for each path length:
         //   for each path:
@@ -170,19 +178,19 @@
             commonParents.source_id + '@' + commonParents.source_ns;
           document.getElementById('object-placeholder-cp').textContent = 
             commonParents.target_id + '@' + commonParents.target_ns;
-          cpTableBody = document.getElementById('query-results-cp')
+          cpTableBody = document.getElementById('query-results-cp');
           document.getElementById('npaths-cp').textContent = 'Entitites: ' + commonParents.common_parents.length;
           for (par of commonParents.common_parents) {
             let newRow = document.createElement('tr');
 
             let newIdCol = document.createElement('td');
-            let hs = '<a href="' + par + '">' + par.split('/')[par.split('/').length-1] + '</a>'
+            let hs = '<a href="' + par + '">' + par.split('/')[par.split('/').length-1] + '</a>';
             newIdCol.innerHTML = hs;
             newRow.appendChild(newIdCol);
 
-            let newNsCol = document.createElement('td')
-            newNsCol.textContent = par.split('/')[par.split('/').length-2].toUpperCase()
-            newRow.appendChild(newNsCol)
+            let newNsCol = document.createElement('td');
+            newNsCol.textContent = par.split('/')[par.split('/').length-2].toUpperCase();
+            newRow.appendChild(newNsCol);
 
             cpTableBody.appendChild(newRow)
           }
@@ -191,7 +199,7 @@
         // Fill directed paths tables
         if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
           for (len in pathsKeyedArray) {
-            let tableBody = document.getElementById('query-results-' + (len-1))
+            let tableBody = document.getElementById('query-results-' + (len-1));
             document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
             document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
             document.getElementById('object-placeholder-' + (len-1)).textContent = target;
@@ -200,11 +208,11 @@
               // Add current path
               let newPath = document.createElement('td');
               newPath.innerHTML = pathArray.path.join('&rarr;');
-              newRow.appendChild(newPath)
+              newRow.appendChild(newPath);
 
               let newSupport = document.createElement('td');
-              newSupport.innerHTML = generatePathLinkout(pathArray.stmts)
-              newRow.appendChild(newSupport)
+              newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
+              newRow.appendChild(newSupport);
 
               tableBody.appendChild(newRow);
             }
@@ -264,14 +272,14 @@
       // stmtsArray is a list of lists:
       // stmtsArray[i] gives edge i
       // stmtsArray[i][j] gives stmt j of edge i
-      let htmlString = ''
+      let htmlString = '';
       for (edgeList of stmtsArray) {
         if (edgeList.length > 0) {
           htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
           '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-          edgeList.length + '</span><br>'
+          edgeList.length + '</span><br>';
           for (stmt of edgeList) {
-            let dbLink = ''
+            let dbLink = '';
             if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
             else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
             htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
@@ -283,13 +291,13 @@
     }
 
     function generateTargetLinkout(pathPair) {
-      let htmlString = ''
+      let htmlString = '';
       for (path of pathPair) {
         htmlString += '<b>' + path[0].subj + ' &rarr; ' + path[0].obj + 
         '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-        path.length + '</span><br>'
+        path.length + '</span><br>';
         for (stmt of path) {
-          let dbLink = ''
+          let dbLink = '';
           if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
           else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
           htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 

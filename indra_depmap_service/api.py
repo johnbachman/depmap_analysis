@@ -8,7 +8,7 @@ from subprocess import call
 from datetime import datetime
 from itertools import product
 from networkx import NodeNotFound
-from flask import Flask, request, abort, Response, redirect, url_for
+from flask import Flask, request, abort, Response
 
 from indra_db.util import dump_sif
 
@@ -65,13 +65,67 @@ class IndraNetwork:
         self.verbose = 0
 
     def handle_query(self, **kwargs):
-        """Handles path query from client. Returns query result."""
+        """Handles path query from client. Returns query result.
+
+        The query is a json-friendly key-value structure contained in kwargs
+        with the following parameters:
+
+        (Note that parameters that are not yet implemented are not mandatory
+        and have no effect on the path search if provided)
+
+        Parameters
+        ----------
+        source: str
+            the source node for the path
+        target: str
+            the target for the path
+        stmt_filter: [str]
+            a list of valid indra statement or FamPlex types *to include* in
+            the path
+        node_filter: [str]
+            a list of node namespaces *to include* in the path
+        path_length: int <=4
+            a positive integer <= 4 stating the maximum number of edges in
+            the path
+        spec_len_only: Bool
+            If True, only search for paths with number of edges given by
+            path_lenth
+        sign: str ['no_sign'|'plus'|'minus'] **currently not implemented**
+            Placeholder for future implementation of path searches in signed
+            graphs
+        weighted: Bool
+            If True, do a weighted path search. Weights in the network are
+            assigned as -log(belief score)
+        bsco: 0 <= float <= 1.0
+            Belief Score Cut-Off, a positive decimal number < 1.0 indicating
+            at what belief score an edge statement should be ignored
+        direct_only: Bool **currently not implemented**
+            Placeholder for future implementation of allowing to filter edges
+            on the annotation 'direct' in indra statements
+        curated_db_only: Bool **currently not implemented**
+            Placeholder for future implementation allowing filtering to edges
+            that are sourced from curated databases only
+        fplx_expand: Bool
+            If True, when no path is found in the initial search, look for
+            paths between the parents of the source and target
+        simple: Bool
+            If True, do a simple path search
+        k_shortest: Bool|int
+            An integer stating the maximum number of directed paths to return
+            in the result. The maximum allowed value is 50. If False,
+            the maximum number of paths returned will be set to the maximum
+            allowed value.
+
+        Returns
+        -------
+        """
         logger.info('Handling query: %s' % repr(kwargs))
-        keys = kwargs.keys()
-        # 'source' & 'target' are mandatory
-        if 'source' not in keys or 'target' not in keys:
-            raise KeyError('Missing mandatory parameters "source" or '
-                           '"target"')
+        mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
+                     'path_length', 'spec_len_only', 'weighted',
+                     'bsco', 'fplx_expand', 'simple', 'k_shortest']
+        if not all([key in kwargs for key in mandatory]):
+            miss = [key in kwargs for key in mandatory].index(False)
+            raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
         options = {k: v for k, v in kwargs.items()
                    if k not in ['path_length', 'sign']}  # Handled below
         for k, v in kwargs.items():

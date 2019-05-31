@@ -1,3 +1,10 @@
+*.h5
+*.json
+
+notebooks/*.pkl
+notebooks/*.ai
+notebooks/data
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
