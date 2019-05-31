@@ -26,18 +26,14 @@ Running the Service
 ===================
 
 Running the service locally requires Python 3.5+. Dependencies are the same
-as for INDRA and INDRA_DB.
-
-.. code-block:: python
+as for INDRA and INDRA_DB::
 
   python api.py [-h] [--host HOST] [--port PORT]
 
-
-``HOST`` is the address to use (default is ``127.0.0.1``).
-
-``PORT`` is the port to use (default is ``5000``)
-
-If default settings are used, a web ui is hosted on http://127.0.0.1:5000/query.
+where ``HOST`` is the address to use (default is ``127.0.0.1``) and ``PORT``
+is the port to use (default is ``5000``). If default settings are used, a
+web ui is hosted on http://127.0.0.1:5000/query and query submissions are
+done to http://127.0.0.1:5000/query/submit.
 
 Searching
 =========
