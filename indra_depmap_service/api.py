@@ -84,9 +84,13 @@ class IndraNetwork:
             the path
         node_filter: [str]
             a list of node namespaces *to include* in the path
-        blacklist: [str]
+        node_blacklist: [str]
             a list of node names to ignore. If a path contains a node in this
             list the path will be discarded.
+        edge_hash_blacklist: [str/int]
+            a list of statement hashes (as strings or ints) to ignore. If an
+            edge statement hash is found in this list, it will be discarded
+            from the assembled edge list.
         path_length: int <=4
             a positive integer <= 4 stating the maximum number of edges in
             the path
