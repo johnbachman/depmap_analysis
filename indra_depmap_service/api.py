@@ -144,6 +144,9 @@ class IndraNetwork:
             if k == 'sign':
                 options[k] = 1 if v == 'plus' \
                     else (-1 if v == 'minus' else 0)
+            if k == 'edge_hash_blacklist' and options.get(k) and \
+                    isinstance(options[k][0], int):
+                options[k] = [str(i) for i in options[k]]
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
