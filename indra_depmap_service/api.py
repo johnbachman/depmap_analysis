@@ -140,9 +140,9 @@ class IndraNetwork:
                 logger.info('Doing weighted path search') if v \
                     else logger.info('Doing unweighted path search')
             if k == 'path_length':
-                options['path_length'] = -1 if v == 'no_limit' else int(v)
+                options[k] = -1 if v == 'no_limit' else int(v)
             if k == 'sign':
-                options['sign'] = 1 if v == 'plus' \
+                options[k] = 1 if v == 'plus' \
                     else (-1 if v == 'minus' else 0)
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
