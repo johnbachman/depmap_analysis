@@ -31,8 +31,8 @@ as for INDRA and INDRA_DB::
 
 where ``HOST`` is the address to use (default is ``127.0.0.1``) and ``PORT``
 is the port to use (default is ``5000``). If default settings are used, a
-web ui is hosted on http://127.0.0.1:5000/query and query submissions are
-done to http://127.0.0.1:5000/query/submit.
+web ui is hosted on http://localhost:5000/query and query submissions are
+done to http://localhost:5000/query/submit.
 
 Searching
 =========
