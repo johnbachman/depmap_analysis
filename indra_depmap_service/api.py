@@ -513,8 +513,8 @@ class IndraNetwork:
                                  self.nodes[obj]['ns'],
                                  kwargs['node_filter']))
                 return []
-            elif kwargs.get('blacklist', None):
-                if subj in kwargs['blacklist'] or obj in kwargs['blacklist']:
+            elif kwargs.get('node_blacklist', None):
+                if subj in kwargs['node_blacklist'] or obj in kwargs['node_blacklist']:
                     if self.verbose:
                         logger.info('%s or %s part of node blacklist, '
                                     'skipping path' % (subj, obj))
