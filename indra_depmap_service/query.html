@@ -92,7 +92,7 @@
       for (c of document.getElementById('node-filter').children) {
         nodeFilterList.push(c.value)
       }
-      if (nodeFilterList.length == 0) {
+      if (nodeFilterList.length === 0) {
         alert('Must select at least one node namespace to include in path');
         return;
       }
@@ -106,10 +106,20 @@
       if (document.getElementById('fplx-cplx-edges').checked) {
         stmtFilterList.push('part_of')
       }
-      if (stmtFilterList.length == 0) {
+      if (stmtFilterList.length === 0) {
         alert('Must select at least one statement type or FamPlex entity type to include in path');
         return;
       }
+      var nodeBlackList = [];
+      for (nn of document.getElementById('node-blacklist').value.split(',')) {
+        // Strip leasing and trailing whitespace and push to array
+        if (nn.replace(/\s/g, '')) nodeBlackList.push(nn.replace(/\s/g, ''));
+      };
+      var edgeHashBlacklist = [];
+      for (eh of document.getElementById('edge-hash-blacklist').value.split(',')) {
+        // Strip whitespace
+        if (eh.replace(/\s/g, '')) edgeHashBlacklist.push(eh.replace(/\s/g, ''))
+      };
       var statusBox = document.getElementById('query-status');
       var source = document.getElementById('source').value;
       var target = document.getElementById('target').value;
@@ -117,7 +127,9 @@
         source: source,
         target: target,
         stmt_filter: stmtFilterList,
+        edge_hash_blacklist: edgeHashBlacklist,
         node_filter: nodeFilterList,
+        node_blacklist: nodeBlackList,
         path_length: parseInt(document.getElementById('path-length').value),
         spec_len_only: document.getElementById('selected-length-only').checked,
         sign: document.getElementById('sign-dd').value,
@@ -370,6 +382,14 @@
             <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <input type="text" id="node-blacklist" class="form-control" placeholder="Node name blacklist (comma separated)">
+        </div>
+        <div class="col">
+          <input type="text" id="edge-hash-blacklist" class="form-control" placeholder="Edge hash blacklist (comma separated)">
         </div>
       </div>
       <div class="row">

@@ -84,9 +84,13 @@ class IndraNetwork:
             the path
         node_filter: [str]
             a list of node namespaces *to include* in the path
-        blacklist: [str]
+        node_blacklist: [str]
             a list of node names to ignore. If a path contains a node in this
             list the path will be discarded.
+        edge_hash_blacklist: [str/int]
+            a list of statement hashes (as strings or ints) to ignore. If an
+            edge statement hash is found in this list, it will be discarded
+            from the assembled edge list.
         path_length: int <=4
             a positive integer <= 4 stating the maximum number of edges in
             the path
@@ -136,10 +140,13 @@ class IndraNetwork:
                 logger.info('Doing weighted path search') if v \
                     else logger.info('Doing unweighted path search')
             if k == 'path_length':
-                options['path_length'] = -1 if v == 'no_limit' else int(v)
+                options[k] = -1 if v == 'no_limit' else int(v)
             if k == 'sign':
-                options['sign'] = 1 if v == 'plus' \
+                options[k] = 1 if v == 'plus' \
                     else (-1 if v == 'minus' else 0)
+            if k == 'edge_hash_blacklist' and options.get(k) and \
+                    isinstance(options[k][0], int):
+                options[k] = [str(i) for i in options[k]]
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
@@ -513,8 +520,8 @@ class IndraNetwork:
                                  self.nodes[obj]['ns'],
                                  kwargs['node_filter']))
                 return []
-            elif kwargs.get('blacklist', None):
-                if subj in kwargs['blacklist'] or obj in kwargs['blacklist']:
+            elif kwargs.get('node_blacklist', None):
+                if subj in kwargs['node_blacklist'] or obj in kwargs['node_blacklist']:
                     if self.verbose:
                         logger.info('%s or %s part of node blacklist, '
                                     'skipping path' % (subj, obj))
@@ -579,6 +586,14 @@ class IndraNetwork:
                 logger.info('statement type %s not found in filter %s'
                             % (edge_stmt['stmt_type'],
                                str(kwargs['stmt_filter'])))
+            return False
+
+        # Filter stmt hash
+        if kwargs.get('edge_hash_blacklist', None) and \
+                edge_stmt['stmt_hash'] in kwargs['edge_hash_blacklist']:
+            if self.verbose > 3:
+                logger.info('hash %s is blacklisted, skipping' %
+                            edge_stmt['stmt_hash'])
             return False
 
         # Return True is all filters were passed
