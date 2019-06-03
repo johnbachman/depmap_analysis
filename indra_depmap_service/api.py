@@ -581,6 +581,14 @@ class IndraNetwork:
                                str(kwargs['stmt_filter'])))
             return False
 
+        # Filter stmt hash
+        if kwargs.get('edge_hash_blacklist', None) and \
+                edge_stmt['stmt_hash'] in kwargs['edge_hash_blacklist']:
+            if self.verbose > 3:
+                logger.info('hash %s is blacklisted, skipping' %
+                            edge_stmt['stmt_hash'])
+            return False
+
         # Return True is all filters were passed
         return True
 
