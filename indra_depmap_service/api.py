@@ -159,11 +159,12 @@ class IndraNetwork:
         #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
         if not ksp:
-            if kwargs['fplx_expand']:
+            ckwargs = options.copy()
+            ksp = self.grounding_fallback(**ckwargs)
+            if not ksp and kwargs['fplx_expand']:
                 logger.info('No directed path found, looking for paths '
                             'connected by common parents of source and/or '
                             'target')
-                ckwargs = options.copy()
                 ksp = self.try_parents(**ckwargs)
                 if self.verbose > 2:
                     logger.info('Got parents search result: %s' % repr(ksp))
