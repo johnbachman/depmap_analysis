@@ -229,7 +229,7 @@ class IndraNetwork:
         target = ckwargs['target']
 
         if self.verbose > 1:
-            logger.info('Parents search: source=%s, target=%s' % \
+            logger.info('Parents search: source=%s, target=%s' %
                         (ckwargs['source'], ckwargs['target']))
 
         # Get closures for source and target
