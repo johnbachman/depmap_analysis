@@ -241,12 +241,8 @@ class IndraNetwork:
             logger.info('Got target_parent_closure: %s' %
                         repr(target_parent_closure))
 
-        # Base case: no further closures found, return empty dict
-        if not source_parent_closure and not target_parent_closure:
-            return {}
-
         # First try current source with all target parents
-        if target_parent_closure:
+        if target_parent_closure and not source_parent_closure:
             for tp_uri in target_parent_closure:
                 ckwargs['target'] = self.node_by_uri[tp_uri]
                 if self.verbose > 4:
@@ -257,7 +253,7 @@ class IndraNetwork:
                     return ksp
 
         # Then, try current target with all source parents
-        if source_parent_closure:
+        if source_parent_closure and not target_parent_closure:
             for sp_uri in source_parent_closure:
                 ckwargs['source'] = self.node_by_uri[sp_uri]
                 if self.verbose > 4:
