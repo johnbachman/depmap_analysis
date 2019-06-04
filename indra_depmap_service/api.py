@@ -1,6 +1,7 @@
 import json
 import logging
 import argparse
+import requests
 import networkx as nx
 from os import path
 from jinja2 import Template
@@ -27,6 +28,8 @@ INDRA_MDG_CACHE = path.join(CACHE,
                             'nx_bs_fam_multi_digraph_db_dump_20190417.pkl')
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_dump_20190417.pkl')
+
+GRND_URI = 'http://10.119.88.95:8001/ground'
 
 MAX_PATHS = 50
 MAX_PATH_LEN = 4
@@ -156,11 +159,12 @@ class IndraNetwork:
         #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
         if not ksp:
-            if kwargs['fplx_expand']:
+            ckwargs = options.copy()
+            ksp = self.grounding_fallback(**ckwargs)
+            if not ksp and kwargs['fplx_expand']:
                 logger.info('No directed path found, looking for paths '
                             'connected by common parents of source and/or '
                             'target')
-                ckwargs = options.copy()
                 ksp = self.try_parents(**ckwargs)
                 if self.verbose > 2:
                     logger.info('Got parents search result: %s' % repr(ksp))
@@ -169,6 +173,51 @@ class IndraNetwork:
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
         return {**ksp, 'common_targets': ct, 'common_parents': cp}
+
+    def grounding_fallback(self, **ckwargs):
+        if self.verbose:
+            logger.info('Expanding search using grounding service')
+        org_source = ckwargs['source']
+        org_target = ckwargs['target']
+
+        # Get groundings
+        src_groundings = requests.post(GRND_URI,
+                                       json={'text': org_source}).json()
+        trgt_groundings = requests.post(GRND_URI,
+                                        json={'text': org_target}).json()
+
+        import ipdb; ipdb.set_trace()  # Check groundings
+
+        # Loop combinations of source and target groundings, break if
+        # anything found
+
+        # org target with sources
+        if src_groundings and not trgt_groundings:
+            for src in src_groundings:
+                ckwargs['source'] = src['entry']['entry_name']
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
+
+        # org source with targets
+        if not src_groundings and trgt_groundings:
+            ckwargs['source'] = org_source
+            for trgt in trgt_groundings:
+                ckwargs['target'] = trgt['entry']['entry_name']
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
+
+        # all source groundings with all target groundings
+        if src_groundings and trgt_groundings:
+            for src, trgt in product(src_groundings, trgt_groundings):
+                ckwargs['source'] = src['entry']['entry_name']
+                ckwargs['target'] = trgt['entry']['entry_name']
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
+
+        return {}
 
     def try_parents(self, **ckwargs):
         """Retry search with sources' and targets' parents
