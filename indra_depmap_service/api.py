@@ -170,7 +170,9 @@ class IndraNetwork:
                 logger.info('No directed path found')
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
-        return {**ksp, 'common_targets': ct, 'common_parents': cp}
+        return {'paths_by_node_count': ksp,
+                'common_targets': ct,
+                'common_parents': cp}
 
     def grounding_fallback(self, **ckwargs):
         """Retry search with alternative names found by grounding service"""
@@ -377,7 +379,7 @@ class IndraNetwork:
     def _loop_paths(self, paths_gen, **options):
         len_only = options['spec_len_only']
         path_len = options['path_length']
-        result = {'paths_by_node_count': {}}  # ToDo Remove 'paths_by_node_count'
+        result = {}
         added_paths = 0
         for path in paths_gen:
             # Check if we found k paths
@@ -393,10 +395,10 @@ class IndraNetwork:
                 pd = {'stmts': hash_path, 'path': path}
                 try:
                     if not len_only:
-                        result['paths_by_node_count'][len(path)].append(pd)
+                        result[len(path)].append(pd)
                         added_paths += 1
                     elif len_only and len(path) == path_len:
-                        result['paths_by_node_count'][len(path)].append(pd)
+                        result[len(path)].append(pd)
                         added_paths += 1
                     elif len_only and len(path) != path_len:
                         continue
@@ -405,10 +407,10 @@ class IndraNetwork:
                 except KeyError:
                     try:
                         if len_only and len(path) == path_len:
-                            result['paths_by_node_count'][len(path)] = [pd]
+                            result[len(path)] = [pd]
                             added_paths += 1
                         elif not len_only:
-                            result['paths_by_node_count'][len(path)] = [pd]
+                            result[len(path)] = [pd]
                             added_paths += 1
                     except KeyError as ke:
                         logger.warning('Unexpected KeyError: ' + repr(ke))
