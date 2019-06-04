@@ -967,17 +967,18 @@ if __name__ == '__main__':
         'second argument is a dictionary with mappings from the provided cell '
         'line ID format to DepMap ID.')
     parser.add_argument('--margin', type=float, default=1.0, help='How large '
-        'diff in terms of standard deviations to accept between data sets '
-        'when filtering for correlations during merge. Default is 1 SD.')
+        'difference in z-score between data sets to accept when filtering for '
+        'correlations during merge. Default is 1 (i.e. 1 SD).')
     parser.add_argument('--filter-type', default='None', type=str,
-                        help='Type of filtering. Options are: `sigma-diff` - '
-        'The difference in the distances from the mean measured in number of '
-        'standard deviations must be smaller than given by --margin. '
-        '`corr-corr-corr` - The product of the scaled correlations* must be '
-        'greater than given by --margin. `None` - No filter is applied when '
-        'merging the data sets. The resulting correlation dictionary will '
-        'simply be the intersection of the provided data sets. | *Scaled '
-        'Correlation = (corr-mean)/SD')
+                        help='Type of filtering for merging correlations from '
+        'multiple data sets. Options are: `z_score_diff` - The difference in '
+        'z-score must be smaller than given by --margin. `z_score_product` - '
+        'The product of the z-scores must be greater than given by --margin. '
+        '`z_score_mean` - The mean of the z-scores must be smaller than given '
+        'by --margin. `sign` - Only filter out correlations if they have '
+        'opposite signs. `None` - No filter is applied when merging the data '
+        'sets. The resulting correlation dictionary will simply be the '
+        'intersection of the provided data sets.')
     parser.add_argument('-o', '--outbasename', default=str(int(time())),
                         help='Base name for outfiles. Default: UTC timestamp.')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
