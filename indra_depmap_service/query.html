@@ -374,23 +374,23 @@
       <div class="row">
         <div class="col">
           <div class="form-select">
-            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types included in path" multiple>
+            <select name="stmt-filter" id="stmt-filter" title="The path will only contain the selected statement types" placeholder="Statement types included in path" multiple>
             </select>
           </div>
         </div>
         <div class="col">
           <div class="form-select">
-            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
+            <select name="node-filter" id="node-filter" title="The path will only contain nodes from the selected namespaces" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
         </div>
       </div>
       <div class="row">
         <div class="col">
-          <input type="text" id="node-blacklist" class="form-control" placeholder="Node name blacklist (comma separated)">
+          <input type="text" id="node-blacklist" class="form-control" title="Paths containing the entered nodes will not be allowed" placeholder="Node name blacklist (comma separated)">
         </div>
         <div class="col">
-          <input type="text" id="edge-hash-blacklist" class="form-control" placeholder="Edge hash blacklist (comma separated)">
+          <input type="text" id="edge-hash-blacklist" class="form-control" title="Paths containing the entered statement hashes will not be allowed" placeholder="Edge hash blacklist (comma separated)">
         </div>
       </div>
       <div class="row">
