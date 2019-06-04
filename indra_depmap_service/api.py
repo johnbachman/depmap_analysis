@@ -245,7 +245,7 @@ class IndraNetwork:
             for tp_uri in target_parent_closure:
                 ckwargs['target'] = self.node_by_uri[tp_uri]
                 if self.verbose > 4:
-                    logger.info('Parents search: source=%s, target=%s' % \
+                    logger.info('Parents search: source=%s, target=%s' % 
                                 (ckwargs['source'], ckwargs['target']))
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
@@ -256,7 +256,7 @@ class IndraNetwork:
             for sp_uri in source_parent_closure:
                 ckwargs['source'] = self.node_by_uri[sp_uri]
                 if self.verbose > 4:
-                    logger.info('Parents search: source=%s, target=%s' % \
+                    logger.info('Parents search: source=%s, target=%s' %
                                 (ckwargs['source'], ckwargs['target']))
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
@@ -266,14 +266,14 @@ class IndraNetwork:
         if source_parent_closure and target_parent_closure:
             for sp_uri, tp_uri in product(source_parent_closure,
                                           target_parent_closure):
-                    ckwargs['source'] = self.node_by_uri[sp_uri]
-                    ckwargs['target'] = self.node_by_uri[tp_uri]
-                    if self.verbose > 4:
-                        logger.info('Parents search: source=%s, target=%s' % \
-                                    (ckwargs['source'], ckwargs['target']))
-                    ksp = self.find_shortest_paths(**ckwargs)
-                    if ksp:
-                        return ksp
+                ckwargs['source'] = self.node_by_uri[sp_uri]
+                ckwargs['target'] = self.node_by_uri[tp_uri]
+                if self.verbose > 4:
+                    logger.info('Parents search: source=%s, target=%s' %
+                                (ckwargs['source'], ckwargs['target']))
+                ksp = self.find_shortest_paths(**ckwargs)
+                if ksp:
+                    return ksp
 
         # If we get this far, no path was found
         return {}
