@@ -161,7 +161,7 @@
               break;
             default:
               console.log('Submission error: check ajax response');
-              statusBox.textContent = 'error: ' + xhr.status;
+              statusBox.textContent = 'Error: ' + xhr.status + ': ' + xhr.responseText;
               break;
           }
         }
