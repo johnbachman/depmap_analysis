@@ -400,8 +400,10 @@ class IndraNetwork:
                     elif len_only and len(path) == path_len:
                         result[len(path)].append(pd)
                         added_paths += 1
-                    elif len_only and len(path) != path_len:
+                    elif len_only and len(path) < path_len:
                         continue
+                    elif len_only and len(path) > path_len:
+                        return result
                     else:
                         logger.warning('This option should not happen')
                 except KeyError:
