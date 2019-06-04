@@ -187,8 +187,6 @@ class IndraNetwork:
         trgt_groundings = requests.post(GRND_URI,
                                         json={'text': org_target}).json()
 
-        import ipdb; ipdb.set_trace()  # Check groundings
-
         # Loop combinations of source and target groundings, break if
         # anything found
 
