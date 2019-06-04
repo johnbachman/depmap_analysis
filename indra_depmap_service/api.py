@@ -32,7 +32,6 @@ INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_dump_20190417.pkl')
 GRND_URI = 'http://10.119.88.95:8001/ground'
 
 MAX_PATHS = 50
-MAX_PATH_LEN = 4
 
 
 def _todays_date():
@@ -63,7 +62,6 @@ class IndraNetwork:
         self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS
-        self.MAX_PATH_LEN = MAX_PATH_LEN
         self.small = False
         self.verbose = 0
 
@@ -279,28 +277,23 @@ class IndraNetwork:
         return {}
 
     def find_shortest_path(self, source, target, weight=None, simple=False,
-                           **kwargs):
+                           **options):
         """Returns a list of nodes representing a shortest path"""
         try:
             if not simple:
                 path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
                                         weight)
                 return {len(path): [{'path': path,
-                    'stmts': self._get_hash_path(path, **kwargs)}]}
+                    'stmts': self._get_hash_path(path, **options)}]}
             else:
                 return self._find_shortest_simple_paths(source, target,
-                                                        weight, **kwargs)
+                                                        weight, **options)
         except NodeNotFound or nx.NetworkXNoPath:
             return {}
 
     def find_shortest_paths(self, source, target, weight=None, simple=True,
-                            **kwargs):
+                            **options):
         """Returns a list of shortest paths in ascending order"""
-        path_len = kwargs['path_length']
-        if path_len > self.MAX_PATH_LEN:
-            logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
-                           'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
-            path_len = self.MAX_PATH_LEN
         try:
             if not simple:
                 logger.info('Doing non-simple path search')
@@ -308,11 +301,11 @@ class IndraNetwork:
                 #                               source, target, weight)
                 paths = nx.all_shortest_paths(self.nx_md_graph_repr,
                                               source, target, weight)
-                return self._loop_paths(paths, path_len, **kwargs)
+                return self._loop_paths(paths, **options)
             else:
                 logger.info('Doing simple path search')
                 return self._find_shortest_simple_paths(source, target,
-                                                        weight, **kwargs)
+                                                        weight, **options)
         except nx.NodeNotFound as e:
             logger.warning(repr(e))
             return {}
@@ -321,30 +314,25 @@ class IndraNetwork:
             return {}
 
     def _find_shortest_simple_paths(self, source, target, weight=None,
-                                    **kwargs):
+                                    **options):
         """Returns a list of shortest simple paths in ascending order"""
-        path_len = kwargs['path_length']
-        if path_len > self.MAX_PATH_LEN:
-            logger.warning('path_len > MAX_PATH_LEN, resetting path_len to '
-                           'MAX_PATH_LEN (%d).' % self.MAX_PATH_LEN)
-            path_len = self.MAX_PATH_LEN
         simple_paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
                                                 source, target, weight)
-        return self._loop_paths(simple_paths, path_len, **kwargs)
+        return self._loop_paths(simple_paths, **options)
 
-    def find_common_targets(self,**kwargs):
+    def find_common_targets(self, **options):
         """Returns a list of statement(?) pairs that explain common targets
         for source and target"""
-        if kwargs['source'] in self.nodes and kwargs['target'] in self.nodes:
+        if options['source'] in self.nodes and options['target'] in self.nodes:
             source_succ = set(self.nx_dir_graph_repr.succ[
-                                  kwargs['source']].keys())
+                                  options['source']].keys())
             target_succ = set(self.nx_dir_graph_repr.succ[
-                                  kwargs['target']].keys())
+                                  options['target']].keys())
             common = source_succ & target_succ
             if common:
                 try:
                     return self._loop_common_targets(common_targets=common,
-                                                     **kwargs)
+                                                     **options)
                 except nx.NodeNotFound as e:
                     logger.warning(repr(e))
                 except nx.NetworkXNoPath as e:
@@ -352,15 +340,15 @@ class IndraNetwork:
 
         return []
 
-    def _loop_common_targets(self, common_targets, **kwargs):
+    def _loop_common_targets(self, common_targets, **options):
         """Order common_targets targets by lowest bs in pair."""
         ordered_commons = []
-        source = kwargs['source']
-        target = kwargs['target']
+        source = options['source']
+        target = options['target']
         added_targets = 0
         for ct in common_targets:
-            paths1 = self._get_hash_path(path=[source, ct], **kwargs)
-            paths2 = self._get_hash_path(path=[target, ct], **kwargs)
+            paths1 = self._get_hash_path(path=[source, ct], **options)
+            paths2 = self._get_hash_path(path=[target, ct], **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 max_bs1 = max([st['bs'] for st in paths1[0]])
                 max_bs2 = max([st['bs'] for st in paths2[0]])
@@ -386,25 +374,18 @@ class IndraNetwork:
         else:
             return []
 
-    def _loop_paths(self, paths_gen, path_len, **kwargs):
-        len_only = kwargs['spec_len_only']
-        result = {'paths_by_node_count': {}}
+    def _loop_paths(self, paths_gen, **options):
+        len_only = options['spec_len_only']
+        path_len = options['path_length']
+        result = {'paths_by_node_count': {}}  # ToDo Remove 'paths_by_node_count'
         added_paths = 0
         for path in paths_gen:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
-                logger.info('Found k shortest paths')
+                logger.info('Found all k shortest paths')
                 return result
-            # Check if path exceeds MAX_PATH_LEN
-            if len(path) >= self.MAX_PATH_LEN:
-                if not result['paths_by_node_count']:
-                    logger.info('No paths shorther than %d found.' %
-                                self.MAX_PATH_LEN)
-                    return {}
-                logger.info('Reached longest allowed path length. Returning '
-                            'results')
-                return result
-            hash_path = self._get_hash_path(path, **kwargs)
+
+            hash_path = self._get_hash_path(path, **options)
             if hash_path and all(hash_path):
                 if self.verbose > 1:
                     logger.info('Adding stmts and path from %s to path list' %
@@ -441,26 +422,26 @@ class IndraNetwork:
         """Return true if there is a path from source to target"""
         return nx.has_path(self.nx_dir_graph_repr, source, target)
 
-    def get_common_parents(self, **kwargs):
+    def get_common_parents(self, **options):
         """Find common parents between source and target"""
-        source_id = kwargs['source']
+        source_id = options['source']
         source_ns = None
-        target_id = kwargs['target']
+        target_id = options['target']
         target_ns = None
         cp = {}
 
         # Get ns
-        if kwargs['source'] in self.nodes:
-            source_ns = self.nodes[kwargs['source']]['ns']
-        if kwargs['target'] in self.nodes:
-            target_ns = self.nodes[kwargs['target']]['ns']
+        if options['source'] in self.nodes:
+            source_ns = self.nodes[options['source']]['ns']
+        if options['target'] in self.nodes:
+            target_ns = self.nodes[options['target']]['ns']
 
         # Try different combinations of ns combinations
 
         # If both source and target are given
         if source_ns and target_ns:
-            if source_ns in kwargs['node_filter'] and \
-                    target_ns in kwargs['node_filter']:
+            if source_ns in options['node_filter'] and \
+                    target_ns in options['node_filter']:
                 if self.verbose > 1:
                     logger.info('Looking for common parents using namespaces '
                                 'found in network')
@@ -474,12 +455,12 @@ class IndraNetwork:
 
         # If only target ns is given
         if not source_ns and target_ns:
-            if target_ns in kwargs['node_filter']:
+            if target_ns in options['node_filter']:
                 if self.verbose > 1:
                     logger.info('No namespace found for %s, trying HGNC and '
                                 'FPLX.' % source_id)
                 for sns in ['HGNC', 'FPLX']:
-                    if sns not in kwargs['node_filter']:
+                    if sns not in options['node_filter']:
                         continue
                     else:
                         cp = dnf.common_parent(ns1=sns, id1=source_id,
@@ -493,12 +474,12 @@ class IndraNetwork:
 
         # If only source ns is given
         if not target_ns and source_ns:
-            if source_ns in kwargs['node_filter']:
+            if source_ns in options['node_filter']:
                 if self.verbose > 1:
                     logger.info('No namespace found for %s, trying HGNC and '
                                 'FPLX.' % target_id)
                 for tns in ['HGNC', 'FPLX']:
-                    if tns not in kwargs['node_filter']:
+                    if tns not in options['node_filter']:
                         continue
                     else:
                         cp = dnf.common_parent(ns1=source_ns, id1=source_id,
@@ -516,10 +497,10 @@ class IndraNetwork:
                 logger.info('No namespaces found for %s and %s, trying HGNC '
                             'and FPLX' % (source_id, target_id))
             for source_ns in ['HGNC', 'FPLX']:
-                if source_ns not in kwargs['node_filter']:
+                if source_ns not in options['node_filter']:
                     continue
                 for target_ns in ['HGNC', 'FPLX']:
-                    if target_ns not in kwargs['node_filter']:
+                    if target_ns not in options['node_filter']:
                         continue
                     cp = dnf.common_parent(ns1=source_ns, id1=source_id,
                                            ns2=target_ns, id2=target_id)
@@ -546,7 +527,7 @@ class IndraNetwork:
         else:
             return self.mdg_edges.get((s, o, index))
 
-    def _get_hash_path(self, path, simple_dir=True, **kwargs):
+    def _get_hash_path(self, path, simple_dir=True, **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
         the n nodes in path. If simple_dir is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
@@ -555,17 +536,18 @@ class IndraNetwork:
             logger.info('Building evidence for path %s' % str(path))
         for subj, obj in zip(path[:-1], path[1:]):
             # Check node filter
-            if self.nodes[subj]['ns'] not in kwargs['node_filter'] \
-                    or self.nodes[obj]['ns'] not in kwargs['node_filter']:
+            if self.nodes[subj]['ns'] not in options['node_filter'] \
+                    or self.nodes[obj]['ns'] not in options['node_filter']:
                 if self.verbose:
                     logger.info('Node namespace %s or %s not part of '
                                 'acceptable namespaces %s' %
                                 (self.nodes[subj]['ns'],
                                  self.nodes[obj]['ns'],
-                                 kwargs['node_filter']))
+                                 options['node_filter']))
                 return []
-            elif kwargs.get('node_blacklist', None):
-                if subj in kwargs['node_blacklist'] or obj in kwargs['node_blacklist']:
+            elif options.get('node_blacklist', None):
+                if subj in options['node_blacklist'] or obj in \
+                        options['node_blacklist']:
                     if self.verbose:
                         logger.info('%s or %s part of node blacklist, '
                                     'skipping path' % (subj, obj))
@@ -584,7 +566,7 @@ class IndraNetwork:
             while edge_stmt:
 
                 # If edge statement passes, append to edges list
-                if self._pass_stmt(subj, obj, edge_stmt, **kwargs):
+                if self._pass_stmt(subj, obj, edge_stmt, **options):
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
                     edges.append({**edge_stmt,
@@ -610,7 +592,7 @@ class IndraNetwork:
             logger.info('Returning hash path: %s' % repr(hash_path))
         return hash_path
 
-    def _pass_stmt(self, subj, obj, edge_stmt, **kwargs):
+    def _pass_stmt(self, subj, obj, edge_stmt, **options):
         """Returns True if edge_stmt passes the below filters"""
         # Failsafe for empty statements are sent
         if not edge_stmt:
@@ -619,22 +601,22 @@ class IndraNetwork:
             return False
 
         # Filter belief score
-        if edge_stmt['bs'] < kwargs['bsco']:
+        if edge_stmt['bs'] < options['bsco']:
             if self.verbose:
                 logger.info('Did not pass belief score')
             return False
 
         # Filter statement type
-        if edge_stmt['stmt_type'].lower() not in kwargs['stmt_filter']:
+        if edge_stmt['stmt_type'].lower() not in options['stmt_filter']:
             if self.verbose > 4:
                 logger.info('statement type %s not found in filter %s'
                             % (edge_stmt['stmt_type'],
-                               str(kwargs['stmt_filter'])))
+                               str(options['stmt_filter'])))
             return False
 
         # Filter stmt hash
-        if kwargs.get('edge_hash_blacklist', None) and \
-                edge_stmt['stmt_hash'] in kwargs['edge_hash_blacklist']:
+        if options.get('edge_hash_blacklist', None) and \
+                edge_stmt['stmt_hash'] in options['edge_hash_blacklist']:
             if self.verbose > 3:
                 logger.info('hash %s is blacklisted, skipping' %
                             edge_stmt['stmt_hash'])
