@@ -36,12 +36,13 @@
     const SUBMIT_URL = 'http://localhost:5000/query/submit';
     const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
     const MAX_K_PATHS = 50;
-    const stmtOptions = ['Acetylation', 'Activation', 'Deacetylation', 'DecreaseAmount', 
-      'Defarnesylation', 'Deglycosylation', 'Dehydroxylation', 'Demethylation', 
-      'Depalmitoylation', 'Dephosphorylation', 'Deribosylation', 'Desumoylation', 
-      'Deubiquitination', 'Farnesylation', 'Gap', 'Gef', 'Glycosylation', 'GtpActivation', 
-      'Hydroxylation', 'IncreaseAmount', 'Inhibition', 'Methylation', 'Myristoylation', 
-      'Palmitoylation', 'Phosphorylation', 'Ribosylation', 'Sumoylation', 'Ubiquitination'];
+    const stmtOptions = ['Acetylation', 'Activation', 'ActiveForm', 'Autophosphorylation',
+      'Complex', 'Conversion', 'Deacetylation', 'DecreaseAmount', 'Deglycosylation',
+      'Dehydroxylation', 'Demethylation', 'Depalmitoylation', 'Dephosphorylation',
+      'Deribosylation', 'Desumoylation', 'Deubiquitination', 'Farnesylation',
+      'Gap', 'Gef', 'Geranylgeranylation', 'GtpActivation', 'Hydroxylation', 'IncreaseAmount',
+      'Inhibition', 'Methylation', 'Myristoylation', 'Palmitoylation', 'Phosphorylation',
+      'Ribosylation', 'Sumoylation', 'Translocation', 'Ubiquitination'];
     const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
 
     $(document).ready(function() {
