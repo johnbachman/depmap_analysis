@@ -218,7 +218,7 @@
           document.getElementById('object-placeholder-ct').textContent = target;
           for (targetDict of simpleCommonTargets) {
             for (key in targetDict) {
-              if (key != 'lowest_highest_belief') {
+              if (key !== 'lowest_highest_belief') {
                 let newRow = document.createElement('tr');
 
                 let newTargetCol = document.createElement('td');
