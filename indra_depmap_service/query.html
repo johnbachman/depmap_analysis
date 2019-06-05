@@ -72,19 +72,12 @@
     }
 
     function submitQuery() {
-      if (!document.getElementById('path-length').value) {
-        alert('Please select a path length');
-        return;
-      }
       let beliefEntry = parseFloat(document.getElementById('belief-cutoff').value || 0);
       if (beliefEntry < 0 || beliefEntry > 1) {
         alert('Enter a belief score between 0 and 1');
         return;
       }
       let kShortestEntry = parseInt(document.getElementById('k-shortest').value) || false;
-      if (!kShortestEntry) {
-        kShortestEntry = false;
-      }
       if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
         alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths');
         return;
@@ -131,8 +124,7 @@
         edge_hash_blacklist: edgeHashBlacklist,
         node_filter: nodeFilterList,
         node_blacklist: nodeBlackList,
-        path_length: parseInt(document.getElementById('path-length').value),
-        spec_len_only: document.getElementById('selected-length-only').checked,
+        path_length: parseInt(document.getElementById('path-length').value) || false,
         sign: document.getElementById('sign-dd').value,
         weighted: document.getElementById('weighted-search').checked,
         bsco: beliefEntry,
@@ -383,23 +375,17 @@
       </div>
       <div class="row">
         <div class="col">
-          <div class="dropdown">
-            <select id="path-length">
-              <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
-              <option value=1>1</option>
-              <option value=2>2</option>
-              <option value=3>3</option>
-              <option value=4>4</option>
-            </select>
-            <div class="custom-control custom-checkbox">
-              <input type="checkbox" class="custom-control-input" id="selected-length-only">
-              <label class="custom-control-label" for="selected-length-only">Selected length only</label>
-            </div>
+          <div class="container" style="width: 185px; float: left; padding: 0px;">
+            <input class="form-control" type="number" step="1" name="path_length" id="path-length" min="0" max="10"
+                   placeholder="Specific path length"
+                   title="Only search the specified path length, 0 or no value searches all lengths.">
           </div>
         </div>
         <div class="col">
           <div class="container" style="width: 160px; float: left; padding: 0px;">
-            <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50" placeholder="max # paths">
+            <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50"
+                   placeholder="max # paths"
+                   title="The maximum number of paths per catergory to return. Default is 50.">
           </div>
         </div>
       </div>

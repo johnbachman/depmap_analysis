@@ -92,12 +92,9 @@ class IndraNetwork:
             a list of statement hashes (as strings or ints) to ignore. If an
             edge statement hash is found in this list, it will be discarded
             from the assembled edge list.
-        path_length: int <=4
-            a positive integer <= 4 stating the maximum number of edges in
-            the path
-        spec_len_only: Bool
-            If True, only search for paths with number of edges given by
-            path_lenth
+        path_length: int|False
+            a positive integer stating the path length to search. If False,
+            return any path length.
         sign: str ['no_sign'|'plus'|'minus'] **currently not implemented**
             Placeholder for future implementation of path searches in signed
             graphs
@@ -129,7 +126,7 @@ class IndraNetwork:
         """
         logger.info('Handling query: %s' % repr(kwargs))
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
-                     'path_length', 'spec_len_only', 'weighted',
+                     'path_length', 'weighted',
                      'bsco', 'fplx_expand', 'simple', 'k_shortest']
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
@@ -377,7 +374,6 @@ class IndraNetwork:
             return []
 
     def _loop_paths(self, paths_gen, **options):
-        len_only = options['spec_len_only']
         path_len = options['path_length']
         result = {}
         added_paths = 0
@@ -394,24 +390,24 @@ class IndraNetwork:
                                 repr(hash_path))
                 pd = {'stmts': hash_path, 'path': path}
                 try:
-                    if not len_only:
+                    if not path_len:
                         result[len(path)].append(pd)
                         added_paths += 1
-                    elif len_only and len(path) == path_len:
-                        result[len(path)].append(pd)
-                        added_paths += 1
-                    elif len_only and len(path) < path_len:
+                    elif path_len and len(path) < path_len:
                         continue
-                    elif len_only and len(path) > path_len:
+                    elif path_len and len(path) == path_len:
+                        result[len(path)].append(pd)
+                        added_paths += 1
+                    elif path_len and len(path) > path_len:
                         return result
                     else:
                         logger.warning('This option should not happen')
                 except KeyError:
                     try:
-                        if len_only and len(path) == path_len:
+                        if path_len and len(path) == path_len:
                             result[len(path)] = [pd]
                             added_paths += 1
-                        elif not len_only:
+                        elif not path_len:
                             result[len(path)] = [pd]
                             added_paths += 1
                     except KeyError as ke:
