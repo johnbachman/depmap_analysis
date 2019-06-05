@@ -143,6 +143,10 @@ class IndraNetwork:
             if k == 'edge_hash_blacklist' and options.get(k) and \
                     isinstance(options[k][0], int):
                 options[k] = [str(i) for i in options[k]]
+        if options['weight'] and options['simple']:
+            options['simple'] = False
+            logger.warning('Both simple and weigthed path search requested. '
+                           'Doing weigthed search only.')
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Query translated to: %s' % repr(options))
