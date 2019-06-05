@@ -93,8 +93,8 @@ class IndraNetwork:
             edge statement hash is found in this list, it will be discarded
             from the assembled edge list.
         path_length: int|False
-            a positive integer stating the path length to search. If False,
-            return any path length.
+            a positive integer stating the number of edges that should be in 
+            the returned path. If False, return paths with any number of edges.
         sign: str ['no_sign'|'plus'|'minus'] **currently not implemented**
             Placeholder for future implementation of path searches in signed
             graphs
@@ -132,13 +132,11 @@ class IndraNetwork:
             miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
         options = {k: v for k, v in kwargs.items()
-                   if k not in ['path_length', 'sign']}  # Handled below
+                   if k != 'sign'}  # Handled below
         for k, v in kwargs.items():
             if k == 'weighted':
                 logger.info('Doing weighted path search') if v \
                     else logger.info('Doing unweighted path search')
-            if k == 'path_length':
-                options[k] = -1 if v == 'no_limit' else int(v)
             if k == 'sign':
                 options[k] = 1 if v == 'plus' \
                     else (-1 if v == 'minus' else 0)
@@ -374,7 +372,7 @@ class IndraNetwork:
             return []
 
     def _loop_paths(self, paths_gen, **options):
-        path_len = options['path_length']
+        path_len = options['path_length'] + 1  # len(path) = edge count + 1
         result = {}
         added_paths = 0
         for path in paths_gen:
