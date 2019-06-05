@@ -278,8 +278,7 @@ class IndraNetwork:
         # If we get this far, no path was found
         return {}
 
-    def find_shortest_path(self, source, target, weight=None, simple=False,
-                           **options):
+    def find_shortest_path(self, source, target, weight, simple, **options):
         """Returns a list of nodes representing a shortest path"""
         try:
             if not simple:
@@ -293,8 +292,7 @@ class IndraNetwork:
         except NodeNotFound or nx.NetworkXNoPath:
             return {}
 
-    def find_shortest_paths(self, source, target, weight=None, simple=True,
-                            **options):
+    def find_shortest_paths(self, source, target, weight, simple, **options):
         """Returns a list of shortest paths in ascending order"""
         try:
             if not simple:
@@ -316,25 +314,24 @@ class IndraNetwork:
             logger.warning(repr(e))
             return {}
 
-    def _find_shortest_simple_paths(self, source, target, weight=None,
-                                    **options):
+    def _find_shortest_simple_paths(self, source, target, weight, **options):
         """Returns a list of shortest simple paths in ascending order"""
         simple_paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
                                                 source, target, weight)
         return self._loop_paths(simple_paths, **options)
 
-    def find_common_targets(self, **options):
+    def find_common_targets(self, source, target, **options):
         """Returns a list of statement(?) pairs that explain common targets
         for source and target"""
-        if options['source'] in self.nodes and options['target'] in self.nodes:
-            source_succ = set(self.nx_dir_graph_repr.succ[
-                                  options['source']].keys())
-            target_succ = set(self.nx_dir_graph_repr.succ[
-                                  options['target']].keys())
+        if source in self.nodes and target in self.nodes:
+            source_succ = set(self.nx_dir_graph_repr.succ[source].keys())
+            target_succ = set(self.nx_dir_graph_repr.succ[target].keys())
             common = source_succ & target_succ
             if common:
                 try:
                     return self._loop_common_targets(common_targets=common,
+                                                     source=source,
+                                                     target=target,
                                                      **options)
                 except nx.NodeNotFound as e:
                     logger.warning(repr(e))
@@ -343,11 +340,9 @@ class IndraNetwork:
 
         return []
 
-    def _loop_common_targets(self, common_targets, **options):
+    def _loop_common_targets(self, common_targets, source, target, **options):
         """Order common_targets targets by lowest bs in pair."""
         ordered_commons = []
-        source = options['source']
-        target = options['target']
         added_targets = 0
         for ct in common_targets:
             paths1 = self._get_hash_path(path=[source, ct], **options)
@@ -576,7 +571,7 @@ class IndraNetwork:
             while edge_stmt:
 
                 # If edge statement passes, append to edges list
-                if self._pass_stmt(subj, obj, edge_stmt, **options):
+                if self._pass_stmt(edge_stmt, **options):
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
                     edges.append({**edge_stmt,
@@ -602,7 +597,7 @@ class IndraNetwork:
             logger.info('Returning hash path: %s' % repr(hash_path))
         return hash_path
 
-    def _pass_stmt(self, subj, obj, edge_stmt, **options):
+    def _pass_stmt(self, edge_stmt, **options):
         """Returns True if edge_stmt passes the below filters"""
         # Failsafe for empty statements are sent
         if not edge_stmt:
