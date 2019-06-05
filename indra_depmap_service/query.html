@@ -237,11 +237,18 @@
 
         // Fill directed paths tables
         if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
+          var tableArea = document.getElementById('table-area');
           for (len in pathsKeyedArray) {
-            let tableBody = document.getElementById('query-results-' + (len-1));
-            document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
-            document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
-            document.getElementById('object-placeholder-' + (len-1)).textContent = target;
+            let cardHtml = generateCardTable(len-1);
+            tableArea.appendChild(cardHtml);
+            // cardHtml.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            cardHtml.getElementsByClassName('badge')[0].textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            // cardHtml.getElementById('subject-placeholder-' + (len-1)).textContent = source;
+            cardHtml.getElementsByClassName('subject-placeholder')[0].textContent = source;
+            // cardHtml.getElementById('object-placeholder-' + (len-1)).textContent = target;
+            cardHtml.getElementsByClassName('object-placeholder')[0].textContent = target;
+            // let tableBody = cardHtml.getElementById('query-results-' + (len-1));
+            let tableBody = cardHtml.getElementsByClassName('table-body')[0];
             for (pathArray of pathsKeyedArray[len]) {
               let newRow = document.createElement('tr');
               // Add current path
