@@ -209,6 +209,32 @@
           }
         }
 
+        // Fill common targets table
+        if (simpleCommonTargets && simpleCommonTargets.length > 0) {
+          let ctTableBody = document.getElementById('query-results-common-targets');
+          document.getElementById('common-targets').textContent = 'Targets: ' +
+            simpleCommonTargets.length;
+          document.getElementById('subject-placeholder-ct').textContent = source;
+          document.getElementById('object-placeholder-ct').textContent = target;
+          for (targetDict of simpleCommonTargets) {
+            for (key in targetDict) {
+              if (key != 'lowest_highest_belief') {
+                let newRow = document.createElement('tr');
+
+                let newTargetCol = document.createElement('td');
+                newTargetCol.textContent = key;
+                newRow.appendChild(newTargetCol);
+
+                let newTargetPaths = document.createElement('td');
+                newTargetPaths.innerHTML = generateTargetLinkout(targetDict[key]);
+                newRow.appendChild(newTargetPaths);
+
+                ctTableBody.appendChild(newRow);
+              }
+            }
+          }
+        }
+
         // Fill directed paths tables
         if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
           for (len in pathsKeyedArray) {
@@ -228,32 +254,6 @@
               newRow.appendChild(newSupport);
 
               tableBody.appendChild(newRow);
-            }
-          }
-        }
-
-        // Fill common targets table
-        if (simpleCommonTargets && simpleCommonTargets.length > 0) {
-          let ctTableBody = document.getElementById('query-results-common-targets');
-          document.getElementById('common-targets').textContent = 'Targets: ' + 
-            simpleCommonTargets.length;
-          document.getElementById('subject-placeholder-ct').textContent = source;
-          document.getElementById('object-placeholder-ct').textContent = target;
-          for (targetDict of simpleCommonTargets) {
-            for (key in targetDict) {
-              if (key != 'lowest_highest_belief') {
-                let newRow = document.createElement('tr');
-
-                let newTargetCol = document.createElement('td');
-                newTargetCol.textContent = key;
-                newRow.appendChild(newTargetCol);
-
-                let newTargetPaths = document.createElement('td');
-                newTargetPaths.innerHTML = generateTargetLinkout(targetDict[key]);
-                newRow.appendChild(newTargetPaths);
-
-                ctTableBody.appendChild(newRow);
-              }
             }
           }
         }
