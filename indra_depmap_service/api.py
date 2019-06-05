@@ -126,17 +126,18 @@ class IndraNetwork:
         """
         logger.info('Handling query: %s' % repr(kwargs))
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
-                     'path_length', 'weighted',
-                     'bsco', 'fplx_expand', 'simple', 'k_shortest']
+                     'path_length', 'weighted', 'bsco', 'fplx_expand',
+                     'simple', 'k_shortest']
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
         options = {k: v for k, v in kwargs.items()
-                   if k != 'sign'}  # Handled below
+                   if k not in ['sign', 'weighted']}  # Handled below
         for k, v in kwargs.items():
             if k == 'weighted':
                 logger.info('Doing weighted path search') if v \
                     else logger.info('Doing unweighted path search')
+                options['weight'] = 'weight' if v else None
             if k == 'sign':
                 options[k] = 1 if v == 'plus' \
                     else (-1 if v == 'minus' else 0)
@@ -293,7 +294,8 @@ class IndraNetwork:
         """Returns a list of shortest paths in ascending order"""
         try:
             if not simple:
-                logger.info('Doing non-simple path search')
+                logger.info('Doing non-simple %s path search' % 'weigthed' if
+                            weight else '')
                 # paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
                 #                               source, target, weight)
                 paths = nx.all_shortest_paths(self.nx_md_graph_repr,
@@ -372,13 +374,16 @@ class IndraNetwork:
             return []
 
     def _loop_paths(self, paths_gen, **options):
-        path_len = options['path_length'] + 1  # len(path) = edge count + 1
+        # len(path) = edge count + 1
+        path_len = options['path_length'] + 1 if options['path_length'] else \
+            False
         result = {}
         added_paths = 0
         for path in paths_gen:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
-                logger.info('Found all k shortest paths')
+                logger.info('Found all %d shortest paths, returning results.' %
+                            self.MAX_PATHS)
                 return result
 
             hash_path = self._get_hash_path(path, **options)
@@ -397,6 +402,9 @@ class IndraNetwork:
                         result[len(path)].append(pd)
                         added_paths += 1
                     elif path_len and len(path) > path_len:
+                        if self.verbose > 1:
+                            logger.info('Max path length reached, returning '
+                                        'results.')
                         return result
                     else:
                         logger.warning('This option should not happen')
