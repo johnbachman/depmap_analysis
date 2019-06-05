@@ -270,6 +270,9 @@
     }
 
     function clearAllTables() {
+      // Delete cards for paths by length
+      $('.directed-path').remove();
+      // Clear existing tables
       for (tb of document.getElementsByClassName('table-body')) {
         tb.innerHTML = null;
       }
