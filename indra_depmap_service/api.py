@@ -124,7 +124,6 @@ class IndraNetwork:
         Returns
         -------
         """
-        logger.info('Handling query: %s' % repr(kwargs))
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
                      'simple', 'k_shortest']
@@ -146,6 +145,7 @@ class IndraNetwork:
                 options[k] = [str(i) for i in options[k]]
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
+        logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
 
         # Todo MultiDiGrap can't do simple graphs: resolve by loading
