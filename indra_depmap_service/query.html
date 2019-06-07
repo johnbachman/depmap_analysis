@@ -72,19 +72,12 @@
     }
 
     function submitQuery() {
-      if (!document.getElementById('path-length').value) {
-        alert('Please select a path length');
-        return;
-      }
       let beliefEntry = parseFloat(document.getElementById('belief-cutoff').value || 0);
       if (beliefEntry < 0 || beliefEntry > 1) {
         alert('Enter a belief score between 0 and 1');
         return;
       }
       let kShortestEntry = parseInt(document.getElementById('k-shortest').value) || false;
-      if (!kShortestEntry) {
-        kShortestEntry = false;
-      }
       if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
         alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths');
         return;
@@ -131,8 +124,7 @@
         edge_hash_blacklist: edgeHashBlacklist,
         node_filter: nodeFilterList,
         node_blacklist: nodeBlackList,
-        path_length: parseInt(document.getElementById('path-length').value),
-        spec_len_only: document.getElementById('selected-length-only').checked,
+        path_length: parseInt(document.getElementById('path-length').value) || false,
         sign: document.getElementById('sign-dd').value,
         weighted: document.getElementById('weighted-search').checked,
         bsco: beliefEntry,
@@ -209,39 +201,16 @@
           }
         }
 
-        // Fill directed paths tables
-        if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
-          for (len in pathsKeyedArray) {
-            let tableBody = document.getElementById('query-results-' + (len-1));
-            document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
-            document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
-            document.getElementById('object-placeholder-' + (len-1)).textContent = target;
-            for (pathArray of pathsKeyedArray[len]) {
-              let newRow = document.createElement('tr');
-              // Add current path
-              let newPath = document.createElement('td');
-              newPath.innerHTML = pathArray.path.join('&rarr;');
-              newRow.appendChild(newPath);
-
-              let newSupport = document.createElement('td');
-              newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
-              newRow.appendChild(newSupport);
-
-              tableBody.appendChild(newRow);
-            }
-          }
-        }
-
         // Fill common targets table
         if (simpleCommonTargets && simpleCommonTargets.length > 0) {
           let ctTableBody = document.getElementById('query-results-common-targets');
-          document.getElementById('common-targets').textContent = 'Targets: ' + 
+          document.getElementById('common-targets').textContent = 'Targets: ' +
             simpleCommonTargets.length;
           document.getElementById('subject-placeholder-ct').textContent = source;
           document.getElementById('object-placeholder-ct').textContent = target;
           for (targetDict of simpleCommonTargets) {
             for (key in targetDict) {
-              if (key != 'lowest_highest_belief') {
+              if (key !== 'lowest_highest_belief') {
                 let newRow = document.createElement('tr');
 
                 let newTargetCol = document.createElement('td');
@@ -257,12 +226,45 @@
             }
           }
         }
+
+        // Fill directed paths tables
+        if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
+          var tableArea = document.getElementById('table-area');
+          for (len in pathsKeyedArray) {
+            let cardHtml = generateCardTable(len-1);
+            tableArea.appendChild(cardHtml);
+            // cardHtml.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            cardHtml.getElementsByClassName('badge')[0].textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            // cardHtml.getElementById('subject-placeholder-' + (len-1)).textContent = source;
+            cardHtml.getElementsByClassName('subject-placeholder')[0].textContent = source;
+            // cardHtml.getElementById('object-placeholder-' + (len-1)).textContent = target;
+            cardHtml.getElementsByClassName('object-placeholder')[0].textContent = target;
+            // let tableBody = cardHtml.getElementById('query-results-' + (len-1));
+            let tableBody = cardHtml.getElementsByClassName('table-body')[0];
+            for (pathArray of pathsKeyedArray[len]) {
+              let newRow = document.createElement('tr');
+              // Add current path
+              let newPath = document.createElement('td');
+              newPath.innerHTML = pathArray.path.join('&rarr;');
+              newRow.appendChild(newPath);
+
+              let newSupport = document.createElement('td');
+              newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
+              newRow.appendChild(newSupport);
+
+              tableBody.appendChild(newRow);
+            }
+          }
+        }
       } else {
         document.getElementById('query-status').textContent = 'No path found!'
       }
     }
 
     function clearAllTables() {
+      // Delete cards for paths by length
+      $('.directed-path').remove();
+      // Clear existing tables
       for (tb of document.getElementsByClassName('table-body')) {
         tb.innerHTML = null;
       }
@@ -320,6 +322,28 @@
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br> 
     }
 
+    function generateCardTable(len) {
+      var intermArrows = '';
+      if (len > 1) {
+        for (let i = 1; i < len; i++) {
+          intermArrows += 'X' + i + '&rarr;'
+        }
+      }
+
+      let newCard = document.createElement('div');
+      newCard.className = 'card directed-path';
+      newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
+        'data-toggle="collapse" data-target="#collapse-paths-' + len + ' " aria-expanded="false" ' +
+        'aria-controls="collapse-paths-' + len + '"> ' + len + ' Edge Paths (<div id="subject-placeholder-' + len +
+        '" class="placeholder subject-placeholder">A</div>&rarr;' + intermArrows +
+        '<div id="object-placeholder-' + len + '" class="placeholder object-placeholder">B</div>)</a><span ' +
+        'id="npaths-' + len + '" class="badge badge-primary badge-pill float-right path-count">Paths: ' +
+        '0</span></h3></div><div id="collapse-paths-' + len + '" class="collapse"><div class="card-body">' +
+        '<table class="table"><thead class="table-head"><th>Path</th><th>Support</th></thead><tbody ' +
+        'class="table-body" id="query-results-' + len + '"></tbody></table></div></div>';
+      return newCard;
+    }
+
   </script>
   <style>
     h3 a.stmt_toggle {
@@ -351,23 +375,19 @@
       </div>
       <div class="row">
         <div class="col">
-          <div class="dropdown">
-            <select id="path-length">
-              <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
-              <option value=1>1</option>
-              <option value=2>2</option>
-              <option value=3>3</option>
-              <option value=4>4</option>
-            </select>
-            <div class="custom-control custom-checkbox">
-              <input type="checkbox" class="custom-control-input" id="selected-length-only">
-              <label class="custom-control-label" for="selected-length-only">Selected length only</label>
-            </div>
+          <div class="container" style="width: 185px; float: left; padding: 0px;">
+            <input class="form-control" type="number" step="1" name="path_length" id="path-length" min="0" max="10"
+                   placeholder="Number of edges"
+                   title="Only search for paths with the specified number of edges. Set to 0 to exlude directed path
+                   search completely. An empty value allows any number of edges.
+                   edges.">
           </div>
         </div>
         <div class="col">
           <div class="container" style="width: 160px; float: left; padding: 0px;">
-            <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50" placeholder="max # paths">
+            <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50"
+                   placeholder="max # paths"
+                   title="The maximum number of paths per catergory to return. Default is 50.">
           </div>
         </div>
       </div>
@@ -444,7 +464,7 @@
     <p><i id="query-status">Some settings are currently unavailable</i></p>
   </div>
 
-  <div class="container">
+  <div id="table-area" class="container">
     <h2 class="display-6">Search Results</h2>
     <!-- Common parents complexes and families -->
     <div class="card">
@@ -456,10 +476,10 @@
              data-target="#collapse-paths-cp"
              aria-expanded="false" 
              aria-controls="collapse-paths-cp">
-            Complexes and Families (<div id="subject-placeholder-cp" class="placeholder">A</div>-<div id="object-placeholder-cp" class="placeholder">B</div>)
+            Complexes and Families (<span id="subject-placeholder-cp" class="placholder subject-placeholder">A</span> -
+              <span id="object-placeholder-cp" class="placholder object-placeholder">B</span>)
           </a>
           <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Entitites: 0</span>
-
         </h3>
       </div>
       <div id="collapse-paths-cp" class="collapse">
@@ -467,118 +487,9 @@
           <table class="table">
             <thead class="table-head">
               <th>Family/Complex</th>
-              <th>Namespaces</th>
+              <th>Namespace</th>
             </thead>
             <tbody class="table-body" id="query-results-cp"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Direct paths: a-b -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-1"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-1">
-            Direct Paths (<div id="subject-placeholder-1" class="placeholder">A</div>&rarr;<div id="object-placeholder-1" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-1" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-
-        </h3>
-      </div>
-      <div id="collapse-paths-1" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-1"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Path len 2: a-b-c -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-2"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-2">
-            2-Edge Paths (<div id="subject-placeholder-2" class="placeholder">A</div>&rarr;U&rarr;<div id="object-placeholder-2" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-2" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-2" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-2"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Path len 3: a-b-c-d -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-3"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-3">
-            3-Edge Paths (<div id="subject-placeholder-3" class="placeholder">A</div>&rarr;U&rarr;V&rarr;<div id="object-placeholder-3" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-3" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-3" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-3"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Path len 4: a-b-c-d -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-4"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-4">
-            4-Edge Paths (<div id="subject-placeholder-4" class="placeholder">A</div>&rarr;U&rarr;V&rarr;X&rarr;<div id="object-placeholder-4" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-4" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-4" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-4"></tbody>
           </table>
         </div>
       </div>
@@ -593,7 +504,8 @@
              data-target="#collapse-common-targets"
              aria-expanded="false"
              aria-controls="collapse-common-targets">
-            Common Targets (<div id="subject-placeholder-ct" class="placeholder">A</div>&rarr;Z&larr;<div id="object-placeholder-ct" class="placeholder">B</div>)
+            Common Targets (<span id="subject-placeholder-ct" class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span
+              id="object-placeholder-ct" class="placholder object-placeholder">B</span>)
           </a>
           <span id="common-targets" class="badge badge-primary badge-pill float-right path-count">Targets: 0</span>
         </h3>
@@ -610,6 +522,7 @@
         </div>
       </div>
     </div>
+    <!-- Dynamic tables -->
   </div>
 
   <footer class="footer text-muted" id="about" style="background: #F5F5F5;">
