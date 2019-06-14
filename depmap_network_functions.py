@@ -615,7 +615,10 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
     # Columns to be added as node attributes:
     #   'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
     # Columns to be added as edge attributes
-    #   'stmt_type', 'evidence_count' (used as weight), 'hash'
+    #   'stmt_type', 'evidence_count', 'hash'
+    # Add from external source:
+    #   belief score from provided dict
+    #   famplex edges using entity hierarchies
     if multi:
         nx_graph = nx.MultiDiGraph()
     else:
