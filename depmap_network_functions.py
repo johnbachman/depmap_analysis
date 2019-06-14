@@ -670,6 +670,28 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
     dnf_logger.info('Loaded %i statements into %sDiGraph' %
                     (index, 'Multi' if multi else ''))
 
+    if not multi:
+        dnf_logger.info('Aggregating belief score for DiGraph edge weights')
+
+        def _ag_belief(sl, verb):
+            bsl = []
+            for se in sl:
+                if se['bs']:
+                    bsl.append(se['bs'])
+                else:
+                    if verb:
+                        dnf_logger.info('Missing belief score for edge %s: %s'
+                                        % (e, repr(se)))
+                    continue
+            product = 1
+            for factor in bsl:
+                product *= (1 - factor)
+            return 1 - product
+
+        for e in nx_graph.edges:
+            stmt_list = nx_graph.edges[e]['stmt_list']
+            nx_graph.edges[e]['weight'] = _ag_belief(stmt_list, verbosity)
+
     if include_entity_hierarchies:
         dnf_logger.info('Fetching entity hierarchy relationsships')
         child_parent_list = get_all_entities()
