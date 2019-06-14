@@ -696,6 +696,28 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
             nx_graph.edges[e]['weight'] = _ag_belief(stmt_list, verbosity)
 
     if include_entity_hierarchies:
+        def _fplx_edge_in_list(multi, edge, check_uri, nx_graph):
+            if multi:
+                e = 0
+                es = nx_graph.edges.get((*edge, e), None)
+                while es:
+                    if es['stmt_type'] in ['isa', 'part_of'] and \
+                            es['stmt_hash'] == check_uri:
+                        return True
+                    else:
+                        e += 1
+                        es = nx_graph.edges.get((*edge, e), None)
+            else:
+                if nx_graph.edges.get(edge):
+                    for es in nx_graph.edges.get(edge).get('stmt_list'):
+                        if es['stmt_type'] in ['isa', 'part_of'] and \
+                                es['stmt_hash'] == check_uri:
+                            return True
+                        else:
+                            continue
+                else:
+                    return False
+
         dnf_logger.info('Fetching entity hierarchy relationsships')
         child_parent_list = get_all_entities()
         ehm = hm.hierarchies['entity']
@@ -716,27 +738,30 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
 
             # Add isa (familiy) edges
             for isa_uri in isa_closure:
-                entities += 1
                 isa_ns, isa_id = ehm.ns_id_from_uri(isa_uri)
-                node_by_uri[isa_uri] = isa_id
-                if isa_id not in nx_graph.nodes:
-                    nx_graph.add_node(isa_id, ns=isa_ns, id=isa_id)
-                ed = {'u_for_edge': id,
-                      'v_for_edge': isa_id,
-                      'weight': 1.0,
-                      'stmt_type': 'isa',
-                      'stmt_hash': isa_uri,
-                      'evidence_count': 1,
-                      'bs': 1.0}
-                if multi:
-                    nx_graph.add_edge(**ed)
-                else:
-                    if ed.pop(id, None):
-                        ed.pop(isa_id, None)
-                    if (id, isa_id) in nx_graph.edges:
-                        nx_graph.edges[(id, isa_id)]['stmt_list'].append(ed)
+                # Check if edge already exists
+                if not _fplx_edge_in_list(multi, (id, isa_id), isa_uri,
+                                          nx_graph):
+                    entities += 1
+                    node_by_uri[isa_uri] = isa_id
+                    if isa_id not in nx_graph.nodes:
+                        nx_graph.add_node(isa_id, ns=isa_ns, id=isa_id)
+                    ed = {'u_for_edge': id,
+                          'v_for_edge': isa_id,
+                          'weight': 1.0,
+                          'stmt_type': 'isa',
+                          'stmt_hash': isa_uri,
+                          'evidence_count': 1,
+                          'bs': 1.0}
+                    if multi:
+                        nx_graph.add_edge(**ed)
                     else:
-                        nx_graph.add_edge(id, isa_id, stmt_list=[ed])
+                        if ed.pop('u_for_edge', None):
+                            ed.pop('v_for_edge', None)
+                        if (id, isa_id) in nx_graph.edges:
+                            nx_graph.edges[(id, isa_id)]['stmt_list'].append(ed)
+                        else:
+                            nx_graph.add_edge(id, isa_id, stmt_list=[ed])
 
             # Add partof (complexes) edges
             for part_of_uri in part_of_closure:
