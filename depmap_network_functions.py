@@ -581,7 +581,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                                   verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
-    df : str or pandas.DataFrame
+    df : str|pandas.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
         DataFrame
     belief_dict : str
