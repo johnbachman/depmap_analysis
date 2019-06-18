@@ -761,7 +761,10 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                         if (id, isa_id) in nx_graph.edges:
                             nx_graph.edges[(id, isa_id)]['stmt_list'].append(ed)
                         else:
-                            nx_graph.add_edge(id, isa_id, stmt_list=[ed])
+                            # The fplx edge is the only edge, add custom
+                            # aggregate bs and weight
+                            nx_graph.add_edge(id, isa_id, stmt_list=[ed],
+                                              bs=1.0, weight=1.0)
 
             # Add partof (complexes) edges
             for part_of_uri in part_of_closure:
