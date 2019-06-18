@@ -639,7 +639,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                     dnf_logger.info('Resetting weight from belief score to '
                                     '1.0 for %s' % str(row['hash']))
                 b_s = bsd[row['hash']]
-                weight = -math.log(max(b_s - 1e-7, 1e-7))
+                weight = -np.log(max(b_s - 1e-7, 1e-7))
                 bs = b_s
             except KeyError:
                 dnf_logger.warning('KeyError for hash: %s is missing' %
@@ -678,8 +678,10 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
         for e in nx_graph.edges:
             # Aggregate belief score: 1-prod(1-bs_i)
             # weight = -log(1-prod(1-bs_i))
-            ag_belief = 1-np.prod(np.fromiter([1 - es['bs'] for es in
-                nx_graph.edges[e]['stmt_list'] if es.get('bs')], dtype=float))
+            pr = 10**-np.finfo(np.longfloat).precision
+            ag_belief = np.longfloat(1.0-np.max([pr, np.prod(np.fromiter(
+                map(lambda s: 1.0 - s['bs'], nx_graph.edges[e]['stmt_list']),
+                dtype=np.longfloat))]))
             nx_graph.edges[e]['bs'] = ag_belief
             nx_graph.edges[e]['weight'] = -np.log(ag_belief)
 
