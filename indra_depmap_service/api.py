@@ -298,10 +298,10 @@ class IndraNetwork:
             if not simple:
                 logger.info('Doing non-simple %s path search' % 'weigthed' if
                             weight else '')
-                # paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
-                #                               source, target, weight)
-                paths = nx.all_shortest_paths(self.nx_md_graph_repr,
+                paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
                                               source, target, weight)
+                # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
+                #                               source, target, weight)
                 return self._loop_paths(paths, **options)
             else:
                 logger.info('Doing simple path search')
