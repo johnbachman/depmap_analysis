@@ -151,10 +151,6 @@ class IndraNetwork:
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
-
-        # Todo MultiDiGrap can't do simple graphs: resolve by loading
-        #  both a MultiDiGraph and a simple DiGraph - find the simple
-        #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
         if not ksp:
             ckwargs = options.copy()
