@@ -581,7 +581,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                                   verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
-    df : str or pandas.DataFrame
+    df : str|pandas.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
         DataFrame
     belief_dict : str
@@ -615,7 +615,10 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
     # Columns to be added as node attributes:
     #   'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
     # Columns to be added as edge attributes
-    #   'stmt_type', 'evidence_count' (used as weight), 'hash'
+    #   'stmt_type', 'evidence_count', 'hash'
+    # Add from external source:
+    #   belief score from provided dict
+    #   famplex edges using entity hierarchies
     if multi:
         nx_graph = nx.MultiDiGraph()
     else:
@@ -636,7 +639,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                     dnf_logger.info('Resetting weight from belief score to '
                                     '1.0 for %s' % str(row['hash']))
                 b_s = bsd[row['hash']]
-                weight = -math.log(max(b_s - 1e-7, 1e-7))
+                weight = -np.log(max(b_s - 1e-7, 1e-7))
                 bs = b_s
             except KeyError:
                 dnf_logger.warning('KeyError for hash: %s is missing' %
@@ -670,7 +673,41 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
     dnf_logger.info('Loaded %i statements into %sDiGraph' %
                     (index, 'Multi' if multi else ''))
 
+    if not multi:
+        dnf_logger.info('Aggregating belief score for DiGraph edge weights')
+        for e in nx_graph.edges:
+            # Aggregate belief score: 1-prod(1-bs_i)
+            # weight = -log(1-prod(1-bs_i))
+            pr = 10**-np.finfo(np.longfloat).precision
+            ag_belief = np.longfloat(1.0-np.max([pr, np.prod(np.fromiter(
+                map(lambda s: 1.0 - s['bs'], nx_graph.edges[e]['stmt_list']),
+                dtype=np.longfloat))]))
+            nx_graph.edges[e]['bs'] = ag_belief
+            nx_graph.edges[e]['weight'] = -np.log(ag_belief)
+
     if include_entity_hierarchies:
+        def _fplx_edge_in_list(multi, edge, check_uri, nx_graph):
+            if multi:
+                e = 0
+                es = nx_graph.edges.get((*edge, e), None)
+                while es:
+                    if es['stmt_type'] in ['isa', 'part_of'] and \
+                            es['stmt_hash'] == check_uri:
+                        return True
+                    else:
+                        e += 1
+                        es = nx_graph.edges.get((*edge, e), None)
+            else:
+                if nx_graph.edges.get(edge):
+                    for es in nx_graph.edges.get(edge).get('stmt_list'):
+                        if es['stmt_type'] in ['isa', 'part_of'] and \
+                                es['stmt_hash'] == check_uri:
+                            return True
+                        else:
+                            continue
+                else:
+                    return False
+
         dnf_logger.info('Fetching entity hierarchy relationsships')
         child_parent_list = get_all_entities()
         ehm = hm.hierarchies['entity']
@@ -691,27 +728,33 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
 
             # Add isa (familiy) edges
             for isa_uri in isa_closure:
-                entities += 1
                 isa_ns, isa_id = ehm.ns_id_from_uri(isa_uri)
-                node_by_uri[isa_uri] = isa_id
-                if isa_id not in nx_graph.nodes:
-                    nx_graph.add_node(isa_id, ns=isa_ns, id=isa_id)
-                ed = {'u_for_edge': id,
-                      'v_for_edge': isa_id,
-                      'weight': 1.0,
-                      'stmt_type': 'isa',
-                      'stmt_hash': isa_uri,
-                      'evidence_count': 1,
-                      'bs': 1.0}
-                if multi:
-                    nx_graph.add_edge(**ed)
-                else:
-                    if ed.pop(id, None):
-                        ed.pop(isa_id, None)
-                    if (id, isa_id) in nx_graph.edges:
-                        nx_graph.edges[(id, isa_id)]['stmt_list'].append(ed)
+                # Check if edge already exists
+                if not _fplx_edge_in_list(multi, (id, isa_id), isa_uri,
+                                          nx_graph):
+                    entities += 1
+                    node_by_uri[isa_uri] = isa_id
+                    if isa_id not in nx_graph.nodes:
+                        nx_graph.add_node(isa_id, ns=isa_ns, id=isa_id)
+                    ed = {'u_for_edge': id,
+                          'v_for_edge': isa_id,
+                          'weight': 1.0,
+                          'stmt_type': 'isa',
+                          'stmt_hash': isa_uri,
+                          'evidence_count': 1,
+                          'bs': 1.0}
+                    if multi:
+                        nx_graph.add_edge(**ed)
                     else:
-                        nx_graph.add_edge(id, isa_id, stmt_list=[ed])
+                        if ed.pop('u_for_edge', None):
+                            ed.pop('v_for_edge', None)
+                        if (id, isa_id) in nx_graph.edges:
+                            nx_graph.edges[(id, isa_id)]['stmt_list'].append(ed)
+                        else:
+                            # The fplx edge is the only edge, add custom
+                            # aggregate bs and weight
+                            nx_graph.add_edge(id, isa_id, stmt_list=[ed],
+                                              bs=1.0, weight=1.0)
 
             # Add partof (complexes) edges
             for part_of_uri in part_of_closure:

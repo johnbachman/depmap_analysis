@@ -2,6 +2,7 @@ import json
 import logging
 import argparse
 import requests
+import numpy as np
 import networkx as nx
 from os import path
 from jinja2 import Template
@@ -57,8 +58,8 @@ class IndraNetwork:
         self.nx_dir_graph_repr = indra_dir_graph
         self.nx_md_graph_repr = indra_multi_dir_graph
         self.nodes = self.nx_dir_graph_repr.nodes
-        self.dir_edges = self.nx_dir_graph_repr.edges
-        self.mdg_edges = self.nx_md_graph_repr.edges
+        self.dir_edges = indra_dir_graph.edges
+        self.mdg_edges = indra_multi_dir_graph.edges
         self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS
@@ -134,8 +135,8 @@ class IndraNetwork:
                    if k not in ['sign', 'weighted']}  # Handled below
         for k, v in kwargs.items():
             if k == 'weighted':
-                logger.info('Doing weighted path search') if v \
-                    else logger.info('Doing unweighted path search')
+                logger.info('Doing %sweighted path search' % 'un' if not v
+                            else '')
                 options['weight'] = 'weight' if v else None
             if k == 'sign':
                 options[k] = 1 if v == 'plus' \
@@ -151,10 +152,6 @@ class IndraNetwork:
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
-
-        # Todo MultiDiGrap can't do simple graphs: resolve by loading
-        #  both a MultiDiGraph and a simple DiGraph - find the simple
-        #  paths in the DiGraph and check them in the Multi-DiGraph.
         ksp = self.find_shortest_paths(**options)
         if not ksp:
             ckwargs = options.copy()
@@ -168,6 +165,9 @@ class IndraNetwork:
                     logger.info('Got parents search result: %s' % repr(ksp))
             else:
                 logger.info('No directed path found')
+        if ksp and not options['weight']:
+            # Sort the results in ksp if non-weighted search
+            ksp = self._sort_stmts(ksp)
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
         return {'paths_by_node_count': ksp,
@@ -298,10 +298,10 @@ class IndraNetwork:
             if not simple:
                 logger.info('Doing non-simple %s path search' % 'weigthed' if
                             weight else '')
-                # paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
-                #                               source, target, weight)
-                paths = nx.all_shortest_paths(self.nx_md_graph_repr,
+                paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
                                               source, target, weight)
+                # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
+                #                               source, target, weight)
                 return self._loop_paths(paths, **options)
             else:
                 logger.info('Doing simple path search')
@@ -390,7 +390,8 @@ class IndraNetwork:
                 if self.verbose > 1:
                     logger.info('Adding stmts and path from %s to path list' %
                                 repr(hash_path))
-                pd = {'stmts': hash_path, 'path': path}
+                pd = {'stmts': hash_path, 'path': path,
+                      'cost': str(self._get_cost(path))}
                 try:
                     if not path_len:
                         result[len(path)].append(pd)
@@ -629,6 +630,32 @@ class IndraNetwork:
 
         # Return True is all filters were passed
         return True
+
+    def _get_cost(self, path, direct=True):
+        if direct:
+            # Return sum of aggregated weights per edge
+            return sum(self.dir_edges[(s, o)]['weight'] for s, o in
+                       zip(path[:-1], path[1:]))
+        else:
+            # Return sum of averaged weights per stmts
+            cost = 0
+            for s, o in zip(path[:-1], path[1:]):
+                ew = []
+                e = self._get_edge(s, o, len(ew), direct)
+                while e:
+                    ew.append(e['weight'])
+                    e = self._get_edge(s, o, len(ew), direct)
+                cost += sum(ew)/len(ew)
+            return cost
+
+    @staticmethod
+    def _sort_stmts(ksp):
+        for l in ksp:
+            res_list = ksp[l]
+            ksp[l] = sorted(res_list,
+                            key=lambda pd: np.longfloat(pd['cost']),
+                            reverse=False)
+        return ksp
 
     def _uri_by_node(self, node):
         """Check existence of node outside function"""
