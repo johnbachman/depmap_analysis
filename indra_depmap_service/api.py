@@ -135,8 +135,8 @@ class IndraNetwork:
                    if k not in ['sign', 'weighted']}  # Handled below
         for k, v in kwargs.items():
             if k == 'weighted':
-                logger.info('Doing weighted path search') if v \
-                    else logger.info('Doing unweighted path search')
+                logger.info('Doing %sweighted path search' % 'un' if not v
+                            else '')
                 options['weight'] = 'weight' if v else None
             if k == 'sign':
                 options[k] = 1 if v == 'plus' \
@@ -165,6 +165,9 @@ class IndraNetwork:
                     logger.info('Got parents search result: %s' % repr(ksp))
             else:
                 logger.info('No directed path found')
+        if ksp and not options['weight']:
+            # Sort the results in ksp if non-weighted search
+            ksp = self._sort_stmts(ksp)
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
         return {'paths_by_node_count': ksp,
