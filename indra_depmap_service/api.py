@@ -387,7 +387,8 @@ class IndraNetwork:
                 if self.verbose > 1:
                     logger.info('Adding stmts and path from %s to path list' %
                                 repr(hash_path))
-                pd = {'stmts': hash_path, 'path': path}
+                pd = {'stmts': hash_path, 'path': path,
+                      'cost': str(self._get_cost(path))}
                 try:
                     if not path_len:
                         result[len(path)].append(pd)
