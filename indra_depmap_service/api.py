@@ -2,6 +2,7 @@ import json
 import logging
 import argparse
 import requests
+import numpy as np
 import networkx as nx
 from os import path
 from jinja2 import Template
@@ -625,6 +626,32 @@ class IndraNetwork:
 
         # Return True is all filters were passed
         return True
+
+    def _get_cost(self, path, direct=True):
+        if direct:
+            # Return sum of aggregated weights per edge
+            return sum(self.dir_edges[(s, o)]['weight'] for s, o in
+                       zip(path[:-1], path[1:]))
+        else:
+            # Return sum of averaged weights per stmts
+            cost = 0
+            for s, o in zip(path[:-1], path[1:]):
+                ew = []
+                e = self._get_edge(s, o, len(ew), direct)
+                while e:
+                    ew.append(e['weight'])
+                    e = self._get_edge(s, o, len(ew), direct)
+                cost += sum(ew)/len(ew)
+            return cost
+
+    @staticmethod
+    def _sort_stmts(ksp):
+        for l in ksp:
+            res_list = ksp[l]
+            ksp[l] = sorted(res_list,
+                            key=lambda pd: np.longfloat(pd['cost']),
+                            reverse=False)
+        return ksp
 
     def _uri_by_node(self, node):
         """Check existence of node outside function"""
