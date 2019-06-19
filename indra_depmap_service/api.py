@@ -58,8 +58,8 @@ class IndraNetwork:
         self.nx_dir_graph_repr = indra_dir_graph
         self.nx_md_graph_repr = indra_multi_dir_graph
         self.nodes = self.nx_dir_graph_repr.nodes
-        self.dir_edges = self.nx_dir_graph_repr.edges
-        self.mdg_edges = self.nx_md_graph_repr.edges
+        self.dir_edges = indra_dir_graph.edges
+        self.mdg_edges = indra_multi_dir_graph.edges
         self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS
