@@ -43,33 +43,32 @@
       'Gap', 'Gef', 'Geranylgeranylation', 'GtpActivation', 'Hydroxylation', 'IncreaseAmount',
       'Inhibition', 'Methylation', 'Myristoylation', 'Palmitoylation', 'Phosphorylation',
       'Ribosylation', 'Sumoylation', 'Translocation', 'Ubiquitination'];
-    const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
-
-    $(document).ready(function() {
-      populateOptions();
-      var stmtFilter = new Choices('#stmt-filter');
-      var nodeFilter = new Choices('#node-filter');
-    });
-
-    function populateOptions() {
-      // Edge filters
-      let ssel = document.getElementById('stmt-filter');
-      for (s of stmtOptions) {
-        let o = document.createElement('option');
-        o.value = s.toLowerCase();
-        o.textContent = s;
-        ssel.appendChild(o);
-      }
-
-      // Node filters
-      let nsel = document.getElementById('node-filter');
-      for (n of nodeOptions) {
-        let o = document.createElement('option');
-        o.value = n;
-        o.textContent = n;
-        nsel.appendChild(o);
-      }      
+    var stmtItems = [];
+    for (s of stmtOptions) {
+      stmtItems.push({
+        value: s.toLowerCase(),
+        label: s,
+        selected: false,
+        disabled: false
+      })
     }
+
+    const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
+    var nodeItems = [];
+    for (let n of nodeOptions) {
+      let sel = false;
+      if (n === 'HGNC') sel = true;
+      nodeItems.push({
+        value: n.toLowerCase(),
+        label: n,
+        selected: sel,
+        disabled: false
+      })
+    }
+    $(document).ready(function() {
+      const stmtFilter = new Choices('#stmt-filter', {choices: stmtItems});
+      const nodeFilter = new Choices('#node-filter', {choices: nodeItems});
+    });
 
     function submitQuery() {
       let beliefEntry = parseFloat(document.getElementById('belief-cutoff').value || 0);
