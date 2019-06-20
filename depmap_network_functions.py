@@ -576,8 +576,8 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     return corr_weight_graph
 
 
-def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
-                                  include_entity_hierarchies=True,
+def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
+                                  multi=False, include_entity_hierarchies=True,
                                   verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
@@ -587,6 +587,9 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
     belief_dict : str
         The file path to a belief dict that is keyed by statement hashes
         corresponding to the statement hashes loaded in df
+    strat_ev_dict : str
+        The file path to a dict keyed by statement hashes containing the
+        stratified evidence count per statement
     multi : bool
         Default: False; Return an nx.MultiDiGraph if True, otherwise
         return an nx.DiGraph
@@ -601,12 +604,15 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
         By default an nx.DiGraph is returned. By setting multi=True,
         an nx.MultiDiGraph is returned instead."""
     bsd = None
+    sed = None
     if isinstance(df, str):
         sif_df = _pickle_open(df)
     else:
         sif_df = df
     if belief_dict:
         bsd = _pickle_open(belief_dict)
+    if strat_ev_dict:
+        sed = _pickle_open(strat_ev_dict)
     else:
         dnf_logger.warning('No belief dict provided, weights will be set to '
                            '1/evidence count')
@@ -618,7 +624,9 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
     #   'stmt_type', 'evidence_count', 'hash'
     # Add from external source:
     #   belief score from provided dict
+    #   stratified evidence count by source
     #   famplex edges using entity hierarchies
+
     if multi:
         nx_graph = nx.MultiDiGraph()
     else:
@@ -633,7 +641,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
             nx_graph.add_node(row['agB_name'],
                             ns=row['agB_ns'], id=row['agB_id'])
         # Add edges
-        if belief_dict:
+        if bsd:
             try:
                 if bsd[row['hash']] == 1 and verbosity > 0:
                     dnf_logger.info('Resetting weight from belief score to '
@@ -642,7 +650,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
                 weight = -np.log(max(b_s - 1e-7, 1e-7))
                 bs = b_s
             except KeyError:
-                dnf_logger.warning('KeyError for hash: %s is missing' %
+                dnf_logger.warning('Hash: %s is missing from belief dict' %
                                    str(row['hash']))
                 weight = 1/row['evidence_count']
                 bs = None
@@ -650,12 +658,22 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, multi=False,
             weight = 1 / row['evidence_count']
             bs = None
 
+        if sed:
+            try:
+                evidence = sed[row['hash']]
+            except KeyError:
+                dnf_logger.warning('Hash: %s is missing from stratified '
+                                   'evidence count fict' % str(row['hash']))
+                evidence = {}
+        else:
+            evidence = {}
         ed = {'u_for_edge': row['agA_name'],
               'v_for_edge': row['agB_name'],
               'weight': weight,
               'stmt_type': row['stmt_type'],
               'stmt_hash': row['hash'],
               'evidence_count': row['evidence_count'],
+              'evidence': evidence,
               'bs': bs}
 
         if multi:
