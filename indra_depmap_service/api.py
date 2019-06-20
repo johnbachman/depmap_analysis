@@ -131,8 +131,8 @@ class IndraNetwork:
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
-        options = {k: v for k, v in kwargs.items()
-                   if k not in ['sign', 'weighted']}  # Handled below
+        options = {k: v for k, v in kwargs.items()  # Handled below
+                   if k not in ['sign', 'weighted']}
         for k, v in kwargs.items():
             if k == 'weighted':
                 logger.info('Doing %sweighted path search' % 'un' if not v
@@ -144,6 +144,9 @@ class IndraNetwork:
             if k == 'edge_hash_blacklist' and options.get(k) and \
                     isinstance(options[k][0], int):
                 options[k] = [str(i) for i in options[k]]
+            if k in ['node_filter', 'stmt_filter']:
+                options[k] = [s.lower() for s in options[k]]
+
         if options['weight'] and options['simple']:
             options['simple'] = False
             logger.warning('Both simple and weigthed path search requested. '
@@ -446,8 +449,8 @@ class IndraNetwork:
 
         # If both source and target are given
         if source_ns and target_ns:
-            if source_ns in options['node_filter'] and \
-                    target_ns in options['node_filter']:
+            if source_ns.lower() in options['node_filter'] and \
+                    target_ns.lower() in options['node_filter']:
                 if self.verbose > 1:
                     logger.info('Looking for common parents using namespaces '
                                 'found in network')
@@ -461,12 +464,12 @@ class IndraNetwork:
 
         # If only target ns is given
         if not source_ns and target_ns:
-            if target_ns in options['node_filter']:
+            if target_ns.lower() in options['node_filter']:
                 if self.verbose > 1:
                     logger.info('No namespace found for %s, trying HGNC and '
                                 'FPLX.' % source_id)
                 for sns in ['HGNC', 'FPLX']:
-                    if sns not in options['node_filter']:
+                    if sns.lower() not in options['node_filter']:
                         continue
                     else:
                         cp = dnf.common_parent(ns1=sns, id1=source_id,
@@ -480,12 +483,12 @@ class IndraNetwork:
 
         # If only source ns is given
         if not target_ns and source_ns:
-            if source_ns in options['node_filter']:
+            if source_ns.lower() in options['node_filter']:
                 if self.verbose > 1:
                     logger.info('No namespace found for %s, trying HGNC and '
                                 'FPLX.' % target_id)
                 for tns in ['HGNC', 'FPLX']:
-                    if tns not in options['node_filter']:
+                    if tns.lower() not in options['node_filter']:
                         continue
                     else:
                         cp = dnf.common_parent(ns1=source_ns, id1=source_id,
@@ -503,10 +506,10 @@ class IndraNetwork:
                 logger.info('No namespaces found for %s and %s, trying HGNC '
                             'and FPLX' % (source_id, target_id))
             for source_ns in ['HGNC', 'FPLX']:
-                if source_ns not in options['node_filter']:
+                if source_ns.lower() not in options['node_filter']:
                     continue
                 for target_ns in ['HGNC', 'FPLX']:
-                    if target_ns not in options['node_filter']:
+                    if target_ns.lower() not in options['node_filter']:
                         continue
                     cp = dnf.common_parent(ns1=source_ns, id1=source_id,
                                            ns2=target_ns, id2=target_id)
@@ -542,8 +545,9 @@ class IndraNetwork:
             logger.info('Building evidence for path %s' % str(path))
         for subj, obj in zip(path[:-1], path[1:]):
             # Check node filter
-            if self.nodes[subj]['ns'] not in options['node_filter'] \
-                    or self.nodes[obj]['ns'] not in options['node_filter']:
+            if self.nodes[subj]['ns'].lower() not in \
+                    options['node_filter'] or self.nodes[obj]['ns'].lower() \
+                    not in options['node_filter']:
                 if self.verbose:
                     logger.info('Node namespace %s or %s not part of '
                                 'acceptable namespaces %s' %
@@ -602,8 +606,7 @@ class IndraNetwork:
         """Returns True if edge_stmt passes the below filters"""
         # Failsafe for empty statements are sent
         if not edge_stmt:
-            if self.verbose:
-                logger.info('No edge statement')
+            logger.warning('No edge statement')
             return False
 
         # Filter belief score
@@ -613,9 +616,9 @@ class IndraNetwork:
             return False
 
         # Filter statement type
-        if edge_stmt['stmt_type'].lower() not in options['stmt_filter']:
+        if edge_stmt['stmt_type'].lower() in options['stmt_filter']:
             if self.verbose > 4:
-                logger.info('statement type %s not found in filter %s'
+                logger.info('statement type %s found in filter %s'
                             % (edge_stmt['stmt_type'],
                                str(options['stmt_filter'])))
             return False
