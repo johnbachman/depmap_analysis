@@ -235,28 +235,28 @@ class IndraNetwork:
                         (ckwargs['source'], ckwargs['target']))
 
         # Get closures for source and target
-        source_parent_closure = self._get_closure(source)
-        target_parent_closure = self._get_closure(target)
+        source_parents = self._get_parents(source)
+        target_parents = self._get_parents(target)
         if self.verbose > 3:
-            logger.info('Got source_parent_closure: %s' %
-                        repr(source_parent_closure))
-            logger.info('Got target_parent_closure: %s' %
-                        repr(target_parent_closure))
+            logger.info('Got source_parents: %s' %
+                        repr(source_parents))
+            logger.info('Got target_parents: %s' %
+                        repr(target_parents))
 
         # First try current source with all target parents
-        if target_parent_closure and not source_parent_closure:
-            for tp_uri in target_parent_closure:
+        if target_parents and not source_parents:
+            for tp_uri in target_parents:
                 ckwargs['target'] = self.node_by_uri[tp_uri]
                 if self.verbose > 4:
-                    logger.info('Parents search: source=%s, target=%s' % 
+                    logger.info('Parents search: source=%s, target=%s' %
                                 (ckwargs['source'], ckwargs['target']))
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
                     return ksp
 
         # Then, try current target with all source parents
-        if source_parent_closure and not target_parent_closure:
-            for sp_uri in source_parent_closure:
+        if source_parents and not target_parents:
+            for sp_uri in source_parents:
                 ckwargs['source'] = self.node_by_uri[sp_uri]
                 if self.verbose > 4:
                     logger.info('Parents search: source=%s, target=%s' %
@@ -266,9 +266,9 @@ class IndraNetwork:
                     return ksp
 
         # Lastly try all possible pairs of source and target parents
-        if source_parent_closure and target_parent_closure:
-            for sp_uri, tp_uri in product(source_parent_closure,
-                                          target_parent_closure):
+        if source_parents and target_parents:
+            for sp_uri, tp_uri in product(source_parents,
+                                          target_parents):
                 ckwargs['source'] = self.node_by_uri[sp_uri]
                 ckwargs['target'] = self.node_by_uri[tp_uri]
                 if self.verbose > 4:
@@ -652,16 +652,17 @@ class IndraNetwork:
                             reverse=False)
         return ksp
 
-    def _uri_by_node(self, node):
+    def uri_by_node(self, node):
         """Check existence of node outside function"""
         node_id = self.nodes[node]['id']
         node_ns = self.nodes[node]['ns']
         return self.ehm.get_uri(id=node_id, ns=node_ns)
 
-    def _get_closure(self, node):
+    def _get_parents(self, node):
         if self.nodes.get(node):
-            return set(self.ehm.isa_or_partof_closure.get(self._uri_by_node(
-                node), []))
+            id = node
+            ns = self.nodes[node]['ns']
+            return self.ehm.get_parents(uri=self.ehm.get_uri(ns, id))
         else:
             return set()
 
