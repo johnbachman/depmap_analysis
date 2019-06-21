@@ -709,7 +709,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                 e = 0
                 es = nx_graph.edges.get((*edge, e), None)
                 while es:
-                    if es['stmt_type'] in ['isa', 'part_of'] and \
+                    if es['stmt_type'] == 'fplx' and \
                             es['stmt_hash'] == check_uri:
                         return True
                     else:
@@ -718,7 +718,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
             else:
                 if nx_graph.edges.get(edge):
                     for es in nx_graph.edges.get(edge).get('stmt_list'):
-                        if es['stmt_type'] in ['isa', 'part_of'] and \
+                        if es['stmt_type'] == 'fplx' and \
                                 es['stmt_hash'] == check_uri:
                             return True
                         else:
