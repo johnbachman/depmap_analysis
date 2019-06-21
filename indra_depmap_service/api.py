@@ -13,6 +13,7 @@ from networkx import NodeNotFound
 from flask import Flask, request, abort, Response
 
 from indra_db.util import dump_sif
+from indra.config import CONFIG_DICT
 
 import depmap_network_functions as dnf
 from util.io_functions import _pickle_open, _dump_it_to_pickle
@@ -30,7 +31,12 @@ INDRA_MDG_CACHE = path.join(CACHE,
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_dump_20190417.pkl')
 
-GRND_URI = 'http://10.119.88.95:8001/ground'
+GRND_URI = None
+try:
+    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
+except KeyError:
+    logger.warning('Indra Grounding service not available. Add '
+                   'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 MAX_PATHS = 50
 
@@ -156,18 +162,18 @@ class IndraNetwork:
         logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
         ksp = self.find_shortest_paths(**options)
-        if not ksp:
+        if not ksp and GRND_URI:
             ckwargs = options.copy()
             ksp = self.grounding_fallback(**ckwargs)
-            if not ksp and kwargs['fplx_expand']:
-                logger.info('No directed path found, looking for paths '
-                            'connected by common parents of source and/or '
-                            'target')
-                ksp = self.try_parents(**ckwargs)
-                if self.verbose > 2:
-                    logger.info('Got parents search result: %s' % repr(ksp))
-            else:
-                logger.info('No directed path found')
+        if not ksp and kwargs['fplx_expand']:
+            logger.info('No directed path found, looking for paths '
+                        'connected by common parents of source and/or '
+                        'target')
+            ksp = self.try_parents(**ckwargs)
+            if self.verbose > 2:
+                logger.info('Got parents search result: %s' % repr(ksp))
+        else:
+            logger.info('No directed path found')
         if ksp and not options['weight']:
             # Sort the results in ksp if non-weighted search
             ksp = self._sort_stmts(ksp)
