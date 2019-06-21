@@ -6,6 +6,7 @@ import json
 import math
 import logging
 import itertools as itt
+from decimal import Decimal
 from math import ceil, log10
 from collections import Mapping
 from collections import OrderedDict
@@ -29,6 +30,8 @@ from util.io_functions import _pickle_open
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
+
+np.seterr(all='raise')
 
 
 def rawincount(filename):
@@ -605,6 +608,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
         an nx.MultiDiGraph is returned instead."""
     bsd = None
     sed = None
+    np_prec = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
     if isinstance(df, str):
         sif_df = _pickle_open(df)
     else:
@@ -653,7 +657,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                 dnf_logger.warning('Hash: %s is missing from belief dict' %
                                    str(row['hash']))
                 weight = 1/row['evidence_count']
-                bs = None
+                bs = np_prec*10
         else:
             weight = 1 / row['evidence_count']
             bs = None
@@ -696,12 +700,19 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
         for e in nx_graph.edges:
             # Aggregate belief score: 1-prod(1-bs_i)
             # weight = -log(1-prod(1-bs_i))
-            pr = 10**-np.finfo(np.longfloat).precision
-            ag_belief = np.longfloat(1.0-np.max([pr, np.prod(np.fromiter(
-                map(lambda s: 1.0 - s['bs'], nx_graph.edges[e]['stmt_list']),
-                dtype=np.longfloat))]))
-            nx_graph.edges[e]['bs'] = ag_belief
-            nx_graph.edges[e]['weight'] = -np.log(ag_belief)
+            try:
+                ag_belief = np.longfloat(1.0) - np.max([np_prec*10,
+                    np.prod(np.fromiter(map(lambda s: np.longfloat(1.0) - s['bs'],
+                    nx_graph.edges[e]['stmt_list']), dtype=np.longfloat))])
+                nx_graph.edges[e]['bs'] = ag_belief
+                nx_graph.edges[e]['weight'] = -np.log(ag_belief)
+            except FloatingPointError as err:
+                dnf_logger.warning('%s for edge %s. Aggregated belief score '
+                                   'reset to %.0e' %
+                                   (repr(err), e, Decimal(np_prec*10)))
+                ag_belief = np_prec*10
+                nx_graph.edges[e]['bs'] = ag_belief
+                nx_graph.edges[e]['weight'] = -np.log(ag_belief)
 
     if include_entity_hierarchies:
         def _fplx_edge_in_list(multi, edge, check_uri, nx_graph):
