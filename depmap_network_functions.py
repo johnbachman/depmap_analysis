@@ -609,6 +609,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
     bsd = None
     sed = None
     np_prec = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
+    ns_id_to_nodename = {}
     if isinstance(df, str):
         sif_df = _pickle_open(df)
     else:
@@ -641,9 +642,11 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
         if row['agA_name'] not in nx_graph.nodes:
             nx_graph.add_node(row['agA_name'],
                             ns=row['agA_ns'], id=row['agA_id'])
+            ns_id_to_nodename[(row['agA_ns'], row['agA_id'])] = row['agA_name']
         if row['agB_name'] not in nx_graph.nodes:
             nx_graph.add_node(row['agB_name'],
                             ns=row['agB_ns'], id=row['agB_id'])
+            ns_id_to_nodename[(row['agB_ns'], row['agB_id'])] = row['agB_name']
         # Add edges
         if bsd:
             try:
@@ -749,22 +752,30 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
         dnf_logger.info('Adding entity relations as edges in graph')
         entities = 0
         for ns, id, uri in full_entity_list:
-            node_by_uri[uri] = id
-            if id not in nx_graph.nodes:
-                nx_graph.add_node(id, ns=ns, id=id)
+            node = id
+            # Get name in case it's different than id
+            if ns_id_to_nodename.get((ns, id), None):
+                node = ns_id_to_nodename[(ns, id)]
+
+            if node not in nx_graph.nodes:
+                nx_graph.add_node(node, ns=ns, id=id)
+            node_by_uri[uri] = node
 
             # Add famplex edge
             for puri in ehm.get_parents(uri):
                 pns, pid = ehm.ns_id_from_uri(puri)
+                pnode = pid
+                if ns_id_to_nodename.get((pns, pid), None):
+                    pnode = ns_id_to_nodename[(pns, pid)]
+                node_by_uri[puri] = pnode
+                if pnode not in nx_graph.nodes:
+                    nx_graph.add_node(pnode, ns=pns, id=pid)
                 # Check if edge already exists
-                if not _fplx_edge_in_list(multi, (id, pid), puri,
+                if not _fplx_edge_in_list(multi, (node, pnode), puri,
                                           nx_graph):
                     entities += 1
-                    node_by_uri[puri] = pid
-                    if pid not in nx_graph.nodes:
-                        nx_graph.add_node(pid, ns=pns, id=pid)
-                    ed = {'u_for_edge': id,
-                          'v_for_edge': pid,
+                    ed = {'u_for_edge': node,
+                          'v_for_edge': pnode,
                           'weight': 1.0,
                           'stmt_type': 'fplx',
                           'stmt_hash': puri,
@@ -775,17 +786,18 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                     else:
                         if ed.pop('u_for_edge', None):
                             ed.pop('v_for_edge', None)
-                        if (id, pid) in nx_graph.edges:
-                            nx_graph.edges[(id, pid)]['stmt_list'].append(ed)
+                        if (node, pnode) in nx_graph.edges:
+                            nx_graph.edges[(node, pnode)]['stmt_list'].append(ed)
                         else:
                             # The fplx edge is the only edge, add custom
                             # aggregate bs and weight
-                            nx_graph.add_edge(id, pid, stmt_list=[ed],
+                            nx_graph.add_edge(node, pnode, stmt_list=[ed],
                                               bs=1.0, weight=1.0)
 
         dnf_logger.info('Loaded %d entity relations into %sDiGraph' %
                         (entities, 'Multi' if multi else ''))
         nx_graph.graph['node_by_uri'] = node_by_uri
+        nx_graph.graph['node_by_ns_id'] = ns_id_to_nodename
     return nx_graph
 
 
