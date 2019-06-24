@@ -120,8 +120,6 @@ class IndraNetwork:
         fplx_expand: Bool
             If True, when no path is found in the initial search, look for
             paths between the parents of the source and target
-        simple: Bool
-            If True, do a simple path search
         k_shortest: Bool|int
             An integer stating the maximum number of directed paths to return
             in the result. The maximum allowed value is 50. If False,
@@ -133,7 +131,7 @@ class IndraNetwork:
         """
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
-                     'simple', 'k_shortest']
+                     'k_shortest']
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
@@ -152,11 +150,6 @@ class IndraNetwork:
                 options[k] = [str(i) for i in options[k]]
             if k in ['node_filter', 'stmt_filter']:
                 options[k] = [s.lower() for s in options[k]]
-
-        if options['weight'] and options['simple']:
-            options['simple'] = False
-            logger.warning('Both simple and weigthed path search requested. '
-                           'Doing weigthed search only.')
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Query translated to: %s' % repr(options))
@@ -287,47 +280,31 @@ class IndraNetwork:
         # If we get this far, no path was found
         return {}
 
-    def find_shortest_path(self, source, target, weight, simple, **options):
+    def find_shortest_path(self, source, target, weight, **options):
         """Returns a list of nodes representing a shortest path"""
         try:
-            if not simple:
-                path = nx.shortest_path(self.nx_dir_graph_repr, source, target,
-                                        weight)
-                return {len(path): [{'path': path,
-                    'stmts': self._get_hash_path(path, **options)}]}
-            else:
-                return self._find_shortest_simple_paths(source, target,
-                                                        weight, **options)
+            return self._loop_paths(nx.shortest_path(self.nx_dir_graph_repr,
+                                                     source, target, weight),
+                                    **options)
         except NodeNotFound or nx.NetworkXNoPath:
             return {}
 
-    def find_shortest_paths(self, source, target, weight, simple, **options):
+    def find_shortest_paths(self, source, target, weight, **options):
         """Returns a list of shortest paths in ascending order"""
         try:
-            if not simple:
-                logger.info('Doing non-simple %s path search' % 'weigthed' if
-                            weight else '')
-                paths = nx.all_shortest_paths(self.nx_dir_graph_repr,
-                                              source, target, weight)
-                # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
-                #                               source, target, weight)
-                return self._loop_paths(paths, **options)
-            else:
-                logger.info('Doing simple path search')
-                return self._find_shortest_simple_paths(source, target,
-                                                        weight, **options)
+            logger.info('Doing simple %s path search' % 'weigthed' if weight
+                        else '')
+            paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
+                                     source, target, weight)
+            # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
+            #                               source, target, weight)
+            return self._loop_paths(paths, **options)
         except nx.NodeNotFound as e:
             logger.warning(repr(e))
             return {}
         except nx.NetworkXNoPath as e:
             logger.warning(repr(e))
             return {}
-
-    def _find_shortest_simple_paths(self, source, target, weight, **options):
-        """Returns a list of shortest simple paths in ascending order"""
-        simple_paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
-                                                source, target, weight)
-        return self._loop_paths(simple_paths, **options)
 
     def find_common_targets(self, source, target, **options):
         """Returns a list of statement(?) pairs that explain common targets
