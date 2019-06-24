@@ -39,6 +39,7 @@ except KeyError:
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 MAX_PATHS = 50
+MAX_SKIP = 1000
 
 
 def _todays_date():
@@ -364,11 +365,17 @@ class IndraNetwork:
             False
         result = {}
         added_paths = 0
+        skipped_paths = 0
         for path in paths_gen:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found all %d shortest paths, returning results.' %
                             self.MAX_PATHS)
+                return result
+            if skipped_paths > MAX_SKIP:
+                logger.warning('Reached MAX_SKIP (%d) before finding all %d '
+                               'shortest paths. Returning search.' %
+                               (MAX_SKIP, MAX_PATHS))
                 return result
 
             hash_path = self._get_hash_path(path, **options)
@@ -405,6 +412,8 @@ class IndraNetwork:
                     except KeyError as ke:
                         logger.warning('Unexpected KeyError: ' + repr(ke))
                         raise ke
+            else:
+                skipped_paths += 1
         if self.verbose > 2:
             logger.info('Done looping paths. Returning result: %s' %
                         repr(result))
