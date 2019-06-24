@@ -530,9 +530,9 @@ class IndraNetwork:
                     'target_ns': target_ns, 'target_id': target_id,
                     'common_parents': sorted(list(cp))}
 
-    def _get_edge(self, s, o, index, directed):
+    def _get_edge(self, s, o, index, simple_graph):
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
-        if directed:
+        if simple_graph:
             try:
                 stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
             except IndexError:
@@ -542,9 +542,9 @@ class IndraNetwork:
         else:
             return self.mdg_edges.get((s, o, index))
 
-    def _get_hash_path(self, path, simple_dir=True, **options):
+    def _get_hash_path(self, path, simple_graph=True, **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
-        the n nodes in path. If simple_dir is True, query edges from DiGraph
+        the n nodes in path. If simple_graph is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
         hash_path = []
         if self.verbose:
@@ -574,7 +574,7 @@ class IndraNetwork:
             e = 0
 
             # Get first edge statement
-            edge_stmt = self._get_edge(subj, obj, e, simple_dir)
+            edge_stmt = self._get_edge(subj, obj, e, simple_graph)
             if self.verbose > 3:
                 logger.info('First edge stmt %s' % repr(edge_stmt))
 
@@ -595,7 +595,7 @@ class IndraNetwork:
 
                 # Incr statement index, get next edge statement
                 e += 1
-                edge_stmt = self._get_edge(subj, obj, e, simple_dir)
+                edge_stmt = self._get_edge(subj, obj, e, simple_graph)
 
             # If edges list contains anything, append to hash_path list
             if edges:
