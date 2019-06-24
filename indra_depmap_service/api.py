@@ -172,7 +172,7 @@ class IndraNetwork:
             ksp = self.try_parents(**ckwargs)
             if self.verbose > 2:
                 logger.info('Got parents search result: %s' % repr(ksp))
-        else:
+        elif not ksp:
             logger.info('No directed path found')
         if ksp and not options['weight']:
             # Sort the results in ksp if non-weighted search
