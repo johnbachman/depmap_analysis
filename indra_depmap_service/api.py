@@ -89,8 +89,8 @@ class IndraNetwork:
         target: str
             the target for the path
         stmt_filter: [str]
-            a list of valid indra statement or FamPlex types *to include* in
-            the path
+            a list of valid indra statement types or FamPlex (as 'isa' or
+            'part_of') child-parent connections *to exclude* in the path
         node_filter: [str]
             a list of node namespaces *to include* in the path
         node_blacklist: [str]

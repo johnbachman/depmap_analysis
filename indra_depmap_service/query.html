@@ -93,15 +93,11 @@
       for (c of document.getElementById('stmt-filter').children) {
         stmtFilterList.push(c.value)
       }
-      if (document.getElementById('fplx-fam-edges').checked) {
+      if (!document.getElementById('fplx-fam-edges').checked) {
         stmtFilterList.push('isa')
       }
-      if (document.getElementById('fplx-cplx-edges').checked) {
+      if (!document.getElementById('fplx-cplx-edges').checked) {
         stmtFilterList.push('part_of')
-      }
-      if (stmtFilterList.length === 0) {
-        alert('Must select at least one statement type or FamPlex entity type to include in path');
-        return;
       }
       var nodeBlackList = [];
       for (nn of document.getElementById('node-blacklist').value.split(',')) {
