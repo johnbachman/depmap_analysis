@@ -702,8 +702,10 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
             # weight = -log(1-prod(1-bs_i))
             try:
                 ag_belief = np.longfloat(1.0) - np.max([np_prec*10,
-                    np.prod(np.fromiter(map(lambda s: np.longfloat(1.0) - s['bs'],
-                    nx_graph.edges[e]['stmt_list']), dtype=np.longfloat))])
+                    np.prod(np.fromiter(map(
+                        lambda s: np.longfloat(1.0) - s['bs'],
+                        nx_graph.edges[e]['stmt_list']),
+                        dtype=np.longfloat))])
                 nx_graph.edges[e]['bs'] = ag_belief
                 nx_graph.edges[e]['weight'] = -np.log(ag_belief)
             except FloatingPointError as err:
