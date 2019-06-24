@@ -712,9 +712,17 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                 nx_graph.edges[e]['bs'] = ag_belief
                 nx_graph.edges[e]['weight'] = -np.log(ag_belief)
             except FloatingPointError as err:
-                dnf_logger.warning('%s for edge %s. Aggregated belief score '
-                                   'reset to %.0e' %
-                                   (repr(err), e, Decimal(np_prec*10)))
+                if verbosity > 3:
+                    bs_list = [(s['stmt_hash'], s['bs'])
+                               for s in nx_graph.edges[e]['stmt_list']]
+                    dnf_logger.warning('%s for edge %s. Hash - Belief score '
+                        'list for edge statements: %s. Aggregated belief '
+                        'score reset to %.0e' %
+                        (repr(err), e, bs_list, Decimal(np_prec * 10)))
+                else:
+                    dnf_logger.warning('%s for edge %s. Aggregated belief '
+                                       'score reset to %.0e' %
+                                       (repr(err), e, Decimal(np_prec*10)))
                 ag_belief = np_prec*10
                 nx_graph.edges[e]['bs'] = ag_belief
                 nx_graph.edges[e]['weight'] = -np.log(ag_belief)
