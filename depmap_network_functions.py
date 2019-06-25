@@ -637,7 +637,11 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
     else:
         nx_graph = nx.DiGraph()
     index = 0
+    skipped = 0
     for index, row in sif_df.iterrows():
+        if row['agA_name'] is None or row['agB_name'] is None:
+            skipped += 1
+            continue
         # Add non-existing nodes
         if row['agA_name'] not in nx_graph.nodes:
             nx_graph.add_node(row['agA_name'],
@@ -650,15 +654,16 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
         # Add edges
         if bsd:
             try:
-                if bsd[row['hash']] == 1 and verbosity > 0:
+                if bsd[row['hash']] == 1 and verbosity:
                     dnf_logger.info('Resetting weight from belief score to '
                                     '1.0 for %s' % str(row['hash']))
                 b_s = bsd[row['hash']]
                 weight = -np.log(max(b_s - 1e-7, 1e-7))
                 bs = b_s
             except KeyError:
-                dnf_logger.warning('Hash: %s is missing from belief dict' %
-                                   str(row['hash']))
+                if verbosity > 1:
+                    dnf_logger.warning('Hash: %s is missing from belief dict' %
+                                       str(row['hash']))
                 weight = 1/row['evidence_count']
                 bs = np_prec*10
         else:
@@ -695,8 +700,10 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
             else:
                 nx_graph.add_edge(row['agA_name'], row['agB_name'],
                                   stmt_list=[ed])
-    dnf_logger.info('Loaded %i statements into %sDiGraph' %
-                    (index, 'Multi' if multi else ''))
+    if skipped:
+        dnf_logger.warning('Skipped %d edges with None as node' % skipped)
+    dnf_logger.info('Loaded %d statements into %sDiGraph' %
+                    (index-skipped, 'Multi' if multi else ''))
 
     if not multi:
         dnf_logger.info('Aggregating belief score for DiGraph edge weights')
