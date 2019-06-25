@@ -778,10 +778,17 @@ if __name__ == '__main__':
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', default=5000, type=int)
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('--cache', nargs=2, help='Provide files for the '
+        'networks instead of reading the default parameters. '
+        'Usage: --cache <DiGraph pickle> <MultiDiGraph pickle>')
     parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
 
-    if args.test:
+    if args.cache:
+        logger.info('Loading provided network files')
+        INDRA_DG_CACHE = args.cache[0]
+        INDRA_MDG_CACHE = args.cache[1]
+    elif args.test:
         logger.info('Running test network')
         INDRA_DG_CACHE = TEST_DG_CACHE
         INDRA_MDG_CACHE = TEST_MDG_CACHE
