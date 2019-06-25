@@ -27,9 +27,9 @@ CACHE = path.join(HERE, '_cache')
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
 INDRA_MDG_CACHE = path.join(CACHE,
-                            'nx_multi_digraph_db_refresh_dump_20190620.pkl')
+                            'nx_bs_fam_multi_digraph_db_dump_20190417.pkl')
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
-INDRA_DG_CACHE = path.join(CACHE, 'nx_digraph_db_refresh_dump_20190620.pkl')
+INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_dump_20190417.pkl')
 
 GRND_URI = None
 try:
