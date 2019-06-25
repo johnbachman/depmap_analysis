@@ -616,11 +616,11 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
         sif_df = df
     if belief_dict:
         bsd = _pickle_open(belief_dict)
-    if strat_ev_dict:
-        sed = _pickle_open(strat_ev_dict)
     else:
         dnf_logger.warning('No belief dict provided, weights will be set to '
                            '1/evidence count')
+    if strat_ev_dict:
+        sed = _pickle_open(strat_ev_dict)
     # Add as nodes:
     #   'agA_name', 'agB_name'
     # Columns to be added as node attributes:
