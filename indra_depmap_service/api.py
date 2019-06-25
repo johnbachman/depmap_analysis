@@ -652,8 +652,9 @@ class IndraNetwork:
                             reverse=False)
         return ksp
 
-    def uri_by_node(self, node):
-        """Check existence of node outside function"""
+    def _uri_by_node(self, node):
+        """Return the fplx URI for the provided node"""
+        # Check existence of node outside function
         node_id = self.nodes[node]['id']
         node_ns = self.nodes[node]['ns']
         return self.ehm.get_uri(id=node_id, ns=node_ns)
