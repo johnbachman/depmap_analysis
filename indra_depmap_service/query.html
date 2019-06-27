@@ -288,12 +288,23 @@
             let dbLink = '';
             if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
             else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
+            let sourceBadges = generateSourceBadges(stmt);
             htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
-              stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+              stmt.stmt_type + ', ' + stmt.obj + '</a>' + sourceBadges + '<br>'
           }
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
+    }
+
+    function generateSourceBadges(stmt) {
+      let htmlString = '';
+      let badgeStart = '<span class="badge badge-secondary badge-pill float-right source">';
+      let badgeEnd = '</span>';
+      for (source in stmt.evidence) {
+        htmlString += badgeStart + source + ': ' + stmt.evidence[source].toString() + badgeEnd
+      }
+      return htmlString
     }
 
     function generateTargetLinkout(pathPair) {
