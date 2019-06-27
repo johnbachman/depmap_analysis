@@ -121,6 +121,7 @@ dep_map_script_log*
 *.tex
 *.ps
 *.png
+*.pyc
 
 # user added directories
 neighbor_lookup/
