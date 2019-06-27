@@ -172,7 +172,7 @@ class IndraNetwork:
             # Sort the results in ksp if non-weighted search
             ksp = self._sort_stmts(ksp)
         ct = self.find_common_targets(**options)
-        cp = self.get_common_parents(**options)
+        cp = list(self.get_common_parents(**options))
         return {'paths_by_node_count': ksp,
                 'common_targets': ct,
                 'common_parents': cp}
