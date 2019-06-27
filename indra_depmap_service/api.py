@@ -858,6 +858,11 @@ def process_query():
     logger.info('------------------------------------')
 
     try:
+        if 'test' in request.json and request.json.get('test', False):
+            return Response(json.dumps({'paths_by_node_count': {}, 
+                                        'common_targets': [],
+                                        'common_parents': [] 
+                                        }), mimetype='application/json')
         result = indra_network.handle_query(**request.json.copy())
         logger.info('Query resolved at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
