@@ -272,9 +272,8 @@
       let htmlString = '';
       for (edgeList of stmtsArray) {
         if (edgeList.length > 0) {
-          htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
-          '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-          edgeList.length + '</span><br>';
+          htmlString += '<h5><b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj +
+          '</b><span class="float-right">Support:' + edgeList.length + '</span></h5>';
           for (stmt of edgeList) {
             let dbLink = '';
             if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
@@ -301,9 +300,8 @@
     function generateTargetLinkout(pathPair) {
       let htmlString = '';
       for (path of pathPair) {
-        htmlString += '<b>' + path[0].subj + ' &rarr; ' + path[0].obj + 
-        '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-        path.length + '</span><br>';
+        htmlString += '<h5><b>' + path[0].subj + ' &rarr; ' + path[0].obj +
+        '</b><span class="float-right">Support: ' + path.length + '</span></h5>';
         for (stmt of path) {
           let dbLink = '';
           if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
