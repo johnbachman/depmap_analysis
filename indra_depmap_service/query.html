@@ -21,16 +21,6 @@
   <!-- Include Choices JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-  <style type="text/css">
-    a {
-      target-new: tab;
-    }
-    .choices__list--multiple .choices__item {
-      background-color: #007bff;
-      border: #007bff;
-    }
-  </style>
-
   <!-- custom scripts -->
   <script type="text/javascript">
     const SUBMIT_URL = 'http://localhost:5000/query/submit';
@@ -360,6 +350,37 @@
     .placeholder {
       display: inline-block;
     }
+    a {
+      target-new: tab;
+    }
+    .choices__list--multiple .choices__item {
+      background-color: #007bff;
+      border: #007bff;
+    }
+
+    /* Badge color coding */
+    /* Readers */
+    .source-medscan {color: white; background-color: #7fc97f}
+    .source-rlimsp {color: white; background-color: #beaed4}
+    .source-trips {color: white; background-color: #fdc086}
+    .source-sparser {color: darkgreen; background-color: #ffff99}
+    .source-reach {color: white; background-color: #386cb0}
+    .source-isi {color: white; background-color: #f0027f}
+    /* databases */
+    .source-phosphosite {color: white; background-color: #a6cee3}
+    .source-cbn {color: white; background-color: #1f78b4}
+    .source-pc11 {color: white; background-color: #b2df8a}
+    .source-tees {color: white; background-color: #33a02c}
+    .source-geneways {color: white; background-color: #fb9a99}
+    .source-biopax {color: white; background-color: #e31a1c}
+    .source-bel {color: white; background-color: #fdbf6f}
+    .source-bel_lc {color: white; background-color: #fdbf6f}
+    .source-signor {color: white; background-color: #ff7f00}
+    .source-biogrid {color: white; background-color: #cab2d6}
+    .source-tas {color: white; background-color: #6a3d9a}
+    .source-lincs_drug {color: navy; background-color: #ffff99}
+    .source-hprd {color: white; background-color: #b15928}
+    .source-trrust {color: white; background-color: #ff4612}
   </style>
 </head>
 <body>
