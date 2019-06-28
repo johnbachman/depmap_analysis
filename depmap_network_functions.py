@@ -610,6 +610,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
     sed = None
     np_prec = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
     ns_id_to_nodename = {}
+    readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
     if isinstance(df, str):
         sif_df = _pickle_open(df)
     else:
@@ -679,6 +680,8 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                 evidence = {}
         else:
             evidence = {}
+        curated = False if not evidence else (False if all(src.lower() in
+            readers for src in evidence) else True)
         ed = {'u_for_edge': row['agA_name'],
               'v_for_edge': row['agB_name'],
               'weight': weight,
@@ -686,6 +689,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
               'stmt_hash': row['hash'],
               'evidence_count': row['evidence_count'],
               'evidence': evidence,
+              'curated': curated,
               'bs': bs}
 
         if multi:
