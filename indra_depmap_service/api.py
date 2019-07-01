@@ -651,8 +651,8 @@ class IndraNetwork:
         for l in ksp:
             res_list = ksp[l]
             ksp[l] = sorted(res_list,
-                            key=lambda pd: np.longfloat(pd['cost']),
-                            reverse=False)
+                            key=lambda pd: min(len(sl) for sl in pd['stmts']),
+                            reverse=True)
         return ksp
 
     def _uri_by_node(self, node):
