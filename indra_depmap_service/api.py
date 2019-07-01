@@ -115,9 +115,9 @@ class IndraNetwork:
         direct_only: Bool **currently not implemented**
             Placeholder for future implementation of allowing to filter edges
             on the annotation 'direct' in indra statements
-        curated_db_only: Bool **currently not implemented**
-            Placeholder for future implementation allowing filtering to edges
-            that are sourced from curated databases only
+        curated_db_only: Bool
+            Filter results to only allow edges that are sourced from curated
+            databases
         fplx_expand: Bool
             If True, when no path is found in the initial search, look for
             paths between the parents of the source and target
@@ -132,7 +132,7 @@ class IndraNetwork:
         """
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
-                     'k_shortest']
+                     'k_shortest', 'curated_db_only']
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
@@ -596,7 +596,7 @@ class IndraNetwork:
 
     def _pass_stmt(self, edge_stmt, **options):
         """Returns True if edge_stmt passes the below filters"""
-        # Failsafe for empty statements are sent
+        # Failsafe for empty statements
         if not edge_stmt:
             logger.warning('No edge statement')
             return False
@@ -613,6 +613,9 @@ class IndraNetwork:
                 logger.info('statement type %s found in filter %s'
                             % (edge_stmt['stmt_type'],
                                str(options['stmt_filter'])))
+            return False
+
+        if options['curated_db_only'] and not edge_stmt['curated']:
             return False
 
         # Filter stmt hash
@@ -648,8 +651,8 @@ class IndraNetwork:
         for l in ksp:
             res_list = ksp[l]
             ksp[l] = sorted(res_list,
-                            key=lambda pd: np.longfloat(pd['cost']),
-                            reverse=False)
+                            key=lambda pd: min(len(sl) for sl in pd['stmts']),
+                            reverse=True)
         return ksp
 
     def _uri_by_node(self, node):

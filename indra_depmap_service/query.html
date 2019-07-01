@@ -21,20 +21,11 @@
   <!-- Include Choices JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-  <style type="text/css">
-    a {
-      target-new: tab;
-    }
-    .choices__list--multiple .choices__item {
-      background-color: #007bff;
-      border: #007bff;
-    }
-  </style>
-
   <!-- custom scripts -->
   <script type="text/javascript">
     const SUBMIT_URL = 'http://localhost:5000/query/submit';
-    const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
+    // const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
+    const INDRA_DB_URL_HASH = 'https://beg6vcyssj.execute-api.us-east-1.amazonaws.com/dev/statements/from_hash/';
     const MAX_K_PATHS = 50;
     const stmtOptions = ['Acetylation', 'Activation', 'ActiveForm', 'Autophosphorylation',
       'Complex', 'Conversion', 'Deacetylation', 'DecreaseAmount', 'Deglycosylation',
@@ -281,33 +272,43 @@
       let htmlString = '';
       for (edgeList of stmtsArray) {
         if (edgeList.length > 0) {
-          htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
-          '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-          edgeList.length + '</span><br>';
+          htmlString += '<h5><b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj +
+          '</b><span class="float-right">Support:' + edgeList.length + '</span></h5>';
           for (stmt of edgeList) {
             let dbLink = '';
             if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
             else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
+            let sourceBadges = generateSourceBadges(stmt);
             htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
-              stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+              stmt.stmt_type + ', ' + stmt.obj + '</a>' + sourceBadges + '<br>'
           }
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
     }
 
+    function generateSourceBadges(stmt) {
+      let htmlString = '';
+      let badgeStart = '<span class="badge badge-secondary badge-pill float-right ';
+      let badgeEnd = '</span>';
+      for (source in stmt.evidence) {
+        htmlString += badgeStart + 'source-'+ source + '">' + source + ': ' + stmt.evidence[source].toString() + badgeEnd
+      }
+      return htmlString
+    }
+
     function generateTargetLinkout(pathPair) {
       let htmlString = '';
       for (path of pathPair) {
-        htmlString += '<b>' + path[0].subj + ' &rarr; ' + path[0].obj + 
-        '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-        path.length + '</span><br>';
+        htmlString += '<h5><b>' + path[0].subj + ' &rarr; ' + path[0].obj +
+        '</b><span class="float-right">Support: ' + path.length + '</span></h5>';
         for (stmt of path) {
           let dbLink = '';
           if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
           else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
+          let sourceBadges = generateSourceBadges(stmt)
           htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
-            stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+            stmt.stmt_type + ', ' + stmt.obj + '</a>' + sourceBadges + '<br>'
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br> 
@@ -347,6 +348,37 @@
     .placeholder {
       display: inline-block;
     }
+    a {
+      target-new: tab;
+    }
+    .choices__list--multiple .choices__item {
+      background-color: #007bff;
+      border: #007bff;
+    }
+
+    /* Badge color coding */
+    /* Readers */
+    .source-medscan {color: white; background-color: #7fc97f}
+    .source-rlimsp {color: white; background-color: #beaed4}
+    .source-trips {color: white; background-color: #fdc086}
+    .source-sparser {color: darkgreen; background-color: #ffff99}
+    .source-reach {color: white; background-color: #386cb0}
+    .source-isi {color: white; background-color: #f0027f}
+    /* databases */
+    .source-phosphosite {color: white; background-color: #a6cee3}
+    .source-cbn {color: white; background-color: #1f78b4}
+    .source-pc11 {color: white; background-color: #b2df8a}
+    .source-tees {color: white; background-color: #33a02c}
+    .source-geneways {color: white; background-color: #fb9a99}
+    .source-biopax {color: white; background-color: #e31a1c}
+    .source-bel {color: white; background-color: #fdbf6f}
+    .source-bel_lc {color: white; background-color: #fdbf6f}
+    .source-signor {color: white; background-color: #ff7f00}
+    .source-biogrid {color: white; background-color: #cab2d6}
+    .source-tas {color: white; background-color: #6a3d9a}
+    .source-lincs_drug {color: navy; background-color: #ffff99}
+    .source-hprd {color: white; background-color: #b15928}
+    .source-trrust {color: white; background-color: #ff4612}
   </style>
 </head>
 <body>
@@ -427,7 +459,7 @@
         <label class="custom-control-label" for="weighted-search">Weighted search</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="curated-db-only" disabled>
+        <input type="checkbox" class="custom-control-input" id="curated-db-only">
         <label class="custom-control-label" for="curated-db-only">Curated databases only</label>
       </div>
       <div class="custom-control custom-checkbox">
@@ -460,7 +492,7 @@
             Complexes and Families (<span id="subject-placeholder-cp" class="placholder subject-placeholder">A</span> -
               <span id="object-placeholder-cp" class="placholder object-placeholder">B</span>)
           </a>
-          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Entitites: 0</span>
+          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Entities: 0</span>
         </h3>
       </div>
       <div id="collapse-paths-cp" class="collapse">
