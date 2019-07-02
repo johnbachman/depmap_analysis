@@ -599,7 +599,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
     include_entity_hierarchies : bool
         Default: True
     verbosity: int
-        Output various messages if > 0
+        Output various messages if > 0. For all messages, set to 4
 
     Returns
     -------
@@ -642,6 +642,14 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
     for index, row in sif_df.iterrows():
         if row['agA_name'] is None or row['agB_name'] is None:
             skipped += 1
+            if verbosity > 3:
+                dnf_logger.warning('Skip: %d None agent found: %s' %
+                                   (skipped, repr(row)))
+            elif verbosity > 1:
+                dnf_logger.warning('Skip: %d None agent found: %s,%s '
+                                   '(%d)' %
+                                   (skipped, row['agA_name'],
+                                    row['agB_name'], row['hash']))
             continue
         # Add non-existing nodes
         if row['agA_name'] not in nx_graph.nodes:
@@ -662,9 +670,15 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                 weight = -np.log(max(b_s - 1e-7, 1e-7))
                 bs = b_s
             except KeyError:
-                if verbosity > 1:
-                    dnf_logger.warning('Hash: %s is missing from belief dict' %
-                                       str(row['hash']))
+                if verbosity > 3:
+                    dnf_logger.warning('Index: %d; Skipped: %d; Hash: %s '
+                                       'is missing from belief dict %s' %
+                                       (index, skipped, str(row['hash']),
+                                        repr(row)))
+                elif verbosity:
+                    dnf_logger.warning('Index: %d; Skipped: %d; Hash: %s '
+                                       'is missing from belief dict' %
+                                       (index, skipped, str(row['hash'])))
                 weight = 1/row['evidence_count']
                 bs = np_prec*10
         else:
@@ -675,8 +689,17 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
             try:
                 evidence = sed[row['hash']]
             except KeyError:
-                dnf_logger.warning('Hash: %s is missing from stratified '
-                                   'evidence count fict' % str(row['hash']))
+                if verbosity > 3:
+                    dnf_logger.warning('Index %d; Skipped %d; Hash: %s is '
+                                       'missing from stratified evidence '
+                                       'count dict %s' %
+                                       (index, skipped, str(row['hash']),
+                                        repr(row)))
+                elif verbosity:
+                    dnf_logger.warning('Index %d; Skipped %d; Hash: %s is '
+                                       'missing from stratified evidence '
+                                       'count dict' %
+                                       (index, skipped, str(row['hash'])))
                 evidence = {}
         else:
             evidence = {}
@@ -806,7 +829,8 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                         if ed.pop('u_for_edge', None):
                             ed.pop('v_for_edge', None)
                         if (node, pnode) in nx_graph.edges:
-                            nx_graph.edges[(node, pnode)]['stmt_list'].append(ed)
+                            nx_graph.edges[(node,
+                                            pnode)]['stmt_list'].append(ed)
                         else:
                             # The fplx edge is the only edge, add custom
                             # aggregate bs and weight
