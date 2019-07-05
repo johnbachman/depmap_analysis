@@ -184,6 +184,9 @@ class IndraNetwork:
         org_source = ckwargs['source']
         org_target = ckwargs['target']
 
+        # ToDo establish grounding priority when scores are equal between
+        #  groundings
+
         # Get groundings
         src_groundings = requests.post(GRND_URI,
                                        json={'text': org_source}).json()
@@ -196,7 +199,7 @@ class IndraNetwork:
         # org target with sources
         if src_groundings and not trgt_groundings:
             for src in src_groundings:
-                ckwargs['source'] = src['entry']['entry_name']
+                ckwargs['source'] = src['term']['entry_name']
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
                     return ksp
@@ -205,7 +208,7 @@ class IndraNetwork:
         if not src_groundings and trgt_groundings:
             ckwargs['source'] = org_source
             for trgt in trgt_groundings:
-                ckwargs['target'] = trgt['entry']['entry_name']
+                ckwargs['target'] = trgt['term']['entry_name']
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
                     return ksp
@@ -213,8 +216,8 @@ class IndraNetwork:
         # all source groundings with all target groundings
         if src_groundings and trgt_groundings:
             for src, trgt in product(src_groundings, trgt_groundings):
-                ckwargs['source'] = src['entry']['entry_name']
-                ckwargs['target'] = trgt['entry']['entry_name']
+                ckwargs['source'] = src['term']['entry_name']
+                ckwargs['target'] = trgt['term']['entry_name']
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
                     return ksp
