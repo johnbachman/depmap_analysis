@@ -222,6 +222,11 @@ class IndraNetwork:
                 if ksp:
                     return ksp
 
+        if self.verbose:
+            if not src_groundings and not trgt_groundings:
+                logger.info('No groundings for source or target')
+            else:
+                logger.info('No paths found between grounding alternatives')
         return {}
 
     def try_parents(self, **ckwargs):
