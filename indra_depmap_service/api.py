@@ -196,9 +196,11 @@ class IndraNetwork:
         # Loop combinations of source and target groundings, break if
         # anything found
 
-        # org target with sources
+        # org target with sources (ckwargs['target'] is unaltered here)
         if src_groundings and not trgt_groundings:
             for src in src_groundings:
+                if src['term']['entry_name'] == org_source:
+                    continue
                 ckwargs['source'] = src['term']['entry_name']
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
@@ -208,6 +210,8 @@ class IndraNetwork:
         if not src_groundings and trgt_groundings:
             ckwargs['source'] = org_source
             for trgt in trgt_groundings:
+                if trgt['term']['entry_name'] == org_target:
+                    continue
                 ckwargs['target'] = trgt['term']['entry_name']
                 ksp = self.find_shortest_paths(**ckwargs)
                 if ksp:
@@ -216,6 +220,9 @@ class IndraNetwork:
         # all source groundings with all target groundings
         if src_groundings and trgt_groundings:
             for src, trgt in product(src_groundings, trgt_groundings):
+                if trgt['term']['entry_name'] == org_target and \
+                        src['term']['entry_name'] == org_source:
+                    continue
                 ckwargs['source'] = src['term']['entry_name']
                 ckwargs['target'] = trgt['term']['entry_name']
                 ksp = self.find_shortest_paths(**ckwargs)
