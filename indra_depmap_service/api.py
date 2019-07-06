@@ -156,17 +156,20 @@ class IndraNetwork:
         logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
         ksp = self.find_shortest_paths(**options)
-        if not ksp and GRND_URI:
+        if not ksp:
             ckwargs = options.copy()
-            ksp = self.grounding_fallback(**ckwargs)
-        if not ksp and kwargs['fplx_expand']:
-            logger.info('No directed path found, looking for paths '
-                        'connected by common parents of source and/or '
-                        'target')
-            ksp = self.try_parents(**ckwargs)
-            if self.verbose > 2:
-                logger.info('Got parents search result: %s' % repr(ksp))
-        elif not ksp:
+            if kwargs['fplx_expand']:
+
+                logger.info('No directed path found, looking for paths '
+                            'connected by common parents of source and/or '
+                            'target')
+                ksp = self.try_parents(**ckwargs)
+                if self.verbose > 2:
+                    logger.info('Got parents search result: %s' % repr(ksp))
+
+            if not ksp and GRND_URI:
+                ksp = self.grounding_fallback(**ckwargs)
+        if not ksp:
             logger.info('No directed path found')
         if ksp and not options['weight']:
             # Sort the results in ksp if non-weighted search
