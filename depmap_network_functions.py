@@ -822,6 +822,8 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                           'stmt_type': 'fplx',
                           'stmt_hash': puri,
                           'evidence_count': 1,
+                          'evidence': {'fplx': 1},
+                          'curated': True,
                           'bs': 1.0}
                     if multi:
                         nx_graph.add_edge(**ed)
@@ -833,7 +835,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                                             pnode)]['stmt_list'].append(ed)
                         else:
                             # The fplx edge is the only edge, add custom
-                            # aggregate bs and weight
+                            # aggregate bs, weight
                             nx_graph.add_edge(node, pnode, stmt_list=[ed],
                                               bs=1.0, weight=1.0)
 
