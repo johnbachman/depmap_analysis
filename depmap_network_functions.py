@@ -5,6 +5,7 @@ import sys
 import json
 import math
 import logging
+import requests
 import itertools as itt
 from decimal import Decimal
 from math import ceil, log10
@@ -21,6 +22,7 @@ from scipy.optimize import curve_fit as opt_curve_fit
 from pandas.core.series import Series as pd_Series_class
 from indra_db import util as dbu
 from indra_db import client as dbc
+from indra.config import CONFIG_DICT
 from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.preassembler import hierarchy_manager as hm
@@ -30,6 +32,13 @@ from util.io_functions import _pickle_open
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
+
+GRND_URI = None
+try:
+    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
+except KeyError:
+    dnf_logger.warning('Indra Grounding service not available. Add '
+                   'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 np.seterr(all='raise')
 
@@ -2595,3 +2604,15 @@ def connection_types(id1, id2, long_stmts=set()):
     if has_common_parent(id1=id1, id2=id2):
         ctypes += ['parent']
     return ctypes
+
+
+def _ns_id_from_name(name):
+    if GRND_URI:
+        try:
+            rj = requests.post(GRND_URI, json={'text': name}).json()[0]
+            return rj['term']['db'], rj['term']['id']
+        except IndexError:
+            return None, None
+    dnf_logger.warning('Indra Grounding service not available. Add '
+                       'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
+    return None, None
