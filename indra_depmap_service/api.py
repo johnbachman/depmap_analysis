@@ -481,7 +481,10 @@ class IndraNetwork:
                 target_id = options['target']
 
         # Initialize result dict
-        cp = dict()
+        cp_results = {'source_ns': source_ns, 'source_id': source_id,
+                      'target_ns': target_ns, 'target_id': target_id,
+                      'common_parents': []}
+        cp = set()
 
         # Try different combinations of ns combinations
 
@@ -498,7 +501,8 @@ class IndraNetwork:
                 logger.info('The namespaces for %s and/or %s are not in node '
                             'filter. Aborting common parent search.' %
                             (source_id, target_id))
-                return cp
+                cp_results['common_parents'] = []
+                return cp_results
 
         # If only target ns is given
         if not source_ns and target_ns:
@@ -517,7 +521,8 @@ class IndraNetwork:
             else:
                 logger.info('The namespaces for %s is not in node filter. '
                             'Aborting common parent search.' % target_id)
-                return cp
+                cp_results['common_parents'] = []
+                return cp_results
 
         # If only source ns is given
         if not target_ns and source_ns:
@@ -536,7 +541,8 @@ class IndraNetwork:
             else:
                 logger.info('The namespaces for %s is not in node filter. '
                             'Aborting common parent search.' % source_id)
-                return cp
+                cp_results['common_parents'] = []
+                return cp_results
 
         # If no namespaces exist
         if not source_ns and not target_ns:
@@ -556,11 +562,11 @@ class IndraNetwork:
 
         if not cp:
             logger.info('No common parents found')
-            return cp
+            cp_results['common_parents'] = []
+            return cp_results
         else:
-            return {'source_ns': source_ns, 'source_id': source_id,
-                    'target_ns': target_ns, 'target_id': target_id,
-                    'common_parents': sorted(list(cp))}
+            cp_results['common_parents'] = sorted(list(cp))
+            return cp_results
 
     def _get_edge(self, s, o, index, simple_graph):
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
