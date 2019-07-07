@@ -443,17 +443,33 @@ class IndraNetwork:
 
     def get_common_parents(self, **options):
         """Find common parents between source and target"""
-        source_id = options['source']
-        source_ns = None
-        target_id = options['target']
-        target_ns = None
-        cp = {}
+        # Try, in order:
+        #   1. ns:id from node dict
+        #   2. ns:id from groudning service
+        #   3. go with original node name and try HGNC and FPLX
 
-        # Get ns
+        source_ns, source_id, target_ns, target_id = None, None, None, None
+
+        # Source
         if options['source'] in self.nodes:
+            source_id = self.nodes[options['source']]['id']
             source_ns = self.nodes[options['source']]['ns']
-        if options['target'] in self.nodes:
+        else:
+            source_ns, source_id = dnf._ns_id_from_name(options['source'])
+            if not source_id:
+                source_id = options['source']
+
+        # Target
+        if options['target']:
+            target_id = self.nodes[options['target']]['id']
             target_ns = self.nodes[options['target']]['ns']
+        else:
+            target_ns, target_id = dnf._ns_id_from_name(options['target'])
+            if not target_id:
+                target_id = options['target']
+
+        # Initialize result dict
+        cp = dict()
 
         # Try different combinations of ns combinations
 
@@ -470,7 +486,7 @@ class IndraNetwork:
                 logger.info('The namespaces for %s and/or %s are not in node '
                             'filter. Aborting common parent search.' %
                             (source_id, target_id))
-                return {}
+                return cp
 
         # If only target ns is given
         if not source_ns and target_ns:
@@ -489,7 +505,7 @@ class IndraNetwork:
             else:
                 logger.info('The namespaces for %s is not in node filter. '
                             'Aborting common parent search.' % target_id)
-                return {}
+                return cp
 
         # If only source ns is given
         if not target_ns and source_ns:
@@ -508,7 +524,7 @@ class IndraNetwork:
             else:
                 logger.info('The namespaces for %s is not in node filter. '
                             'Aborting common parent search.' % source_id)
-                return {}
+                return cp
 
         # If no namespaces exist
         if not source_ns and not target_ns:
@@ -528,7 +544,7 @@ class IndraNetwork:
 
         if not cp:
             logger.info('No common parents found')
-            return {}
+            return cp
         else:
             return {'source_ns': source_ns, 'source_id': source_id,
                     'target_ns': target_ns, 'target_id': target_id,
