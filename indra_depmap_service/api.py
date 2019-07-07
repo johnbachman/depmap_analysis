@@ -517,6 +517,9 @@ class IndraNetwork:
                         cp = dnf.common_parent(ns1=sns, id1=source_id,
                                                ns2=target_ns, id2=target_id)
                         if cp:
+                            if self.verbose:
+                                logger.info('Found common parents with source '
+                                            'ns %s' % sns)
                             break
             else:
                 logger.info('The namespaces for %s is not in node filter. '
@@ -537,6 +540,9 @@ class IndraNetwork:
                         cp = dnf.common_parent(ns1=source_ns, id1=source_id,
                                                ns2=tns, id2=target_id)
                         if cp:
+                            if self.verbose:
+                                logger.info('Found common parents with source '
+                                            'ns %s' % tns)
                             break
             else:
                 logger.info('The namespaces for %s is not in node filter. '
