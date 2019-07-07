@@ -595,7 +595,7 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
 
     df : str|pandas.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
-        DataFrame
+        DataFrame object
     belief_dict : str
         The file path to a belief dict that is keyed by statement hashes
         corresponding to the statement hashes loaded in df
