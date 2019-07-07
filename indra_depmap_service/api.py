@@ -129,6 +129,18 @@ class IndraNetwork:
 
         Returns
         -------
+        result : dict('paths_by_node_count'=ksp,
+                      'common_targets'=ct,
+                      'common_parents'=cp)
+            A dict containing the results from each path search:
+            ksp : dict(int)
+                Dict keyed by node count with the results of directed paths
+            ct : dict('target')
+                Dict keyed by common target name
+            cp : dict
+                Dict with result of common parents search together which
+                ns:id pairs were used to resolve the query
+
         """
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
