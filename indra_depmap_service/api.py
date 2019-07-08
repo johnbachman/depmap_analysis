@@ -472,7 +472,7 @@ class IndraNetwork:
                 source_id = options['source']
 
         # Target
-        if options['target']:
+        if options['target'] in self.nodes:
             target_id = self.nodes[options['target']]['id']
             target_ns = self.nodes[options['target']]['ns']
         else:
