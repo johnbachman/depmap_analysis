@@ -1,4 +1,4 @@
-INDRA DepMap Service
+INDRA Network Search
 --------------------
 
 Currently, during development, the service is only available to be run locally.
