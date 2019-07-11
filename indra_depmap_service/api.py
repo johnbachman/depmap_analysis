@@ -413,8 +413,10 @@ class IndraNetwork:
                 if self.verbose > 1:
                     logger.info('Adding stmts and path from %s to path list' %
                                 repr(hash_path))
-                pd = {'stmts': hash_path, 'path': path,
-                      'cost': str(self._get_cost(path))}
+                pd = {'stmts': hash_path,
+                      'path': path,
+                      'cost': str(self._get_cost(path)),
+                      'sort_key': str(self._get_sort_key(path, hash_path))}
                 try:
                     if not path_len:
                         result[len(path)].append(pd)
@@ -704,12 +706,26 @@ class IndraNetwork:
                 cost += sum(ew)/len(ew)
             return cost
 
-    @staticmethod
-    def _sort_stmts(ksp):
+    def _aggregated_path_belief(self, path):
+        bs_list = [self.dir_edges[e]['bs'] for e in zip(path[:-1], path[1:])]
+        return dnf._ag_belief_score(bs_list)
+
+    def _get_sort_key(self, path, hash_path, method=None):
+        """Calculate a number to sort the path on
+
+        `Method` allows to specify the calculation"""
+
+        # Default: aggregated path belief score
+        sort_key = self._aggregated_path_belief(path)
+        return sort_key
+
+    def _sort_stmts(self, ksp):
+        # For each path length l:
+        #   Sort the paths according to their aggragated path belief:
         for l in ksp:
             res_list = ksp[l]
             ksp[l] = sorted(res_list,
-                            key=lambda pd: min(len(sl) for sl in pd['stmts']),
+                            key=lambda pd: pd['sort_key'],
                             reverse=True)
         return ksp
 
