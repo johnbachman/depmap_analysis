@@ -10,6 +10,7 @@ from subprocess import call
 from datetime import datetime
 from itertools import product
 from networkx import NodeNotFound
+from time import time, gmtime, strftime
 from flask import Flask, request, abort, Response
 
 from indra_db.util import dump_sif
@@ -39,7 +40,7 @@ except KeyError:
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 MAX_PATHS = 50
-MAX_SKIP = 1000
+TIMEOUT = 30  # Timeout in seconds
 
 
 def _todays_date():
@@ -72,6 +73,7 @@ class IndraNetwork:
         self.MAX_PATHS = MAX_PATHS
         self.small = False
         self.verbose = 0
+        self.query_recieve_time = 0.0
 
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result.
@@ -142,6 +144,10 @@ class IndraNetwork:
                 ns:id pairs were used to resolve the query
 
         """
+        self.query_recieve_time = time()
+        logger.info('Query received at %s' %
+                    strftime('%Y-%m-%d %H:%M:%S (UTC)',
+                             gmtime(self.query_recieve_time)))
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
                      'k_shortest', 'curated_db_only']
@@ -402,10 +408,10 @@ class IndraNetwork:
                 logger.info('Found all %d shortest paths, returning results.' %
                             self.MAX_PATHS)
                 return result
-            if skipped_paths > MAX_SKIP:
-                logger.warning('Reached MAX_SKIP (%d) before finding all %d '
+            if time() - self.query_recieve_time > TIMEOUT:
+                logger.warning('Reached timeout (%d s) before finding all %d '
                                'shortest paths. Returning search.' %
-                               (MAX_SKIP, MAX_PATHS))
+                               (TIMEOUT, MAX_PATHS))
                 return result
 
             hash_path = self._get_hash_path(path, **options)
@@ -826,6 +832,8 @@ def process_query():
 
     try:
         result = indra_network.handle_query(**request.json.copy())
+        logger.info('Query resolved at %s' %
+                    strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
         if not result:
             logger.info('Query returned with no path found')
         res = {'result': result}
