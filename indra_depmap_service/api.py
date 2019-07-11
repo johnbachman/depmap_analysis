@@ -89,13 +89,13 @@ class IndraNetwork:
         target: str
             the target for the path
         stmt_filter: [str]
-            a list of valid indra statement types or FamPlex (as 'isa' or
-            'part_of') child-parent connections *to exclude* in the path
+            a list of valid indra statement types or FamPlex child-parent
+            connections (as 'fplx') *to exclude* in the path
         node_filter: [str]
             a list of node namespaces *to include* in the path
         node_blacklist: [str]
             a list of node names to ignore. If a path contains a node in this
-            list the path will be discarded.
+            list, the path will be discarded.
         edge_hash_blacklist: [str/int]
             a list of statement hashes (as strings or ints) to ignore. If an
             edge statement hash is found in this list, it will be discarded
@@ -457,7 +457,7 @@ class IndraNetwork:
         """Find common parents between source and target"""
         # Try, in order:
         #   1. ns:id from node dict
-        #   2. ns:id from groudning service
+        #   2. ns:id from grounding service
         #   3. go with original node name and try HGNC and FPLX
 
         source_ns, source_id, target_ns, target_id = None, None, None, None
