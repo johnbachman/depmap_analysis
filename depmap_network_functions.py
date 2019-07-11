@@ -20,6 +20,7 @@ from sqlalchemy.exc import StatementError
 from scipy import interpolate as interpol
 from scipy.optimize import curve_fit as opt_curve_fit
 from pandas.core.series import Series as pd_Series_class
+
 from indra_db import util as dbu
 from indra_db import client as dbc
 from indra.config import CONFIG_DICT
@@ -41,6 +42,7 @@ except KeyError:
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 np.seterr(all='raise')
+NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 
 
 def rawincount(filename):
@@ -2616,3 +2618,20 @@ def _ns_id_from_name(name):
     dnf_logger.warning('Indra Grounding service not available. Add '
                        'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
     return None, None
+
+
+def _ag_belief_score(belief_list):
+    """Each item in `belief_list` should be a float"""
+    # Aggregate belief score: 1-prod(1-bs_i)
+    try:
+        ag_belief = np.longfloat(1.0) - np.prod(np.fromiter(map(
+            lambda bs: np.longfloat(1.0) - bs, belief_list),
+            dtype=np.longfloat)
+        )
+    except FloatingPointError as err:
+        dnf_logger.warning('%s: Resetting ag_belief to 10*np.longfloat '
+                           'precision (%.0e)' %
+                           (err, Decimal(NP_PRECISION * 10)))
+        ag_belief = NP_PRECISION * 10
+
+    return ag_belief
