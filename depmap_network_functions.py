@@ -746,31 +746,12 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
     if not multi:
         dnf_logger.info('Aggregating belief score for DiGraph edge weights')
         for e in nx_graph.edges:
-            # Aggregate belief score: 1-prod(1-bs_i)
-            # weight = -log(1-prod(1-bs_i))
-            try:
-                ag_belief = np.longfloat(1.0) - np.max([np_prec*10,
-                    np.prod(np.fromiter(map(
-                        lambda s: np.longfloat(1.0) - s['bs'],
-                        nx_graph.edges[e]['stmt_list']),
-                        dtype=np.longfloat))])
-                nx_graph.edges[e]['bs'] = ag_belief
-                nx_graph.edges[e]['weight'] = -np.log(ag_belief)
-            except FloatingPointError as err:
-                if verbosity > 3:
-                    bs_list = [(s['stmt_hash'], s['bs'])
-                               for s in nx_graph.edges[e]['stmt_list']]
-                    dnf_logger.warning('%s for edge %s. Hash - Belief score '
-                        'list for edge statements: %s. Aggregated belief '
-                        'score reset to %.0e' %
-                        (repr(err), e, bs_list, Decimal(np_prec * 10)))
-                else:
-                    dnf_logger.warning('%s for edge %s. Aggregated belief '
-                                       'score reset to %.0e' %
-                                       (repr(err), e, Decimal(np_prec*10)))
-                ag_belief = np_prec*10
-                nx_graph.edges[e]['bs'] = ag_belief
-                nx_graph.edges[e]['weight'] = -np.log(ag_belief)
+            # weight = -log(bs)
+            ag_belief = _ag_belief_score(
+                [s['bs'] for s in nx_graph.edges[e]['stmt_list']]
+            )
+            nx_graph.edges[e]['bs'] = ag_belief
+            nx_graph.edges[e]['weight'] = -np.log(ag_belief)
 
     if include_entity_hierarchies:
         def _fplx_edge_in_list(multi, edge, check_uri, nx_graph):
