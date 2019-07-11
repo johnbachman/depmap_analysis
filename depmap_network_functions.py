@@ -2611,12 +2611,19 @@ def connection_types(id1, id2, long_stmts=set()):
 def _ns_id_from_name(name):
     if GRND_URI:
         try:
-            rj = requests.post(GRND_URI, json={'text': name}).json()[0]
-            return rj['term']['db'], rj['term']['id']
+            res = requests.post(GRND_URI, json={'text': name})
+            if res.status_code == 200:
+                rj = res.json()[0]
+                return rj['term']['db'], rj['term']['id']
+            else:
+                dnf_logger.warning('Grounding service responded with code %d, '
+                                   'check your query format and URL' %
+                                   res.status_code)
         except IndexError:
-            return None, None
-    dnf_logger.warning('Indra Grounding service not available. Add '
-                       'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
+            dnf_logger.info('No grounding exists for %s' % name)
+    else:
+        dnf_logger.warning('Indra Grounding service not available. Add '
+                           'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
     return None, None
 
 
