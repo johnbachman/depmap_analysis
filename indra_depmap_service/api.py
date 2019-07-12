@@ -135,21 +135,29 @@ class IndraNetwork:
         result : dict('paths_by_node_count'=ksp,
                       'common_targets'=ct,
                       'common_parents'=cp)
-            A dict containing the results from each path search:
+            A dict containing the results from each path search and a flag
+            for timeout:
             ksp : dict(int)
                 Dict keyed by node count with the results of directed paths
             ct : dict('target')
-                Dict keyed by common target name
+                List of dicts keyed by common target name, sorted on highest
+                lowest belief score
             cp : dict
                 Dict with result of common parents search together which
                 ns:id pairs were used to resolve the query
-
+            timeout : Bool
+                True if the query timed out
         """
         self.query_recieve_time = time()
         self.query_timed_out = False
         logger.info('Query received at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)',
                              gmtime(self.query_recieve_time)))
+        if not self.sanity_check(**kwargs):
+            return {'paths_by_node_count': {},
+                    'common_targets': [],
+                    'common_parents': {},
+                    'timeout': False}
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
                      'k_shortest', 'curated_db_only']
@@ -200,6 +208,21 @@ class IndraNetwork:
                 'common_targets': ct,
                 'common_parents': cp,
                 'timeout': self.query_timed_out}
+
+    @staticmethod
+    def sanity_check(**options):
+        """Checks for some possible gotchas in query"""
+        # Check non-resolving query
+        sns, sid = dnf._ns_id_from_name(options['source'])
+        tns, tid = dnf._ns_id_from_name(options['target'])
+        if sns.lower() or tns.lower() not in options['node_filter']:
+            if sns.lower() not in options['node_filter']:
+                logger.warning('%s not among accepted nodes' % sns)
+            if tns.lower() not in options['node_filter']:
+                logger.warning('%s not among accepted nodes' % tns)
+            return False
+
+        return True
 
     def grounding_fallback(self, **ckwargs):
         """Retry search with alternative names found by grounding service"""
