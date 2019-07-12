@@ -725,9 +725,8 @@ class IndraNetwork:
         sort_key = self._aggregated_path_belief(path)
         return sort_key
 
-    def _sort_stmts(self, ksp):
-        # For each path length l:
-        #   Sort the paths according to their aggragated path belief:
+    @staticmethod
+    def _sort_stmts(ksp):
         for l in ksp:
             res_list = ksp[l]
             ksp[l] = sorted(res_list,
