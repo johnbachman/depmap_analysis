@@ -152,7 +152,7 @@
       console.log(data);
       var statusBox = document.getElementById('query-status');
       if (data.result.common_targets.length > 0 ||
-          data.result.common_parents.common_parents.length > 0 ||
+          Object.keys(data.result.common_parents).length > 0 ||
           Object.keys(data.result.paths_by_node_count).length > 0) {
         if (data.result.timeout) statusBox.textContent = 'Query timed out with results!';
         else statusBox.textContent = 'Query resolved!';
@@ -164,7 +164,7 @@
         let simpleCommonTargets = data.result.common_targets;
 
         // Fill common parents table
-        if (Object.keys(commonParents).length > 0) {
+        if (data.result.common_parents.common_parents.length > 0) {
           document.getElementById('subject-placeholder-cp').textContent = 
             commonParents.source_id + '@' + commonParents.source_ns;
           document.getElementById('object-placeholder-cp').textContent = 
@@ -244,7 +244,7 @@
         }
       } else {
         if (data.result.timeout) statusBox.textContent = 'Query timed out!';
-        else statusBox.textContent = 'No path found!';
+        else statusBox.textContent = 'No path found, try expanding the search parameters';
       }
     }
 
