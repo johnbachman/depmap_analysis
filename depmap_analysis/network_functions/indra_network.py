@@ -1,23 +1,26 @@
-import json
 import logging
-import argparse
 import requests
-import numpy as np
 import networkx as nx
-from os import path
-from jinja2 import Template
-from subprocess import call
-from datetime import datetime
 from itertools import product
 from networkx import NodeNotFound, NetworkXNoPath
 from time import time, gmtime, strftime
-from flask import Flask, request, abort, Response
 
-from indra_db.util import dump_sif
 from indra.config import CONFIG_DICT
 
 import depmap_network_functions as dnf
-from depmap_analysis.util.io_functions import _pickle_open, _dump_it_to_pickle
+
+
+logger = logging.getLogger('indra network')
+
+GRND_URI = None
+try:
+    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
+except KeyError:
+    logger.warning('Indra Grounding service not available. Add '
+                   'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
+
+MAX_PATHS = 50
+TIMEOUT = 30  # Timeout in seconds
 
 
 class IndraNetwork:

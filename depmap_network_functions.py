@@ -29,7 +29,8 @@ from indra.tools import assemble_corpus as ac
 from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
-from util.io_functions import _pickle_open
+
+from depmap_analysis.util.io_functions import _pickle_open
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')

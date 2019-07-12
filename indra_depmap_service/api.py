@@ -1,15 +1,10 @@
 import json
 import logging
 import argparse
-import requests
-import numpy as np
-import networkx as nx
 from os import path
 from jinja2 import Template
 from subprocess import call
 from datetime import datetime
-from itertools import product
-from networkx import NodeNotFound, NetworkXNoPath
 from time import time, gmtime, strftime
 from flask import Flask, request, abort, Response
 
