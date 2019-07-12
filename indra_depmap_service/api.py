@@ -317,24 +317,24 @@ class IndraNetwork:
         # If we get this far, no path was found
         return {}
 
-    def find_shortest_path(self, source, target, weight, **options):
+    def find_shortest_path(self, source, target, **options):
         """Returns a list of nodes representing a shortest path"""
         try:
-            return self._loop_paths(nx.shortest_path(self.nx_dir_graph_repr,
-                                                     source, target, weight),
-                                    **options)
+            return self._loop_paths(nx.shortest_path(
+                self.nx_dir_graph_repr, source, target, options['weight']),
+                **options)
         except NodeNotFound or nx.NetworkXNoPath:
             return {}
 
-    def find_shortest_paths(self, source, target, weight, **options):
+    def find_shortest_paths(self, source, target, **options):
         """Returns a list of shortest paths in ascending order"""
         try:
-            logger.info('Doing simple %s path search' % 'weigthed' if weight
-                        else '')
+            logger.info('Doing simple %s path search' % 'weigthed'
+                        if options['weight'] else '')
             paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
-                                     source, target, weight)
+                                     source, target, options['weight'])
             # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
-            #                               source, target, weight)
+            #                               source, target, options['weight'])
             return self._loop_paths(paths, **options)
         except nx.NodeNotFound as e:
             logger.warning(repr(e))
@@ -397,8 +397,8 @@ class IndraNetwork:
 
     def _loop_paths(self, paths_gen, **options):
         # len(path) = edge count + 1
-        path_len = options['path_length'] + 1 if options['path_length'] else \
-            False
+        path_len = options['path_length'] + 1 if \
+            options['path_length'] and not options['weight'] else False
         result = {}
         added_paths = 0
         skipped_paths = 0
