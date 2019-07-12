@@ -118,9 +118,9 @@ def process_query():
 
     try:
         if 'test' in request.json and request.json.get('test', False):
-            return Response(json.dumps({'paths_by_node_count': {}, 
+            return Response(json.dumps({'paths_by_node_count': {},
                                         'common_targets': [],
-                                        'common_parents': [] 
+                                        'common_parents': []
                                         }), mimetype='application/json')
         result = indra_network.handle_query(**request.json.copy())
         logger.info('Query resolved at %s' %

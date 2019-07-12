@@ -8,7 +8,7 @@ from time import time, gmtime, strftime
 from indra.config import CONFIG_DICT
 
 import depmap_network_functions as dnf
-from depmap_analysis.network_functions.network_functions import ag_belief_score
+from depmap_analysis.network_functions.network_functions import ag_belief_score, shortest_simple_paths
 
 logger = logging.getLogger('indra network')
 
@@ -322,8 +322,11 @@ class IndraNetwork:
         try:
             logger.info('Doing simple %s path search' % 'weigthed'
                         if options['weight'] else '')
-            paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
-                                     source, target, options['weight'])
+            blacklist_options = {}
+            blacklist_options['ignore_nodes'] = options.get('node_blacklist', None)
+            paths = shortest_simple_paths(self.nx_dir_graph_repr,
+                                     source, target, options['weight'],
+                                     **blacklist_options)
             # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
             #                               source, target, options['weight'])
             return self._loop_paths(paths, **options)
@@ -605,13 +608,6 @@ class IndraNetwork:
                                  self.nodes[obj]['ns'],
                                  options['node_filter']))
                 return []
-            elif options.get('node_blacklist', None):
-                if subj in options['node_blacklist'] or obj in \
-                        options['node_blacklist']:
-                    if self.verbose:
-                        logger.info('%s or %s part of node blacklist, '
-                                    'skipping path' % (subj, obj))
-                    return []
 
             # Initialize edges list, statement index
             edges = []
