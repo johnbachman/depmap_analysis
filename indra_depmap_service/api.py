@@ -74,6 +74,7 @@ class IndraNetwork:
         self.small = False
         self.verbose = 0
         self.query_recieve_time = 0.0
+        self.query_timed_out = False
 
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result.
@@ -145,6 +146,7 @@ class IndraNetwork:
 
         """
         self.query_recieve_time = time()
+        self.query_timed_out = False
         logger.info('Query received at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)',
                              gmtime(self.query_recieve_time)))
@@ -196,7 +198,8 @@ class IndraNetwork:
         cp = self.get_common_parents(**options)
         return {'paths_by_node_count': ksp,
                 'common_targets': ct,
-                'common_parents': cp}
+                'common_parents': cp,
+                'timeout': self.query_timed_out}
 
     def grounding_fallback(self, **ckwargs):
         """Retry search with alternative names found by grounding service"""
@@ -412,6 +415,7 @@ class IndraNetwork:
                 logger.warning('Reached timeout (%d s) before finding all %d '
                                'shortest paths. Returning search.' %
                                (TIMEOUT, MAX_PATHS))
+                self.query_timed_out = True
                 return result
 
             hash_path = self._get_hash_path(path, **options)
