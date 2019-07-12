@@ -9,7 +9,7 @@ from jinja2 import Template
 from subprocess import call
 from datetime import datetime
 from itertools import product
-from networkx import NodeNotFound
+from networkx import NodeNotFound, NetworkXNoPath
 from time import time, gmtime, strftime
 from flask import Flask, request, abort, Response
 
