@@ -131,7 +131,6 @@
           console.log(statustText);
           switch (xhr.status) {
             case 200:
-              statusBox.textContent = 'Query resolved!';
               break;
             default:
               console.log('Submission error: check ajax response');
@@ -151,7 +150,12 @@
 
     function fillResultsTable(data, source, target){
       console.log(data);
-      if (data.result && Object.keys(data.result).length > 0) {
+      var statusBox = document.getElementById('query-status');
+      if (data.result.common_targets.length > 0 ||
+          data.result.common_parents.common_parents.length > 0 ||
+          Object.keys(data.result.paths_by_node_count).length > 0) {
+        if (data.result.timeout) statusBox.textContent = 'Query timed out with results!';
+        else statusBox.textContent = 'Query resolved!';
         // for each path length:
         //   for each path:
         //     Output: path | list supporting statements per edge
@@ -239,7 +243,8 @@
           }
         }
       } else {
-        document.getElementById('query-status').textContent = 'No path found!'
+        if (data.result.timeout) statusBox.textContent = 'Query timed out!';
+        else statusBox.textContent = 'No path found!';
       }
     }
 
