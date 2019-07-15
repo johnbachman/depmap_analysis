@@ -165,17 +165,6 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             if not np.isnan(corr_value_matrix[i, j]))
 
 
-def _dump_it_to_json(fname, pyobj):
-    with open(fname, 'w') as json_out:
-        json.dump(pyobj, json_out)
-
-
-def _dump_it_to_csv(fname, iterable, separator=','):
-    with open(fname, 'w', newline='') as csvf:
-        wrtr = csv.writer(csvf, delimiter=separator)
-        wrtr.writerows(iterable)
-
-
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
     dnf_logger.info('Dumping master dict to pairs in %s' % fname)
     pairs = 0
