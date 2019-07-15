@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>INDRA DepMap Explainer</title>
+  <title>INDRA Network Search</title>
 
   <!-- JS libraries -->
   <!-- JQ -->
@@ -21,20 +21,11 @@
   <!-- Include Choices JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-  <style type="text/css">
-    a {
-      target-new: tab;
-    }
-    .choices__list--multiple .choices__item {
-      background-color: #007bff;
-      border: #007bff;
-    }
-  </style>
-
   <!-- custom scripts -->
   <script type="text/javascript">
     const SUBMIT_URL = 'http://localhost:5000/query/submit';
-    const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
+    // const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
+    const INDRA_DB_URL_HASH = 'https://beg6vcyssj.execute-api.us-east-1.amazonaws.com/dev/statements/from_hash/';
     const MAX_K_PATHS = 50;
     const stmtOptions = ['Acetylation', 'Activation', 'ActiveForm', 'Autophosphorylation',
       'Complex', 'Conversion', 'Deacetylation', 'DecreaseAmount', 'Deglycosylation',
@@ -43,48 +34,40 @@
       'Gap', 'Gef', 'Geranylgeranylation', 'GtpActivation', 'Hydroxylation', 'IncreaseAmount',
       'Inhibition', 'Methylation', 'Myristoylation', 'Palmitoylation', 'Phosphorylation',
       'Ribosylation', 'Sumoylation', 'Translocation', 'Ubiquitination'];
-    const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
-
-    $(document).ready(function() {
-      populateOptions();
-      var stmtFilter = new Choices('#stmt-filter');
-      var nodeFilter = new Choices('#node-filter');
-    });
-
-    function populateOptions() {
-      // Edge filters
-      let ssel = document.getElementById('stmt-filter');
-      for (s of stmtOptions) {
-        let o = document.createElement('option');
-        o.value = s.toLowerCase();
-        o.textContent = s;
-        ssel.appendChild(o);
-      }
-
-      // Node filters
-      let nsel = document.getElementById('node-filter');
-      for (n of nodeOptions) {
-        let o = document.createElement('option');
-        o.value = n;
-        o.textContent = n;
-        nsel.appendChild(o);
-      }      
+    var stmtItems = [];
+    for (s of stmtOptions) {
+      stmtItems.push({
+        value: s.toLowerCase(),
+        label: s,
+        selected: false,
+        disabled: false
+      })
     }
 
+    const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
+    var nodeItems = [];
+    for (let n of nodeOptions) {
+      let sel = false;
+      if (n === 'HGNC') sel = true;
+      nodeItems.push({
+        value: n.toLowerCase(),
+        label: n,
+        selected: sel,
+        disabled: false
+      })
+    }
+    $(document).ready(function() {
+      const stmtFilter = new Choices('#stmt-filter', {choices: stmtItems});
+      const nodeFilter = new Choices('#node-filter', {choices: nodeItems});
+    });
+
     function submitQuery() {
-      if (!document.getElementById('path-length').value) {
-        alert('Please select a path length');
-        return;
-      }
       let beliefEntry = parseFloat(document.getElementById('belief-cutoff').value || 0);
       if (beliefEntry < 0 || beliefEntry > 1) {
         alert('Enter a belief score between 0 and 1');
         return;
       }
       let kShortestEntry = parseInt(document.getElementById('k-shortest').value) || false;
-      if (!kShortestEntry) {
-        kShortestEntry = false;
-      }
       if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
         alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths');
         return;
@@ -101,15 +84,8 @@
       for (c of document.getElementById('stmt-filter').children) {
         stmtFilterList.push(c.value)
       }
-      if (document.getElementById('fplx-fam-edges').checked) {
-        stmtFilterList.push('isa')
-      }
-      if (document.getElementById('fplx-cplx-edges').checked) {
-        stmtFilterList.push('part_of')
-      }
-      if (stmtFilterList.length === 0) {
-        alert('Must select at least one statement type or FamPlex entity type to include in path');
-        return;
+      if (!document.getElementById('fplx-edges').checked) {
+        stmtFilterList.push('fplx')
       }
       var nodeBlackList = [];
       for (nn of document.getElementById('node-blacklist').value.split(',')) {
@@ -131,15 +107,13 @@
         edge_hash_blacklist: edgeHashBlacklist,
         node_filter: nodeFilterList,
         node_blacklist: nodeBlackList,
-        path_length: parseInt(document.getElementById('path-length').value),
-        spec_len_only: document.getElementById('selected-length-only').checked,
-        sign: document.getElementById('sign-dd').value,
+        path_length: parseInt(document.getElementById('path-length').value) || false,
+        // sign: document.getElementById('sign-dd').value,
         weighted: document.getElementById('weighted-search').checked,
         bsco: beliefEntry,
-        direct_only: document.getElementById('direct-only').checked,
+        // direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
         fplx_expand: document.getElementById('fplx-expand').checked,
-        simple: document.getElementById('simple-paths').checked,
         k_shortest: kShortestEntry
       };
       let _url = SUBMIT_URL;
@@ -157,11 +131,10 @@
           console.log(statustText);
           switch (xhr.status) {
             case 200:
-              statusBox.textContent = 'Query resolved!';
               break;
             default:
               console.log('Submission error: check ajax response');
-              statusBox.textContent = 'error: ' + xhr.status;
+              statusBox.textContent = 'Error: ' + xhr.status + ': ' + xhr.responseText;
               break;
           }
         }
@@ -177,7 +150,12 @@
 
     function fillResultsTable(data, source, target){
       console.log(data);
-      if (data.result && Object.keys(data.result).length > 0) {
+      var statusBox = document.getElementById('query-status');
+      if (data.result.common_targets.length > 0 ||
+          Object.keys(data.result.common_parents).length > 0 ||
+          Object.keys(data.result.paths_by_node_count).length > 0) {
+        if (data.result.timeout) statusBox.textContent = 'Query timed out with results!';
+        else statusBox.textContent = 'Query resolved!';
         // for each path length:
         //   for each path:
         //     Output: path | list supporting statements per edge
@@ -186,13 +164,13 @@
         let simpleCommonTargets = data.result.common_targets;
 
         // Fill common parents table
-        if (Object.keys(commonParents).length > 0) {
+        if (data.result.common_parents.common_parents.length > 0) {
           document.getElementById('subject-placeholder-cp').textContent = 
             commonParents.source_id + '@' + commonParents.source_ns;
           document.getElementById('object-placeholder-cp').textContent = 
             commonParents.target_id + '@' + commonParents.target_ns;
           cpTableBody = document.getElementById('query-results-cp');
-          document.getElementById('npaths-cp').textContent = 'Entitites: ' + commonParents.common_parents.length;
+          document.getElementById('npaths-cp').textContent = 'Entities: ' + commonParents.common_parents.length;
           for (par of commonParents.common_parents) {
             let newRow = document.createElement('tr');
 
@@ -209,39 +187,16 @@
           }
         }
 
-        // Fill directed paths tables
-        if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
-          for (len in pathsKeyedArray) {
-            let tableBody = document.getElementById('query-results-' + (len-1));
-            document.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
-            document.getElementById('subject-placeholder-' + (len-1)).textContent = source;
-            document.getElementById('object-placeholder-' + (len-1)).textContent = target;
-            for (pathArray of pathsKeyedArray[len]) {
-              let newRow = document.createElement('tr');
-              // Add current path
-              let newPath = document.createElement('td');
-              newPath.innerHTML = pathArray.path.join('&rarr;');
-              newRow.appendChild(newPath);
-
-              let newSupport = document.createElement('td');
-              newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
-              newRow.appendChild(newSupport);
-
-              tableBody.appendChild(newRow);
-            }
-          }
-        }
-
         // Fill common targets table
         if (simpleCommonTargets && simpleCommonTargets.length > 0) {
           let ctTableBody = document.getElementById('query-results-common-targets');
-          document.getElementById('common-targets').textContent = 'Targets: ' + 
+          document.getElementById('common-targets').textContent = 'Targets: ' +
             simpleCommonTargets.length;
           document.getElementById('subject-placeholder-ct').textContent = source;
           document.getElementById('object-placeholder-ct').textContent = target;
           for (targetDict of simpleCommonTargets) {
             for (key in targetDict) {
-              if (key != 'lowest_highest_belief') {
+              if (key !== 'lowest_highest_belief') {
                 let newRow = document.createElement('tr');
 
                 let newTargetCol = document.createElement('td');
@@ -257,12 +212,46 @@
             }
           }
         }
+
+        // Fill directed paths tables
+        if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
+          var tableArea = document.getElementById('table-area');
+          for (len in pathsKeyedArray) {
+            let cardHtml = generateCardTable(len-1);
+            tableArea.appendChild(cardHtml);
+            // cardHtml.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            cardHtml.getElementsByClassName('badge')[0].textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            // cardHtml.getElementById('subject-placeholder-' + (len-1)).textContent = source;
+            cardHtml.getElementsByClassName('subject-placeholder')[0].textContent = source;
+            // cardHtml.getElementById('object-placeholder-' + (len-1)).textContent = target;
+            cardHtml.getElementsByClassName('object-placeholder')[0].textContent = target;
+            // let tableBody = cardHtml.getElementById('query-results-' + (len-1));
+            let tableBody = cardHtml.getElementsByClassName('table-body')[0];
+            for (pathArray of pathsKeyedArray[len]) {
+              let newRow = document.createElement('tr');
+              // Add current path
+              let newPath = document.createElement('td');
+              newPath.innerHTML = pathArray.path.join('&rarr;');
+              newRow.appendChild(newPath);
+
+              let newSupport = document.createElement('td');
+              newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
+              newRow.appendChild(newSupport);
+
+              tableBody.appendChild(newRow);
+            }
+          }
+        }
       } else {
-        document.getElementById('query-status').textContent = 'No path found!'
+        if (data.result.timeout) statusBox.textContent = 'Query timed out!';
+        else statusBox.textContent = 'No path found, try expanding the search parameters';
       }
     }
 
     function clearAllTables() {
+      // Delete cards for paths by length
+      $('.directed-path').remove();
+      // Clear existing tables
       for (tb of document.getElementsByClassName('table-body')) {
         tb.innerHTML = null;
       }
@@ -288,36 +277,68 @@
       let htmlString = '';
       for (edgeList of stmtsArray) {
         if (edgeList.length > 0) {
-          htmlString += '<b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj + 
-          '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-          edgeList.length + '</span><br>';
+          htmlString += '<h5><b>' + edgeList[0].subj + ' &rarr; ' + edgeList[0].obj +
+          '</b><span class="float-right">Support:' + edgeList.length + '</span></h5>';
           for (stmt of edgeList) {
             let dbLink = '';
             if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
             else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
+            let sourceBadges = generateSourceBadges(stmt);
             htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
-              stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+              stmt.stmt_type + ', ' + stmt.obj + '</a>' + sourceBadges + '<br>'
           }
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
     }
 
+    function generateSourceBadges(stmt) {
+      let htmlString = '';
+      let badgeStart = '<span class="badge badge-secondary badge-pill float-right ';
+      let badgeEnd = '</span>';
+      for (source in stmt.evidence) {
+        htmlString += badgeStart + 'source-'+ source + '">' + source + ': ' + stmt.evidence[source].toString() + badgeEnd
+      }
+      return htmlString
+    }
+
     function generateTargetLinkout(pathPair) {
       let htmlString = '';
       for (path of pathPair) {
-        htmlString += '<b>' + path[0].subj + ' &rarr; ' + path[0].obj + 
-        '</b><span class="badge badge-secondary badge-pill float-right">Support: ' + 
-        path.length + '</span><br>';
+        htmlString += '<h5><b>' + path[0].subj + ' &rarr; ' + path[0].obj +
+        '</b><span class="float-right">Support: ' + path.length + '</span></h5>';
         for (stmt of path) {
           let dbLink = '';
           if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
           else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
+          let sourceBadges = generateSourceBadges(stmt)
           htmlString += '<a href="' + dbLink + '" target="_blank">' + stmt.subj + ', ' + 
-            stmt.stmt_type + ', ' + stmt.obj + '</a><br>'
+            stmt.stmt_type + ', ' + stmt.obj + '</a>' + sourceBadges + '<br>'
         }
       }
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br> 
+    }
+
+    function generateCardTable(len) {
+      var intermArrows = '';
+      if (len > 1) {
+        for (let i = 1; i < len; i++) {
+          intermArrows += 'X' + i + '&rarr;'
+        }
+      }
+
+      let newCard = document.createElement('div');
+      newCard.className = 'card directed-path';
+      newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
+        'data-toggle="collapse" data-target="#collapse-paths-' + len + ' " aria-expanded="false" ' +
+        'aria-controls="collapse-paths-' + len + '"> ' + len + ' Edge Paths (<div id="subject-placeholder-' + len +
+        '" class="placeholder subject-placeholder">A</div>&rarr;' + intermArrows +
+        '<div id="object-placeholder-' + len + '" class="placeholder object-placeholder">B</div>)</a><span ' +
+        'id="npaths-' + len + '" class="badge badge-primary badge-pill float-right path-count">Paths: ' +
+        '0</span></h3></div><div id="collapse-paths-' + len + '" class="collapse"><div class="card-body">' +
+        '<table class="table"><thead class="table-head"><th>Path</th><th>Support</th></thead><tbody ' +
+        'class="table-body" id="query-results-' + len + '"></tbody></table></div></div>';
+      return newCard;
     }
 
   </script>
@@ -332,11 +353,42 @@
     .placeholder {
       display: inline-block;
     }
+    a {
+      target-new: tab;
+    }
+    .choices__list--multiple .choices__item {
+      background-color: #007bff;
+      border: #007bff;
+    }
+
+    /* Badge color coding from colorbrewer2.org */
+    /* Readers */
+    .source-medscan {color: white; background-color: #7fc97f}
+    .source-rlimsp {color: white; background-color: #beaed4}
+    .source-trips {color: white; background-color: #fdc086}
+    .source-sparser {color: darkgreen; background-color: #ffff99}
+    .source-reach {color: white; background-color: #386cb0}
+    .source-isi {color: white; background-color: #f0027f}
+    /* databases */
+    .source-phosphosite {color: white; background-color: #a6cee3}
+    .source-cbn {color: white; background-color: #1f78b4}
+    .source-pc11 {color: white; background-color: #b2df8a}
+    .source-tees {color: white; background-color: #33a02c}
+    .source-geneways {color: white; background-color: #fb9a99}
+    .source-biopax {color: white; background-color: #e31a1c}
+    .source-bel {color: white; background-color: #fdbf6f}
+    .source-bel_lc {color: white; background-color: #fdbf6f}
+    .source-signor {color: white; background-color: #ff7f00}
+    .source-biogrid {color: white; background-color: #cab2d6}
+    .source-tas {color: white; background-color: #6a3d9a}
+    .source-lincs_drug {color: navy; background-color: #ffff99}
+    .source-hprd {color: white; background-color: #b15928}
+    .source-trrust {color: white; background-color: #ff4612}
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 class="display-5" style="padding-top: 15px; padding-bottom: 15px;">INDRA Gene Dependency Explainer 2.0</h1>
+    <h1 class="display-5" style="padding-top: 15px; padding-bottom: 15px;">INDRA Network Search</h1>
   </div>
   <div class="container">
     <h2 class="display-6">Enter search</h2>
@@ -351,36 +403,30 @@
       </div>
       <div class="row">
         <div class="col">
-          <div class="dropdown">
-            <select id="path-length">
-              <option value="" selected="selected" disabled="disabled" hidden="hidden">Max path length</option>
-              <option value=1>1</option>
-              <option value=2>2</option>
-              <option value=3>3</option>
-              <option value=4>4</option>
-            </select>
-            <div class="custom-control custom-checkbox">
-              <input type="checkbox" class="custom-control-input" id="selected-length-only">
-              <label class="custom-control-label" for="selected-length-only">Selected length only</label>
-            </div>
+          <div class="container" style="width: 185px; float: left; padding: 0px;">
+            <input class="form-control" type="number" step="1" name="path_length" id="path-length" min="0" max="10"
+                   placeholder="Path length"
+                   title="Only search for paths with the specified number of edges. An empty value allows any number of edges.">
           </div>
         </div>
         <div class="col">
           <div class="container" style="width: 160px; float: left; padding: 0px;">
-            <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50" placeholder="max # paths">
+            <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50"
+                   placeholder="max # paths"
+                   title="The maximum number of paths per catergory to return. Default is 50.">
           </div>
         </div>
       </div>
       <div class="row">
         <div class="col">
-          <div class="form-select">
-            <select name="stmt-filter" id="stmt-filter" title="The path will only contain the selected statement types" placeholder="Statement types included in path" multiple>
+          <div class="form-select" title="The path will not contain the selected statement types">
+            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types to exclude" multiple>
             </select>
           </div>
         </div>
         <div class="col">
-          <div class="form-select">
-            <select name="node-filter" id="node-filter" title="The path will only contain nodes from the selected namespaces" placeholder="Node namespaces included in path" multiple>
+          <div class="form-select" title="The path will only contain nodes from the selected namespaces">
+            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
         </div>
@@ -397,41 +443,33 @@
         <div class="col">
           <label style="margin: 0px;"><div class="container" style="width: 90px; float: left; padding: 0px;">
             <input class="form-control" type="number" step="0.01" name="belief_cutoff" id="belief-cutoff" min="0" max="1">
-          </div>&nbsp;&nbsp;Belief Score cut-off (0 to 1)</label>
+          </div>&nbsp;Belief Score cut-off (0 to 1), higher is better</label>
         </div>
       </div>
-      <div class="row">
-        <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
-          <label><select id="sign-dd" disabled>
-            <option selected="selected" value="no_sign">No sign</option>
-            <option value="plus">+</option>
-            <option value="minus">-</option>
-          </select>&nbsp;&nbsp;Sign</label>
-        </div>
-      </div>
-      <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="direct-only" disabled>
-        <label class="custom-control-label" for="direct-only">Direct only</label>
-      </div>
+<!--      <div class="row">-->
+<!--        <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">-->
+<!--          <label><select id="sign-dd" disabled>-->
+<!--            <option selected="selected" value="no_sign">No sign</option>-->
+<!--            <option value="plus">+</option>-->
+<!--            <option value="minus">-</option>-->
+<!--          </select>&nbsp;&nbsp;Sign</label>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--      <div class="custom-control custom-checkbox">-->
+<!--        <input type="checkbox" class="custom-control-input" id="direct-only" disabled>-->
+<!--        <label class="custom-control-label" for="direct-only">Direct only</label>-->
+<!--      </div>-->
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="weighted-search">
         <label class="custom-control-label" for="weighted-search">Weighted search</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="simple-paths" checked>
-        <label class="custom-control-label" for="simple-paths">Simple path search</label>
+        <input type="checkbox" class="custom-control-input" id="curated-db-only">
+        <label class="custom-control-label" for="curated-db-only">Databases only</label>
       </div>
       <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="curated-db-only" disabled>
-        <label class="custom-control-label" for="curated-db-only">Curated databases only</label>
-      </div>
-      <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="fplx-fam-edges">
-        <label class="custom-control-label" for="fplx-fam-edges">Include FamPlex Families as edges</label>
-      </div>
-      <div class="custom-control custom-checkbox">
-        <input type="checkbox" class="custom-control-input" id="fplx-cplx-edges">
-        <label class="custom-control-label" for="fplx-cplx-edges">Include FamPlex Complexes as edges</label>
+        <input type="checkbox" class="custom-control-input" id="fplx-edges">
+        <label class="custom-control-label" for="fplx-edges">Include FamPlex Families and Complexes in path search</label>
       </div>
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="fplx-expand">
@@ -441,10 +479,10 @@
     </form>
   </div>
   <div class="container">
-    <p><i id="query-status">Some settings are currently unavailable</i></p>
+    <p><i id="query-status">Waiting for query</i></p>
   </div>
 
-  <div class="container">
+  <div id="table-area" class="container">
     <h2 class="display-6">Search Results</h2>
     <!-- Common parents complexes and families -->
     <div class="card">
@@ -456,10 +494,10 @@
              data-target="#collapse-paths-cp"
              aria-expanded="false" 
              aria-controls="collapse-paths-cp">
-            Complexes and Families (<div id="subject-placeholder-cp" class="placeholder">A</div>-<div id="object-placeholder-cp" class="placeholder">B</div>)
+            Complexes and Families (<span id="subject-placeholder-cp" class="placholder subject-placeholder">A</span> -
+              <span id="object-placeholder-cp" class="placholder object-placeholder">B</span>)
           </a>
-          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Entitites: 0</span>
-
+          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Entities: 0</span>
         </h3>
       </div>
       <div id="collapse-paths-cp" class="collapse">
@@ -467,118 +505,9 @@
           <table class="table">
             <thead class="table-head">
               <th>Family/Complex</th>
-              <th>Namespaces</th>
+              <th>Namespace</th>
             </thead>
             <tbody class="table-body" id="query-results-cp"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Direct paths: a-b -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-1"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-1">
-            Direct Paths (<div id="subject-placeholder-1" class="placeholder">A</div>&rarr;<div id="object-placeholder-1" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-1" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-
-        </h3>
-      </div>
-      <div id="collapse-paths-1" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-1"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Path len 2: a-b-c -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-2"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-2">
-            2-Edge Paths (<div id="subject-placeholder-2" class="placeholder">A</div>&rarr;U&rarr;<div id="object-placeholder-2" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-2" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-2" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-2"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Path len 3: a-b-c-d -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-3"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-3">
-            3-Edge Paths (<div id="subject-placeholder-3" class="placeholder">A</div>&rarr;U&rarr;V&rarr;<div id="object-placeholder-3" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-3" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-3" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-3"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Path len 4: a-b-c-d -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-4"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-4">
-            4-Edge Paths (<div id="subject-placeholder-4" class="placeholder">A</div>&rarr;U&rarr;V&rarr;X&rarr;<div id="object-placeholder-4" class="placeholder">B</div>)
-          </a>
-          <span id="npaths-4" class="badge badge-primary badge-pill float-right path-count">Paths: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-4" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Path</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-4"></tbody>
           </table>
         </div>
       </div>
@@ -593,7 +522,8 @@
              data-target="#collapse-common-targets"
              aria-expanded="false"
              aria-controls="collapse-common-targets">
-            Common Targets (<div id="subject-placeholder-ct" class="placeholder">A</div>&rarr;Z&larr;<div id="object-placeholder-ct" class="placeholder">B</div>)
+            Common Targets (<span id="subject-placeholder-ct" class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span
+              id="object-placeholder-ct" class="placholder object-placeholder">B</span>)
           </a>
           <span id="common-targets" class="badge badge-primary badge-pill float-right path-count">Targets: 0</span>
         </h3>
@@ -610,6 +540,7 @@
         </div>
       </div>
     </div>
+    <!-- Dynamic tables -->
   </div>
 
   <footer class="footer text-muted" id="about" style="background: #F5F5F5;">
