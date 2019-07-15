@@ -19,21 +19,15 @@ import json
 import logging
 import pandas as pd
 import pickle as pkl
-import networkx as nx
 import argparse as ap
 import itertools as itt
 from numpy import float64
 from time import time, strftime
-from collections import defaultdict
 from random import choice as rnd_choice
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
-from depmap_network_functions import create_nested_dict as nest_dict
-from util.io_functions import _dump_it_to_pickle, _pickle_open, \
-    _dump_it_to_csv, _dump_it_to_json, _json_open
-# There are pickled files using "nest_dict" in their preserved import settings
-# and we can therefore not use another name when using those files until we
-# create new pickle files
+from depmap_analysis.util.io_functions import _dump_it_to_pickle, \
+    _pickle_open, _dump_it_to_csv, _dump_it_to_json, _json_open
 
 logger = logging.getLogger('DepMap Script')
 
