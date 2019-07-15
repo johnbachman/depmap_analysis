@@ -83,9 +83,9 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
     global INDRA_DG_CACHE, INDRA_MDG_CACHE
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
-        indra_dir_graph = dnf.nx_digraph_from_sif_dataframe(dataframe_file)
-        indra_multi_digraph = dnf.nx_digraph_from_sif_dataframe(dataframe_file,
-                                                                multi=True)
+        indra_dir_graph = dnf.sif_dump_df_to_nx_digraph(dataframe_file)
+        indra_multi_digraph = dnf.sif_dump_df_to_nx_digraph(dataframe_file,
+                                                            multi=True)
         logging.info('Dumping latest indra db snapshot to pickle')
         _dump_it_to_pickle(dir_graph_path, indra_dir_graph)
         INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
