@@ -28,7 +28,9 @@ from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 
-from depmap_analysis.util.io_functions import _pickle_open
+from depmap_analysis.util.io_functions import _pickle_open, _dump_it_to_json,\
+    _dump_it_to_csv
+import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
@@ -767,7 +769,7 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
                     return False
 
         dnf_logger.info('Fetching entity hierarchy relationsships')
-        full_entity_list = get_all_entities()
+        full_entity_list = fplx_fcns.get_all_entities()
         ehm = hm.hierarchies['entity']
         ehm.initialize()
         dnf_logger.info('Adding entity hierarchy manager as graph attribute')
@@ -1944,7 +1946,7 @@ def nested_dict_of_stmts(stmts, belief_dict=None):
 
             # Check common parent (same family or complex)
             for agent, other_agent in itt.permutations(agent_list, r=2):
-                if has_common_parent(id1=agent, id2=other_agent):
+                if fplx_fcns.has_common_parent(id1=agent, id2=other_agent):
                     bs = None
                     try:
                         if 'parent' not in \
@@ -2282,118 +2284,6 @@ def dbc_load_statements(hgnc_syms):
     return stmts
 
 
-def get_all_entities(eh=hm.hierarchies['entity']):
-    """Get a list of all entities included in HierarchyManager['entity']
-
-    Parameters
-    ----------
-    eh : HierarchyManager object
-        A HierarchyManager object initialized to an entities HierarchyManager.
-
-    Returns
-    -------
-    entity_list : list
-        A list of namespace, id, uri_id tuples
-    """
-    ent_list = []
-    eh.initialize()
-    entities_keyed_by_parent = eh._children
-    for puri, children_uris in entities_keyed_by_parent.items():
-        pns, pid = eh.ns_id_from_uri(puri)
-        ent_list.append((pns, pid, puri))
-        ns_id_child_set = set([(*eh.ns_id_from_uri(p), p)
-                               for p in entities_keyed_by_parent[puri]])
-        for cns, cid, curi in ns_id_child_set:
-            ent_list.append((cns, cid, curi))
-
-    return ent_list
-
-
-def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
-                id_=None, type_='all'):
-    """A wrapper function for he.get_parents to make the functionality more
-    clear.
-
-    Parameters
-    ----------
-    ho : HierarchyManager object
-        A HierarchyManager object. Default: entity hierarchy object
-    ns : str
-        namespace id. Default: HGNC
-    id_ : str
-        id to check parents for. Default: None
-    type_ : str
-        'all': (Default) return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
-
-    Returns
-    -------
-    set
-        set of parents of database id in namespace ns
-    """
-    return ho.get_parents(ho.get_uri(ns, id_), type_)
-
-
-def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
-                  id1=None, ns2='HGNC', id2=None, type_='all'):
-    """Returns the set of common parents.
-
-    Parameters
-    ----------
-    ho : HierarchyManager object
-        A HierarchyManager object. Default: entity hierarchy object
-    ns1 : str
-        namespace id. Default: HGNC
-    id1 : str
-        First id to check parents for. Default: None
-    ns2 : str
-        namespace id. Default: HGNC
-    id2 : str
-        Second id to check parents for. Default: None
-    type_ : str
-        'all': (Default) return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
-
-    Returns
-    -------
-    set
-        set of common parents in uri format
-    """
-    return find_parent(ho, ns1, id1, type_) & find_parent(ho, ns2, id2, type_)
-
-
-def has_common_parent(ho=hm.hierarchies['entity'], ns1='HGNC', id1=None,
-                      ns2='HGNC', id2=None, type='all'):
-
-    """Returns True if id1 and id2 has at least one common parent.
-
-    Parameters
-    ----------
-    ho : HierarchyManager object
-        A HierarchyManager object. Default: entity hierarchy object
-    ns1 : str
-        namespace id. Default: HGNC
-    id1 : str
-        First id to check parents for. Default: None
-    ns2 : str
-        namespace id. Default: HGNC
-    id2 : str
-        Second id to check parents for. Default: None
-    type : str
-        'all': return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
-
-    Returns
-    -------
-    bool
-        True if hgnc1 and hgnc2 has one or more common parents.
-    """
-    return bool(common_parent(ho, ns1, id1, ns2, id2, type))
-
-
 def direct_relation(id1, id2, long_stmts=set()):
     """Returns a list of INDRA statements
 
@@ -2550,8 +2440,9 @@ def are_connected(id1, id2, long_stmts=set()):
         have a direct relation found in the
         indra.sources.indra_db_rest.client_api databases.
     """
-    return has_common_parent(ns1='HGCN', id1=id1, ns2='HGCN', id2=id2) or \
-        has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
+    return fplx_fcns.has_common_parent(ns1='HGNC', id1=id1,
+                                       ns2='HGNC', id2=id2) or \
+           has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
 
 
 def connection_types(id1, id2, long_stmts=set()):
@@ -2574,7 +2465,7 @@ def connection_types(id1, id2, long_stmts=set()):
 
     ctypes = relation_types(direct_relation(id1=id1, id2=id2,
                                             long_stmts=long_stmts))
-    if has_common_parent(id1=id1, id2=id2):
+    if fplx_fcns.has_common_parent(id1=id1, id2=id2):
         ctypes += ['parent']
     return ctypes
 
