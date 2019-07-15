@@ -215,7 +215,8 @@ class IndraNetwork:
         # Check non-resolving query
         sns, sid = dnf._ns_id_from_name(options['source'])
         tns, tid = dnf._ns_id_from_name(options['target'])
-        if sns.lower() or tns.lower() not in options['node_filter']:
+        if (sns and sns.lower() not in options['node_filter']) or \
+                (tns and tns.lower() not in options['node_filter']):
             if sns.lower() not in options['node_filter']:
                 logger.warning('%s not among accepted nodes' % sns)
             if tns.lower() not in options['node_filter']:
