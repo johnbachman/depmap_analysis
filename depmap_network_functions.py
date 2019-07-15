@@ -484,7 +484,7 @@ def nx_undirected_graph_from_nested_dict(nest_d):
 
     Returns
     -------
-    nx_undir : networkx.classes.graph.Graph
+    nx_undir : nx.Graph
         An undirected, unweighted networkx graph
     """
 
@@ -515,15 +515,14 @@ def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
     """Return a graph from a pandas sereis containing correlaton between gene A
     and gene B, using the correlation as edge weight
 
+    Parameters
+    ----------
     corr_sr : pandas Series or DataFrame
         Pandas Series/DataFrame containing A, B corr
-
     source : str
         which column to identify as source node (output is still undirected)
-
     target : str
-        which column to identify as target nodes (output is still undirected)
-
+        which column to identify as target node (output is still undirected)
     edge_attr : int or str
         Column to use for edge attributes
     absolute : Bool
@@ -565,9 +564,10 @@ def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
 def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     """Return a graph from a list of edges, using the correlation as weight
 
+    Parameters
+    ----------
     corr_list : list or iterator
         Edge tuples
-
     absolute : Bool
         Use absolute value as edge weight. Otherwise magnitude is used.
 
@@ -596,6 +596,8 @@ def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
                                   verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
+    Parameters
+    ----------
     df : str|pandas.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
         DataFrame object
