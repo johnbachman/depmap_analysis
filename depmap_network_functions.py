@@ -1,8 +1,6 @@
 import os
 import re
-import csv
 import sys
-import json
 import math
 import logging
 import requests
@@ -328,7 +326,7 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
     return dir_path_nodes_wb
 
 
-def nx_directed_multigraph_from_nested_dict(nest_d):
+def nested_stmt_dict_to_nx_multidigraph(nest_d):
     """Returns a directed multigraph where each edge links a statement with
     u=subj, v=obj, edge_key=stmt,
 
@@ -361,7 +359,7 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
     return nx_muldir
 
 
-def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
+def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
     """Returns a directed graph from a two layered nested dictionary
 
     Nested dictionary
@@ -435,7 +433,7 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
     return nx_dir_g
 
 
-def nx_directed_graph_from_nested_dict_3layer(nest_d):
+def nested_stmt_explained_dict_nx_digraph(nest_d):
     """Returns a directed graph from a three layered nested dictionary
 
     Form of nested dictionary
@@ -473,7 +471,7 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
     return nx_dir_g
 
 
-def nx_undirected_graph_from_nested_dict(nest_d):
+def nested_stmt_dict_to_nx_graph(nest_d):
     """Returns an undirected graph built from a nested dict of statements
 
     Use this function to build a simple undirected graph. Suitable when the
@@ -510,8 +508,8 @@ def nx_undirected_graph_from_nested_dict(nest_d):
     return nx_undir
 
 
-def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
-                                 edge_attr='correlation', use_abs_corr=False):
+def pd_to_nx_graph(corr_sr, source='id1', target='id2',
+                   edge_attr='correlation', use_abs_corr=True):
     """Return a graph from a pandas sereis containing correlaton between gene A
     and gene B, using the correlation as edge weight
 
@@ -591,9 +589,9 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     return corr_weight_graph
 
 
-def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
-                                  multi=False, include_entity_hierarchies=True,
-                                  verbosity=0):
+def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
+                              multi=False, include_entity_hierarchies=True,
+                              verbosity=0):
     """Return a NetworkX digraph from a pickled db dump dataframe.
 
     Parameters
