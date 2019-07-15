@@ -591,7 +591,7 @@ def main(args):
             nx_dir_graph = pkl.load(rpkl)
     else:
         # Create directed graph from statement dict
-        nx_dir_graph = dnf.nx_directed_graph_from_nested_dict_2layer(
+        nx_dir_graph = dnf.nested_stmt_dict_to_nx_digraph(
             nest_d=nested_dict_statements, belief_dict=belief_dict)
         # Save as pickle file
         if args.directed_graph_out:
@@ -868,7 +868,7 @@ def main(args):
     logger.info('\n' + long_string)
 
     # Here create directed graph from explained nested dict
-    nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
+    nx_expl_dir_graph = dnf.nested_stmt_explained_dict_nx_digraph(
         nest_d=explained_nested_dict)
 
     if not args.no_web_files:
