@@ -11,9 +11,9 @@ from flask import Flask, request, abort, Response
 from indra_db.util import dump_sif
 from indra.config import CONFIG_DICT
 
-import depmap_network_functions as dnf
-from depmap_analysis.util.io_functions import _pickle_open, _dump_it_to_pickle
-from depmap_analysis.network_functions.indra_network import IndraNetwork
+from depmap_analysis.network_functions import indra_network as inn
+from depmap_analysis.network_functions import network_functions as nf
+from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 app = Flask(__name__)
 
@@ -83,26 +83,26 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
     global INDRA_DG_CACHE, INDRA_MDG_CACHE
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
-        indra_dir_graph = dnf.sif_dump_df_to_nx_digraph(dataframe_file)
-        indra_multi_digraph = dnf.sif_dump_df_to_nx_digraph(dataframe_file,
-                                                            multi=True)
+        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(dataframe_file)
+        indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(dataframe_file,
+                                                           multi=True)
         logging.info('Dumping latest indra db snapshot to pickle')
-        _dump_it_to_pickle(dir_graph_path, indra_dir_graph)
+        dump_it_to_pickle(dir_graph_path, indra_dir_graph)
         INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
-        _dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
+        dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
         INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
     else:
         logger.info('Loading indra networks %s and %s' %
                     (dir_graph_path, multi_digraph_path))
-        indra_dir_graph = _pickle_open(dir_graph_path)
-        indra_multi_digraph = _pickle_open(multi_digraph_path)
+        indra_dir_graph = pickle_open(dir_graph_path)
+        indra_multi_digraph = pickle_open(multi_digraph_path)
         logger.info('Finished loading indra networks.')
     return indra_dir_graph, indra_multi_digraph
 
 
 if path.isfile(INDRA_DG_CACHE) and path.isfile(
         INDRA_MDG_CACHE):
-    indra_network = IndraNetwork()
+    indra_network = inn.IndraNetwork()
 else:
     # Here should dump new cache instead, but raise error for now
 
@@ -188,8 +188,7 @@ if __name__ == '__main__':
         INDRA_MDG_CACHE = TEST_MDG_CACHE
 
     indra_network = \
-        IndraNetwork(*load_indra_graph(INDRA_DG_CACHE,
-                                       INDRA_MDG_CACHE))
+        inn.IndraNetwork(*load_indra_graph(INDRA_DG_CACHE, INDRA_MDG_CACHE))
     if args.test:
         indra_network.small = True
         indra_network.verbose = args.verbose if args.verbose else 1
