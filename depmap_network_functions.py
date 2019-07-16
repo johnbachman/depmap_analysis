@@ -5,7 +5,6 @@ import math
 import logging
 import requests
 import itertools as itt
-from decimal import Decimal
 from math import ceil, log10
 from collections import Mapping
 from collections import OrderedDict
@@ -24,7 +23,6 @@ from indra_db import client as dbc
 from indra.config import CONFIG_DICT
 from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
-from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 
@@ -40,9 +38,6 @@ try:
 except KeyError:
     dnf_logger.warning('Indra Grounding service not available. Add '
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
-
-np.seterr(all='raise')
-NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 
 
 def rawincount(filename):
@@ -211,19 +206,6 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
         dump_it_to_json(fname=path + '/neighbors_to_%s.json' % node,
                         pyobj=nnnl)
     dnf_logger.info('Finished dumping node neighbor dicts to %s' % path)
-
-
-def _filter_corr_data(corr, clusters, cl_limit):
-    # To get gene names where clustering coefficient is above limit.
-    # Clusters has to come from an already produced graph.
-    # The filtered correlations can then be used to produce a new graph.
-    # The usage of this would be to get a nicer plot that conecntrates on the
-    # clusters instead of plotting _everything_, making it hard to see the
-    # forest for all the trees.
-
-    filtered_genes = [k for k in clusters if clusters[k] > cl_limit]
-    filtered_correlations = corr[filtered_genes].unstack()
-    return filtered_correlations
 
 
 def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
