@@ -2,13 +2,16 @@ import logging
 import requests
 import networkx as nx
 from itertools import product
-from networkx import NodeNotFound, NetworkXNoPath
+from collections import defaultdict
 from time import time, gmtime, strftime
+from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
 
 import depmap_network_functions as dnf
-from depmap_analysis.network_functions.network_functions import ag_belief_score
+from depmap_analysis.network_functions import famplex_functions as ff
+from depmap_analysis.network_functions.network_functions import \
+    ag_belief_score, shortest_simple_paths
 
 logger = logging.getLogger('indra network')
 
@@ -67,6 +70,11 @@ class IndraNetwork:
             a list of statement hashes (as strings or ints) to ignore. If an
             edge statement hash is found in this list, it will be discarded
             from the assembled edge list.
+        cull_best_node: [int]
+            a positive integer. Every x valid paths, cull the node with the
+            highest (weighted) degree from the network. This increases the
+            variety of paths found and reduces the impact of nodes with extremely
+            high connectivity in the network.
         path_length: int|False
             a positive integer stating the number of edges that should be in
             the returned path. If False, return paths with any number of edges.
@@ -143,6 +151,8 @@ class IndraNetwork:
                 options[k] = [str(i) for i in options[k]]
             if k in ['node_filter', 'stmt_filter']:
                 options[k] = [s.lower() for s in options[k]]
+            if k == "cull_best_node":
+                options[k] = int(v) if v >= 1 else float('NaN')
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Query translated to: %s' % repr(options))
@@ -322,8 +332,12 @@ class IndraNetwork:
         try:
             logger.info('Doing simple %s path search' % 'weigthed'
                         if options['weight'] else '')
-            paths = nx.shortest_simple_paths(self.nx_dir_graph_repr,
-                                     source, target, options['weight'])
+            blacklist_options = {}
+            blacklist_options['ignore_nodes'] = options.get('node_blacklist',
+                                                            None)
+            paths = shortest_simple_paths(self.nx_dir_graph_repr,
+                                     source, target, options['weight'],
+                                     **blacklist_options)
             # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
             #                               source, target, options['weight'])
             return self._loop_paths(paths, **options)
@@ -390,10 +404,15 @@ class IndraNetwork:
         # len(path) = edge count + 1
         path_len = options['path_length'] + 1 if \
             options['path_length'] and not options['weight'] else False
-        result = {}
+        result = defaultdict(list)
+        prev_path = None
         added_paths = 0
         skipped_paths = 0
-        for path in paths_gen:
+        culled_nodes = set()
+        culled_edges = set()  # Currently unused, only operate on node level
+        # Send first signal to paths_gen to start iteration
+        paths_gen.send(None)
+        while True:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found all %d shortest paths, returning results.' %
@@ -405,7 +424,24 @@ class IndraNetwork:
                                (TIMEOUT, MAX_PATHS))
                 self.query_timed_out = True
                 return result
-
+            # Check if we have to cull the best node, this is the case
+            # if the modulo is 1, meaning that in the *following* path we
+            # want another node culled
+            if (added_paths % options.get(
+                    'cull_best_node', float('NaN')) == 1 and
+                    prev_path is not None and len(prev_path['path']) >= 3):
+                degrees = self.nx_dir_graph_repr.degree(
+                    prev_path['path'][1:-1], options.get('weight', None))
+                node_highest_degree = max(degrees, key=lambda x: x[1])[0]
+                culled_nodes.add(node_highest_degree)
+                if self.verbose > 1:
+                    logger.info('Culled nodes: %s' % repr(culled_nodes))
+            # Get next path and send culled nodes and edges info for the
+            # path in the following iteration
+            try:
+                path = paths_gen.send((culled_nodes, culled_edges))
+            except StopIteration:
+                break
             hash_path = self._get_hash_path(path, **options)
             if hash_path and all(hash_path):
                 if self.verbose > 1:
@@ -415,33 +451,19 @@ class IndraNetwork:
                       'path': path,
                       'cost': str(self._get_cost(path)),
                       'sort_key': str(self._get_sort_key(path, hash_path))}
-                try:
-                    if not path_len:
-                        result[len(path)].append(pd)
-                        added_paths += 1
-                    elif path_len and len(path) < path_len:
-                        continue
-                    elif path_len and len(path) == path_len:
-                        result[len(path)].append(pd)
-                        added_paths += 1
-                    elif path_len and len(path) > path_len:
-                        if self.verbose > 1:
-                            logger.info('Max path length reached, returning '
-                                        'results.')
-                        return result
-                    else:
-                        logger.warning('This option should not happen')
-                except KeyError:
-                    try:
-                        if path_len and len(path) == path_len:
-                            result[len(path)] = [pd]
-                            added_paths += 1
-                        elif not path_len:
-                            result[len(path)] = [pd]
-                            added_paths += 1
-                    except KeyError as ke:
-                        logger.warning('Unexpected KeyError: ' + repr(ke))
-                        raise ke
+                if not path_len or (path_len and path_len == len(path)):
+                    result[len(path)].append(pd)
+                    prev_path = pd
+                    added_paths += 1
+                elif path_len and len(path) < path_len:
+                    continue
+                elif path_len and len(path) > path_len:
+                    if self.verbose > 1:
+                        logger.info('Max path length reached, returning '
+                                    'results.')
+                    return result
+                else:
+                    logger.warning('This option should not happen')
             else:
                 skipped_paths += 1
         if self.verbose > 2:
@@ -495,8 +517,8 @@ class IndraNetwork:
                 if self.verbose > 1:
                     logger.info('Looking for common parents using namespaces '
                                 'found in network')
-                cp = dnf.common_parent(ns1=source_ns, id1=source_id,
-                                       ns2=target_ns, id2=target_id)
+                cp = ff.common_parent(ns1=source_ns, id1=source_id,
+                                      ns2=target_ns, id2=target_id)
             else:
                 logger.info('The namespaces for %s and/or %s are not in node '
                             'filter. Aborting common parent search.' %
@@ -514,8 +536,8 @@ class IndraNetwork:
                     if sns.lower() not in options['node_filter']:
                         continue
                     else:
-                        cp = dnf.common_parent(ns1=sns, id1=source_id,
-                                               ns2=target_ns, id2=target_id)
+                        cp = ff.common_parent(ns1=sns, id1=source_id,
+                                              ns2=target_ns, id2=target_id)
                         if cp:
                             if self.verbose:
                                 logger.info('Found common parents with source '
@@ -537,8 +559,8 @@ class IndraNetwork:
                     if tns.lower() not in options['node_filter']:
                         continue
                     else:
-                        cp = dnf.common_parent(ns1=source_ns, id1=source_id,
-                                               ns2=tns, id2=target_id)
+                        cp = ff.common_parent(ns1=source_ns, id1=source_id,
+                                              ns2=tns, id2=target_id)
                         if cp:
                             if self.verbose:
                                 logger.info('Found common parents with source '
@@ -561,8 +583,8 @@ class IndraNetwork:
                 for target_ns in ['HGNC', 'FPLX']:
                     if target_ns.lower() not in options['node_filter']:
                         continue
-                    cp = dnf.common_parent(ns1=source_ns, id1=source_id,
-                                           ns2=target_ns, id2=target_id)
+                    cp = ff.common_parent(ns1=source_ns, id1=source_id,
+                                          ns2=target_ns, id2=target_id)
                     if cp:
                         break
 
@@ -605,13 +627,6 @@ class IndraNetwork:
                                  self.nodes[obj]['ns'],
                                  options['node_filter']))
                 return []
-            elif options.get('node_blacklist', None):
-                if subj in options['node_blacklist'] or obj in \
-                        options['node_blacklist']:
-                    if self.verbose:
-                        logger.info('%s or %s part of node blacklist, '
-                                    'skipping path' % (subj, obj))
-                    return []
 
             # Initialize edges list, statement index
             edges = []
