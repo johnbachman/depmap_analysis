@@ -1,13 +1,11 @@
 import logging
-import numpy as np
-import networkx as nx
 from decimal import Decimal
 
+import numpy as np
+import networkx as nx
 from indra.preassembler import hierarchy_manager as hm
-
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
-
 
 np.seterr(all='raise')
 NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
@@ -180,20 +178,20 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
             nx_graph.edges[e]['weight'] = -np.log(ag_belief)
 
     if include_entity_hierarchies:
-        def _fplx_edge_in_list(multi, edge, check_uri, nx_graph):
-            if multi:
-                e = 0
-                es = nx_graph.edges.get((*edge, e), None)
+        def _fplx_edge_in_list(mg, edge, check_uri, g):
+            if mg:
+                ec = 0
+                es = g.edges.get((*edge, ec), None)
                 while es:
                     if es['stmt_type'] == 'fplx' and \
                             es['stmt_hash'] == check_uri:
                         return True
                     else:
-                        e += 1
-                        es = nx_graph.edges.get((*edge, e), None)
+                        ec += 1
+                        es = g.edges.get((*edge, ec), None)
             else:
-                if nx_graph.edges.get(edge):
-                    for es in nx_graph.edges.get(edge).get('stmt_list'):
+                if g.edges.get(edge):
+                    for es in g.edges.get(edge).get('stmt_list'):
                         if es['stmt_type'] == 'fplx' and \
                                 es['stmt_hash'] == check_uri:
                             return True
@@ -211,14 +209,14 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
         node_by_uri = {}
         logger.info('Adding entity relations as edges in graph')
         entities = 0
-        for ns, id, uri in full_entity_list:
-            node = id
+        for ns, _id, uri in full_entity_list:
+            node = _id
             # Get name in case it's different than id
-            if ns_id_to_nodename.get((ns, id), None):
-                node = ns_id_to_nodename[(ns, id)]
+            if ns_id_to_nodename.get((ns, _id), None):
+                node = ns_id_to_nodename[(ns, _id)]
 
             if node not in nx_graph.nodes:
-                nx_graph.add_node(node, ns=ns, id=id)
+                nx_graph.add_node(node, ns=ns, id=_id)
             node_by_uri[uri] = node
 
             # Add famplex edge
@@ -274,7 +272,7 @@ def ag_belief_score(belief_list):
         )
     except FloatingPointError as err:
         logger.warning('%s: Resetting ag_belief to 10*np.longfloat '
-                           'precision (%.0e)' %
+                       'precision (%.0e)' %
                        (err, Decimal(NP_PRECISION * 10)))
         ag_belief = NP_PRECISION * 10
 
