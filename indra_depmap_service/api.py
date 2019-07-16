@@ -54,14 +54,24 @@ QUERY = _load_template('query.html')
 
 
 def load_indra_graph(dir_graph_path, multi_digraph_path, update=False,
-                     belief_dict=None, strat_ev_dict=None):
+                     belief_dict=None, strat_ev_dict=None,
+                     include_entity_hierarchies=True, verbosity=0):
     """Return a nx.DiGraph and nx.MultiDiGraph representation an INDRA DB dump
+
+    If update is True, make a fresh snapshot from the INDRA DB.
+    WARNING: this typically requires a lot of RAM and might slow down your
+    computer significantly.
     """
     global INDRA_DG_CACHE, INDRA_MDG_CACHE
     if update:
-        stmts_file, dataframe_file, csv_file = dump_indra_db()
-        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(dataframe_file)
-        indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(dataframe_file,
+        df = make_dataframe(True, load_db_content(True, NS_LIST))
+        options = {'df': df,
+                   'belief_dict': belief_dict,
+                   'strat_ev_dict': strat_ev_dict,
+                   'include_entity_hierarchies': include_entity_hierarchies,
+                   'verbosity': verbosity}
+        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(**options, multi=False)
+        indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(**options,
                                                            multi=True)
         logging.info('Dumping latest indra db snapshot to pickle')
         dump_it_to_pickle(dir_graph_path, indra_dir_graph)
