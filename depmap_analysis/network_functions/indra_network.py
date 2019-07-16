@@ -9,7 +9,9 @@ from time import time, gmtime, strftime
 from indra.config import CONFIG_DICT
 
 import depmap_network_functions as dnf
-from depmap_analysis.network_functions.network_functions import ag_belief_score, shortest_simple_paths
+from depmap_analysis.network_functions import famplex_functions as ff
+from depmap_analysis.network_functions.network_functions import \
+    ag_belief_score, shortest_simple_paths
 
 logger = logging.getLogger('indra network')
 
@@ -513,7 +515,7 @@ class IndraNetwork:
                 if self.verbose > 1:
                     logger.info('Looking for common parents using namespaces '
                                 'found in network')
-                cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                cp = ff.common_parent(ns1=source_ns, id1=source_id,
                                        ns2=target_ns, id2=target_id)
             else:
                 logger.info('The namespaces for %s and/or %s are not in node '
@@ -532,7 +534,7 @@ class IndraNetwork:
                     if sns.lower() not in options['node_filter']:
                         continue
                     else:
-                        cp = dnf.common_parent(ns1=sns, id1=source_id,
+                        cp = ff.common_parent(ns1=sns, id1=source_id,
                                                ns2=target_ns, id2=target_id)
                         if cp:
                             if self.verbose:
@@ -555,7 +557,7 @@ class IndraNetwork:
                     if tns.lower() not in options['node_filter']:
                         continue
                     else:
-                        cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                        cp = ff.common_parent(ns1=source_ns, id1=source_id,
                                                ns2=tns, id2=target_id)
                         if cp:
                             if self.verbose:
@@ -579,7 +581,7 @@ class IndraNetwork:
                 for target_ns in ['HGNC', 'FPLX']:
                     if target_ns.lower() not in options['node_filter']:
                         continue
-                    cp = dnf.common_parent(ns1=source_ns, id1=source_id,
+                    cp = ff.common_parent(ns1=source_ns, id1=source_id,
                                            ns2=target_ns, id2=target_id)
                     if cp:
                         break
