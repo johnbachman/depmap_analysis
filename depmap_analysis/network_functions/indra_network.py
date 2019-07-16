@@ -3,8 +3,8 @@ import requests
 import networkx as nx
 from itertools import product
 from collections import defaultdict
-from networkx import NodeNotFound, NetworkXNoPath
 from time import time, gmtime, strftime
+from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
 
@@ -333,7 +333,8 @@ class IndraNetwork:
             logger.info('Doing simple %s path search' % 'weigthed'
                         if options['weight'] else '')
             blacklist_options = {}
-            blacklist_options['ignore_nodes'] = options.get('node_blacklist', None)
+            blacklist_options['ignore_nodes'] = options.get('node_blacklist',
+                                                            None)
             paths = shortest_simple_paths(self.nx_dir_graph_repr,
                                      source, target, options['weight'],
                                      **blacklist_options)
@@ -408,7 +409,7 @@ class IndraNetwork:
         added_paths = 0
         skipped_paths = 0
         culled_nodes = set()
-        culled_edges = set() #Currently unused, only operate on node level
+        culled_edges = set()  # Currently unused, only operate on node level
         # Send first signal to paths_gen to start iteration
         paths_gen.send(None)
         while True:
@@ -426,10 +427,11 @@ class IndraNetwork:
             # Check if we have to cull the best node, this is the case
             # if the modulo is 1, meaning that in the *following* path we
             # want another node culled
-            if (added_paths % options.get('cull_best_node', float('NaN')) == 1 and
-                prev_path is not None and
-                len(prev_path['path']) >= 3):
-                degrees = self.nx_dir_graph_repr.degree(prev_path['path'][1:-1], options.get('weight', None))
+            if (added_paths % options.get(
+                    'cull_best_node', float('NaN')) == 1 and
+                    prev_path is not None and len(prev_path['path']) >= 3):
+                degrees = self.nx_dir_graph_repr.degree(
+                    prev_path['path'][1:-1], options.get('weight', None))
                 node_highest_degree = max(degrees, key=lambda x: x[1])[0]
                 culled_nodes.add(node_highest_degree)
                 if self.verbose > 1:
@@ -516,7 +518,7 @@ class IndraNetwork:
                     logger.info('Looking for common parents using namespaces '
                                 'found in network')
                 cp = ff.common_parent(ns1=source_ns, id1=source_id,
-                                       ns2=target_ns, id2=target_id)
+                                      ns2=target_ns, id2=target_id)
             else:
                 logger.info('The namespaces for %s and/or %s are not in node '
                             'filter. Aborting common parent search.' %
@@ -535,7 +537,7 @@ class IndraNetwork:
                         continue
                     else:
                         cp = ff.common_parent(ns1=sns, id1=source_id,
-                                               ns2=target_ns, id2=target_id)
+                                              ns2=target_ns, id2=target_id)
                         if cp:
                             if self.verbose:
                                 logger.info('Found common parents with source '
@@ -558,7 +560,7 @@ class IndraNetwork:
                         continue
                     else:
                         cp = ff.common_parent(ns1=source_ns, id1=source_id,
-                                               ns2=tns, id2=target_id)
+                                              ns2=tns, id2=target_id)
                         if cp:
                             if self.verbose:
                                 logger.info('Found common parents with source '
@@ -582,7 +584,7 @@ class IndraNetwork:
                     if target_ns.lower() not in options['node_filter']:
                         continue
                     cp = ff.common_parent(ns1=source_ns, id1=source_id,
-                                           ns2=target_ns, id2=target_id)
+                                          ns2=target_ns, id2=target_id)
                     if cp:
                         break
 
