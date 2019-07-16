@@ -2,6 +2,7 @@ import logging
 import requests
 import networkx as nx
 from itertools import product
+from collections import defaultdict
 from networkx import NodeNotFound, NetworkXNoPath
 from time import time, gmtime, strftime
 
@@ -393,7 +394,7 @@ class IndraNetwork:
         # len(path) = edge count + 1
         path_len = options['path_length'] + 1 if \
             options['path_length'] and not options['weight'] else False
-        result = {}
+        result = defaultdict(list)
         added_paths = 0
         skipped_paths = 0
         for path in paths_gen:
@@ -418,33 +419,18 @@ class IndraNetwork:
                       'path': path,
                       'cost': str(self._get_cost(path)),
                       'sort_key': str(self._get_sort_key(path, hash_path))}
-                try:
-                    if not path_len:
-                        result[len(path)].append(pd)
-                        added_paths += 1
-                    elif path_len and len(path) < path_len:
-                        continue
-                    elif path_len and len(path) == path_len:
-                        result[len(path)].append(pd)
-                        added_paths += 1
-                    elif path_len and len(path) > path_len:
-                        if self.verbose > 1:
-                            logger.info('Max path length reached, returning '
-                                        'results.')
-                        return result
-                    else:
-                        logger.warning('This option should not happen')
-                except KeyError:
-                    try:
-                        if path_len and len(path) == path_len:
-                            result[len(path)] = [pd]
-                            added_paths += 1
-                        elif not path_len:
-                            result[len(path)] = [pd]
-                            added_paths += 1
-                    except KeyError as ke:
-                        logger.warning('Unexpected KeyError: ' + repr(ke))
-                        raise ke
+                if not path_len or (path_len and path_len == len(path)):
+                    result[len(path)].append(pd)
+                    added_paths += 1
+                elif path_len and len(path) < path_len:
+                    continue
+                elif path_len and len(path) > path_len:
+                    if self.verbose > 1:
+                        logger.info('Max path length reached, returning '
+                                    'results.')
+                    return result
+                else:
+                    logger.warning('This option should not happen')
             else:
                 skipped_paths += 1
         if self.verbose > 2:
