@@ -28,8 +28,7 @@ from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 
-from depmap_analysis.util.io_functions import _pickle_open, _dump_it_to_json,\
-    _dump_it_to_csv
+from depmap_analysis.util.io_functions import dump_it_to_json, dump_it_to_csv
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
 db_prim = dbu.get_primary_db()
@@ -209,8 +208,8 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
         for other_node in expl_undir_graph[node]:
             inner_dict = expl_undir_graph[node][other_node]
             nnnl.append([other_node, inner_dict['attr_dict']['correlation']])
-        _dump_it_to_json(fname=path+'/neighbors_to_%s.json' % node,
-                         pyobj=nnnl)
+        dump_it_to_json(fname=path + '/neighbors_to_%s.json' % node,
+                        pyobj=nnnl)
     dnf_logger.info('Finished dumping node neighbor dicts to %s' % path)
 
 
@@ -1341,10 +1340,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
             sys.exit('Script aborted due to empty correlation matrix')
 
         dnf_logger.info('Dumping json HGNC symbol/id dictionaries...')
-        _dump_it_to_json(outbasename+'_%s_sym2id_dict.json' % gene_set_name,
-                         sym2id_dict)
-        _dump_it_to_json(outbasename+'_%s_id2sym_dict.json' % gene_set_name,
-                         id2sym_dict)
+        dump_it_to_json(outbasename + '_%s_sym2id_dict.json' % gene_set_name,
+                        sym2id_dict)
+        dump_it_to_json(outbasename + '_%s_id2sym_dict.json' % gene_set_name,
+                        id2sym_dict)
 
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
@@ -1451,7 +1450,7 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
                      str(upper_limit).replace('.', ''))
         dnf_logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
-        _dump_it_to_csv(fname, corr_matrix_to_generator(
+        dump_it_to_csv(fname, corr_matrix_to_generator(
             filtered_correlation_matrix))
 
     return filtered_correlation_matrix,\
