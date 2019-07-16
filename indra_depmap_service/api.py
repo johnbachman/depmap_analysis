@@ -2,15 +2,13 @@ import json
 import logging
 import argparse
 from os import path
-from jinja2 import Template
-from subprocess import call
 from datetime import datetime
 from time import time, gmtime, strftime
+
+from jinja2 import Template
 from flask import Flask, request, abort, Response
-
-from indra_db.util import dump_sif
+from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
-
 from depmap_analysis.network_functions import indra_network as inn
 from depmap_analysis.network_functions import network_functions as nf
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
@@ -55,31 +53,10 @@ def _load_template(fname):
 QUERY = _load_template('query.html')
 
 
-def dump_indra_db(path='.'):
-    base_name = 'db_dump_' + _todays_date()
-    if path is not '.':
-        path_base_name = path + base_name
-    else:
-        path_base_name = base_name
-    stmts_file = path_base_name + '.pkl'
-    dataframe_file = path_base_name + '_dataframe.pkl'
-    csv_file = path_base_name + '.csv'
-    files = ' '.join((stmts_file, dataframe_file, csv_file))
-    cmd = 'python ' + dump_sif.__file__ + ' ' + files
-    logger.info('Executing subprocess: %s' % cmd)
-    try:
-        retcode = call(cmd, shell=True)
-        if retcode < 0:
-            logger.warning('Script was terminated by signal: ' + str(-retcode))
-        else:
-            logger.info('Script finished ' + str(retcode))
-    except OSError as e:
-        logger.error('Script failed: ' + repr(e))
-
-    return stmts_file, dataframe_file, csv_file
-
-
-def load_indra_graph(dir_graph_path, multi_digraph_path, update=False):
+def load_indra_graph(dir_graph_path, multi_digraph_path, update=False,
+                     belief_dict=None, strat_ev_dict=None):
+    """Return a nx.DiGraph and nx.MultiDiGraph representation an INDRA DB dump
+    """
     global INDRA_DG_CACHE, INDRA_MDG_CACHE
     if update:
         stmts_file, dataframe_file, csv_file = dump_indra_db()
