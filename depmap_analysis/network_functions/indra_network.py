@@ -8,7 +8,7 @@ from time import time, gmtime, strftime
 from indra.config import CONFIG_DICT
 
 import depmap_network_functions as dnf
-
+from depmap_analysis.network_functions.network_functions import ag_belief_score
 
 logger = logging.getLogger('indra network')
 
@@ -706,7 +706,7 @@ class IndraNetwork:
 
     def _aggregated_path_belief(self, path):
         bs_list = [self.dir_edges[e]['bs'] for e in zip(path[:-1], path[1:])]
-        return dnf._ag_belief_score(bs_list)
+        return ag_belief_score(bs_list)
 
     def _get_sort_key(self, path, hash_path, method=None):
         """Calculate a number to sort the path on

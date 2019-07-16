@@ -1,12 +1,16 @@
 import logging
 import numpy as np
 import networkx as nx
+from decimal import Decimal
 
 from indra.preassembler import hierarchy_manager as hm
 
-import depmap_analysis.network_functions.famplex_functions as fplx_fcns
-from depmap_network_functions import ag_belief_score
 from depmap_analysis.util.io_functions import pickle_open
+import depmap_analysis.network_functions.famplex_functions as fplx_fcns
+
+
+np.seterr(all='raise')
+NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 
 
 logger = logging.getLogger('INDRA Network Search')
@@ -258,3 +262,20 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
         nx_graph.graph['node_by_uri'] = node_by_uri
         nx_graph.graph['node_by_ns_id'] = ns_id_to_nodename
     return nx_graph
+
+
+def ag_belief_score(belief_list):
+    """Each item in `belief_list` should be a float"""
+    # Aggregate belief score: 1-prod(1-bs_i)
+    try:
+        ag_belief = np.longfloat(1.0) - np.prod(np.fromiter(map(
+            lambda bs: np.longfloat(1.0) - bs, belief_list),
+            dtype=np.longfloat)
+        )
+    except FloatingPointError as err:
+        logger.warning('%s: Resetting ag_belief to 10*np.longfloat '
+                           'precision (%.0e)' %
+                       (err, Decimal(NP_PRECISION * 10)))
+        ag_belief = NP_PRECISION * 10
+
+    return ag_belief
