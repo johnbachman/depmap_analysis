@@ -17,17 +17,18 @@ import os
 import sys
 import json
 import logging
-import pandas as pd
 import pickle as pkl
 import argparse as ap
 import itertools as itt
-from numpy import float64
 from time import time, strftime
 from random import choice as rnd_choice
+
+import pandas as pd
+from numpy import float64
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
-from depmap_analysis.util.io_functions import _dump_it_to_pickle, \
-    _pickle_open, _dump_it_to_csv, _dump_it_to_json, _json_open
+from depmap_analysis.util.io_functions import dump_it_to_pickle, \
+    pickle_open, dump_it_to_csv, dump_it_to_json, json_open
 
 logger = logging.getLogger('DepMap Script')
 
@@ -91,7 +92,7 @@ def _parse_cell_filter(cl_file, id2depmapid_pkl=None, namespace='CCLE_Name'):
             col_separator = None
     with open(cl_file, 'r') as fi:
         if id2depmapid_pkl:
-            id2depmapid_dict = _pickle_open(id2depmapid_pkl)
+            id2depmapid_dict = pickle_open(id2depmapid_pkl)
             assert namespace in id2depmapid_dict.keys()
             for n, cl in enumerate(fi.readlines()):
                 cl_name = cl.split(sep=col_separator)[0]
@@ -472,9 +473,9 @@ def main(args):
     belief_dict = None  # ToDo use api to query belief scores if not loaded
     if args.belief_score_dict:
         if args.belief_score_dict.endswith('.json'):
-            belief_dict = _json_open(args.belief_score_dict)
+            belief_dict = json_open(args.belief_score_dict)
         elif args.belief_score_dict.endswith('.pkl'):
-            belief_dict = _pickle_open(args.belief_score_dict)
+            belief_dict = pickle_open(args.belief_score_dict)
 
     args_dict = _arg_dict(args)
     npairs = 0
@@ -482,7 +483,7 @@ def main(args):
     filter_settings = {'gene_set_filter': args.gene_set_filter,
                        'strict': args.strict,
                        'cell_line_filter': cell_lines,
-                       'cell_line_translation_dict': _pickle_open(
+                       'cell_line_translation_dict': pickle_open(
                                                      args.cell_line_filter[1])
                        if args.cell_line_filter and len(args.cell_line_filter)
                        == 2 else None,
@@ -571,13 +572,13 @@ def main(args):
         hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
         nested_dict_statements = dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
-        nested_dict_statements = _pickle_open(args.nested_dict_in)
+        nested_dict_statements = pickle_open(args.nested_dict_in)
     else:
         nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
                                                             belief_dict)
         if args.nested_dict_out:
-            _dump_it_to_pickle(fname=args.nested_dict_out,
-                               pyobj=nested_dict_statements)
+            dump_it_to_pickle(fname=args.nested_dict_out,
+                              pyobj=nested_dict_statements)
 
     # Get directed simple graph
     if args.directed_graph_in:
@@ -589,8 +590,8 @@ def main(args):
             nest_d=nested_dict_statements, belief_dict=belief_dict)
         # Save as pickle file
         if args.directed_graph_out:
-            _dump_it_to_pickle(fname=args.directed_graph_out,
-                               pyobj=nx_dir_graph)
+            dump_it_to_pickle(fname=args.directed_graph_out,
+                              pyobj=nx_dir_graph)
     dir_node_set = set(nx_dir_graph.nodes)
 
     # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
@@ -869,8 +870,8 @@ def main(args):
         # 'explained_nodes' are used to produce first drop down
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
-        _dump_it_to_json(args.outbasename+'_explainable_ids.json',
-                         explained_nodes)
+        dump_it_to_json(args.outbasename + '_explainable_ids.json',
+                        explained_nodes)
 
         # Get undir graph and save each neighbor lookup as json for 2nd dropdown
         nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
@@ -885,16 +886,16 @@ def main(args):
         header=['gene1', 'gene2', 'meta_data'],
         excl_sr=True)
 
-    _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
-                       pyobj=explained_nested_dict)
+    dump_it_to_pickle(fname=args.outbasename + '_explained_nest_dict.pkl',
+                      pyobj=explained_nested_dict)
     headers = ['subj', 'obj', 'type', 'X', 'meta_data']
-    _dump_it_to_csv(fname=args.outbasename+'_explanations_of_pairs.csv',
-                    pyobj=explanations_of_pairs, header=headers)
-    _dump_it_to_csv(fname=
+    dump_it_to_csv(fname=args.outbasename + '_explanations_of_pairs.csv',
+                   pyobj=explanations_of_pairs, header=headers)
+    dump_it_to_csv(fname=
                     args.outbasename+'_explanations_of_shared_regulators.csv',
-                    pyobj=sr_explanations, header=headers)
-    _dump_it_to_csv(fname=args.outbasename+'_unexpl_correlations.csv',
-                    pyobj=unexplained, header=headers[:-2])
+                   pyobj=sr_explanations, header=headers)
+    dump_it_to_csv(fname=args.outbasename + '_unexpl_correlations.csv',
+                   pyobj=unexplained, header=headers[:-2])
     with open(args.outbasename+'_script_summary.txt', 'w') as fo:
         fo.write(long_string)
     return 0
