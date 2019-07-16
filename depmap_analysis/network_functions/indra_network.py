@@ -68,6 +68,11 @@ class IndraNetwork:
             a list of statement hashes (as strings or ints) to ignore. If an
             edge statement hash is found in this list, it will be discarded
             from the assembled edge list.
+        cull_best_node: [int]
+            a positive integer. Every x valid paths, cull the node with the
+            highest (weighted) degree from the network. This increases the
+            variety of paths found and reduces the impact of nodes with extremely
+            high connectivity in the network.
         path_length: int|False
             a positive integer stating the number of edges that should be in
             the returned path. If False, return paths with any number of edges.
@@ -144,6 +149,8 @@ class IndraNetwork:
                 options[k] = [str(i) for i in options[k]]
             if k in ['node_filter', 'stmt_filter']:
                 options[k] = [s.lower() for s in options[k]]
+            if k == "cull_best_node":
+                options[k] = int(v) if v >= 1 else float('NaN')
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Query translated to: %s' % repr(options))
@@ -395,9 +402,14 @@ class IndraNetwork:
         path_len = options['path_length'] + 1 if \
             options['path_length'] and not options['weight'] else False
         result = defaultdict(list)
+        prev_path = None
         added_paths = 0
         skipped_paths = 0
-        for path in paths_gen:
+        culled_nodes = set()
+        culled_edges = set() #Currently unused, only operate on node level
+        # Send first signal to paths_gen to start iteration
+        paths_gen.send(None)
+        while True:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found all %d shortest paths, returning results.' %
@@ -409,7 +421,23 @@ class IndraNetwork:
                                (TIMEOUT, MAX_PATHS))
                 self.query_timed_out = True
                 return result
-
+            # Check if we have to cull the best node, this is the case
+            # if the modulo is 1, meaning that in the *following* path we
+            # want another node culled
+            if (added_paths % options.get('cull_best_node', float('NaN')) == 1 and
+                prev_path is not None and
+                len(prev_path['path']) >= 3):
+                degrees = self.nx_dir_graph_repr.degree(prev_path['path'][1:-1], options.get('weight', None))
+                node_highest_degree = max(degrees, key=lambda x: x[1])[0]
+                culled_nodes.add(node_highest_degree)
+                if self.verbose > 1:
+                    logger.info('Culled nodes: %s' % repr(culled_nodes))
+            # Get next path and send culled nodes and edges info for the
+            # path in the following iteration
+            try:
+                path = paths_gen.send((culled_nodes, culled_edges))
+            except StopIteration:
+                break
             hash_path = self._get_hash_path(path, **options)
             if hash_path and all(hash_path):
                 if self.verbose > 1:
@@ -421,6 +449,7 @@ class IndraNetwork:
                       'sort_key': str(self._get_sort_key(path, hash_path))}
                 if not path_len or (path_len and path_len == len(path)):
                     result[len(path)].append(pd)
+                    prev_path = pd
                     added_paths += 1
                 elif path_len and len(path) < path_len:
                     continue

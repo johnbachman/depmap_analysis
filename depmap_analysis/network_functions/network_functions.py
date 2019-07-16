@@ -380,12 +380,14 @@ def shortest_simple_paths(G, source, target, weight=None,
             return sum(G.adj[u][v][weight] for (u, v) in zip(path, path[1:]))
         shortest_path_func = simple_paths._bidirectional_dijkstra
 
+    culled_ignored_nodes = set() if ignore_nodes is None else set(ignore_nodes)
+    culled_ignored_edges = set() if ignore_edges is None else set(ignore_edges)
     listA = list()
     listB = simple_paths.PathBuffer()
     prev_path = None
     while True:
-        cur_ignore_nodes = set() if ignore_nodes is None else set(ignore_nodes)
-        cur_ignore_edges = set() if ignore_edges is None else set(ignore_edges)
+        cur_ignore_nodes = culled_ignored_nodes.copy()
+        cur_ignore_edges = culled_ignored_edges.copy()
         if not prev_path:
             length, path = shortest_path_func(G, source, target, weight=weight,
                                               ignore_nodes=cur_ignore_nodes,
@@ -410,7 +412,10 @@ def shortest_simple_paths(G, source, target, weight=None,
                 cur_ignore_nodes.add(root[-1])
         if listB:
             path = listB.pop()
-            yield path
+            rcvd_ignore_values = yield path
+            if rcvd_ignore_values is not None:
+                culled_ignored_nodes = culled_ignored_nodes.union(rcvd_ignore_values[0])
+                culled_ignored_edges = culled_ignored_edges.union(rcvd_ignore_values[1])
             listA.append(path)
             prev_path = path
         else:
