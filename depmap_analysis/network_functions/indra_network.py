@@ -410,8 +410,6 @@ class IndraNetwork:
         skipped_paths = 0
         culled_nodes = set()
         culled_edges = set()  # Currently unused, only operate on node level
-        # Send first signal to paths_gen to start iteration
-        paths_gen.send(None)
         while True:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
@@ -427,6 +425,7 @@ class IndraNetwork:
             # Check if we have to cull the best node, this is the case
             # if the modulo is 1, meaning that in the *following* path we
             # want another node culled
+            send_values = None
             if (added_paths % options.get(
                     'cull_best_node', float('NaN')) == 1 and
                     prev_path is not None and len(prev_path['path']) >= 3):
@@ -434,12 +433,13 @@ class IndraNetwork:
                     prev_path['path'][1:-1], options.get('weight', None))
                 node_highest_degree = max(degrees, key=lambda x: x[1])[0]
                 culled_nodes.add(node_highest_degree)
+                send_values = (culled_nodes, culled_edges)
                 if self.verbose > 1:
                     logger.info('Culled nodes: %s' % repr(culled_nodes))
             # Get next path and send culled nodes and edges info for the
             # path in the following iteration
             try:
-                path = paths_gen.send((culled_nodes, culled_edges))
+                path = paths_gen.send(send_values)
             except StopIteration:
                 break
             hash_path = self._get_hash_path(path, **options)
