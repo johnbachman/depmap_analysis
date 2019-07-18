@@ -27,6 +27,8 @@ import pandas as pd
 from numpy import float64
 from indra.tools import assemble_corpus as ac
 import depmap_network_functions as dnf
+import depmap_analysis.network_functions.network_functions as nf
+import depmap_analysis.network_functions.famplex_functions as ff
 from depmap_analysis.util.io_functions import dump_it_to_pickle, \
     pickle_open, dump_it_to_csv, dump_it_to_json, json_open
 
@@ -247,7 +249,7 @@ def loop_body(args):
                     logger.info('Found directed path of length 2 '
                                 'between %s and %s' % (subj, obj))
 
-                dir_path_nodes_wb = dnf.rank_nodes(
+                dir_path_nodes_wb = nf.rank_nodes(
                     node_list=dir_path_nodes,
                     nested_dict_stmts=nested_dict_statements,
                     gene_a=subj,
@@ -261,10 +263,10 @@ def loop_body(args):
                 explanations_of_pairs.append(stmt_tuple)
 
     # Check common parent
-    if dnf.has_common_parent(id1=id1, id2=id2):
+    if ff.has_common_parent(id1=id1, id2=id2):
         has_common_parent = True
         found = True
-        parents = list(dnf.common_parent(id1=id1, id2=id2))
+        parents = list(ff.common_parent(id1=id1, id2=id2))
         explained_nested_dict[id1][id2]['common_parents'] = parents
         explained_nested_dict[id2][id1]['common_parents'] = parents
         stmt_tuple = (id1, id2, 'common_parents', parents, [])
@@ -290,7 +292,7 @@ def loop_body(args):
         if downstream_share:
             found = True
             x_is_downstream = True
-            downstream_share_wb = dnf.rank_nodes(
+            downstream_share_wb = nf.rank_nodes(
                 node_list=downstream_share,
                 nested_dict_stmts=nested_dict_statements,
                 gene_a=id1,
@@ -311,7 +313,7 @@ def loop_body(args):
         if upstream_share:
             found = True
             x_is_upstream = True
-            upstream_share_wb = dnf.rank_nodes(
+            upstream_share_wb = nf.rank_nodes(
                 node_list=upstream_share,
                 nested_dict_stmts=nested_dict_statements,
                 gene_a=id1,
@@ -480,6 +482,11 @@ def main(args):
     args_dict = _arg_dict(args)
     npairs = 0
 
+    gene_filter_list = []
+    all_hgnc_ids = set()
+    stmts_all = []
+    master_corr_dict = dnf.create_nested_dict()
+
     filter_settings = {'gene_set_filter': args.gene_set_filter,
                        'strict': args.strict,
                        'cell_line_filter': cell_lines,
@@ -555,7 +562,7 @@ def main(args):
             stmts_all = set(ac.load_statements(args.statements_in))
         # Use api to get statements. _NOT_ the same as querying for each ID
         else:
-            if args.gene_set_filter:
+            if args.gene_set_filter and gene_filter_list:
                 stmts_all = dnf.dbc_load_statements(gene_filter_list)
             else:
                 # if there is no gene set file, restrict to gene ids in
