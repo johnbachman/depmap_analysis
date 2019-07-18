@@ -389,7 +389,7 @@ def pd_to_nx_graph(corr_sr, source='id1', target='id2',
         which column to identify as target node (output is still undirected)
     edge_attr : int or str
         Column to use for edge attributes
-    absolute : Bool
+    use_abs_corr : Bool
         Use absolute value as edge weight. Otherwise magnitude is used.
 
     Returns
@@ -432,7 +432,7 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     ----------
     corr_list : list or iterator
         Edge tuples
-    absolute : Bool
+    use_abs_corr : Bool
         Use absolute value as edge weight. Otherwise magnitude is used.
 
     Returns
