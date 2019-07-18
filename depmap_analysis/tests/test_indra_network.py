@@ -71,8 +71,8 @@ class TestNetwork(unittest.TestCase):
         edge_dict_test = self.indra_network.dir_edges[test_edge]
         assert isinstance(edge_dict, dict)
         assert isinstance(edge_dict_test, dict)
-        assert isinstance(edge_dict['bs'], (np.longfloat, np.float))
-        assert isinstance(edge_dict_test['bs'], (np.longfloat, np.float))
+        assert isinstance(edge_dict['bs'], (np.longfloat, float))
+        assert isinstance(edge_dict_test['bs'], (np.longfloat, float))
         assert isinstance(edge_dict['weight'], np.longfloat)
         assert isinstance(edge_dict_test['weight'], np.longfloat)
 
