@@ -12,7 +12,7 @@ np.seterr(all='raise')
 NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 
 
-logger = logging.getLogger('INDRA Network Search')
+logger = logging.getLogger(__name__)
 
 
 def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
@@ -270,6 +270,96 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
         nx_graph.graph['node_by_uri'] = node_by_uri
         nx_graph.graph['node_by_ns_id'] = ns_id_to_nodename
     return nx_graph
+
+
+def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
+    """Returns a list of tuples of nodes and their rank score
+
+    The provided node list should contain the set of nodes that connects subj
+    and obj through an intermediate node found in nested_dict_stmts.
+
+    nested_dict_stmts
+
+        d[subj][obj] = [stmts/stmt hashes]
+
+    node_list : list[nodes]
+    nested_dict_stmts : defaultdict(dict)
+        Nested dict of statements: nest_d[subj][obj]
+    gene_a : str
+        HGNC name of gene A in an A-X-B connection
+    gene_b : str
+        HGNC name of gene B in an A-X-B connection
+    x_type : str
+        One of 'x_is_intermediary', 'x_is_downstream' or 'x_is_upstream'
+
+    -------
+    Returns
+    dir_path_nodes_wb : list[(node, rank)]
+        A list of node, rank tuples.
+    """
+
+    def _calc_rank(nest_dict_stmts, subj_ax, obj_ax, subj_xb, obj_xb):
+        ax_stmts = nest_dict_stmts[subj_ax][obj_ax]
+        xb_stmts = nest_dict_stmts[subj_xb][obj_xb]
+        ax_score_list = []
+        xb_score_list = []
+        hsh_a, hsh_b = None, None
+
+        # The statment with the highest belief score should
+        # represent the edge (potentially multiple stmts per edge)
+        # To get latest belief score: see indra_db.belief
+        for tup in ax_stmts:
+            assert len(tup) == 2 or len(tup) == 3
+            bs = 1
+            if len(tup) == 2:
+                typ, hsh_a = tup
+            elif len(tup) == 3:
+                typ, hsh_a, bs = tup
+            ax_score_list.append(bs)
+        for tup in xb_stmts:
+            assert len(tup) == 2 or len(tup) == 3
+            bs = 1
+            if len(tup) == 2:
+                typ, hsh_b = tup
+            elif len(tup) == 3:
+                typ, hsh_b, bs = tup
+            xb_score_list.append(bs)
+
+        # Rank by multiplying the best two belief scores for each edge
+        rank = max(ax_score_list) * max(xb_score_list)
+
+        # No belief score should be zero, thus rank should never be zero
+        try:
+            assert rank != 0
+        except AssertionError:
+            logger.warning('Combined rank == 0 for hashes %s and %s, implying '
+                           'belief score is 0 for at least one of the '
+                           'following statements: ' % (hsh_a, hsh_b))
+        return rank
+
+    dir_path_nodes_wb = []
+    if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_a, obj_ax=gene_x,
+                                subj_xb=gene_x, obj_xb=gene_b)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+
+    elif x_type is 'x_is_downstream':  # A->X<-B
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_a, obj_ax=gene_x,
+                                subj_xb=gene_b, obj_xb=gene_x)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+    elif x_type is 'x_is_upstream':  # A<-X->B
+
+        for gene_x in node_list:
+            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
+                                subj_ax=gene_x, obj_ax=gene_a,
+                                subj_xb=gene_x, obj_xb=gene_b)
+            dir_path_nodes_wb.append((gene_x, x_rank))
+
+    return dir_path_nodes_wb
 
 
 def ag_belief_score(belief_list):
