@@ -31,6 +31,7 @@ import depmap_analysis.network_functions.network_functions as nf
 import depmap_analysis.network_functions.famplex_functions as ff
 from depmap_analysis.util.io_functions import dump_it_to_pickle, \
     pickle_open, dump_it_to_csv, dump_it_to_json, json_open
+import depmap_analysis.util.io_functions as io
 
 logger = logging.getLogger('DepMap Script')
 
@@ -526,22 +527,22 @@ def main(args):
         if args.gene_set_filter:
             gene_filter_list = None
             if args_dict.get('crispr') and not args_dict.get('rnai'):
-                gene_filter_list = dnf._read_gene_set_file(
+                gene_filter_list = io.read_gene_set_file(
                     gf=filter_settings['gene_set_filter'],
                     data=pd.read_csv(args_dict['crispr']['data'],
                                          index_col=0, header=0))
             elif args_dict.get('rnai') and not args_dict.get('crispr'):
-                gene_filter_list = dnf._read_gene_set_file(
+                gene_filter_list = io.read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
                         data=pd.read_csv(args_dict['rnai']['data'],
                                          index_col=0, header=0))
             elif args_dict.get('crispr') and args_dict.get('rnai'):
                 gene_filter_list = \
-                    set(dnf._read_gene_set_file(
+                    set(io.read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
                         data=pd.read_csv(args_dict['crispr']['data'],
                                          index_col=0, header=0))) & \
-                    set(dnf._read_gene_set_file(
+                    set(io.read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
                         data=pd.read_csv(args_dict['rnai']['data'],
                                          index_col=0, header=0)))

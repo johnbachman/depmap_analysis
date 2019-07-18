@@ -55,6 +55,26 @@ def json_open(fname):
     return js
 
 
+def read_gene_set_file(gf, data):
+    """Read HGNC symbols from df and match with data"""
+    gset = []
+    try:
+        # Works if string is returned: we assume this is when we only have
+        # HGNC symbols
+        data.columns[0].split()
+        dset = set(data.columns)
+    except AttributeError:
+        # multi index
+        dset = set([t[0] for t in data.columns])
+
+    with open(gf, 'rt') as f:
+        for g in f.readlines():
+            gn = g.upper().strip()
+            if gn in dset:
+                gset.append(gn)
+    return gset
+
+
 def rawincount(filename):
     """Count lines in filename
 

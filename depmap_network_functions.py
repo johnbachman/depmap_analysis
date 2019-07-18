@@ -26,8 +26,7 @@ from indra.tools import assemble_corpus as ac
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 
-from depmap_analysis.util.io_functions import dump_it_to_json, \
-    dump_it_to_csv, map2index
+import depmap_analysis.util.io_functions as io
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
 db_prim = dbu.get_primary_db()
@@ -187,7 +186,7 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
         for other_node in expl_undir_graph[node]:
             inner_dict = expl_undir_graph[node][other_node]
             nnnl.append([other_node, inner_dict['attr_dict']['correlation']])
-        dump_it_to_json(fname=path + '/neighbors_to_%s.json' % node,
+        io.dump_it_to_json(fname=path + '/neighbors_to_%s.json' % node,
                         pyobj=nnnl)
     dnf_logger.info('Finished dumping node neighbor dicts to %s' % path)
 
@@ -455,25 +454,6 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     return corr_weight_graph
 
 
-def _read_gene_set_file(gf, data):
-    gset = []
-    try:
-        # Works if string is returned: we assume this is when we only have
-        # HGNC symbols
-        data.columns[0].split()
-        dset = set(data.columns)
-    except AttributeError:
-        # multi index
-        dset = set([t[0] for t in data.columns])
-
-    with open(gf, 'rt') as f:
-        for g in f.readlines():
-            gn = g.upper().strip()
-            if gn in dset:
-                gset.append(gn)
-    return gset
-
-
 def histogram_from_tuple_generator(tuple_gen, binsize, first,
                                    number_of_bins=None):
     """Returns a histogram for large data sets represented as tuple generators
@@ -497,7 +477,7 @@ def histogram_from_tuple_generator(tuple_gen, binsize, first,
         number_of_bins = int(2*abs(first) / binsize)
     home_brewed_histo = np.zeros(number_of_bins, dtype=int)
     for g1, g1, flt in tuple_gen:
-        home_brewed_histo[map2index(start=first, binsize=binsize,
+        home_brewed_histo[io.map2index(start=first, binsize=binsize,
                                     value=flt)] += 1
     return home_brewed_histo
 
@@ -930,9 +910,9 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
             sys.exit('Script aborted due to empty correlation matrix')
 
         dnf_logger.info('Dumping json HGNC symbol/id dictionaries...')
-        dump_it_to_json(outbasename + '_%s_sym2id_dict.json' % gene_set_name,
+        io.dump_it_to_json(outbasename + '_%s_sym2id_dict.json' % gene_set_name,
                         sym2id_dict)
-        dump_it_to_json(outbasename + '_%s_id2sym_dict.json' % gene_set_name,
+        io.dump_it_to_json(outbasename + '_%s_id2sym_dict.json' % gene_set_name,
                         id2sym_dict)
 
         # Generate correlation dict
@@ -1040,7 +1020,7 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
                      str(upper_limit).replace('.', ''))
         dnf_logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
-        dump_it_to_csv(fname, corr_matrix_to_generator(
+        io.dump_it_to_csv(fname, corr_matrix_to_generator(
             filtered_correlation_matrix))
 
     return filtered_correlation_matrix,\
@@ -1095,7 +1075,7 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
 
     if filter_gene_set:
         # Read gene set to look at
-        gene_filter_list = _read_gene_set_file(
+        gene_filter_list = io.read_gene_set_file(
             gf=filter_gene_set, data=depmap_data
         )
         if len(gene_filter_list) == 0:
