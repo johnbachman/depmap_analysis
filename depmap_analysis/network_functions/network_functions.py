@@ -381,8 +381,8 @@ def ag_belief_score(belief_list):
 
 # Copy from networkx.algorithms.simple_paths
 # Added ignore_nodes and ignore_edges arguments
-def shortest_simple_paths(G, source, target, weight=None,
-                          ignore_nodes = None, ignore_edges = None):
+def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
+                          ignore_edges=None):
     """Generate all simple paths in the graph G from source to target,
        starting from shortest ones.
 
@@ -500,10 +500,9 @@ def shortest_simple_paths(G, source, target, weight=None,
                     if path[:i] == root:
                         cur_ignore_edges.add((path[i - 1], path[i]))
                 try:
-                    length, spur = shortest_path_func(G, root[-1], target,
-                                                      ignore_nodes=cur_ignore_nodes,
-                                                      ignore_edges=cur_ignore_edges,
-                                                      weight=weight)
+                    length, spur = shortest_path_func(
+                        G, root[-1], target, ignore_nodes=cur_ignore_nodes,
+                        ignore_edges=cur_ignore_edges, weight=weight)
                     path = root[:-1] + spur
                     listB.push(root_length + length, path)
                 except nx.NetworkXNoPath:
@@ -513,8 +512,10 @@ def shortest_simple_paths(G, source, target, weight=None,
             path = listB.pop()
             rcvd_ignore_values = yield path
             if rcvd_ignore_values is not None:
-                culled_ignored_nodes = culled_ignored_nodes.union(rcvd_ignore_values[0])
-                culled_ignored_edges = culled_ignored_edges.union(rcvd_ignore_values[1])
+                culled_ignored_nodes = culled_ignored_nodes.union(
+                    rcvd_ignore_values[0])
+                culled_ignored_edges = culled_ignored_edges.union(
+                    rcvd_ignore_values[1])
             listA.append(path)
             prev_path = path
         else:
