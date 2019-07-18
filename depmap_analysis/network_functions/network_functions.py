@@ -127,7 +127,7 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
                                    'missing from belief dict' %
                                    (index, skipped, str(row['hash'])))
                 weight = 1/row['evidence_count']
-                bs = np_prec*10
+                bs = None
         else:
             weight = 1 / row['evidence_count']
             bs = None
