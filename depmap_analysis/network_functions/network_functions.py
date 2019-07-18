@@ -46,7 +46,6 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
         an nx.MultiDiGraph is returned instead."""
     bsd = None
     sed = None
-    np_prec = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
     ns_id_to_nodename = {}
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
     if isinstance(df, str):
