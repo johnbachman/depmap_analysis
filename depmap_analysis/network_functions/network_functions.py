@@ -48,17 +48,27 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     sed = None
     ns_id_to_nodename = {}
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
+
     if isinstance(df, str):
         sif_df = pickle_open(df)
     else:
         sif_df = df
-    if belief_dict:
+
+    if isinstance(belief_dict, str):
         bsd = pickle_open(belief_dict)
+    elif isinstance(belief_dict, dict):
+        bsd = belief_dict
     else:
         logger.warning('No belief dict provided, weights will be set to '
                        '1/evidence count')
-    if strat_ev_dict:
+
+    if isinstance(strat_ev_dict, str):
         sed = pickle_open(strat_ev_dict)
+    elif isinstance(strat_ev_dict, dict):
+        sed = strat_ev_dict
+    else:
+        logger.info('No stratified evidence dict provided')
+
     # Add as nodes:
     #   'agA_name', 'agB_name'
     # Columns to be added as node attributes:
