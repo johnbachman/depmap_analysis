@@ -40,23 +40,6 @@ except KeyError:
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 
-def rawincount(filename):
-    """Count lines in filename
-
-    filename: str
-        Path to file to count lines in
-
-    Returns
-    -------
-    line_count: int
-        The number of lines in the file 'filename'
-    """
-    f = open(filename, 'rb')
-    bufgen = itt.takewhile(lambda x: x, (f.read(1024*1024) for _ in
-                                         itt.repeat(None)))
-    return sum(buf.count(b'\n') for buf in bufgen)
-
-
 def _entry_exist_dict(nest_dict, outer_key, inner_key):
     if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
         return True

@@ -2,6 +2,7 @@ import csv
 import json
 import pickle
 import logging
+from itertools import repeat, takewhile
 
 logger = logging.getLogger('dnf utils')
 
@@ -51,3 +52,19 @@ def json_open(fname):
         js = json.load(fp=jo)
     logger.info('Finished loading json file')
     return js
+
+
+def rawincount(filename):
+    """Count lines in filename
+
+    filename: str
+        Path to file to count lines in
+
+    Returns
+    -------
+    line_count: int
+        The number of lines in the file 'filename'
+    """
+    f = open(filename, 'rb')
+    bufgen = takewhile(lambda x: x, (f.read(1024*1024) for _ in repeat(None)))
+    return sum(buf.count(b'\n') for buf in bufgen)
