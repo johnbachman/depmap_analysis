@@ -26,7 +26,8 @@ from indra.tools import assemble_corpus as ac
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 
-from depmap_analysis.util.io_functions import dump_it_to_json, dump_it_to_csv
+from depmap_analysis.util.io_functions import dump_it_to_json, \
+    dump_it_to_csv, map2index
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
 db_prim = dbu.get_primary_db()
@@ -473,42 +474,6 @@ def _read_gene_set_file(gf, data):
     return gset
 
 
-def _map2index(start, binsize, value):
-    offset = int(abs(start//binsize))
-    return offset + int(float(value) // binsize)
-
-
-def histogram_for_large_files(fpath, number_of_bins, binsize, first):
-    """Returns a histogram for very large files
-
-    fpath: str(filename)
-        filepath to file with data to be binned
-    number_of_bins: int
-        the number fo bins to use
-    binsize: float
-        the size of bins
-    first: float
-        The left most (min(x)) edge of the bin edges
-
-    Returns
-    -------
-    home_brewed_histo: np.array
-        A histrogram of the data in fpath according to number of bins,
-        binsize and first.
-    """
-    home_brewed_histo = np.zeros(number_of_bins, dtype=int)
-    with open(file=fpath) as fo:
-        for line in fo:
-            flt = line.strip()
-            home_brewed_histo[_map2index(start=first, binsize=binsize,
-                                         value=flt)] += 1
-    return home_brewed_histo
-
-
-def _manually_add_to_histo(hist, start, binsize, value):
-    hist[_map2index(start, binsize, value)] += 1
-
-
 def histogram_from_tuple_generator(tuple_gen, binsize, first,
                                    number_of_bins=None):
     """Returns a histogram for large data sets represented as tuple generators
@@ -532,8 +497,8 @@ def histogram_from_tuple_generator(tuple_gen, binsize, first,
         number_of_bins = int(2*abs(first) / binsize)
     home_brewed_histo = np.zeros(number_of_bins, dtype=int)
     for g1, g1, flt in tuple_gen:
-        home_brewed_histo[_map2index(start=first, binsize=binsize,
-                                     value=flt)] += 1
+        home_brewed_histo[map2index(start=first, binsize=binsize,
+                                    value=flt)] += 1
     return home_brewed_histo
 
 

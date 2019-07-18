@@ -2,6 +2,7 @@ import csv
 import json
 import pickle
 import logging
+import numpy as np
 from itertools import repeat, takewhile
 
 logger = logging.getLogger('dnf utils')
@@ -68,3 +69,40 @@ def rawincount(filename):
     f = open(filename, 'rb')
     bufgen = takewhile(lambda x: x, (f.read(1024*1024) for _ in repeat(None)))
     return sum(buf.count(b'\n') for buf in bufgen)
+
+
+def map2index(start, binsize, value):
+    """Get bin index in symmetric histogram for value given start, binsize"""
+    offset = int(abs(start//binsize))
+    return offset + int(float(value) // binsize)
+
+
+def histogram_for_large_files(fpath, number_of_bins, binsize, first):
+    """Returns a histogram for very large files
+
+    fpath: str(filename)
+        filepath to file with data to be binned
+    number_of_bins: int
+        the number fo bins to use
+    binsize: float
+        the size of bins
+    first: float
+        The left most (min(x)) edge of the bin edges
+
+    Returns
+    -------
+    home_brewed_histo: np.array
+        A histrogram of the data in fpath according to number of bins,
+        binsize and first.
+    """
+    home_brewed_histo = np.zeros(number_of_bins, dtype=int)
+    with open(file=fpath) as fo:
+        for line in fo:
+            flt = line.strip()
+            home_brewed_histo[map2index(start=first, binsize=binsize,
+                                        value=flt)] += 1
+    return home_brewed_histo
+
+
+def _manually_add_to_histo(hist, start, binsize, value):
+    hist[map2index(start, binsize, value)] += 1
