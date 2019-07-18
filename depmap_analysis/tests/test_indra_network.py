@@ -31,6 +31,7 @@ for n, h in df['hash'].iteritems():
 
 # Add custom row to df that can be checked later
 test_edge = ('GENE_A', 'GENE_B')
+test_medge = (*test_edge, 0)
 test_node = test_edge[0]
 df = df.append({
         'agA_ns': 'TEST', 'agA_id': '1234', 'agA_name': test_edge[0],
@@ -108,6 +109,48 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(stmt_list[0]['bs'], (float, np.longfloat))
         assert isinstance(test_stmt_list[0]['bs'], (float, np.longfloat))
         assert test_stmt_list[0]['bs'] == 0.987654321
+
+    def test_multi_dir_edge_structure(self):
+        # Get an edge from test DB
+        e = None
+        for e in self.indra_network.mdg_edges:
+            if e != test_medge:
+                break
+
+        # Check basic edge
+        assert isinstance(e, tuple)
+        assert len(e) == 3
+
+        # Check edge dict
+        edge_dict = self.indra_network.mdg_edges[e]
+        edge_dict_test = self.indra_network.mdg_edges[test_medge]
+        assert isinstance(edge_dict, dict)
+        assert isinstance(edge_dict_test, dict)
+
+        assert isinstance(edge_dict['bs'], (np.longfloat, float))
+        assert isinstance(edge_dict_test['bs'], (np.longfloat, float))
+        assert edge_dict_test['bs'] == 0.987654321
+
+        assert isinstance(edge_dict['weight'], (np.longfloat, float))
+        assert isinstance(edge_dict_test['weight'], (np.longfloat, float))
+
+        assert isinstance(edge_dict['stmt_type'], str)
+        assert edge_dict_test['stmt_type'] == 'TestStatement'
+
+        assert isinstance(edge_dict['stmt_hash'], int)
+        assert edge_dict_test['stmt_hash'] == 1234567890
+
+        assert isinstance(edge_dict['evidence_count'], int)
+        assert edge_dict_test['evidence_count'] == 1
+
+        assert isinstance(edge_dict['evidence'], dict)
+        assert isinstance(edge_dict_test['evidence'], dict)
+        assert len(edge_dict_test['evidence']) == 1
+        assert 'tester' in edge_dict_test['evidence']
+        assert edge_dict_test['evidence']['tester'] == 1
+
+        assert isinstance(edge_dict['curated'], bool)
+        assert edge_dict_test['curated'] is True
 
     def test_nodes(self):
         # Get a db node
