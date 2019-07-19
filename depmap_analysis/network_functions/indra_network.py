@@ -10,7 +10,6 @@ from indra.config import CONFIG_DICT
 
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import network_functions as nf
-from depmap_analysis.network_functions import depmap_network_functions as dnf
 
 logger = logging.getLogger('indra network')
 
