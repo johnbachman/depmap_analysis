@@ -749,13 +749,13 @@ class IndraNetwork:
 
     def _get_parents(self, node):
         if self.nodes.get(node):
-            id = node
+            db_id = node
             ns = self.nodes[node]['ns']
 
-            true_ns, true_id = nf.ns_id_from_name(id)
+            true_ns, true_id = nf.ns_id_from_name(db_id)
             if true_ns and true_id:
                 return self.ehm.get_parents(uri=self.ehm.get_uri(true_ns,
                                                                  true_id))
-            return self.ehm.get_parents(uri=self.ehm.get_uri(ns, id))
+            return self.ehm.get_parents(uri=self.ehm.get_uri(ns, db_id))
         else:
             return set()

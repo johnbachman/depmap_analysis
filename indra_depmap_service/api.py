@@ -9,8 +9,9 @@ from jinja2 import Template
 from flask import Flask, request, abort, Response
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
-from depmap_analysis.network_functions import indra_network as inn
+
 from depmap_analysis.network_functions import network_functions as nf
+from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 app = Flask(__name__)
@@ -89,7 +90,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False,
 
 if path.isfile(INDRA_DG_CACHE) and path.isfile(
         INDRA_MDG_CACHE):
-    indra_network = inn.IndraNetwork()
+    indra_network = IndraNetwork()
 else:
     # Here should dump new cache instead, but raise error for now
 
@@ -175,7 +176,7 @@ if __name__ == '__main__':
         INDRA_MDG_CACHE = TEST_MDG_CACHE
 
     indra_network = \
-        inn.IndraNetwork(*load_indra_graph(INDRA_DG_CACHE, INDRA_MDG_CACHE))
+        IndraNetwork(*load_indra_graph(INDRA_DG_CACHE, INDRA_MDG_CACHE))
     if args.test:
         indra_network.small = True
         indra_network.verbose = args.verbose if args.verbose else 1
