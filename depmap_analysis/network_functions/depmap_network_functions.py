@@ -1,13 +1,9 @@
 import os
 import re
-import csv
 import sys
-import json
 import math
 import logging
-import requests
 import itertools as itt
-from decimal import Decimal
 from math import ceil, log10
 from collections import Mapping
 from collections import OrderedDict
@@ -23,43 +19,16 @@ from pandas.core.series import Series as pd_Series_class
 
 from indra_db import util as dbu
 from indra_db import client as dbc
-from indra.config import CONFIG_DICT
 from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
-from indra.preassembler import hierarchy_manager as hm
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
-from util.io_functions import _pickle_open
+
+import depmap_analysis.util.io_functions as io
+import depmap_analysis.network_functions.famplex_functions as ff
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
-
-GRND_URI = None
-try:
-    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
-except KeyError:
-    dnf_logger.warning('Indra Grounding service not available. Add '
-                   'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
-
-np.seterr(all='raise')
-NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
-
-
-def rawincount(filename):
-    """Count lines in filename
-
-    filename: str
-        Path to file to count lines in
-
-    Returns
-    -------
-    line_count: int
-        The number of lines in the file 'filename'
-    """
-    f = open(filename, 'rb')
-    bufgen = itt.takewhile(lambda x: x, (f.read(1024*1024) for _ in
-                                         itt.repeat(None)))
-    return sum(buf.count(b'\n') for buf in bufgen)
 
 
 def _entry_exist_dict(nest_dict, outer_key, inner_key):
@@ -128,6 +97,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
         dnf_logger.warning('Correlation matrix is empty')
         sys.exit('Script aborted due to empty correlation matrix')
 
+    corr_df_sample = pd.DataFrame()
     if max_pairs:
         if max_pairs >= all_pairs:
             dnf_logger.info('The requested number of correlation pairs is '
@@ -164,17 +134,6 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             str(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
             if not np.isnan(corr_value_matrix[i, j]))
-
-
-def _dump_it_to_json(fname, pyobj):
-    with open(fname, 'w') as json_out:
-        json.dump(pyobj, json_out)
-
-
-def _dump_it_to_csv(fname, iterable, separator=','):
-    with open(fname, 'w', newline='') as csvf:
-        wrtr = csv.writer(csvf, delimiter=separator)
-        wrtr.writerows(iterable)
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
@@ -219,115 +178,12 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
         for other_node in expl_undir_graph[node]:
             inner_dict = expl_undir_graph[node][other_node]
             nnnl.append([other_node, inner_dict['attr_dict']['correlation']])
-        _dump_it_to_json(fname=path+'/neighbors_to_%s.json' % node,
-                         pyobj=nnnl)
+        io.dump_it_to_json(fname=path + '/neighbors_to_%s.json' % node,
+                        pyobj=nnnl)
     dnf_logger.info('Finished dumping node neighbor dicts to %s' % path)
 
 
-def _filter_corr_data(corr, clusters, cl_limit):
-    # To get gene names where clustering coefficient is above limit.
-    # Clusters has to come from an already produced graph.
-    # The filtered correlations can then be used to produce a new graph.
-    # The usage of this would be to get a nicer plot that conecntrates on the
-    # clusters instead of plotting _everything_, making it hard to see the
-    # forest for all the trees.
-
-    filtered_genes = [k for k in clusters if clusters[k] > cl_limit]
-    filtered_correlations = corr[filtered_genes].unstack()
-    return filtered_correlations
-
-
-def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
-    """Returns a list of tuples of nodes and their rank score
-
-    The provided node list should contain the set of nodes that connects subj
-    and obj through an intermediate node found in nested_dict_stmts.
-
-    nested_dict_stmts
-
-        d[subj][obj] = [stmts/stmt hashes]
-
-    node_list : list[nodes]
-    nested_dict_stmts : defaultdict(dict)
-        Nested dict of statements: nest_d[subj][obj]
-    gene_a : str
-        HGNC name of gene A in an A-X-B connection
-    gene_b : str
-        HGNC name of gene B in an A-X-B connection
-    x_type : str
-        One of 'x_is_intermediary', 'x_is_downstream' or 'x_is_upstream'
-
-    -------
-    Returns
-    dir_path_nodes_wb : list[(node, rank)]
-        A list of node, rank tuples.
-    """
-
-    def _calc_rank(nest_dict_stmts, subj_ax, obj_ax, subj_xb, obj_xb):
-        ax_stmts = nest_dict_stmts[subj_ax][obj_ax]
-        xb_stmts = nest_dict_stmts[subj_xb][obj_xb]
-        ax_score_list = []
-        xb_score_list = []
-
-        # The statment with the highest belief score should
-        # represent the edge (potentially multiple stmts per edge)
-        # To get latest belief score: see indra_db.belief
-        for tup in ax_stmts:
-            assert len(tup) == 2 or len(tup) == 3
-            bs = 1
-            if len(tup) == 2:
-                typ, hsh_a = tup
-            elif len(tup) == 3:
-                typ, hsh_a, bs = tup
-            ax_score_list.append(bs)
-        for tup in xb_stmts:
-            assert len(tup) == 2 or len(tup) == 3
-            bs = 1
-            if len(tup) == 2:
-                typ, hsh_b = tup
-            elif len(tup) == 3:
-                typ, hsh_b, bs = tup
-            xb_score_list.append(bs)
-
-        # Rank by multiplying the best two belief scores for each edge
-        rank = max(ax_score_list) * max(xb_score_list)
-
-        # No belief score should be zero, thus rank should never be zero
-        try:
-            assert rank != 0
-        except AssertionError:
-            dnf_logger.warning('Combined rank == 0 for hashes %s and %s, '
-                               'implying belief score is 0 for at least one '
-                               'of the following statements: ' %
-                               (hsh_a, hsh_b))
-        return rank
-
-    dir_path_nodes_wb = []
-    if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
-        for gene_x in node_list:
-            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
-                                subj_ax=gene_a, obj_ax=gene_x,
-                                subj_xb=gene_x, obj_xb=gene_b)
-            dir_path_nodes_wb.append((gene_x, x_rank))
-
-    elif x_type is 'x_is_downstream':  # A->X<-B
-        for gene_x in node_list:
-            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
-                                subj_ax=gene_a, obj_ax=gene_x,
-                                subj_xb=gene_b, obj_xb=gene_x)
-            dir_path_nodes_wb.append((gene_x, x_rank))
-    elif x_type is 'x_is_upstream':  # A<-X->B
-
-        for gene_x in node_list:
-            x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
-                                subj_ax=gene_x, obj_ax=gene_a,
-                                subj_xb=gene_x, obj_xb=gene_b)
-            dir_path_nodes_wb.append((gene_x, x_rank))
-
-    return dir_path_nodes_wb
-
-
-def nx_directed_multigraph_from_nested_dict(nest_d):
+def nested_stmt_dict_to_nx_multidigraph(nest_d):
     """Returns a directed multigraph where each edge links a statement with
     u=subj, v=obj, edge_key=stmt,
 
@@ -360,7 +216,7 @@ def nx_directed_multigraph_from_nested_dict(nest_d):
     return nx_muldir
 
 
-def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
+def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
     """Returns a directed graph from a two layered nested dictionary
 
     Nested dictionary
@@ -434,7 +290,7 @@ def nx_directed_graph_from_nested_dict_2layer(nest_d, belief_dict=None):
     return nx_dir_g
 
 
-def nx_directed_graph_from_nested_dict_3layer(nest_d):
+def nested_stmt_explained_dict_nx_digraph(nest_d):
     """Returns a directed graph from a three layered nested dictionary
 
     Form of nested dictionary
@@ -472,7 +328,7 @@ def nx_directed_graph_from_nested_dict_3layer(nest_d):
     return nx_dir_g
 
 
-def nx_undirected_graph_from_nested_dict(nest_d):
+def nested_stmt_dict_to_nx_graph(nest_d):
     """Returns an undirected graph built from a nested dict of statements
 
     Use this function to build a simple undirected graph. Suitable when the
@@ -483,7 +339,7 @@ def nx_undirected_graph_from_nested_dict(nest_d):
 
     Returns
     -------
-    nx_undir : networkx.classes.graph.Graph
+    nx_undir : nx.Graph
         An undirected, unweighted networkx graph
     """
 
@@ -509,23 +365,22 @@ def nx_undirected_graph_from_nested_dict(nest_d):
     return nx_undir
 
 
-def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
-                                 edge_attr='correlation', use_abs_corr=False):
+def pd_to_nx_graph(corr_sr, source='id1', target='id2',
+                   edge_attr='correlation', use_abs_corr=True):
     """Return a graph from a pandas sereis containing correlaton between gene A
     and gene B, using the correlation as edge weight
 
+    Parameters
+    ----------
     corr_sr : pandas Series or DataFrame
         Pandas Series/DataFrame containing A, B corr
-
     source : str
         which column to identify as source node (output is still undirected)
-
     target : str
-        which column to identify as target nodes (output is still undirected)
-
+        which column to identify as target node (output is still undirected)
     edge_attr : int or str
         Column to use for edge attributes
-    absolute : Bool
+    use_abs_corr : Bool
         Use absolute value as edge weight. Otherwise magnitude is used.
 
     Returns
@@ -564,10 +419,11 @@ def nx_graph_from_corr_pd_series(corr_sr, source='id1', target='id2',
 def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     """Return a graph from a list of edges, using the correlation as weight
 
+    Parameters
+    ----------
     corr_list : list or iterator
         Edge tuples
-
-    absolute : Bool
+    use_abs_corr : Bool
         Use absolute value as edge weight. Otherwise magnitude is used.
 
     Returns
@@ -588,309 +444,6 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     corr_weight_graph.add_edges_from(ebunch_to_add=edge_bunch)
 
     return corr_weight_graph
-
-
-def nx_digraph_from_sif_dataframe(df, belief_dict=None, strat_ev_dict=None,
-                                  multi=False, include_entity_hierarchies=True,
-                                  verbosity=0):
-    """Return a NetworkX digraph from a pickled db dump dataframe.
-
-    df : str|pandas.DataFrame
-        A dataframe, either as a file path to a pickle or a pandas
-        DataFrame object
-    belief_dict : str
-        The file path to a belief dict that is keyed by statement hashes
-        corresponding to the statement hashes loaded in df
-    strat_ev_dict : str
-        The file path to a dict keyed by statement hashes containing the
-        stratified evidence count per statement
-    multi : bool
-        Default: False; Return an nx.MultiDiGraph if True, otherwise
-        return an nx.DiGraph
-    include_entity_hierarchies : bool
-        Default: True
-    verbosity: int
-        Output various messages if > 0. For all messages, set to 4
-
-    Returns
-    -------
-    nx_graph : nx.DiGraph or nx.MultiDiGraph
-        By default an nx.DiGraph is returned. By setting multi=True,
-        an nx.MultiDiGraph is returned instead."""
-    bsd = None
-    sed = None
-    np_prec = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
-    ns_id_to_nodename = {}
-    readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
-    if isinstance(df, str):
-        sif_df = _pickle_open(df)
-    else:
-        sif_df = df
-    if belief_dict:
-        bsd = _pickle_open(belief_dict)
-    else:
-        dnf_logger.warning('No belief dict provided, weights will be set to '
-                           '1/evidence count')
-    if strat_ev_dict:
-        sed = _pickle_open(strat_ev_dict)
-    # Add as nodes:
-    #   'agA_name', 'agB_name'
-    # Columns to be added as node attributes:
-    #   'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
-    # Columns to be added as edge attributes
-    #   'stmt_type', 'evidence_count', 'hash'
-    # Add from external source:
-    #   belief score from provided dict
-    #   stratified evidence count by source
-    #   famplex edges using entity hierarchies
-
-    if multi:
-        nx_graph = nx.MultiDiGraph()
-    else:
-        nx_graph = nx.DiGraph()
-    index = 0
-    skipped = 0
-    for index, row in sif_df.iterrows():
-        if row['agA_name'] is None or row['agB_name'] is None:
-            skipped += 1
-            if verbosity > 3:
-                dnf_logger.warning('Skip: %d None agent found: %s' %
-                                   (skipped, repr(row)))
-            elif verbosity > 1:
-                dnf_logger.warning('Skip: %d None agent found: %s,%s '
-                                   '(%d)' %
-                                   (skipped, row['agA_name'],
-                                    row['agB_name'], row['hash']))
-            continue
-        # Add non-existing nodes
-        if row['agA_name'] not in nx_graph.nodes:
-            nx_graph.add_node(row['agA_name'],
-                            ns=row['agA_ns'], id=row['agA_id'])
-            ns_id_to_nodename[(row['agA_ns'], row['agA_id'])] = row['agA_name']
-        if row['agB_name'] not in nx_graph.nodes:
-            nx_graph.add_node(row['agB_name'],
-                            ns=row['agB_ns'], id=row['agB_id'])
-            ns_id_to_nodename[(row['agB_ns'], row['agB_id'])] = row['agB_name']
-        # Add edges
-        if bsd:
-            try:
-                if bsd[row['hash']] == 1 and verbosity:
-                    dnf_logger.info('Resetting weight from belief score to '
-                                    '1.0 for %s' % str(row['hash']))
-                b_s = bsd[row['hash']]
-                weight = -np.log(max(b_s - 1e-7, 1e-7))
-                bs = b_s
-            except KeyError:
-                if verbosity > 3:
-                    dnf_logger.warning('Index: %d; Skipped: %d; Hash: %s '
-                                       'is missing from belief dict %s' %
-                                       (index, skipped, str(row['hash']),
-                                        repr(row)))
-                elif verbosity:
-                    dnf_logger.warning('Index: %d; Skipped: %d; Hash: %s '
-                                       'is missing from belief dict' %
-                                       (index, skipped, str(row['hash'])))
-                weight = 1/row['evidence_count']
-                bs = np_prec*10
-        else:
-            weight = 1 / row['evidence_count']
-            bs = None
-
-        if sed:
-            try:
-                evidence = sed[row['hash']]
-            except KeyError:
-                if verbosity > 3:
-                    dnf_logger.warning('Index %d; Skipped %d; Hash: %s is '
-                                       'missing from stratified evidence '
-                                       'count dict %s' %
-                                       (index, skipped, str(row['hash']),
-                                        repr(row)))
-                elif verbosity:
-                    dnf_logger.warning('Index %d; Skipped %d; Hash: %s is '
-                                       'missing from stratified evidence '
-                                       'count dict' %
-                                       (index, skipped, str(row['hash'])))
-                evidence = {}
-        else:
-            evidence = {}
-        curated = False if not evidence else (False if all(src.lower() in
-            readers for src in evidence) else True)
-        ed = {'u_for_edge': row['agA_name'],
-              'v_for_edge': row['agB_name'],
-              'weight': weight,
-              'stmt_type': row['stmt_type'],
-              'stmt_hash': row['hash'],
-              'evidence_count': row['evidence_count'],
-              'evidence': evidence,
-              'curated': curated,
-              'bs': bs}
-
-        if multi:
-            nx_graph.add_edge(**ed)
-        else:
-            if ed.pop('u_for_edge', None):
-                ed.pop('v_for_edge', None)
-            # Add non-existing edges, append to existing
-            if (row['agA_name'], row['agB_name']) in nx_graph.edges:
-                nx_graph.edges[(row['agA_name'],
-                                row['agB_name'])]['stmt_list'].append(ed)
-            else:
-                nx_graph.add_edge(row['agA_name'], row['agB_name'],
-                                  stmt_list=[ed])
-    if skipped:
-        dnf_logger.warning('Skipped %d edges with None as node' % skipped)
-    dnf_logger.info('Loaded %d statements into %sDiGraph' %
-                    (index-skipped, 'Multi' if multi else ''))
-
-    if not multi:
-        dnf_logger.info('Aggregating belief score for DiGraph edge weights')
-        for e in nx_graph.edges:
-            # weight = -log(bs)
-            ag_belief = _ag_belief_score(
-                [s['bs'] for s in nx_graph.edges[e]['stmt_list']]
-            )
-            nx_graph.edges[e]['bs'] = ag_belief
-            nx_graph.edges[e]['weight'] = -np.log(ag_belief)
-
-    if include_entity_hierarchies:
-        def _fplx_edge_in_list(multi, edge, check_uri, nx_graph):
-            if multi:
-                e = 0
-                es = nx_graph.edges.get((*edge, e), None)
-                while es:
-                    if es['stmt_type'] == 'fplx' and \
-                            es['stmt_hash'] == check_uri:
-                        return True
-                    else:
-                        e += 1
-                        es = nx_graph.edges.get((*edge, e), None)
-            else:
-                if nx_graph.edges.get(edge):
-                    for es in nx_graph.edges.get(edge).get('stmt_list'):
-                        if es['stmt_type'] == 'fplx' and \
-                                es['stmt_hash'] == check_uri:
-                            return True
-                        else:
-                            continue
-                else:
-                    return False
-
-        dnf_logger.info('Fetching entity hierarchy relationsships')
-        full_entity_list = get_all_entities()
-        ehm = hm.hierarchies['entity']
-        ehm.initialize()
-        dnf_logger.info('Adding entity hierarchy manager as graph attribute')
-        nx_graph.graph['entity_hierarchy_manager'] = ehm
-        node_by_uri = {}
-        dnf_logger.info('Adding entity relations as edges in graph')
-        entities = 0
-        for ns, id, uri in full_entity_list:
-            node = id
-            # Get name in case it's different than id
-            if ns_id_to_nodename.get((ns, id), None):
-                node = ns_id_to_nodename[(ns, id)]
-
-            if node not in nx_graph.nodes:
-                nx_graph.add_node(node, ns=ns, id=id)
-            node_by_uri[uri] = node
-
-            # Add famplex edge
-            for puri in ehm.get_parents(uri):
-                pns, pid = ehm.ns_id_from_uri(puri)
-                pnode = pid
-                if ns_id_to_nodename.get((pns, pid), None):
-                    pnode = ns_id_to_nodename[(pns, pid)]
-                node_by_uri[puri] = pnode
-                if pnode not in nx_graph.nodes:
-                    nx_graph.add_node(pnode, ns=pns, id=pid)
-                # Check if edge already exists
-                if not _fplx_edge_in_list(multi, (node, pnode), puri,
-                                          nx_graph):
-                    entities += 1
-                    ed = {'u_for_edge': node,
-                          'v_for_edge': pnode,
-                          'weight': 1.0,
-                          'stmt_type': 'fplx',
-                          'stmt_hash': puri,
-                          'evidence_count': 1,
-                          'evidence': {'fplx': 1},
-                          'curated': True,
-                          'bs': 1.0}
-                    if multi:
-                        nx_graph.add_edge(**ed)
-                    else:
-                        if ed.pop('u_for_edge', None):
-                            ed.pop('v_for_edge', None)
-                        if (node, pnode) in nx_graph.edges:
-                            nx_graph.edges[(node,
-                                            pnode)]['stmt_list'].append(ed)
-                        else:
-                            # The fplx edge is the only edge, add custom
-                            # aggregate bs, weight
-                            nx_graph.add_edge(node, pnode, stmt_list=[ed],
-                                              bs=1.0, weight=1.0)
-
-        dnf_logger.info('Loaded %d entity relations into %sDiGraph' %
-                        (entities, 'Multi' if multi else ''))
-        nx_graph.graph['node_by_uri'] = node_by_uri
-        nx_graph.graph['node_by_ns_id'] = ns_id_to_nodename
-    return nx_graph
-
-
-def _read_gene_set_file(gf, data):
-    gset = []
-    try:
-        # Works if string is returned: we assume this is when we only have
-        # HGNC symbols
-        data.columns[0].split()
-        dset = set(data.columns)
-    except AttributeError:
-        # multi index
-        dset = set([t[0] for t in data.columns])
-
-    with open(gf, 'rt') as f:
-        for g in f.readlines():
-            gn = g.upper().strip()
-            if gn in dset:
-                gset.append(gn)
-    return gset
-
-
-def _map2index(start, binsize, value):
-    offset = int(abs(start//binsize))
-    return offset + int(float(value) // binsize)
-
-
-def histogram_for_large_files(fpath, number_of_bins, binsize, first):
-    """Returns a histogram for very large files
-
-    fpath: str(filename)
-        filepath to file with data to be binned
-    number_of_bins: int
-        the number fo bins to use
-    binsize: float
-        the size of bins
-    first: float
-        The left most (min(x)) edge of the bin edges
-
-    Returns
-    -------
-    home_brewed_histo: np.array
-        A histrogram of the data in fpath according to number of bins,
-        binsize and first.
-    """
-    home_brewed_histo = np.zeros(number_of_bins, dtype=int)
-    with open(file=fpath) as fo:
-        for line in fo:
-            flt = line.strip()
-            home_brewed_histo[_map2index(start=first, binsize=binsize,
-                                         value=flt)] += 1
-    return home_brewed_histo
-
-
-def _manually_add_to_histo(hist, start, binsize, value):
-    hist[_map2index(start, binsize, value)] += 1
 
 
 def histogram_from_tuple_generator(tuple_gen, binsize, first,
@@ -916,8 +469,8 @@ def histogram_from_tuple_generator(tuple_gen, binsize, first,
         number_of_bins = int(2*abs(first) / binsize)
     home_brewed_histo = np.zeros(number_of_bins, dtype=int)
     for g1, g1, flt in tuple_gen:
-        home_brewed_histo[_map2index(start=first, binsize=binsize,
-                                     value=flt)] += 1
+        home_brewed_histo[io.map2index(start=first, binsize=binsize,
+                                    value=flt)] += 1
     return home_brewed_histo
 
 
@@ -1349,10 +902,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
             sys.exit('Script aborted due to empty correlation matrix')
 
         dnf_logger.info('Dumping json HGNC symbol/id dictionaries...')
-        _dump_it_to_json(outbasename+'_%s_sym2id_dict.json' % gene_set_name,
-                         sym2id_dict)
-        _dump_it_to_json(outbasename+'_%s_id2sym_dict.json' % gene_set_name,
-                         id2sym_dict)
+        io.dump_it_to_json(outbasename + '_%s_sym2id_dict.json' % gene_set_name,
+                        sym2id_dict)
+        io.dump_it_to_json(outbasename + '_%s_id2sym_dict.json' % gene_set_name,
+                        id2sym_dict)
 
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
@@ -1459,7 +1012,7 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
                      str(upper_limit).replace('.', ''))
         dnf_logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
-        _dump_it_to_csv(fname, corr_matrix_to_generator(
+        io.dump_it_to_csv(fname, corr_matrix_to_generator(
             filtered_correlation_matrix))
 
     return filtered_correlation_matrix,\
@@ -1514,7 +1067,7 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
 
     if filter_gene_set:
         # Read gene set to look at
-        gene_filter_list = _read_gene_set_file(
+        gene_filter_list = io.read_gene_set_file(
             gf=filter_gene_set, data=depmap_data
         )
         if len(gene_filter_list) == 0:
@@ -1954,7 +1507,7 @@ def nested_dict_of_stmts(stmts, belief_dict=None):
 
             # Check common parent (same family or complex)
             for agent, other_agent in itt.permutations(agent_list, r=2):
-                if has_common_parent(id1=agent, id2=other_agent):
+                if ff.has_common_parent(id1=agent, id2=other_agent):
                     bs = None
                     try:
                         if 'parent' not in \
@@ -2040,109 +1593,6 @@ def pa_filter_unique_evidence(stmts):
     # Compiles together raw statements to one statement per type
     opa_stmts = ac.run_preassembly(ms_stmts, return_toplevel=False)
     return opa_stmts
-
-
-def _old_str_output(subj, obj, corr, stmts, ignore_str='parent'):
-
-    # Build up a string that shows explanations for each connection
-    output = 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr)
-
-    if ignore_str in stmts:
-        pure_list = [s for s in stmts if type(s) is not str]
-        types = relation_types(pure_list)
-        types += [ignore_str] * stmts.count(ignore_str)
-    else:
-        types = relation_types(stmts)
-
-    dedupl_stmts = stmts.copy()
-
-    types_set = set(types)
-    types_sstmt = []
-    for tp in types_set:
-        for st in dedupl_stmts:
-            if type(st) is not str:
-                if st.to_json()['type'] == tp:
-                    types_sstmt.append((tp, str(st)))
-            elif type(st) is str and tp is ignore_str:
-                types_sstmt.append((tp, str(st)))
-
-    for tp, str_stmt in types_sstmt:
-        if tp is not ignore_str:
-            output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -'
-            output += '\nInstances found of statement %s: %i\n' % \
-                      (str_stmt, types.count(tp))
-        for stmt in stmts:
-            if type(stmt) is str and str(stmt) == ignore_str:
-                output += '%s and %s are in the same complex or family\n' % \
-                          (subj, obj)
-            elif type(stmt) is not str and stmt.to_json()['type'] == tp:
-                output += 'Evidence for uuid %s: ' % stmt.uuid
-                ev = stmt.evidence[0].text
-                output += ('N/A' if ev is None else ev)+'\n'
-            else:
-                continue
-
-    # Add separator between each connection
-    output += '\n\n#### #### #### #### #### ####\n'
-    return output
-
-
-def str_output(subj, obj, corr, stmts, ignore_str='parent'):
-    """Formats information about statements and returns a string.
-
-    subj : str
-        indra statement subject
-    obj : str
-        indra statment object
-    corr : float
-        Correlation between subject and object
-    stmts : list[:py:class:`indra.statements.Statement`]
-        List of indra statements
-    ignore_str : str
-        String to ignore if it appears in the list of indra statements
-
-    Returns
-    -------
-    output : str
-        string with information about the statements that connect subject and
-        object formatted for printing or for writing to a text file.
-    """
-
-    output = ''
-
-    # Build up a string that shows explanations for each connection
-    output += 'subj: %s; obj: %s; corr: %f \n' % (subj, obj, corr) + \
-              'https://depmap.org/portal/interactive/?xDataset=Avana&xFeature' \
-              '={}&yDataset=Avana&yFeature={}&colorDataset=lineage' \
-              '&colorFeature=all&filterDataset=context&filterFeature=' \
-              '&regressionLine=false&statisticsTable=false&associationTable=' \
-              'true&plotOnly=false\n'.format(subj, obj)
-
-    pa_stmts = stmts.copy()
-
-    for stmt in pa_stmts:
-        output += '- - - - - - - - - - - - - - - - - - - - - - - - - - - -\n'
-        if type(stmt) is str and str(stmt) == ignore_str:
-            output += '%s and %s are in the same complex or family\n' % \
-                      (subj, obj)
-        else:
-            # Remove duplicate evidence text
-            ev_text_set = set(['N/A' if ev.text is None else ev.text for ev in
-                               stmt.evidence])
-            ev_text_list = list(ev_text_set)
-            if 'N/A' in ev_text_list:
-                ev_text_list.remove('N/A')
-
-            output += '\nInstances found of statement %s: %i; supports ' \
-                      'count: %i; Supported by count: %i\n' % \
-                      (str(stmt), len(ev_text_list), len(stmt.supports),
-                       len(stmt.supported_by))
-            for count, ev_text in enumerate(ev_text_list):
-                output += 'Evidence %i: ' % (count+1) + ev_text + '\n'
-
-    # Add separator between each connection
-    output += '\n\n#### #### #### #### #### ####\n'
-    return output
 
 
 def latex_output(subj, obj, corr, stmts, ev_len_fltr, ignore_str='parent'):
@@ -2290,118 +1740,6 @@ def dbc_load_statements(hgnc_syms):
         db_prim.session.rollback()
         raise e
     return stmts
-
-
-def get_all_entities(eh=hm.hierarchies['entity']):
-    """Get a list of all entities included in HierarchyManager['entity']
-
-    Parameters
-    ----------
-    eh : HierarchyManager object
-        A HierarchyManager object initialized to an entities HierarchyManager.
-
-    Returns
-    -------
-    entity_list : list
-        A list of namespace, id, uri_id tuples
-    """
-    ent_list = []
-    eh.initialize()
-    entities_keyed_by_parent = eh._children
-    for puri, children_uris in entities_keyed_by_parent.items():
-        pns, pid = eh.ns_id_from_uri(puri)
-        ent_list.append((pns, pid, puri))
-        ns_id_child_set = set([(*eh.ns_id_from_uri(p), p)
-                               for p in entities_keyed_by_parent[puri]])
-        for cns, cid, curi in ns_id_child_set:
-            ent_list.append((cns, cid, curi))
-
-    return ent_list
-
-
-def find_parent(ho=hm.hierarchies['entity'], ns='HGNC',
-                id_=None, type_='all'):
-    """A wrapper function for he.get_parents to make the functionality more
-    clear.
-
-    Parameters
-    ----------
-    ho : HierarchyManager object
-        A HierarchyManager object. Default: entity hierarchy object
-    ns : str
-        namespace id. Default: HGNC
-    id_ : str
-        id to check parents for. Default: None
-    type_ : str
-        'all': (Default) return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
-
-    Returns
-    -------
-    set
-        set of parents of database id in namespace ns
-    """
-    return ho.get_parents(ho.get_uri(ns, id_), type_)
-
-
-def common_parent(ho=hm.hierarchies['entity'], ns1='HGNC',
-                  id1=None, ns2='HGNC', id2=None, type_='all'):
-    """Returns the set of common parents.
-
-    Parameters
-    ----------
-    ho : HierarchyManager object
-        A HierarchyManager object. Default: entity hierarchy object
-    ns1 : str
-        namespace id. Default: HGNC
-    id1 : str
-        First id to check parents for. Default: None
-    ns2 : str
-        namespace id. Default: HGNC
-    id2 : str
-        Second id to check parents for. Default: None
-    type_ : str
-        'all': (Default) return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
-
-    Returns
-    -------
-    set
-        set of common parents in uri format
-    """
-    return find_parent(ho, ns1, id1, type_) & find_parent(ho, ns2, id2, type_)
-
-
-def has_common_parent(ho=hm.hierarchies['entity'], ns1='HGNC', id1=None,
-                      ns2='HGNC', id2=None, type='all'):
-
-    """Returns True if id1 and id2 has at least one common parent.
-
-    Parameters
-    ----------
-    ho : HierarchyManager object
-        A HierarchyManager object. Default: entity hierarchy object
-    ns1 : str
-        namespace id. Default: HGNC
-    id1 : str
-        First id to check parents for. Default: None
-    ns2 : str
-        namespace id. Default: HGNC
-    id2 : str
-        Second id to check parents for. Default: None
-    type : str
-        'all': return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
-
-    Returns
-    -------
-    bool
-        True if hgnc1 and hgnc2 has one or more common parents.
-    """
-    return bool(common_parent(ho, ns1, id1, ns2, id2, type))
 
 
 def direct_relation(id1, id2, long_stmts=set()):
@@ -2560,8 +1898,9 @@ def are_connected(id1, id2, long_stmts=set()):
         have a direct relation found in the
         indra.sources.indra_db_rest.client_api databases.
     """
-    return has_common_parent(ns1='HGCN', id1=id1, ns2='HGCN', id2=id2) or \
-        has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
+    return ff.has_common_parent(ns1='HGNC', id1=id1,
+                                ns2='HGNC', id2=id2) or \
+           has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
 
 
 def connection_types(id1, id2, long_stmts=set()):
@@ -2584,42 +1923,6 @@ def connection_types(id1, id2, long_stmts=set()):
 
     ctypes = relation_types(direct_relation(id1=id1, id2=id2,
                                             long_stmts=long_stmts))
-    if has_common_parent(id1=id1, id2=id2):
+    if ff.has_common_parent(id1=id1, id2=id2):
         ctypes += ['parent']
     return ctypes
-
-
-def _ns_id_from_name(name):
-    if GRND_URI:
-        try:
-            res = requests.post(GRND_URI, json={'text': name})
-            if res.status_code == 200:
-                rj = res.json()[0]
-                return rj['term']['db'], rj['term']['id']
-            else:
-                dnf_logger.warning('Grounding service responded with code %d, '
-                                   'check your query format and URL' %
-                                   res.status_code)
-        except IndexError:
-            dnf_logger.info('No grounding exists for %s' % name)
-    else:
-        dnf_logger.warning('Indra Grounding service not available. Add '
-                           'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
-    return None, None
-
-
-def _ag_belief_score(belief_list):
-    """Each item in `belief_list` should be a float"""
-    # Aggregate belief score: 1-prod(1-bs_i)
-    try:
-        ag_belief = np.longfloat(1.0) - np.prod(np.fromiter(map(
-            lambda bs: np.longfloat(1.0) - bs, belief_list),
-            dtype=np.longfloat)
-        )
-    except FloatingPointError as err:
-        dnf_logger.warning('%s: Resetting ag_belief to 10*np.longfloat '
-                           'precision (%.0e)' %
-                           (err, Decimal(NP_PRECISION * 10)))
-        ag_belief = NP_PRECISION * 10
-
-    return ag_belief

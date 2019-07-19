@@ -17,23 +17,20 @@ import os
 import sys
 import json
 import logging
-import pandas as pd
 import pickle as pkl
-import networkx as nx
 import argparse as ap
 import itertools as itt
-from numpy import float64
 from time import time, strftime
-from collections import defaultdict
 from random import choice as rnd_choice
+
+import pandas as pd
+from numpy import float64
 from indra.tools import assemble_corpus as ac
-import depmap_network_functions as dnf
-from depmap_network_functions import create_nested_dict as nest_dict
-from util.io_functions import _dump_it_to_pickle, _pickle_open, \
-    _dump_it_to_csv, _dump_it_to_json, _json_open
-# There are pickled files using "nest_dict" in their preserved import settings
-# and we can therefore not use another name when using those files until we
-# create new pickle files
+
+import depmap_analysis.util.io_functions as io
+import depmap_analysis.network_functions.network_functions as nf
+import depmap_analysis.network_functions.famplex_functions as ff
+from depmap_analysis.network_functions import depmap_network_functions as dnf
 
 logger = logging.getLogger('DepMap Script')
 
@@ -97,7 +94,7 @@ def _parse_cell_filter(cl_file, id2depmapid_pkl=None, namespace='CCLE_Name'):
             col_separator = None
     with open(cl_file, 'r') as fi:
         if id2depmapid_pkl:
-            id2depmapid_dict = _pickle_open(id2depmapid_pkl)
+            id2depmapid_dict = io.pickle_open(id2depmapid_pkl)
             assert namespace in id2depmapid_dict.keys()
             for n, cl in enumerate(fi.readlines()):
                 cl_name = cl.split(sep=col_separator)[0]
@@ -252,7 +249,7 @@ def loop_body(args):
                     logger.info('Found directed path of length 2 '
                                 'between %s and %s' % (subj, obj))
 
-                dir_path_nodes_wb = dnf.rank_nodes(
+                dir_path_nodes_wb = nf.rank_nodes(
                     node_list=dir_path_nodes,
                     nested_dict_stmts=nested_dict_statements,
                     gene_a=subj,
@@ -266,10 +263,10 @@ def loop_body(args):
                 explanations_of_pairs.append(stmt_tuple)
 
     # Check common parent
-    if dnf.has_common_parent(id1=id1, id2=id2):
+    if ff.has_common_parent(id1=id1, id2=id2):
         has_common_parent = True
         found = True
-        parents = list(dnf.common_parent(id1=id1, id2=id2))
+        parents = list(ff.common_parent(id1=id1, id2=id2))
         explained_nested_dict[id1][id2]['common_parents'] = parents
         explained_nested_dict[id2][id1]['common_parents'] = parents
         stmt_tuple = (id1, id2, 'common_parents', parents, [])
@@ -295,7 +292,7 @@ def loop_body(args):
         if downstream_share:
             found = True
             x_is_downstream = True
-            downstream_share_wb = dnf.rank_nodes(
+            downstream_share_wb = nf.rank_nodes(
                 node_list=downstream_share,
                 nested_dict_stmts=nested_dict_statements,
                 gene_a=id1,
@@ -316,7 +313,7 @@ def loop_body(args):
         if upstream_share:
             found = True
             x_is_upstream = True
-            upstream_share_wb = dnf.rank_nodes(
+            upstream_share_wb = nf.rank_nodes(
                 node_list=upstream_share,
                 nested_dict_stmts=nested_dict_statements,
                 gene_a=id1,
@@ -478,17 +475,22 @@ def main(args):
     belief_dict = None  # ToDo use api to query belief scores if not loaded
     if args.belief_score_dict:
         if args.belief_score_dict.endswith('.json'):
-            belief_dict = _json_open(args.belief_score_dict)
+            belief_dict = io.json_open(args.belief_score_dict)
         elif args.belief_score_dict.endswith('.pkl'):
-            belief_dict = _pickle_open(args.belief_score_dict)
+            belief_dict = io.pickle_open(args.belief_score_dict)
 
     args_dict = _arg_dict(args)
     npairs = 0
 
+    gene_filter_list = []
+    all_hgnc_ids = set()
+    stmts_all = []
+    master_corr_dict = dnf.create_nested_dict()
+
     filter_settings = {'gene_set_filter': args.gene_set_filter,
                        'strict': args.strict,
                        'cell_line_filter': cell_lines,
-                       'cell_line_translation_dict': _pickle_open(
+                       'cell_line_translation_dict': io.pickle_open(
                                                      args.cell_line_filter[1])
                        if args.cell_line_filter and len(args.cell_line_filter)
                        == 2 else None,
@@ -524,22 +526,22 @@ def main(args):
         if args.gene_set_filter:
             gene_filter_list = None
             if args_dict.get('crispr') and not args_dict.get('rnai'):
-                gene_filter_list = dnf._read_gene_set_file(
+                gene_filter_list = io.read_gene_set_file(
                     gf=filter_settings['gene_set_filter'],
                     data=pd.read_csv(args_dict['crispr']['data'],
                                          index_col=0, header=0))
             elif args_dict.get('rnai') and not args_dict.get('crispr'):
-                gene_filter_list = dnf._read_gene_set_file(
+                gene_filter_list = io.read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
                         data=pd.read_csv(args_dict['rnai']['data'],
                                          index_col=0, header=0))
             elif args_dict.get('crispr') and args_dict.get('rnai'):
                 gene_filter_list = \
-                    set(dnf._read_gene_set_file(
+                    set(io.read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
                         data=pd.read_csv(args_dict['crispr']['data'],
                                          index_col=0, header=0))) & \
-                    set(dnf._read_gene_set_file(
+                    set(io.read_gene_set_file(
                         gf=filter_settings['gene_set_filter'],
                         data=pd.read_csv(args_dict['rnai']['data'],
                                          index_col=0, header=0)))
@@ -560,7 +562,7 @@ def main(args):
             stmts_all = set(ac.load_statements(args.statements_in))
         # Use api to get statements. _NOT_ the same as querying for each ID
         else:
-            if args.gene_set_filter:
+            if args.gene_set_filter and gene_filter_list:
                 stmts_all = dnf.dbc_load_statements(gene_filter_list)
             else:
                 # if there is no gene set file, restrict to gene ids in
@@ -577,13 +579,13 @@ def main(args):
         hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
         nested_dict_statements = dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
-        nested_dict_statements = _pickle_open(args.nested_dict_in)
+        nested_dict_statements = io.pickle_open(args.nested_dict_in)
     else:
         nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
                                                             belief_dict)
         if args.nested_dict_out:
-            _dump_it_to_pickle(fname=args.nested_dict_out,
-                               pyobj=nested_dict_statements)
+            io.dump_it_to_pickle(fname=args.nested_dict_out,
+                              pyobj=nested_dict_statements)
 
     # Get directed simple graph
     if args.directed_graph_in:
@@ -591,12 +593,12 @@ def main(args):
             nx_dir_graph = pkl.load(rpkl)
     else:
         # Create directed graph from statement dict
-        nx_dir_graph = dnf.nx_directed_graph_from_nested_dict_2layer(
+        nx_dir_graph = dnf.nested_stmt_dict_to_nx_digraph(
             nest_d=nested_dict_statements, belief_dict=belief_dict)
         # Save as pickle file
         if args.directed_graph_out:
-            _dump_it_to_pickle(fname=args.directed_graph_out,
-                               pyobj=nx_dir_graph)
+            io.dump_it_to_pickle(fname=args.directed_graph_out,
+                              pyobj=nx_dir_graph)
     dir_node_set = set(nx_dir_graph.nodes)
 
     # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
@@ -868,15 +870,15 @@ def main(args):
     logger.info('\n' + long_string)
 
     # Here create directed graph from explained nested dict
-    nx_expl_dir_graph = dnf.nx_directed_graph_from_nested_dict_3layer(
+    nx_expl_dir_graph = dnf.nested_stmt_explained_dict_nx_digraph(
         nest_d=explained_nested_dict)
 
     if not args.no_web_files:
         # 'explained_nodes' are used to produce first drop down
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
-        _dump_it_to_json(args.outbasename+'_explainable_ids.json',
-                         explained_nodes)
+        io.dump_it_to_json(args.outbasename + '_explainable_ids.json',
+                        explained_nodes)
 
         # Get undir graph and save each neighbor lookup as json for 2nd dropdown
         nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
@@ -891,16 +893,16 @@ def main(args):
         header=['gene1', 'gene2', 'meta_data'],
         excl_sr=True)
 
-    _dump_it_to_pickle(fname=args.outbasename+'_explained_nest_dict.pkl',
-                       pyobj=explained_nested_dict)
+    io.dump_it_to_pickle(fname=args.outbasename + '_explained_nest_dict.pkl',
+                      pyobj=explained_nested_dict)
     headers = ['subj', 'obj', 'type', 'X', 'meta_data']
-    _dump_it_to_csv(fname=args.outbasename+'_explanations_of_pairs.csv',
-                    pyobj=explanations_of_pairs, header=headers)
-    _dump_it_to_csv(fname=
+    io.dump_it_to_csv(fname=args.outbasename + '_explanations_of_pairs.csv',
+                   pyobj=explanations_of_pairs, header=headers)
+    io.dump_it_to_csv(fname=
                     args.outbasename+'_explanations_of_shared_regulators.csv',
-                    pyobj=sr_explanations, header=headers)
-    _dump_it_to_csv(fname=args.outbasename+'_unexpl_correlations.csv',
-                    pyobj=unexplained, header=headers[:-2])
+                   pyobj=sr_explanations, header=headers)
+    io.dump_it_to_csv(fname=args.outbasename + '_unexpl_correlations.csv',
+                   pyobj=unexplained, header=headers[:-2])
     with open(args.outbasename+'_script_summary.txt', 'w') as fo:
         fo.write(long_string)
     return 0

@@ -97,6 +97,11 @@
         // Strip whitespace
         if (eh.replace(/\s/g, '')) edgeHashBlacklist.push(eh.replace(/\s/g, ''))
       };
+      let cullBestNode = parseInt(document.getElementById('cull-best-node').value) || 0;
+      if (cullBestNode && cullBestNode < 1) {
+        alert('Culling best node every # paths must be positive integer');
+        return;
+      }
       var statusBox = document.getElementById('query-status');
       var source = document.getElementById('source').value;
       var target = document.getElementById('target').value;
@@ -114,7 +119,8 @@
         // direct_only: document.getElementById('direct-only').checked,
         curated_db_only: document.getElementById('curated-db-only').checked,
         fplx_expand: document.getElementById('fplx-expand').checked,
-        k_shortest: kShortestEntry
+        k_shortest: kShortestEntry,
+        cull_best_node: cullBestNode
       };
       let _url = SUBMIT_URL;
       statusBox.textContent = 'Query submitted...';
@@ -444,6 +450,12 @@
           <label style="margin: 0px;"><div class="container" style="width: 90px; float: left; padding: 0px;">
             <input class="form-control" type="number" step="0.01" name="belief_cutoff" id="belief-cutoff" min="0" max="1">
           </div>&nbsp;Belief Score cut-off (0 to 1), higher is better</label>
+        </div>
+        <div class="col">
+          <input type="text" id="cull-best-node" class="form-control"
+            title="Every x valid paths, cull the node with the highest (weighted) degree from the network. This increases the variety of paths found and reduces the impact of nodes with extremely high connectivity in the network."
+            placeholder="Cull highest degree node every # paths"
+          >
         </div>
       </div>
 <!--      <div class="row">-->
