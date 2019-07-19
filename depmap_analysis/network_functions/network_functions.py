@@ -389,7 +389,8 @@ def ag_belief_score(belief_list):
     return ag_belief
 
 
-def _ns_id_from_name(name):
+def ns_id_from_name(name):
+    """Query the groudninfg service for the most likely ns:id pair for name"""
     if GRND_URI:
         try:
             res = requests.post(GRND_URI, json={'text': name})

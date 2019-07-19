@@ -10,8 +10,7 @@ from indra.config import CONFIG_DICT
 
 import depmap_network_functions as dnf
 from depmap_analysis.network_functions import famplex_functions as ff
-from depmap_analysis.network_functions.network_functions import \
-    ag_belief_score, shortest_simple_paths
+from depmap_analysis.network_functions import network_functions as nf
 
 logger = logging.getLogger('indra network')
 
@@ -187,8 +186,8 @@ class IndraNetwork:
     def sanity_check(**options):
         """Checks for some possible gotchas in query"""
         # Check non-resolving query
-        sns, sid = dnf._ns_id_from_name(options['source'])
-        tns, tid = dnf._ns_id_from_name(options['target'])
+        sns, sid = nf.ns_id_from_name(options['source'])
+        tns, tid = nf.ns_id_from_name(options['target'])
         if (sns and sns.lower() not in options['node_filter']) or \
                 (tns and tns.lower() not in options['node_filter']):
             if sns.lower() not in options['node_filter']:
@@ -335,9 +334,9 @@ class IndraNetwork:
             blacklist_options = {}
             blacklist_options['ignore_nodes'] = options.get('node_blacklist',
                                                             None)
-            paths = shortest_simple_paths(self.nx_dir_graph_repr,
-                                     source, target, options['weight'],
-                                     **blacklist_options)
+            paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
+                                             source, target, options['weight'],
+                                             **blacklist_options)
             # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
             #                               source, target, options['weight'])
             return self._loop_paths(paths, **options)
@@ -721,7 +720,7 @@ class IndraNetwork:
 
     def _aggregated_path_belief(self, path):
         bs_list = [self.dir_edges[e]['bs'] for e in zip(path[:-1], path[1:])]
-        return ag_belief_score(bs_list)
+        return nf.ag_belief_score(bs_list)
 
     def _get_sort_key(self, path, hash_path, method=None):
         """Calculate a number to sort the path on
@@ -753,7 +752,7 @@ class IndraNetwork:
             id = node
             ns = self.nodes[node]['ns']
 
-            true_ns, true_id = dnf._ns_id_from_name(id)
+            true_ns, true_id = nf.ns_id_from_name(id)
             if true_ns and true_id:
                 return self.ehm.get_parents(uri=self.ehm.get_uri(true_ns,
                                                                  true_id))
