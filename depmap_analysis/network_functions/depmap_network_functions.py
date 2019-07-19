@@ -25,7 +25,7 @@ from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 
 import depmap_analysis.util.io_functions as io
-import depmap_analysis.network_functions.famplex_functions as fplx_fcns
+import depmap_analysis.network_functions.famplex_functions as ff
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
@@ -1507,7 +1507,7 @@ def nested_dict_of_stmts(stmts, belief_dict=None):
 
             # Check common parent (same family or complex)
             for agent, other_agent in itt.permutations(agent_list, r=2):
-                if fplx_fcns.has_common_parent(id1=agent, id2=other_agent):
+                if ff.has_common_parent(id1=agent, id2=other_agent):
                     bs = None
                     try:
                         if 'parent' not in \
@@ -1898,8 +1898,8 @@ def are_connected(id1, id2, long_stmts=set()):
         have a direct relation found in the
         indra.sources.indra_db_rest.client_api databases.
     """
-    return fplx_fcns.has_common_parent(ns1='HGNC', id1=id1,
-                                       ns2='HGNC', id2=id2) or \
+    return ff.has_common_parent(ns1='HGNC', id1=id1,
+                                ns2='HGNC', id2=id2) or \
            has_direct_relation(id1=id1, id2=id2, long_stmts=long_stmts)
 
 
@@ -1923,6 +1923,6 @@ def connection_types(id1, id2, long_stmts=set()):
 
     ctypes = relation_types(direct_relation(id1=id1, id2=id2,
                                             long_stmts=long_stmts))
-    if fplx_fcns.has_common_parent(id1=id1, id2=id2):
+    if ff.has_common_parent(id1=id1, id2=id2):
         ctypes += ['parent']
     return ctypes

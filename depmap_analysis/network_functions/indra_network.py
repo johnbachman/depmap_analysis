@@ -8,9 +8,9 @@ from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
 
-import depmap_network_functions as dnf
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import network_functions as nf
+from depmap_analysis.network_functions import depmap_network_functions as dnf
 
 logger = logging.getLogger('indra network')
 
@@ -488,7 +488,7 @@ class IndraNetwork:
             source_id = self.nodes[options['source']]['id']
             source_ns = self.nodes[options['source']]['ns']
         else:
-            source_ns, source_id = dnf._ns_id_from_name(options['source'])
+            source_ns, source_id = nf.ns_id_from_name(options['source'])
             if not source_id:
                 source_id = options['source']
 
@@ -497,7 +497,7 @@ class IndraNetwork:
             target_id = self.nodes[options['target']]['id']
             target_ns = self.nodes[options['target']]['ns']
         else:
-            target_ns, target_id = dnf._ns_id_from_name(options['target'])
+            target_ns, target_id = nf.ns_id_from_name(options['target'])
             if not target_id:
                 target_id = options['target']
 
