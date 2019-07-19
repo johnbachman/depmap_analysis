@@ -3,7 +3,6 @@ import re
 import sys
 import math
 import logging
-import requests
 import itertools as itt
 from math import ceil, log10
 from collections import Mapping
@@ -20,7 +19,6 @@ from pandas.core.series import Series as pd_Series_class
 
 from indra_db import util as dbu
 from indra_db import client as dbc
-from indra.config import CONFIG_DICT
 from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.sources.indra_db_rest import api as db_api
@@ -31,13 +29,6 @@ import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
-
-GRND_URI = None
-try:
-    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
-except KeyError:
-    dnf_logger.warning('Indra Grounding service not available. Add '
-                   'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 
 def _entry_exist_dict(nest_dict, outer_key, inner_key):
@@ -106,6 +97,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
         dnf_logger.warning('Correlation matrix is empty')
         sys.exit('Script aborted due to empty correlation matrix')
 
+    corr_df_sample = pd.DataFrame()
     if max_pairs:
         if max_pairs >= all_pairs:
             dnf_logger.info('The requested number of correlation pairs is '
@@ -1934,22 +1926,3 @@ def connection_types(id1, id2, long_stmts=set()):
     if fplx_fcns.has_common_parent(id1=id1, id2=id2):
         ctypes += ['parent']
     return ctypes
-
-
-def _ns_id_from_name(name):
-    if GRND_URI:
-        try:
-            res = requests.post(GRND_URI, json={'text': name})
-            if res.status_code == 200:
-                rj = res.json()[0]
-                return rj['term']['db'], rj['term']['id']
-            else:
-                dnf_logger.warning('Grounding service responded with code %d, '
-                                   'check your query format and URL' %
-                                   res.status_code)
-        except IndexError:
-            dnf_logger.info('No grounding exists for %s' % name)
-    else:
-        dnf_logger.warning('Indra Grounding service not available. Add '
-                           'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
-    return None, None

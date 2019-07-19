@@ -1,18 +1,28 @@
 import logging
-from decimal import Decimal
-
+import requests
 import numpy as np
 import networkx as nx
+from decimal import Decimal
 import networkx.algorithms.simple_paths as simple_paths
+
+from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
+
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
+
+logger = logging.getLogger(__name__)
 
 np.seterr(all='raise')
 NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 
 
-logger = logging.getLogger(__name__)
+GRND_URI = None
+try:
+    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
+except KeyError:
+    logger.warning('Indra Grounding service not available. Add '
+                   'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 
 def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
@@ -377,6 +387,25 @@ def ag_belief_score(belief_list):
         ag_belief = NP_PRECISION * 10
 
     return ag_belief
+
+
+def _ns_id_from_name(name):
+    if GRND_URI:
+        try:
+            res = requests.post(GRND_URI, json={'text': name})
+            if res.status_code == 200:
+                rj = res.json()[0]
+                return rj['term']['db'], rj['term']['id']
+            else:
+                logger.warning('Grounding service responded with code %d, '
+                               'check your query format and URL' %
+                               res.status_code)
+        except IndexError:
+            logger.info('No grounding exists for %s' % name)
+    else:
+        logger.warning('Indra Grounding service not available. Add '
+                       'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
+    return None, None
 
 
 # Copy from networkx.algorithms.simple_paths
