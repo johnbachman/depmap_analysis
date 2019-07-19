@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 from random import random as rnd
+from collections import defaultdict
 
 import indra_db.tests.util as tu
 from indra_db.util.dump_sif import load_db_content, make_ev_strata, \
@@ -33,14 +34,18 @@ for n, h in df['hash'].iteritems():
 test_edge = ('GENE_A', 'GENE_B')
 test_medge = (*test_edge, 0)
 test_node = test_edge[0]
-df = df.append({
-        'agA_ns': 'TEST', 'agA_id': '1234', 'agA_name': test_edge[0],
-        'agB_ns': 'TEST', 'agB_id': '2345', 'agB_name': test_edge[1],
-        'stmt_type': 'TestStatement', 'evidence_count': 1, 'hash': 1234567890
-    },
+test_hash = 1234567890
+test_row = {
+    'agA_ns': 'TEST', 'agA_id': '1234', 'agA_name': test_edge[0],
+    'agB_ns': 'TEST', 'agB_id': '2345', 'agB_name': test_edge[1],
+    'stmt_type': 'TestStatement', 'evidence_count': 1, 'hash': test_hash
+}
+test_evidence = {'tester': 1}
+test_belief = 0.987654321
+df = df.append(test_row,
     ignore_index=True)
-sed[1234567890] = {'tester': 1}
-bsd[1234567890] = 0.987654321
+sed[test_hash] = test_evidence
+bsd[test_hash] = test_belief
 
 
 class TestNetwork(unittest.TestCase):
@@ -54,6 +59,50 @@ class TestNetwork(unittest.TestCase):
                 df=self.df, belief_dict=bsd, strat_ev_dict=sed, multi=True,
                 include_entity_hierarchies=True)
         )
+
+    def test_network_search(self):
+        query = {
+            'source': test_edge[0],
+            'target': test_edge[1],
+            'stmt_filter': [],
+            'edge_hash_blacklist': [],
+            'node_filter': ['test'],
+            'node_blacklist': [],
+            'path_length': False,
+            'sign': 'no_sign',
+            'weighted': False,
+            'bsco': 0.0,
+            'curated_db_only': False,
+            'fplx_expand': False,
+            'k_shortest': 1
+        }
+
+        result = self.indra_network.handle_query(**query)
+        assert result['timeout'] is False
+        assert isinstance(result['paths_by_node_count'], (dict, defaultdict))
+        assert 2 in result['paths_by_node_count']
+        assert len(result['paths_by_node_count'][2]) == 1
+        assert isinstance(result['paths_by_node_count'][2][0],
+                          (dict, defaultdict))
+        path_dict = result['paths_by_node_count'][2][0]
+        assert path_dict['path'] == list(test_edge)
+        assert isinstance(path_dict['cost'], str)
+        assert isinstance(path_dict['sort_key'], str)
+        stmts = path_dict['stmts']
+        assert isinstance(stmts, list)
+        assert isinstance(stmts[0], list)
+        stmt_dict = stmts[0][0]
+        assert stmt_dict['subj'], stmt_dict['obj'] == test_edge
+        assert isinstance(stmt_dict['weight'], (np.longfloat, float))
+        assert stmt_dict['stmt_type'] == test_row['stmt_type']
+        assert stmt_dict['stmt_hash'] == str(test_row['hash'])
+        assert stmt_dict['evidence_count'] == test_row['evidence_count']
+        assert isinstance(stmt_dict['evidence'], dict)
+        assert stmt_dict['evidence'] == test_evidence
+        assert stmt_dict['evidence']['tester'] == test_evidence['tester']
+        assert isinstance(stmt_dict['curated'], bool)
+        assert stmt_dict['curated'] is True
+        assert stmt_dict['bs'] == test_belief
 
     def test_dir_edge_structure(self):
         # Get an edge from test DB
