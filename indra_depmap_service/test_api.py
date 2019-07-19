@@ -39,10 +39,11 @@ class IndraNetworkServiceTest(unittest.TestCase):
         resp_json = resp.get_json().get('result', None)
         assert resp.status_code == 200
         assert resp_json.keys() == {'paths_by_node_count', 'common_targets',
-                                    'common_parents'}
+                                    'common_parents', 'timeout'}
         assert isinstance(resp_json['paths_by_node_count'], dict)
         assert isinstance(resp_json['common_targets'], list)
         assert isinstance(resp_json['common_parents'], list)
+        assert isinstance(resp_json['timeout'], bool)
 
     def test_query_endpoint(self):
         """Test if endpoint responds
