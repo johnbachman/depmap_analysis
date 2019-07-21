@@ -155,7 +155,12 @@ class IndraNetwork:
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
-        ksp = self.find_shortest_paths(**options)
+
+        # Special case: 1 or 2 unweighted edges only
+        if not options['weight'] and options['path_length'] in [1, 2]:
+            ksp = self._unweighted_direct(**options)
+        else:
+            ksp = self.find_shortest_paths(**options)
         if not ksp:
             ckwargs = options.copy()
             if kwargs['fplx_expand']:
