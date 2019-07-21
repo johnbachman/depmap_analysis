@@ -325,6 +325,72 @@ class IndraNetwork:
         except NodeNotFound or NetworkXNoPath:
             return {}
 
+    def _unweighted_direct(self, **options):
+        logger.info('Doing unweighted path saerch for %d-edge paths' %
+                    options['path_length'])
+        if options['path_length'] == 1:
+            return self._one_edge_path(**options)
+        elif options['path_length'] == 2:
+            return self._two_edge_path(**options)
+        return {}
+
+    def _one_edge_path(self, source, target, **options):
+        print('function _one_edge_path')
+        res = {}
+        if self.dir_edges.get((source, target), None):
+            if self.verbose > 1:
+                logger.info('Found direct path from %s to %s' %
+                            (source, target))
+            path = [source, target]
+            hash_path = self._get_hash_path([source, target], **options)
+            pd = {'stmts': hash_path,
+                  'path': path,
+                  'cost': str(self._get_cost(path)),
+                  'sort_key': str(self._get_sort_key(path, hash_path))}
+            res = {2: [pd]}
+        return res
+
+    def _two_edge_path(self, source, target, **options):
+        print('function _two_edge_path')
+        def _paths_genr(s, t, imts, ign_nodes, ign_edges):
+            for i in imts:
+                if i not in ign_nodes:
+                    yield [s, i, t]
+                else:
+                    continue
+
+        # Loop the set of all intermediate nodes
+        ignores_nodes = options['node_blacklist']
+        ignores_edges = options['edge_hash_blacklist']
+        intermediates = set(self.nx_dir_graph_repr.succ[source]) & \
+            set(self.nx_dir_graph_repr.pred[target])
+        paths_gen = _paths_genr(source, target, intermediates, ignores_nodes,
+                                ignores_edges)
+        res = defaultdict(list)
+        added_paths = 0
+        for path in paths_gen:
+            if added_paths >= self.MAX_PATHS:
+                logger.info('Found all %d shortest paths, returning results.' %
+                            self.MAX_PATHS)
+                return res
+            if time() - self.query_recieve_time > TIMEOUT:
+                logger.info('Reached timeout (%d s) before finding all %d '
+                            'paths. Returning search.' % (TIMEOUT, MAX_PATHS))
+                self.query_timed_out = True
+                return res
+            hash_path = self._get_hash_path(path, **options)
+            if hash_path and all(hash_path):
+                if self.verbose > 1:
+                    logger.info('Adding stmts and path from %s to path list' %
+                                repr(hash_path))
+                pd = {'stmts': hash_path,
+                      'path': path,
+                      'cost': str(self._get_cost(path)),
+                      'sort_key': str(self._get_sort_key(path, hash_path))}
+                res[3].append(pd)
+                added_paths += 1
+        return res
+
     def find_shortest_paths(self, source, target, **options):
         """Returns a list of shortest paths in ascending order"""
         try:
