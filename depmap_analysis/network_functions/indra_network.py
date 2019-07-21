@@ -71,8 +71,8 @@ class IndraNetwork:
         cull_best_node: [int]
             a positive integer. Every x valid paths, cull the node with the
             highest (weighted) degree from the network. This increases the
-            variety of paths found and reduces the impact of nodes with extremely
-            high connectivity in the network.
+            variety of paths found and reduces the impact of nodes with
+            extremely high connectivity in the network.
         path_length: int|False
             a positive integer stating the number of edges that should be in
             the returned path. If False, return paths with any number of edges.
