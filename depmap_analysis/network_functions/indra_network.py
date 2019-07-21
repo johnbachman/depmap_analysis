@@ -481,9 +481,9 @@ class IndraNetwork:
                             self.MAX_PATHS)
                 return result
             if time() - self.query_recieve_time > TIMEOUT:
-                logger.warning('Reached timeout (%d s) before finding all %d '
-                               'shortest paths. Returning search.' %
-                               (TIMEOUT, MAX_PATHS))
+                logger.info('Reached timeout (%d s) before finding all %d '
+                            'shortest paths. Returning search.' %
+                            (TIMEOUT, MAX_PATHS))
                 self.query_timed_out = True
                 return result
             # Check if we have to cull the best node, this is the case
