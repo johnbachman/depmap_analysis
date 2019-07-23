@@ -1,12 +1,15 @@
 import logging
 import requests
 import numpy as np
+import pandas as pd
 import networkx as nx
 from decimal import Decimal
+from collections import defaultdict
 import networkx.algorithms.simple_paths as simple_paths
 
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
+from indra.assemblers.indranet.net import IndraNet
 
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
@@ -56,7 +59,6 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
         an nx.MultiDiGraph is returned instead."""
     bsd = None
     sed = None
-    ns_id_to_nodename = {}
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
 
     if isinstance(df, str):
@@ -90,145 +92,65 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     #   stratified evidence count by source
     #   famplex edges using entity hierarchies
 
-    if multi:
-        nx_graph = nx.MultiDiGraph()
-    else:
-        nx_graph = nx.DiGraph()
-    index = 0
-    skipped = 0
-    for index, row in sif_df.iterrows():
-        if row['agA_name'] is None or row['agB_name'] is None:
-            skipped += 1
-            if verbosity > 3:
-                logger.warning('Skip: %d None agent found: %s' %
-                               (skipped, repr(row)))
-            elif verbosity > 1:
-                logger.warning('Skip: %d None agent found: %s,%s (%d)' %
-                               (skipped, row['agA_name'],
-                                row['agB_name'],
-                                row['hash']))
-            continue
-        # Add non-existing nodes
-        if row['agA_name'] not in nx_graph.nodes:
-            nx_graph.add_node(row['agA_name'],
-                            ns=row['agA_ns'], id=row['agA_id'])
-            ns_id_to_nodename[(row['agA_ns'], row['agA_id'])] = row['agA_name']
-        if row['agB_name'] not in nx_graph.nodes:
-            nx_graph.add_node(row['agB_name'],
-                            ns=row['agB_ns'], id=row['agB_id'])
-            ns_id_to_nodename[(row['agB_ns'], row['agB_id'])] = row['agB_name']
-        # Add edges
-        if bsd:
-            try:
-                if bsd[row['hash']] == 1 and verbosity:
-                    logger.info('Resetting weight from belief score to 1.0 '
-                                'for %s' % str(row['hash']))
-                b_s = bsd[row['hash']]
-                weight = -np.log(max(b_s - 1e-7, 1e-7))
-                bs = b_s
-            except KeyError:
-                if verbosity > 3:
-                    logger.warning('Index: %d; Skipped: %d; Hash: %s is '
-                                   'missing from belief dict %s' %
-                                   (index, skipped, str(row['hash']),
-                                    repr(row)))
-                elif verbosity:
-                    logger.warning('Index: %d; Skipped: %d; Hash: %s is '
-                                   'missing from belief dict' %
-                                   (index, skipped, str(row['hash'])))
-                weight = 1/row['evidence_count']
-                bs = None
-        else:
-            weight = 1 / row['evidence_count']
-            bs = None
+    if bsd:
+        hashes = []
+        beliefs = []
+        for k, v in bsd.items():
+            hashes.append(k)
+            beliefs.append(v)
 
-        if sed:
-            try:
-                evidence = sed[row['hash']]
-            except KeyError:
-                if verbosity > 3:
-                    logger.warning('Index %d; Skipped %d; Hash: %s is missing '
-                                   'from stratified evidence count dict %s' %
-                                   (index, skipped, str(row['hash']),
-                                    repr(row)))
-                elif verbosity:
-                    logger.warning('Index %d; Skipped %d; Hash: %s is missing '
-                                   'from stratified evidence count dict' %
-                                   (index, skipped, str(row['hash'])))
-                evidence = {}
-        else:
-            evidence = {}
-        curated = False if not evidence else (False if all(src.lower() in
-            readers for src in evidence) else True)
-        ed = {'u_for_edge': row['agA_name'],
-              'v_for_edge': row['agB_name'],
-              'weight': weight,
-              'stmt_type': row['stmt_type'],
-              'stmt_hash': row['hash'],
-              'evidence_count': row['evidence_count'],
-              'evidence': evidence,
-              'curated': curated,
-              'bs': bs}
+        sif_df = sif_df.merge(
+            right=pd.DataFrame(data={'hash': hashes, 'belief': beliefs}),
+            how='left',
+            on='hash'
+        )
+        # Check for missing hashes
+        if sif_df['belief'].isna().sum() > 0:
+            logger.warning('%d rows with missing belief score found' %
+                           sif_df['belief'].isna().sum())
+            if verbosity > 1:
+                logger.info('Missing hashes in belief dict: %s' % list(
+                    sif_df['hash'][sif_df['belief'].isna() == True]))
+            logger.info('Setting missing belief scores to 1/evidence count')
 
-        if multi:
-            nx_graph.add_edge(**ed)
-        else:
-            if ed.pop('u_for_edge', None):
-                ed.pop('v_for_edge', None)
-            # Add non-existing edges, append to existing
-            if (row['agA_name'], row['agB_name']) in nx_graph.edges:
-                nx_graph.edges[(row['agA_name'],
-                                row['agB_name'])]['stmt_list'].append(ed)
-            else:
-                nx_graph.add_edge(row['agA_name'], row['agB_name'],
-                                  stmt_list=[ed])
-    if skipped:
-        logger.warning('Skipped %d edges with None as node' % skipped)
-    logger.info('Loaded %d statements into %sDiGraph' %
-                (index-skipped, 'Multi' if multi else ''))
+    if sed:
+        hashes = []
+        strat_dicts = []
+        for k, v in sed.items():
+            hashes.append(k)
+            strat_dicts.append(v)
 
-    if not multi:
-        logger.info('Aggregating belief score for DiGraph edge weights')
-        for e in nx_graph.edges:
-            # weight = -log(bs)
-            ag_belief = ag_belief_score(
-                [s['bs'] for s in nx_graph.edges[e]['stmt_list']]
-            )
-            nx_graph.edges[e]['bs'] = ag_belief
-            nx_graph.edges[e]['weight'] = -np.log(ag_belief)
+        sif_df = sif_df.merge(
+            right=pd.DataFrame(data={'hash': hashes, 'evidence': strat_dicts}),
+            how='left',
+            on='hash'
+        )
+        # Check for missing hashes
+        if sif_df['evidence'].isna().sum() > 0:
+            logger.warning('%d rows with missing evidence found' %
+                           sif_df['evidence'].isna().sum())
+            if verbosity > 1:
+                logger.info('Missing hashes in stratified evidence dict: %s' %
+                            list(sif_df['hash'][sif_df['evidence'].isna()
+                                                == True]))
+    # Map ns:id to node name
+    logger.info('Creating dictionary with mapping from (ns,id) to node name')
+    ns_id_name_tups = set(
+        zip(sif_df.agA_ns, sif_df.agA_id, sif_df.agA_name)).union(
+        set(zip(sif_df.agB_ns, sif_df.agB_id, sif_df.agB_name)))
+    ns_id_to_nodename = {(ns, _id): name for ns, _id, name in ns_id_name_tups}
 
     if include_entity_hierarchies:
-        def _fplx_edge_in_list(mg, edge, check_uri, g):
-            if mg:
-                ec = 0
-                es = g.edges.get((*edge, ec), None)
-                while es:
-                    if es['stmt_type'] == 'fplx' and \
-                            es['stmt_hash'] == check_uri:
-                        return True
-                    else:
-                        ec += 1
-                        es = g.edges.get((*edge, ec), None)
-            else:
-                if g.edges.get(edge):
-                    for es in g.edges.get(edge).get('stmt_list'):
-                        if es['stmt_type'] == 'fplx' and \
-                                es['stmt_hash'] == check_uri:
-                            return True
-                        else:
-                            continue
-                else:
-                    return False
-
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
         ehm = hm.hierarchies['entity']
         ehm.initialize()
         logger.info('Adding entity hierarchy manager as graph attribute')
-        nx_graph.graph['entity_hierarchy_manager'] = ehm
         node_by_uri = {}
-        logger.info('Adding entity relations as edges in graph')
+        added_pairs = set()  # Save (A, B, URI)
+        logger.info('Building entity relations to be added to data frame')
         entities = 0
+        row_dict = defaultdict(list)
         for ns, _id, uri in full_entity_list:
             node = _id
             # Get name in case it's different than id
@@ -246,39 +168,55 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
                 if ns_id_to_nodename.get((pns, pid), None):
                     pnode = ns_id_to_nodename[(pns, pid)]
                 node_by_uri[puri] = pnode
-                if pnode not in nx_graph.nodes:
-                    nx_graph.add_node(pnode, ns=pns, id=pid)
                 # Check if edge already exists
-                if not _fplx_edge_in_list(multi, (node, pnode), puri,
-                                          nx_graph):
+                if (node, pnode, puri) not in added_pairs:
                     entities += 1
-                    ed = {'u_for_edge': node,
-                          'v_for_edge': pnode,
-                          'weight': 1.0,
-                          'stmt_type': 'fplx',
-                          'stmt_hash': puri,
-                          'evidence_count': 1,
-                          'evidence': {'fplx': 1},
-                          'curated': True,
-                          'bs': 1.0}
-                    if multi:
-                        nx_graph.add_edge(**ed)
-                    else:
-                        if ed.pop('u_for_edge', None):
-                            ed.pop('v_for_edge', None)
-                        if (node, pnode) in nx_graph.edges:
-                            nx_graph.edges[(node,
-                                            pnode)]['stmt_list'].append(ed)
-                        else:
-                            # The fplx edge is the only edge, add custom
-                            # aggregate bs, weight
-                            nx_graph.add_edge(node, pnode, stmt_list=[ed],
-                                              bs=1.0, weight=1.0)
+                    # Belief and evidence are conditional
+                    added_pairs.add((node, pnode, puri))  # A, B, uri of B
+                    ed = {'agA_name': node, 'agA_ns': ns, 'agA_id': _id,
+                          'agB_name': pnode, 'agB_ns': pns, 'agB_id': pid,
+                          'stmt_type': 'fplx', 'evidence_count': 1,
+                          'hash': puri}
+                    if bsd:
+                        ed['belief'] = 1.0
+                    if sed:
+                        ed['evidence'] = {'fplx': 1}
+                    _ = [row_dict[k].append(v) for k, v in ed.items()]
 
-        logger.info('Loaded %d entity relations into %sDiGraph' %
-                    (entities, 'Multi' if multi else ''))
+        # To concat to df
+        sif_df = pd.concat([sif_df, pd.DataFrame(data=row_dict)],
+                           ignore_index=True)
+        logger.info('Loaded %d entity relations into dataframe' % entities)
+
+    if sed:
+        logger.info('Setting "curated" flag')
+        # Map to boolean 'curated' for reader/non-reader
+        sif_df['curated'] = sif_df['evidence'].apply(
+            func=lambda ev: False if not ev else (
+                False if all(s.lower() in readers for s in ev) else True
+            )
+        )
+
+    if bsd:
+        logger.info('Setting edge weights')
+        # Add weight: -log(belief) or 1/evidence count if no belief
+        has_belief = (sif_df['belief'].isna() == False)
+        has_no_belief = (sif_df['belief'].isna() == True)
+        sif_df['weight'] = 0
+        if has_belief.sum() > 0:
+            sif_df.loc[has_belief, 'weight'] = sif_df['belief'].apply(
+                func=lambda b: -np.log(b, dtype=np.longfloat))
+        if has_no_belief.sum() > 0:
+            sif_df.loc[has_no_belief, 'weight'] = sif_df[
+                'evidence_count'].apply(func=lambda ec: 1/np.longfloat(ec))
+
+    # Create graph from df
+    nx_graph = IndraNet.from_df(sif_df)
+
+    # Add graph meta data
+    if include_entity_hierarchies:
         nx_graph.graph['node_by_uri'] = node_by_uri
-        nx_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+    nx_graph.graph['node_by_ns_id'] = ns_id_to_nodename
     return nx_graph
 
 
