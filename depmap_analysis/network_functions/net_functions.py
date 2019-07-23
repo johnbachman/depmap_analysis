@@ -35,7 +35,7 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
 
     Parameters
     ----------
-    df : str|pandas.DataFrame
+    df : str|pd.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
         DataFrame object
     belief_dict : str
@@ -81,16 +81,13 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     else:
         logger.info('No stratified evidence dict provided')
 
-    # Add as nodes:
-    #   'agA_name', 'agB_name'
-    # Columns to be added as node attributes:
-    #   'agA_ns', 'agA_id', 'agB_ns', 'agB_id'
-    # Columns to be added as edge attributes
-    #   'stmt_type', 'evidence_count', 'hash'
-    # Add from external source:
+    # Extend df with these columns:
     #   belief score from provided dict
     #   stratified evidence count by source
-    #   famplex edges using entity hierarchies
+    # Extend df with famplex rows
+    # 'hash' must exist as column in the input dataframe for merge to work out
+    # Preserve all rows in sif_df, so do left join:
+    # sif_df.merge(other, how='left', on='hash')
 
     if bsd:
         hashes = []
