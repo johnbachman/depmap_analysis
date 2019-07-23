@@ -156,9 +156,8 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
             # Get name in case it's different than id
             if ns_id_to_nodename.get((ns, _id), None):
                 node = ns_id_to_nodename[(ns, _id)]
-
-            if node not in nx_graph.nodes:
-                nx_graph.add_node(node, ns=ns, id=_id)
+            else:
+                ns_id_to_nodename[(ns, _id)] = node
             node_by_uri[uri] = node
 
             # Add famplex edge
@@ -167,6 +166,8 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
                 pnode = pid
                 if ns_id_to_nodename.get((pns, pid), None):
                     pnode = ns_id_to_nodename[(pns, pid)]
+                else:
+                    ns_id_to_nodename[(pns, pid)] = pnode
                 node_by_uri[puri] = pnode
                 # Check if edge already exists
                 if (node, pnode, puri) not in added_pairs:
