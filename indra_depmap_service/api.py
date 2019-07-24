@@ -2,6 +2,7 @@ import json
 import logging
 import argparse
 from os import path
+import networkx as nx
 from datetime import datetime
 from time import time, gmtime, strftime
 
@@ -54,7 +55,7 @@ def _load_template(fname):
 QUERY = _load_template('query.html')
 
 
-def load_indra_graph(dir_graph_path, multi_digraph_path, update=False,
+def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
                      belief_dict=None, strat_ev_dict=None,
                      include_entity_hierarchies=True, verbosity=0):
     """Return a nx.DiGraph and nx.MultiDiGraph representation an INDRA DB dump
@@ -64,6 +65,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False,
     computer significantly.
     """
     global INDRA_DG_CACHE, INDRA_MDG_CACHE
+    indra_multi_digraph = nx.MultiDiGraph()
     if update:
         df = make_dataframe(True, load_db_content(True, NS_LIST))
         options = {'df': df,
@@ -72,24 +74,25 @@ def load_indra_graph(dir_graph_path, multi_digraph_path, update=False,
                    'include_entity_hierarchies': include_entity_hierarchies,
                    'verbosity': verbosity}
         indra_dir_graph = nf.sif_dump_df_to_nx_digraph(**options, multi=False)
-        indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(**options,
-                                                           multi=True)
-        logging.info('Dumping latest indra db snapshot to pickle')
         dump_it_to_pickle(dir_graph_path, indra_dir_graph)
         INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
-        dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
-        INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
+        if multi_digraph_path:
+            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(**options,
+                                                               multi=True)
+            dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
+            INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
     else:
-        logger.info('Loading indra networks %s and %s' %
-                    (dir_graph_path, multi_digraph_path))
+        logger.info('Loading indra networks %s %s' %
+                    (dir_graph_path, 'and ' + multi_digraph_path if
+                    multi_digraph_path else ''))
         indra_dir_graph = pickle_open(dir_graph_path)
-        indra_multi_digraph = pickle_open(multi_digraph_path)
+        if multi_digraph_path:
+            indra_multi_digraph = pickle_open(multi_digraph_path)
         logger.info('Finished loading indra networks.')
     return indra_dir_graph, indra_multi_digraph
 
 
-if path.isfile(INDRA_DG_CACHE) and path.isfile(
-        INDRA_MDG_CACHE):
+if path.isfile(INDRA_DG_CACHE):
     indra_network = IndraNetwork()
 else:
     # Here should dump new cache instead, but raise error for now
@@ -161,20 +164,19 @@ if __name__ == '__main__':
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', default=5000, type=int)
     parser.add_argument('--test', action='store_true')
-    parser.add_argument('--cache', nargs=2, help='Provide files for the '
-        'networks instead of reading the default parameters. '
-        'Usage: --cache <DiGraph pickle> <MultiDiGraph pickle>')
+    parser.add_argument('--cache', nargs='+', help='Provide the file for the '
+        'network instead of reading the default parameters. '
+        'Usage: --cache <DiGraph pickle> [MultiDiGraph pickle]')
     parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
 
     if args.cache:
         logger.info('Loading provided network files')
         INDRA_DG_CACHE = args.cache[0]
-        INDRA_MDG_CACHE = args.cache[1]
+        INDRA_MDG_CACHE = args.cache[1] if len(args.cache) > 1 else None
     elif args.test:
         logger.info('Running test network')
         INDRA_DG_CACHE = TEST_DG_CACHE
-        INDRA_MDG_CACHE = TEST_MDG_CACHE
 
     indra_network = \
         IndraNetwork(*load_indra_graph(INDRA_DG_CACHE, INDRA_MDG_CACHE))
