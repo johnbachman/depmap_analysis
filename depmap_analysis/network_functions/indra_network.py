@@ -348,15 +348,16 @@ class IndraNetwork:
                             (source, target))
             path = [source, target]
             hash_path = self._get_hash_path([source, target], **options)
-            pd = {'stmts': hash_path,
-                  'path': path,
-                  'cost': str(self._get_cost(path)),
-                  'sort_key': str(self._get_sort_key(path, hash_path))}
-            res = {2: [pd]}
+            if hash_path and all(hash_path):
+                pd = {'stmts': hash_path,
+                      'path': path,
+                      'cost': str(self._get_cost(path)),
+                      'sort_key': str(self._get_sort_key(path, hash_path))}
+                res = {2: [pd]}
         return res
 
     def _two_edge_path(self, source, target, **options):
-        print('function _two_edge_path')
+
         def _paths_genr(s, t, imts, ign_nodes, ign_edges):
             for i in imts:
                 if i not in ign_nodes:
