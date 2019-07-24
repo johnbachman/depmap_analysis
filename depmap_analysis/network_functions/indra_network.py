@@ -357,7 +357,7 @@ class IndraNetwork:
         return res
 
     def _two_edge_path(self, source, target, **options):
-        print('function _two_edge_path')
+
         def _paths_genr(s, t, imts, ign_nodes, ign_edges):
             for i in imts:
                 if i not in ign_nodes:
