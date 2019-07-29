@@ -119,8 +119,8 @@ class IndraNetwork:
                 List of dicts keyed by common target name, sorted on highest
                 lowest belief score
             cp : dict
-                Dict with result of common parents search together which
-                ns:id pairs were used to resolve the query
+                Dict with result of common parents search together with the
+                ns:id pairs used to resolve the query
             timeout : Bool
                 True if the query timed out
         """
