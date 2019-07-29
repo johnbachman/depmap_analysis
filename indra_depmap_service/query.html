@@ -119,7 +119,8 @@
         curated_db_only: document.getElementById('curated-db-only').checked,
         fplx_expand: document.getElementById('fplx-expand').checked,
         k_shortest: kShortestEntry,
-        cull_best_node: cullBestNode
+        cull_best_node: cullBestNode,
+        two_way: document.getElementById('two-ways').checked
       };
       let _url = SUBMIT_URL;
       statusBox.textContent = 'Query submitted...';
@@ -165,7 +166,8 @@
         //   for each path:
         //     Output: path | list supporting statements per edge
         let commonParents = data.result.common_parents;
-        let pathsKeyedArray = data.result.paths_by_node_count;
+        let pathsKeyedArrayForward = data.result.paths_by_node_count.forward;
+        let pathsKeyedArrayBackward = data.result.paths_by_node_count.backward;
         let simpleCommonTargets = data.result.common_targets;
 
         // Fill common parents table
@@ -219,20 +221,48 @@
         }
 
         // Fill directed paths tables
-        if (pathsKeyedArray && Object.keys(pathsKeyedArray).length > 0) {
+        if (pathsKeyedArrayForward && Object.keys(pathsKeyedArrayForward).length > 0) {
           var tableArea = document.getElementById('table-area');
-          for (len in pathsKeyedArray) {
-            let cardHtml = generateCardTable(len-1);
+          for (len in pathsKeyedArrayForward) {
+            let cardHtml = generateCardTable(len-1, 'f');
             tableArea.appendChild(cardHtml);
-            // cardHtml.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArray[len].length;
-            cardHtml.getElementsByClassName('badge')[0].textContent = 'Paths: ' + pathsKeyedArray[len].length;
+            // cardHtml.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArrayForward[len].length;
+            cardHtml.getElementsByClassName('badge')[0].textContent = 'Paths: ' + pathsKeyedArrayForward[len].length;
             // cardHtml.getElementById('subject-placeholder-' + (len-1)).textContent = source;
             cardHtml.getElementsByClassName('subject-placeholder')[0].textContent = source;
             // cardHtml.getElementById('object-placeholder-' + (len-1)).textContent = target;
             cardHtml.getElementsByClassName('object-placeholder')[0].textContent = target;
             // let tableBody = cardHtml.getElementById('query-results-' + (len-1));
             let tableBody = cardHtml.getElementsByClassName('table-body')[0];
-            for (pathArray of pathsKeyedArray[len]) {
+            for (pathArray of pathsKeyedArrayForward[len]) {
+              let newRow = document.createElement('tr');
+              // Add current path
+              let newPath = document.createElement('td');
+              newPath.innerHTML = pathArray.path.join('&rarr;');
+              newRow.appendChild(newPath);
+
+              let newSupport = document.createElement('td');
+              newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
+              newRow.appendChild(newSupport);
+
+              tableBody.appendChild(newRow);
+            }
+          }
+        }
+        if (pathsKeyedArrayBackward && Object.keys(pathsKeyedArrayBackward).length > 0) {
+          var tableArea = document.getElementById('table-area');
+          for (len in pathsKeyedArrayBackward) {
+            let cardHtml = generateCardTable(len-1, 'b');
+            tableArea.appendChild(cardHtml);
+            // cardHtml.getElementById('npaths-' + (len-1)).textContent = 'Paths: ' + pathsKeyedArrayBackward[len].length;
+            cardHtml.getElementsByClassName('badge')[0].textContent = 'Paths: ' + pathsKeyedArrayBackward[len].length;
+            // cardHtml.getElementById('subject-placeholder-' + (len-1)).textContent = target;
+            cardHtml.getElementsByClassName('subject-placeholder')[0].textContent = target;
+            // cardHtml.getElementById('object-placeholder-' + (len-1)).textContent = source;
+            cardHtml.getElementsByClassName('object-placeholder')[0].textContent = source;
+            // let tableBody = cardHtml.getElementById('query-results-' + (len-1));
+            let tableBody = cardHtml.getElementsByClassName('table-body')[0];
+            for (pathArray of pathsKeyedArrayBackward[len]) {
               let newRow = document.createElement('tr');
               // Add current path
               let newPath = document.createElement('td');
@@ -324,7 +354,7 @@
       return htmlString.substring(0, htmlString.length-4); // Cut out the last <br> 
     }
 
-    function generateCardTable(len) {
+    function generateCardTable(len, dir) {
       var intermArrows = '';
       if (len > 1) {
         for (let i = 1; i < len; i++) {
@@ -335,14 +365,14 @@
       let newCard = document.createElement('div');
       newCard.className = 'card directed-path';
       newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-        'data-toggle="collapse" data-target="#collapse-paths-' + len + ' " aria-expanded="false" ' +
-        'aria-controls="collapse-paths-' + len + '"> ' + len + ' Edge Paths (<div id="subject-placeholder-' + len +
-        '" class="placeholder subject-placeholder">A</div>&rarr;' + intermArrows +
-        '<div id="object-placeholder-' + len + '" class="placeholder object-placeholder">B</div>)</a><span ' +
-        'id="npaths-' + len + '" class="badge badge-primary badge-pill float-right path-count">Paths: ' +
-        '0</span></h3></div><div id="collapse-paths-' + len + '" class="collapse"><div class="card-body">' +
+        'data-toggle="collapse" data-target="#collapse-paths-' + len + dir + ' " aria-expanded="false" ' +
+        'aria-controls="collapse-paths-' + len + dir + '"> ' + len + ' Edge Paths (<div id="subject-placeholder-' +
+        len + dir + '" class="placeholder subject-placeholder">A</div>&rarr;' + intermArrows +
+        '<div id="object-placeholder-' + len + dir + '" class="placeholder object-placeholder">B</div>)</a><span ' +
+        'id="npaths-' + len + dir + '" class="badge badge-primary badge-pill float-right path-count">Paths: ' +
+        '0</span></h3></div><div id="collapse-paths-' + len + dir + '" class="collapse"><div class="card-body">' +
         '<table class="table"><thead class="table-head"><th>Path</th><th>Support</th></thead><tbody ' +
-        'class="table-body" id="query-results-' + len + '"></tbody></table></div></div>';
+        'class="table-body" id="query-results-' + len + dir + '"></tbody></table></div></div>';
       return newCard;
     }
 
@@ -466,10 +496,10 @@
 <!--          </select>&nbsp;&nbsp;Sign</label>-->
 <!--        </div>-->
 <!--      </div>-->
-<!--      <div class="custom-control custom-checkbox">-->
-<!--        <input type="checkbox" class="custom-control-input" id="direct-only" disabled>-->
-<!--        <label class="custom-control-label" for="direct-only">Direct only</label>-->
-<!--      </div>-->
+      <div class="custom-control custom-checkbox">
+        <input type="checkbox" class="custom-control-input" id="two-ways">
+        <label class="custom-control-label" for="two-ways">Include reverse search </label>
+      </div>
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="weighted-search">
         <label class="custom-control-label" for="weighted-search">Weighted search</label>
