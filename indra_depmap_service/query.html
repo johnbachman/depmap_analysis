@@ -24,8 +24,7 @@
   <!-- custom scripts -->
   <script type="text/javascript">
     const SUBMIT_URL = 'http://localhost:5000/query/submit';
-    // const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
-    const INDRA_DB_URL_HASH = 'https://beg6vcyssj.execute-api.us-east-1.amazonaws.com/dev/statements/from_hash/';
+    const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
     const MAX_K_PATHS = 50;
     const stmtOptions = ['Acetylation', 'Activation', 'ActiveForm', 'Autophosphorylation',
       'Complex', 'Conversion', 'Deacetylation', 'DecreaseAmount', 'Deglycosylation',
@@ -89,7 +88,7 @@
       }
       var nodeBlackList = [];
       for (nn of document.getElementById('node-blacklist').value.split(',')) {
-        // Strip leasing and trailing whitespace and push to array
+        // Strip leading and trailing whitespace and push to array
         if (nn.replace(/\s/g, '')) nodeBlackList.push(nn.replace(/\s/g, ''));
       };
       var edgeHashBlacklist = [];
@@ -448,8 +447,8 @@
       <div class="row">
         <div class="col">
           <label style="margin: 0px;"><div class="container" style="width: 90px; float: left; padding: 0px;">
-            <input class="form-control" type="number" step="0.01" name="belief_cutoff" id="belief-cutoff" min="0" max="1">
-          </div>&nbsp;Belief Score cut-off (0 to 1), higher is better</label>
+            <input class="form-control" type="number" step="0.01" name="belief_cutoff" id="belief-cutoff" min="0" max="0.99">
+          </div>&nbsp;Belief Score cut-off (0 to 0.99), higher is better</label>
         </div>
         <div class="col">
           <input type="text" id="cull-best-node" class="form-control"
