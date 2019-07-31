@@ -125,12 +125,12 @@ def process_query():
             return Response(json.dumps({'paths_by_node_count': {},
                                         'common_targets': [],
                                         'common_parents': [],
-                                        'timeout': False
-                                        }), mimetype='application/json')
+                                        'timeout': False}),
+                            mimetype='application/json')
         result = indra_network.handle_query(**request.json.copy())
         logger.info('Query resolved at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
-        if not result:
+        if not result or not all(result.values()):
             logger.info('Query returned with no path found')
         res = {'result': result}
         if indra_network.verbose > 5:
