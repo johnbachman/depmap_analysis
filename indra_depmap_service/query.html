@@ -61,16 +61,18 @@
     });
 
     function submitQuery() {
-      let beliefEntry = parseFloat(document.getElementById('belief-cutoff').value || 0);
-      if (beliefEntry < 0 || beliefEntry > 1) {
-        alert('Enter a belief score between 0 and 1');
-        return;
-      }
-      let kShortestEntry = parseInt(document.getElementById('k-shortest').value) || false;
-      if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
-        alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths');
-        return;
-      }
+      let beliefEntry = parseInRange(document.getElementById('belief-cutoff').value,
+                                     document.getElementById('belief-cutoff').min,
+                                     document.getElementById('belief-cutoff').max,
+                                     false);
+      let kShortestEntry = parseInRange(document.getElementById('k-shortest').value,
+                                        document.getElementById('k-shortest').min,
+                                        document.getElementById('k-shortest').max,
+                                        true);
+      let timeoutEntry = parseInRange(document.getElementById('user_timeout').value,
+                                      document.getElementById('user_timeout').min,
+                                      document.getElementById('user_timeout').max,
+                                      false);
       var nodeFilterList = [];
       for (c of document.getElementById('node-filter').children) {
         nodeFilterList.push(c.value)
@@ -120,6 +122,7 @@
         fplx_expand: document.getElementById('fplx-expand').checked,
         k_shortest: kShortestEntry,
         cull_best_node: cullBestNode,
+        user_timeout: timeoutEntry,
         two_way: document.getElementById('two-ways').checked
       };
       let _url = SUBMIT_URL;
@@ -301,6 +304,25 @@
 
     function isNumeric(n) {
       return !isNaN(parseFloat(n)) && isFinite(n);
+    }
+
+    function parseInRange(num, min, max, int) {
+      if (!num) return false;
+
+      num = parseFloat(num);
+      if (!num) return false;
+
+      min = parseFloat(min);
+      max = parseFloat(max);
+
+      let ret = num;
+
+      if (num < min) ret = min;
+      else if (num > max) ret = max;
+
+      if (int) ret = parseInt(ret);
+
+      return ret;
     }
 
     // Function to put stmts from path in a HTML format with linkouts
@@ -516,7 +538,16 @@
         <input type="checkbox" class="custom-control-input" id="fplx-expand">
         <label class="custom-control-label" for="fplx-expand">Expand search to FamPlex families and complexes when paths are not found</label>
       </div>
-      <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
+      <div class="row" style="margin-top: 16px; margin-bottom: 16px">
+        <div class="col-2">
+          <button type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
+        </div>
+        <div class="col-2">
+          <input class="form-control" type="number" step="0.01" name="user_timeout" id="user_timeout" placeholder="timeout (s)"
+                 min="2" max="120"
+                 title="Enter a timeout between 2 and 120 to override the default timeout of 30 seconds.">
+        </div>
+      </div>
     </form>
   </div>
   <div class="container">
