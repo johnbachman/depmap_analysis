@@ -14,7 +14,7 @@ genetic dependency on viability. Specifically, we look at the gene effect data.
 The INDRA DepMap Service is a web service that exposes the (pre-)assembled 
 knowledge in INDRA for network path searches. Currently the service can only 
 be run locally. For an example, see the 
-[notebook](https://github.com/kkaris/depmap_analysis/blob/web-overhaul/notebooks/Run%20Local%20Service.ipynb).
+[notebook](https://github.com/kkaris/depmap_analysis/blob/master/notebooks/Run%20Local%20Service.ipynb).
 
 ## Funding
 
