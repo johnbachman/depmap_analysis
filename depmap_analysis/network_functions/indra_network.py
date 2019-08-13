@@ -99,22 +99,28 @@ class IndraNetwork:
             in the result. The maximum allowed value is 50. If False,
             the maximum number of paths returned will be set to the maximum
             allowed value.
+        two_way: Bool
+            If True, search path both ways, i.e. search A->B and B->A
 
         Returns
         -------
-        result : dict('paths_by_node_count'=ksp,
+        result : dict('paths_by_node_count'={ksp_forward, ksp_backward},
                       'common_targets'=ct,
                       'common_parents'=cp)
             A dict containing the results from each path search and a flag
             for timeout:
-            ksp : dict(int)
-                Dict keyed by node count with the results of directed paths
+            ksp_forward : dict(int)
+                Dict keyed by node count with the results of directed path
+                search from source to target
+            ksp_backward : dict(int)
+                Dict keyed by node count with the results of directed path
+                search from target to source
             ct : dict('target')
                 List of dicts keyed by common target name, sorted on highest
                 lowest belief score
             cp : dict
-                Dict with result of common parents search together which
-                ns:id pairs were used to resolve the query
+                Dict with result of common parents search together with the
+                ns:id pairs used to resolve the query
             timeout : Bool
                 True if the query timed out
         """
@@ -124,16 +130,16 @@ class IndraNetwork:
                     strftime('%Y-%m-%d %H:%M:%S (UTC)',
                              gmtime(self.query_recieve_time)))
         if not self.sanity_check(**kwargs):
-            return {'paths_by_node_count': {},
+            return {'paths_by_node_count': {'forward': {}, 'backward': {}},
                     'common_targets': [],
                     'common_parents': {},
                     'timeout': False}
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
-                     'k_shortest', 'curated_db_only']
+                     'k_shortest', 'curated_db_only', 'two_way']
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
-            raise KeyError('Missing mandatory parameter %s' % mandatory[miss])
+            raise KeyError('Missing mandatory parameter "%s"' % mandatory[miss])
         options = {k: v for k, v in kwargs.items()  # Handled below
                    if k not in ['sign', 'weighted']}
         for k, v in kwargs.items():
@@ -156,32 +162,51 @@ class IndraNetwork:
         logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
 
+        ksp_backward = {}
+        boptions = options.copy()
+        boptions['source'] = options['target']
+        boptions['target'] = options['source']
+
         # Special case: 1 or 2 unweighted edges only
         if not options['weight'] and options['path_length'] in [1, 2]:
-            ksp = self._unweighted_direct(**options)
+            ksp_forward = self._unweighted_direct(**options)
+            if options['two_way']:
+                ksp_backward = self._unweighted_direct(**boptions)
         else:
-            ksp = self.find_shortest_paths(**options)
-        if not ksp:
+            ksp_forward = self.find_shortest_paths(**options)
+            if options['two_way']:
+                ksp_backward = self.find_shortest_paths(**boptions)
+        if not ksp_forward and not ksp_backward:
             ckwargs = options.copy()
+            bckwargs = boptions.copy()
             if kwargs['fplx_expand']:
 
                 logger.info('No directed path found, looking for paths '
                             'connected by common parents of source and/or '
                             'target')
-                ksp = self.try_parents(**ckwargs)
+                ksp_forward = self.try_parents(**ckwargs)
+                if options['two_way']:
+                    ksp_backward = self.try_parents(**bckwargs)
                 if self.verbose > 2:
-                    logger.info('Got parents search result: %s' % repr(ksp))
+                    logger.info('Parents search result: %s' % repr(ksp_forward))
 
-            if not ksp and GRND_URI:
-                ksp = self.grounding_fallback(**ckwargs)
-        if not ksp:
+            if not ksp_forward and not ksp_backward and GRND_URI:
+                ksp_forward = self.grounding_fallback(**ckwargs)
+                if options['two_way']:
+                    ksp_backward = self.grounding_fallback(**bckwargs)
+        if not ksp_forward and not ksp_backward:
             logger.info('No directed path found')
-        if ksp and not options['weight']:
-            # Sort the results in ksp if non-weighted search
-            ksp = self._sort_stmts(ksp)
+        if not options['weight']:
+            if ksp_forward:
+                # Sort the results in ksp_forward if non-weighted search
+                ksp_forward = self._sort_stmts(ksp_forward)
+            if ksp_backward:
+                # Sort the results in ksp_forward if non-weighted search
+                ksp_backward = self._sort_stmts(ksp_backward)
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
-        return {'paths_by_node_count': ksp,
+        return {'paths_by_node_count': {'forward': ksp_forward,
+                                        'backward': ksp_backward},
                 'common_targets': ct,
                 'common_parents': cp,
                 'timeout': self.query_timed_out}
