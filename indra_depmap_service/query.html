@@ -61,16 +61,18 @@
     });
 
     function submitQuery() {
-      let beliefEntry = parseFloat(document.getElementById('belief-cutoff').value || 0);
-      if (beliefEntry < 0 || beliefEntry > 1) {
-        alert('Enter a belief score between 0 and 1');
-        return;
-      }
-      let kShortestEntry = parseInt(document.getElementById('k-shortest').value) || false;
-      if (kShortestEntry && (kShortestEntry < 1 || kShortestEntry > MAX_K_PATHS)) {
-        alert('Must have 0 < k < ' + MAX_K_PATHS + ' for k shortest paths');
-        return;
-      }
+      let beliefEntry = parseInRange(document.getElementById('belief-cutoff').value,
+                                     document.getElementById('belief-cutoff').min,
+                                     document.getElementById('belief-cutoff').max,
+                                     false);
+      let kShortestEntry = parseInRange(document.getElementById('k-shortest').value,
+                                        document.getElementById('k-shortest').min,
+                                        document.getElementById('k-shortest').max,
+                                        true);
+      let timeoutEntry = parseInRange(document.getElementById('user_timeout').value,
+                                      document.getElementById('user_timeout').min,
+                                      document.getElementById('user_timeout').max,
+                                      false);
       var nodeFilterList = [];
       for (c of document.getElementById('node-filter').children) {
         nodeFilterList.push(c.value)
@@ -120,6 +122,7 @@
         fplx_expand: document.getElementById('fplx-expand').checked,
         k_shortest: kShortestEntry,
         cull_best_node: cullBestNode,
+        user_timeout: timeoutEntry,
         two_way: document.getElementById('two-ways').checked
       };
       let _url = SUBMIT_URL;
@@ -169,9 +172,12 @@
         let pathsKeyedArrayForward = data.result.paths_by_node_count.forward;
         let pathsKeyedArrayBackward = data.result.paths_by_node_count.backward;
         let simpleCommonTargets = data.result.common_targets;
+        var tableArea = document.getElementById('table-area');
 
         // Fill common parents table
         if (data.result.common_parents.common_parents.length > 0) {
+          let cardHtml = generateCommonParents();
+          tableArea.appendChild(cardHtml);
           document.getElementById('subject-placeholder-cp').textContent = 
             commonParents.source_id + '@' + commonParents.source_ns;
           document.getElementById('object-placeholder-cp').textContent = 
@@ -196,6 +202,8 @@
 
         // Fill common targets table
         if (simpleCommonTargets && simpleCommonTargets.length > 0) {
+          let cardHtml = generateCommonTargets();
+          tableArea.appendChild(cardHtml);
           let ctTableBody = document.getElementById('query-results-common-targets');
           document.getElementById('common-targets').textContent = 'Targets: ' +
             simpleCommonTargets.length;
@@ -222,7 +230,6 @@
 
         // Fill directed paths tables
         if (pathsKeyedArrayForward && Object.keys(pathsKeyedArrayForward).length > 0) {
-          var tableArea = document.getElementById('table-area');
           for (len in pathsKeyedArrayForward) {
             let cardHtml = generateCardTable(len-1, 'f');
             tableArea.appendChild(cardHtml);
@@ -284,12 +291,8 @@
     }
 
     function clearAllTables() {
-      // Delete cards for paths by length
-      $('.directed-path').remove();
-      // Clear existing tables
-      for (tb of document.getElementsByClassName('table-body')) {
-        tb.innerHTML = null;
-      }
+      // Delete cards
+      $('.card').remove();
     }
 
     function resetCounters() {
@@ -301,6 +304,25 @@
 
     function isNumeric(n) {
       return !isNaN(parseFloat(n)) && isFinite(n);
+    }
+
+    function parseInRange(num, min, max, int) {
+      if (!num) return false;
+
+      num = parseFloat(num);
+      if (!num) return false;
+
+      min = parseFloat(min);
+      max = parseFloat(max);
+
+      let ret = num;
+
+      if (num < min) ret = min;
+      else if (num > max) ret = max;
+
+      if (int) ret = parseInt(ret);
+
+      return ret;
     }
 
     // Function to put stmts from path in a HTML format with linkouts
@@ -363,7 +385,7 @@
       }
 
       let newCard = document.createElement('div');
-      newCard.className = 'card directed-path';
+      newCard.className = 'card';
       newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
         'data-toggle="collapse" data-target="#collapse-paths-' + len + dir + ' " aria-expanded="false" ' +
         'aria-controls="collapse-paths-' + len + dir + '"> ' + len + ' Edge Paths (<div id="subject-placeholder-' +
@@ -376,6 +398,37 @@
       return newCard;
     }
 
+    function generateCommonParents() {
+      let newCard = document.createElement('div');
+      newCard.className = 'card';
+      newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
+        'data-toggle="collapse" data-target="#collapse-paths-cp" aria-expanded="false" ' +
+        'aria-controls="collapse-paths-cp">Complexes and Families (<span id="subject-placeholder-cp" ' +
+        'class="placholder subject-placeholder">A</span> - <span id="object-placeholder-cp" class="placholder ' +
+        'object-placeholder">B</span>)</a><span id="npaths-cp" class="badge badge-primary badge-pill float-right ' +
+        'path-count">Entities: 0</span></h3></div><div id="collapse-paths-cp" class="collapse">' +
+        '<div class="card-body"><table class="table"><thead class="table-head"><th>Family/Complex</th>' +
+        '<th>Namespace</th></thead><tbody class="table-body" id="query-results-cp"></tbody></table></div></div>';
+
+      return newCard;
+    }
+
+    function generateCommonTargets() {
+      let newCard = document.createElement('div');
+      newCard.className = 'card';
+      newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
+        'data-toggle="collapse" data-target="#collapse-common-targets" aria-expanded="false" ' +
+        'aria-controls="collapse-common-targets"> Common Targets (<span id="subject-placeholder-ct" ' +
+        'class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-ct" '+
+        'class="placholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
+        'badge-pill float-right path-count">Targets: 0</span></h3></div><div id="collapse-common-targets" ' +
+        'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
+        '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
+        '</table></div></div>';
+
+      return newCard;
+    }
+    
   </script>
   <style>
     h3 a.stmt_toggle {
@@ -516,7 +569,16 @@
         <input type="checkbox" class="custom-control-input" id="fplx-expand">
         <label class="custom-control-label" for="fplx-expand">Expand search to FamPlex families and complexes when paths are not found</label>
       </div>
-      <button style="margin-top: 16px; margin-bottom: 16px" type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
+      <div class="row" style="margin-top: 16px; margin-bottom: 16px">
+        <div class="col-2">
+          <button type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
+        </div>
+        <div class="col-2">
+          <input class="form-control" type="number" step="0.01" name="user_timeout" id="user_timeout" placeholder="timeout (s)"
+                 min="2" max="120"
+                 title="Enter a timeout between 2 and 120 to override the default timeout of 30 seconds.">
+        </div>
+      </div>
     </form>
   </div>
   <div class="container">
@@ -525,61 +587,9 @@
 
   <div id="table-area" class="container">
     <h2 class="display-6">Search Results</h2>
-    <!-- Common parents complexes and families -->
+
     <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-paths-cp"
-             aria-expanded="false" 
-             aria-controls="collapse-paths-cp">
-            Complexes and Families (<span id="subject-placeholder-cp" class="placholder subject-placeholder">A</span> -
-              <span id="object-placeholder-cp" class="placholder object-placeholder">B</span>)
-          </a>
-          <span id="npaths-cp" class="badge badge-primary badge-pill float-right path-count">Entities: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-paths-cp" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Family/Complex</th>
-              <th>Namespace</th>
-            </thead>
-            <tbody class="table-body" id="query-results-cp"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- Common Targets -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="display-7">
-          <a href="#"
-             class="stmt_toggle"
-             data-toggle="collapse"
-             data-target="#collapse-common-targets"
-             aria-expanded="false"
-             aria-controls="collapse-common-targets">
-            Common Targets (<span id="subject-placeholder-ct" class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span
-              id="object-placeholder-ct" class="placholder object-placeholder">B</span>)
-          </a>
-          <span id="common-targets" class="badge badge-primary badge-pill float-right path-count">Targets: 0</span>
-        </h3>
-      </div>
-      <div id="collapse-common-targets" class="collapse">
-        <div class="card-body">
-          <table class="table">
-            <thead class="table-head">
-              <th>Target (Z)</th>
-              <th>Support</th>
-            </thead>
-            <tbody class="table-body" id="query-results-common-targets"></tbody>
-          </table>
-        </div>
-      </div>
+
     </div>
     <!-- Dynamic tables -->
   </div>

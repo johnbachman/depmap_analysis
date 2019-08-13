@@ -22,6 +22,8 @@ except KeyError:
 
 MAX_PATHS = 50
 TIMEOUT = 30  # Timeout in seconds
+MIN_TIMEOUT = 2
+MAX_TIMEOUT = 120
 
 
 class IndraNetwork:
@@ -36,6 +38,7 @@ class IndraNetwork:
         self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS
+        self.TIMEOUT = TIMEOUT
         self.small = False
         self.verbose = 0
         self.query_recieve_time = 0.0
@@ -99,6 +102,9 @@ class IndraNetwork:
             in the result. The maximum allowed value is 50. If False,
             the maximum number of paths returned will be set to the maximum
             allowed value.
+        user_timeout : float
+            A decimal specifying the number of seconds to use for timeout. If
+            not provided, the default of 30 seconds is used.
         two_way: Bool
             If True, search path both ways, i.e. search A->B and B->A
 
@@ -109,20 +115,20 @@ class IndraNetwork:
                       'common_parents'=cp)
             A dict containing the results from each path search and a flag
             for timeout:
-            ksp_forward : dict(int)
-                Dict keyed by node count with the results of directed path
-                search from source to target
-            ksp_backward : dict(int)
-                Dict keyed by node count with the results of directed path
-                search from target to source
-            ct : dict('target')
-                List of dicts keyed by common target name, sorted on highest
-                lowest belief score
-            cp : dict
-                Dict with result of common parents search together with the
-                ns:id pairs used to resolve the query
-            timeout : Bool
-                True if the query timed out
+                ksp_forward : dict(int)
+                    Dict keyed by node count with the results of directed path
+                    search from source to target
+                ksp_backward : dict(int)
+                    Dict keyed by node count with the results of directed path
+                    search from target to source
+                ct : dict('target')
+                    List of dicts keyed by common target name, sorted on highest
+                    lowest belief score
+                cp : dict
+                    Dict with result of common parents search together with the
+                    ns:id pairs used to resolve the query
+                timeout : Bool
+                    True if the query timed out
         """
         self.query_recieve_time = time()
         self.query_timed_out = False
@@ -159,6 +165,20 @@ class IndraNetwork:
                 options[k] = int(v) if v >= 1 else float('NaN')
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
+        user_timeout = kwargs.pop('user_timeout', None)
+        if user_timeout:
+            if user_timeout < MIN_TIMEOUT:
+                logger.warning('Resetting timeout to minimum value (%d)' %
+                               MIN_TIMEOUT)
+                self.TIMEOUT = MIN_TIMEOUT
+            elif user_timeout > MAX_TIMEOUT:
+                logger.warning('Resetting timeout to maximum value (%d)' %
+                               MAX_TIMEOUT)
+                self.TIMEOUT = MAX_TIMEOUT
+            else:
+                self.TIMEOUT = user_timeout
+        else:
+            self.TIMEOUT = TIMEOUT
         logger.info('Query translated to: %s' % repr(options))
         logger.info('Looking for no more than %d paths' % self.MAX_PATHS)
 
@@ -404,9 +424,10 @@ class IndraNetwork:
                 logger.info('Found all %d shortest paths, returning results.' %
                             self.MAX_PATHS)
                 return res
-            if time() - self.query_recieve_time > TIMEOUT:
+            if time() - self.query_recieve_time > self.TIMEOUT:
                 logger.info('Reached timeout (%d s) before finding all %d '
-                            'paths. Returning search.' % (TIMEOUT, MAX_PATHS))
+                            'paths. Returning search.' % (self.TIMEOUT,
+                                                          MAX_PATHS))
                 self.query_timed_out = True
                 return res
             hash_path = self._get_hash_path(path, **options)
@@ -511,10 +532,10 @@ class IndraNetwork:
                 logger.info('Found all %d shortest paths, returning results.' %
                             self.MAX_PATHS)
                 return result
-            if time() - self.query_recieve_time > TIMEOUT:
+            if time() - self.query_recieve_time > self.TIMEOUT:
                 logger.info('Reached timeout (%d s) before finding all %d '
                             'shortest paths. Returning search.' %
-                            (TIMEOUT, MAX_PATHS))
+                            (self.TIMEOUT, MAX_PATHS))
                 self.query_timed_out = True
                 return result
             # Check if we have to cull the best node, this is the case
