@@ -57,7 +57,7 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     nx_graph : nx.DiGraph or nx.MultiDiGraph
         By default an nx.DiGraph is returned. By setting multi=True,
         an nx.MultiDiGraph is returned instead."""
-    bsd = None
+    belief_dict = None
     sed = None
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
 
@@ -67,12 +67,9 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
         sif_df = df
 
     if isinstance(belief_dict, str):
-        bsd = pickle_open(belief_dict)
+        belief_dict = pickle_open(belief_dict)
     elif isinstance(belief_dict, dict):
-        bsd = belief_dict
-    else:
-        logger.warning('No belief dict provided, weights will be set to '
-                       '1/evidence count')
+        belief_dict = belief_dict
 
     if isinstance(strat_ev_dict, str):
         sed = pickle_open(strat_ev_dict)
@@ -89,12 +86,11 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     # Preserve all rows in sif_df, so do left join:
     # sif_df.merge(other, how='left', on='hash')
 
-    if bsd:
-        hashes = []
-        beliefs = []
-        for k, v in bsd.items():
-            hashes.append(k)
-            beliefs.append(v)
+    hashes = []
+    beliefs = []
+    for k, v in belief_dict.items():
+        hashes.append(k)
+        beliefs.append(v)
 
         sif_df = sif_df.merge(
             right=pd.DataFrame(data={'hash': hashes, 'belief': beliefs}),
@@ -175,7 +171,7 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
                           'agB_name': pnode, 'agB_ns': pns, 'agB_id': pid,
                           'stmt_type': 'fplx', 'evidence_count': 1,
                           'hash': puri}
-                    if bsd:
+                    if belief_dict:
                         ed['belief'] = 1.0
                     if sed:
                         ed['evidence'] = {'fplx': 1}
@@ -195,7 +191,7 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
             )
         )
 
-    if bsd:
+    if belief_dict:
         logger.info('Setting edge weights')
         # Add weight: -log(belief) or 1/evidence count if no belief
         has_belief = (sif_df['belief'].isna() == False)
@@ -256,20 +252,20 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
         # To get latest belief score: see indra_db.belief
         for tup in ax_stmts:
             assert len(tup) == 2 or len(tup) == 3
-            bs = 1
+            belief = 1
             if len(tup) == 2:
                 typ, hsh_a = tup
             elif len(tup) == 3:
-                typ, hsh_a, bs = tup
-            ax_score_list.append(bs)
+                typ, hsh_a, belief = tup
+            ax_score_list.append(belief)
         for tup in xb_stmts:
             assert len(tup) == 2 or len(tup) == 3
-            bs = 1
+            belief = 1
             if len(tup) == 2:
                 typ, hsh_b = tup
             elif len(tup) == 3:
-                typ, hsh_b, bs = tup
-            xb_score_list.append(bs)
+                typ, hsh_b, belief = tup
+            xb_score_list.append(belief)
 
         # Rank by multiplying the best two belief scores for each edge
         rank = max(ax_score_list) * max(xb_score_list)
@@ -310,10 +306,10 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
 
 def ag_belief_score(belief_list):
     """Each item in `belief_list` should be a float"""
-    # Aggregate belief score: 1-prod(1-bs_i)
+    # Aggregate belief score: 1-prod(1-belief_i)
     try:
         ag_belief = np.longfloat(1.0) - np.prod(np.fromiter(map(
-            lambda bs: np.longfloat(1.0) - bs, belief_list),
+            lambda belief: np.longfloat(1.0) - belief, belief_list),
             dtype=np.longfloat)
         )
     except FloatingPointError as err:
