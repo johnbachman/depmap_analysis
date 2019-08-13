@@ -71,7 +71,7 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
     elif isinstance(belief_dict, dict):
         belief_dict = belief_dict
 
-    if isinstance(strat_ev_dict, str) and path.isfile(strat_ev_dict):
+    if isinstance(strat_ev_dict, str):
         sed = pickle_open(strat_ev_dict)
     elif isinstance(strat_ev_dict, dict):
         sed = strat_ev_dict
