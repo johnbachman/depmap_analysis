@@ -3,6 +3,7 @@ import requests
 import numpy as np
 import pandas as pd
 import networkx as nx
+from os import path
 from decimal import Decimal
 from collections import defaultdict
 import networkx.algorithms.simple_paths as simple_paths
@@ -28,7 +29,7 @@ except KeyError:
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 
-def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
+def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
                               multi=False, include_entity_hierarchies=True,
                               verbosity=0):
     """Return a NetworkX digraph from a pandas dataframe of a db dump
@@ -38,7 +39,7 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     df : str|pd.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
         DataFrame object
-    belief_dict : str
+    belief_dict : str|dict
         The file path to a belief dict that is keyed by statement hashes
         corresponding to the statement hashes loaded in df
     strat_ev_dict : str
@@ -57,7 +58,6 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     nx_graph : nx.DiGraph or nx.MultiDiGraph
         By default an nx.DiGraph is returned. By setting multi=True,
         an nx.MultiDiGraph is returned instead."""
-    belief_dict = None
     sed = None
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
 
@@ -71,12 +71,10 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     elif isinstance(belief_dict, dict):
         belief_dict = belief_dict
 
-    if isinstance(strat_ev_dict, str):
+    if isinstance(strat_ev_dict, str) and path.isfile(strat_ev_dict):
         sed = pickle_open(strat_ev_dict)
     elif isinstance(strat_ev_dict, dict):
         sed = strat_ev_dict
-    else:
-        logger.info('No stratified evidence dict provided')
 
     # Extend df with these columns:
     #   belief score from provided dict
