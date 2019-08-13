@@ -82,9 +82,9 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
     #   belief score from provided dict
     #   stratified evidence count by source
     # Extend df with famplex rows
-    # 'hash' must exist as column in the input dataframe for merge to work out
+    # 'stmt_hash' must exist as column in the input dataframe for merge to work
     # Preserve all rows in sif_df, so do left join:
-    # sif_df.merge(other, how='left', on='hash')
+    # sif_df.merge(other, how='left', on='stmt_hash')
 
     hashes = []
     beliefs = []
@@ -92,40 +92,40 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
         hashes.append(k)
         beliefs.append(v)
 
-        sif_df = sif_df.merge(
-            right=pd.DataFrame(data={'hash': hashes, 'belief': beliefs}),
-            how='left',
-            on='hash'
-        )
-        # Check for missing hashes
-        if sif_df['belief'].isna().sum() > 0:
-            logger.warning('%d rows with missing belief score found' %
-                           sif_df['belief'].isna().sum())
-            if verbosity > 1:
-                logger.info('Missing hashes in belief dict: %s' % list(
-                    sif_df['hash'][sif_df['belief'].isna() == True]))
-            logger.info('Setting missing belief scores to 1/evidence count')
+    sif_df = sif_df.merge(
+        right=pd.DataFrame(data={'stmt_hash': hashes, 'belief': beliefs}),
+        how='left',
+        on='stmt_hash'
+    )
+    # Check for missing hashes
+    if sif_df['belief'].isna().sum() > 0:
+        logger.warning('%d rows with missing belief score found' %
+                       sif_df['belief'].isna().sum())
+        if verbosity > 1:
+            logger.info('Missing hashes in belief dict: %s' % list(
+                sif_df['stmt_hash'][sif_df['belief'].isna() == True]))
+        logger.info('Setting missing belief scores to 1/evidence count')
 
-    if sed:
-        hashes = []
-        strat_dicts = []
-        for k, v in sed.items():
-            hashes.append(k)
-            strat_dicts.append(v)
+    hashes = []
+    strat_dicts = []
+    for k, v in sed.items():
+        hashes.append(k)
+        strat_dicts.append(v)
 
-        sif_df = sif_df.merge(
-            right=pd.DataFrame(data={'hash': hashes, 'evidence': strat_dicts}),
-            how='left',
-            on='hash'
-        )
-        # Check for missing hashes
-        if sif_df['evidence'].isna().sum() > 0:
-            logger.warning('%d rows with missing evidence found' %
-                           sif_df['evidence'].isna().sum())
-            if verbosity > 1:
-                logger.info('Missing hashes in stratified evidence dict: %s' %
-                            list(sif_df['hash'][sif_df['evidence'].isna()
-                                                == True]))
+    sif_df = sif_df.merge(
+        right=pd.DataFrame(data={'stmt_hash': hashes,
+                                 'source_counts': strat_dicts}),
+        how='left',
+        on='stmt_hash'
+    )
+    # Check for missing hashes
+    if sif_df['source_counts'].isna().sum() > 0:
+        logger.warning('%d rows with missing evidence found' %
+                       sif_df['source_counts'].isna().sum())
+        if verbosity > 1:
+            logger.info('Missing hashes in stratified evidence dict: %s' %
+                        list(sif_df['stmt_hash'][sif_df['source_counts'].isna()
+                                            == True]))
     # Map ns:id to node name
     logger.info('Creating dictionary with mapping from (ns,id) to node name')
     ns_id_name_tups = set(
@@ -170,12 +170,13 @@ def sif_dump_df_to_nx_digraph(df, belief_dict=None, strat_ev_dict=None,
                     ed = {'agA_name': node, 'agA_ns': ns, 'agA_id': _id,
                           'agB_name': pnode, 'agB_ns': pns, 'agB_id': pid,
                           'stmt_type': 'fplx', 'evidence_count': 1,
-                          'hash': puri}
+                          'stmt_hash': puri}
                     if belief_dict:
                         ed['belief'] = 1.0
                     if sed:
-                        ed['evidence'] = {'fplx': 1}
-                    _ = [row_dict[k].append(v) for k, v in ed.items()]
+                        ed['source_counts'] = {'fplx': 1}
+                    for k, v in ed.items():
+                        row_dict[k].append(v)
 
         # To concat to df
         sif_df = pd.concat([sif_df, pd.DataFrame(data=row_dict)],
