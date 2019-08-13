@@ -11,7 +11,7 @@ from flask import Flask, request, abort, Response
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
 
-from depmap_analysis.network_functions import network_functions as nf
+from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
