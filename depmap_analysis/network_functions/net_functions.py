@@ -184,7 +184,7 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
     if sed:
         logger.info('Setting "curated" flag')
         # Map to boolean 'curated' for reader/non-reader
-        sif_df['curated'] = sif_df['evidence'].apply(
+        sif_df['curated'] = sif_df['source_counts'].apply(
             func=lambda ev: False if not ev else (
                 False if all(s.lower() in readers for s in ev) else True
             )
