@@ -451,7 +451,8 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 
     >>> from itertools import islice
     >>> def k_shortest_paths(G, source, target, k, weight=None):
-    ...     return list(islice(nx.shortest_simple_paths(G, source, target, weight=weight), k))
+    ...     return list(islice(nx.shortest_simple_paths(G, source, target,
+    ...         weight=weight), k))
     >>> for path in k_shortest_paths(G, 0, 3, 2):
     ...     print(path)
     [0, 1, 2, 3]
