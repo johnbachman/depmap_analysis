@@ -25,9 +25,6 @@ df = make_dataframe(reconvert=True,
                                                db=db),
                     pkl_filename=None)
 
-if 'hash' in df.columns:
-    df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
-
 # Create fake belief dict
 bsd = {}
 for n, h in df['stmt_hash'].iteritems():
@@ -41,7 +38,7 @@ test_hash = 1234567890
 test_row = {
     'agA_ns': 'TEST', 'agA_id': '1234', 'agA_name': test_edge[0],
     'agB_ns': 'TEST', 'agB_id': '2345', 'agB_name': test_edge[1],
-    'stmt_type': 'TestStatement', 'evidence_count': 1, 'hash': test_hash
+    'stmt_type': 'TestStatement', 'evidence_count': 1, 'stmt_hash': test_hash
 }
 test_evidence = {'tester': 1}
 test_belief = 0.987654321
@@ -100,9 +97,9 @@ class TestNetwork(unittest.TestCase):
         assert stmt_dict['stmt_type'] == test_row['stmt_type']
         assert stmt_dict['stmt_hash'] == str(test_row['hash'])
         assert stmt_dict['evidence_count'] == test_row['evidence_count']
-        assert isinstance(stmt_dict['evidence'], dict)
-        assert stmt_dict['evidence'] == test_evidence
-        assert stmt_dict['evidence']['tester'] == test_evidence['tester']
+        assert isinstance(stmt_dict['source_counts'], dict)
+        assert stmt_dict['source_counts'] == test_evidence
+        assert stmt_dict['source_counts']['tester'] == test_evidence['tester']
         assert isinstance(stmt_dict['curated'], bool)
         assert stmt_dict['curated'] is True
         assert stmt_dict['belief'] == test_belief
@@ -129,8 +126,8 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(edge_dict_test['weight'], np.longfloat)
 
         # Check stmt meta data list
-        stmt_list = edge_dict['stmt_list']
-        test_stmt_list = edge_dict_test['stmt_list']
+        stmt_list = edge_dict['statements']
+        test_stmt_list = edge_dict_test['statements']
         assert isinstance(stmt_list, list)
         assert isinstance(test_stmt_list, list)
         assert isinstance(stmt_list[0], dict)
@@ -149,11 +146,11 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(stmt_list[0]['evidence_count'], int)
         assert test_stmt_list[0]['evidence_count'] == 1
 
-        assert isinstance(stmt_list[0]['evidence'], dict)
-        assert isinstance(test_stmt_list[0]['evidence'], dict)
-        assert len(test_stmt_list[0]['evidence']) == 1
-        assert 'tester' in test_stmt_list[0]['evidence']
-        assert test_stmt_list[0]['evidence']['tester'] == 1
+        assert isinstance(stmt_list[0]['source_counts'], dict)
+        assert isinstance(test_stmt_list[0]['source_counts'], dict)
+        assert len(test_stmt_list[0]['source_counts']) == 1
+        assert 'tester' in test_stmt_list[0]['source_counts']
+        assert test_stmt_list[0]['source_counts']['tester'] == 1
 
         assert isinstance(stmt_list[0]['curated'], bool)
         assert test_stmt_list[0]['curated'] is True
@@ -195,11 +192,11 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(edge_dict['evidence_count'], int)
         assert edge_dict_test['evidence_count'] == 1
 
-        assert isinstance(edge_dict['evidence'], dict)
-        assert isinstance(edge_dict_test['evidence'], dict)
-        assert len(edge_dict_test['evidence']) == 1
-        assert 'tester' in edge_dict_test['evidence']
-        assert edge_dict_test['evidence']['tester'] == 1
+        assert isinstance(edge_dict['source_counts'], dict)
+        assert isinstance(edge_dict_test['source_counts'], dict)
+        assert len(edge_dict_test['source_counts']) == 1
+        assert 'tester' in edge_dict_test['source_counts']
+        assert edge_dict_test['source_counts']['tester'] == 1
 
         assert isinstance(edge_dict['curated'], bool)
         assert edge_dict_test['curated'] is True
