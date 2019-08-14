@@ -65,6 +65,26 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
         return False if not ev_dict else \
             (False if all(s.lower() in readers for s in ev_dict) else True)
 
+    def _weight_from_belief(belief):
+        return -np.log(belief, dtype=np.longfloat)
+
+    def _weight_mapping(G):
+        """Mapping function for adding the weight of the flattened edges
+
+        Parameters
+        ----------
+        G : IndraNet
+            Incoming graph
+
+        Returns
+        -------
+        G : IndraNet
+        """
+        for edge in G.edges:
+            G.edges[edge]['weight'] = \
+                _weight_from_belief(G.edges[edge]['belief'])
+        return G
+
     if isinstance(df, str):
         sif_df = pickle_open(df)
     else:
@@ -146,7 +166,7 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
     sif_df['weight'] = 0
     if has_belief.sum() > 0:
         sif_df.loc[has_belief, 'weight'] = sif_df['belief'].apply(
-            func=lambda b: -np.log(b, dtype=np.longfloat))
+            func=_weight_from_belief)
     if has_no_belief.sum() > 0:
         sif_df.loc[has_no_belief, 'weight'] = sif_df['evidence_count'].apply(
             func=lambda ec: 1/np.longfloat(ec))
@@ -155,8 +175,10 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
     if multi:
         indranet_graph = IndraNet.from_df(sif_df)
     else:
+        # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
-                                                  'complementary_belief')
+                                                  'complementary_belief',
+                                                  _weight_mapping)
 
     # Add hierarchy relations to graph
     if include_entity_hierarchies:
