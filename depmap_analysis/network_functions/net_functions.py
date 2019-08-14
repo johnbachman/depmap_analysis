@@ -3,9 +3,7 @@ import requests
 import numpy as np
 import pandas as pd
 import networkx as nx
-from os import path
 from decimal import Decimal
-from collections import defaultdict
 import networkx.algorithms.simple_paths as simple_paths
 
 from indra.config import CONFIG_DICT
