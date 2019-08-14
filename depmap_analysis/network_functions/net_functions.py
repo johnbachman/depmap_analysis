@@ -10,7 +10,7 @@ import networkx.algorithms.simple_paths as simple_paths
 
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
-from indra.assemblers.indranet.net import IndraNet
+from indra.assemblers.indranet import IndraNet
 
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
@@ -55,11 +55,15 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
 
     Returns
     -------
-    nx_graph : nx.DiGraph or nx.MultiDiGraph
+    indranet_graph : nx.DiGraph or nx.MultiDiGraph
         By default an nx.DiGraph is returned. By setting multi=True,
         an nx.MultiDiGraph is returned instead."""
     sed = None
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
+
+    def _curated_func(ev_dict):
+        return False if not ev_dict else \
+            (False if all(s.lower() in readers for s in ev_dict) else True)
 
     if isinstance(df, str):
         sif_df = pickle_open(df)
@@ -131,6 +135,30 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
         set(zip(sif_df.agB_ns, sif_df.agB_id, sif_df.agB_name)))
     ns_id_to_nodename = {(ns, _id): name for ns, _id, name in ns_id_name_tups}
 
+    logger.info('Setting "curated" flag')
+    # Map to boolean 'curated' for reader/non-reader
+    sif_df['curated'] = sif_df['source_counts'].apply(func=_curated_func)
+
+    logger.info('Setting edge weights')
+    # Add weight: -log(belief) or 1/evidence count if no belief
+    has_belief = (sif_df['belief'].isna() == False)
+    has_no_belief = (sif_df['belief'].isna() == True)
+    sif_df['weight'] = 0
+    if has_belief.sum() > 0:
+        sif_df.loc[has_belief, 'weight'] = sif_df['belief'].apply(
+            func=lambda b: -np.log(b, dtype=np.longfloat))
+    if has_no_belief.sum() > 0:
+        sif_df.loc[has_no_belief, 'weight'] = sif_df['evidence_count'].apply(
+            func=lambda ec: 1/np.longfloat(ec))
+
+    # Create graph from df
+    if multi:
+        indranet_graph = IndraNet.from_df(sif_df)
+    else:
+        indranet_graph = IndraNet.digraph_from_df(sif_df,
+                                                  'complementary_belief')
+
+    # Add hierarchy relations to graph
     if include_entity_hierarchies:
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
@@ -141,7 +169,6 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
         added_pairs = set()  # Save (A, B, URI)
         logger.info('Building entity relations to be added to data frame')
         entities = 0
-        row_dict = defaultdict(list)
         for ns, _id, uri in full_entity_list:
             node = _id
             # Get name in case it's different than id
@@ -168,49 +195,48 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
                     ed = {'agA_name': node, 'agA_ns': ns, 'agA_id': _id,
                           'agB_name': pnode, 'agB_ns': pns, 'agB_id': pid,
                           'stmt_type': 'fplx', 'evidence_count': 1,
-                          'stmt_hash': puri}
-                    if belief_dict:
-                        ed['belief'] = 1.0
-                    if sed:
-                        ed['source_counts'] = {'fplx': 1}
-                    for k, v in ed.items():
-                        row_dict[k].append(v)
+                          'source_counts': {'fplx': 1}, 'stmt_hash': puri,
+                          'belief': 1.0, 'weight': NP_PRECISION,
+                          'curated': True}
+                    # Add non-existing nodes
+                    if ed['agA_name'] not in indranet_graph.nodes:
+                        indranet_graph.add_node(ed['agA_name'],
+                                                ns=ed['agA_ns'],
+                                                id=ed['agA_id'])
+                    if ed['agB_name'] not in indranet_graph.nodes:
+                        indranet_graph.add_node(ed['agB_name'],
+                                                ns=ed['agB_ns'],
+                                                id=ed['agB_id'])
+                    # Add edges
+                    ed.pop('agA_id')
+                    ed.pop('agA_ns')
+                    ed.pop('agB_id')
+                    ed.pop('agB_ns')
+                    if indranet_graph.is_multigraph():
+                        # MultiDiGraph
+                        indranet_graph.add_edge(u_for_edge=ed['agA_name'],
+                                                v_for_edge=ed['agB_name'],
+                                                **ed)
+                    else:
+                        # DiGraph
+                        u = ed.pop('agA_name')
+                        v = ed.pop('agB_name')
 
-        # To concat to df
-        sif_df = pd.concat([sif_df, pd.DataFrame(data=row_dict)],
-                           ignore_index=True)
+                        # Check edge
+                        if indranet_graph.has_edge(u, v):
+                            indranet_graph.edges[(u, v)]['statements'].append(
+                                ed)
+                        else:
+                            indranet_graph.add_edge(u_for_edge=u,
+                                                    v_for_edge=v,
+                                                    belief=1.0,
+                                                    weight=1.0,
+                                                    statements=[ed])
+
         logger.info('Loaded %d entity relations into dataframe' % entities)
-
-    if sed:
-        logger.info('Setting "curated" flag')
-        # Map to boolean 'curated' for reader/non-reader
-        sif_df['curated'] = sif_df['source_counts'].apply(
-            func=lambda ev: False if not ev else (
-                False if all(s.lower() in readers for s in ev) else True
-            )
-        )
-
-    if belief_dict:
-        logger.info('Setting edge weights')
-        # Add weight: -log(belief) or 1/evidence count if no belief
-        has_belief = (sif_df['belief'].isna() == False)
-        has_no_belief = (sif_df['belief'].isna() == True)
-        sif_df['weight'] = 0
-        if has_belief.sum() > 0:
-            sif_df.loc[has_belief, 'weight'] = sif_df['belief'].apply(
-                func=lambda b: -np.log(b, dtype=np.longfloat))
-        if has_no_belief.sum() > 0:
-            sif_df.loc[has_no_belief, 'weight'] = sif_df[
-                'evidence_count'].apply(func=lambda ec: 1/np.longfloat(ec))
-
-    # Create graph from df
-    nx_graph = IndraNet.from_df(sif_df)
-
-    # Add graph meta data
-    if include_entity_hierarchies:
-        nx_graph.graph['node_by_uri'] = node_by_uri
-    nx_graph.graph['node_by_ns_id'] = ns_id_to_nodename
-    return nx_graph
+        indranet_graph.graph['node_by_uri'] = node_by_uri
+    indranet_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+    return indranet_graph
 
 
 def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
