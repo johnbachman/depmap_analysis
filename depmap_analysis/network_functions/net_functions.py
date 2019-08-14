@@ -64,7 +64,10 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
             (False if all(s.lower() in readers for s in ev_dict) else True)
 
     def _weight_from_belief(belief):
-        return -np.log(belief, dtype=np.longfloat)
+        """Map belief score 'belief' to weight. If the calculation goes below
+        precision, return longfloat precision insted to avoid making the
+        weight zero."""
+        return np.max(NP_PRECISION, -np.log(belief, dtype=np.longfloat))
 
     def _weight_mapping(G):
         """Mapping function for adding the weight of the flattened edges
