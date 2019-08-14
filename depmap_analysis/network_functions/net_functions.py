@@ -239,8 +239,8 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
                     ed.pop('agB_ns')
                     if indranet_graph.is_multigraph():
                         # MultiDiGraph
-                        indranet_graph.add_edge(u_for_edge=ed['agA_name'],
-                                                v_for_edge=ed['agB_name'],
+                        indranet_graph.add_edge(ed['agA_name'],
+                                                ed['agB_name'],
                                                 **ed)
                     else:
                         # DiGraph
@@ -252,8 +252,8 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
                             indranet_graph.edges[(u, v)]['statements'].append(
                                 ed)
                         else:
-                            indranet_graph.add_edge(u_for_edge=u,
-                                                    v_for_edge=v,
+                            indranet_graph.add_edge(u,
+                                                    v,
                                                     belief=1.0,
                                                     weight=1.0,
                                                     statements=[ed])
