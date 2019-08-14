@@ -90,6 +90,9 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
     else:
         sif_df = df
 
+    if 'hash' in sif_df.columns:
+        sif_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
+
     if isinstance(belief_dict, str):
         belief_dict = pickle_open(belief_dict)
     elif isinstance(belief_dict, dict):
