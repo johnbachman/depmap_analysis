@@ -716,7 +716,7 @@ class IndraNetwork:
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
         if simple_graph:
             try:
-                stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
+                stmt_edge = self.dir_edges.get((s, o))['statements'][index]
             except IndexError:
                 # To keep it consistent with below Multi DiGraph implementation
                 stmt_edge = None
