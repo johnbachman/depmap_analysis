@@ -25,9 +25,12 @@ df = make_dataframe(reconvert=True,
                                                db=db),
                     pkl_filename=None)
 
+if 'hash' in df.columns:
+    df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
+
 # Create fake belief dict
 bsd = {}
-for n, h in df['hash'].iteritems():
+for n, h in df['stmt_hash'].iteritems():
     bsd[h] = rnd()
 
 # Add custom row to df that can be checked later
@@ -102,7 +105,7 @@ class TestNetwork(unittest.TestCase):
         assert stmt_dict['evidence']['tester'] == test_evidence['tester']
         assert isinstance(stmt_dict['curated'], bool)
         assert stmt_dict['curated'] is True
-        assert stmt_dict['bs'] == test_belief
+        assert stmt_dict['belief'] == test_belief
 
     def test_dir_edge_structure(self):
         # Get an edge from test DB
@@ -120,8 +123,8 @@ class TestNetwork(unittest.TestCase):
         edge_dict_test = self.indra_network.dir_edges[test_edge]
         assert isinstance(edge_dict, dict)
         assert isinstance(edge_dict_test, dict)
-        assert isinstance(edge_dict['bs'], (np.longfloat, float))
-        assert isinstance(edge_dict_test['bs'], (np.longfloat, float))
+        assert isinstance(edge_dict['belief'], (np.longfloat, float))
+        assert isinstance(edge_dict_test['belief'], (np.longfloat, float))
         assert isinstance(edge_dict['weight'], np.longfloat)
         assert isinstance(edge_dict_test['weight'], np.longfloat)
 
@@ -155,9 +158,9 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(stmt_list[0]['curated'], bool)
         assert test_stmt_list[0]['curated'] is True
 
-        assert isinstance(stmt_list[0]['bs'], (float, np.longfloat))
-        assert isinstance(test_stmt_list[0]['bs'], (float, np.longfloat))
-        assert test_stmt_list[0]['bs'] == 0.987654321
+        assert isinstance(stmt_list[0]['belief'], (float, np.longfloat))
+        assert isinstance(test_stmt_list[0]['belief'], (float, np.longfloat))
+        assert test_stmt_list[0]['belief'] == 0.987654321
 
     def test_multi_dir_edge_structure(self):
         # Get an edge from test DB
@@ -176,9 +179,9 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(edge_dict, dict)
         assert isinstance(edge_dict_test, dict)
 
-        assert isinstance(edge_dict['bs'], (np.longfloat, float))
-        assert isinstance(edge_dict_test['bs'], (np.longfloat, float))
-        assert edge_dict_test['bs'] == 0.987654321
+        assert isinstance(edge_dict['belief'], (np.longfloat, float))
+        assert isinstance(edge_dict_test['belief'], (np.longfloat, float))
+        assert edge_dict_test['belief'] == 0.987654321
 
         assert isinstance(edge_dict['weight'], (np.longfloat, float))
         assert isinstance(edge_dict_test['weight'], (np.longfloat, float))
