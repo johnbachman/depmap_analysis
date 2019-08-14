@@ -7,7 +7,7 @@ import indra_db.tests.util as tu
 from indra_db.util.dump_sif import load_db_content, make_ev_strata, \
     make_dataframe, NS_LIST
 
-from depmap_analysis.network_functions.network_functions import \
+from depmap_analysis.network_functions.net_functions import \
     sif_dump_df_to_nx_digraph
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 
