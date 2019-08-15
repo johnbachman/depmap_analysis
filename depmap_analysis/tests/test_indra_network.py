@@ -98,7 +98,7 @@ class TestNetwork(unittest.TestCase):
         assert stmt_dict['subj'], stmt_dict['obj'] == test_edge
         assert isinstance(stmt_dict['weight'], (np.longfloat, float))
         assert stmt_dict['stmt_type'] == test_row['stmt_type']
-        assert stmt_dict['stmt_hash'] == str(test_row['hash'])
+        assert stmt_dict['stmt_hash'] == str(test_row['stmt_hash'])
         assert stmt_dict['evidence_count'] == test_row['evidence_count']
         assert isinstance(stmt_dict['source_counts'], dict)
         assert stmt_dict['source_counts'] == test_evidence
