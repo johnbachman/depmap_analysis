@@ -82,11 +82,12 @@ class TestNetwork(unittest.TestCase):
         result = self.indra_network.handle_query(**query)
         assert result['timeout'] is False
         assert isinstance(result['paths_by_node_count'], (dict, defaultdict))
-        assert 2 in result['paths_by_node_count']
-        assert len(result['paths_by_node_count'][2]) == 1
-        assert isinstance(result['paths_by_node_count'][2][0],
+        assert 2 in result['paths_by_node_count']['forward']
+        assert not result['paths_by_node_count']['backward']
+        assert len(result['paths_by_node_count']['forward'][2]) == 1
+        assert isinstance(result['paths_by_node_count']['forward'][2][0],
                           (dict, defaultdict))
-        path_dict = result['paths_by_node_count'][2][0]
+        path_dict = result['paths_by_node_count']['forward'][2][0]
         assert path_dict['path'] == list(test_edge)
         assert isinstance(path_dict['cost'], str)
         assert isinstance(path_dict['sort_key'], str)
