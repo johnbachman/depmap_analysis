@@ -75,7 +75,8 @@ class TestNetwork(unittest.TestCase):
             'bsco': 0.0,
             'curated_db_only': False,
             'fplx_expand': False,
-            'k_shortest': 1
+            'k_shortest': 1,
+            'two_way': True
         }
 
         result = self.indra_network.handle_query(**query)
