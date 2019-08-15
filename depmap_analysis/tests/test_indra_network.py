@@ -40,7 +40,8 @@ test_row = {
     'agB_ns': 'TEST', 'agB_id': '2345', 'agB_name': test_edge[1],
     'stmt_type': 'TestStatement', 'evidence_count': 1, 'stmt_hash': test_hash
 }
-test_evidence = {'tester': 1}
+test_source = 'pc11'
+test_evidence = {test_source: 1}
 test_belief = 0.987654321
 df = df.append(test_row,
     ignore_index=True)
@@ -99,7 +100,8 @@ class TestNetwork(unittest.TestCase):
         assert stmt_dict['evidence_count'] == test_row['evidence_count']
         assert isinstance(stmt_dict['source_counts'], dict)
         assert stmt_dict['source_counts'] == test_evidence
-        assert stmt_dict['source_counts']['tester'] == test_evidence['tester']
+        assert stmt_dict['source_counts'][test_source] == \
+               test_evidence[test_source]
         assert isinstance(stmt_dict['curated'], bool)
         assert stmt_dict['curated'] is True
         assert stmt_dict['belief'] == test_belief
@@ -149,8 +151,8 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(stmt_list[0]['source_counts'], dict)
         assert isinstance(test_stmt_list[0]['source_counts'], dict)
         assert len(test_stmt_list[0]['source_counts']) == 1
-        assert 'tester' in test_stmt_list[0]['source_counts']
-        assert test_stmt_list[0]['source_counts']['tester'] == 1
+        assert test_source in test_stmt_list[0]['source_counts']
+        assert test_stmt_list[0]['source_counts'][test_source] == 1
 
         assert isinstance(stmt_list[0]['curated'], bool)
         assert test_stmt_list[0]['curated'] is True
@@ -195,8 +197,8 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(edge_dict['source_counts'], dict)
         assert isinstance(edge_dict_test['source_counts'], dict)
         assert len(edge_dict_test['source_counts']) == 1
-        assert 'tester' in edge_dict_test['source_counts']
-        assert edge_dict_test['source_counts']['tester'] == 1
+        assert test_source in edge_dict_test['source_counts']
+        assert edge_dict_test['source_counts'][test_source] == 1
 
         assert isinstance(edge_dict['curated'], bool)
         assert edge_dict_test['curated'] is True
