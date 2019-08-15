@@ -492,13 +492,21 @@ class IndraNetwork:
             paths1 = self._get_hash_path(path=[source, ct], **options)
             paths2 = self._get_hash_path(path=[target, ct], **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
-                max_belief1 = max([st['belief'] for st in paths1[0]])
-                max_belief2 = max([st['belief'] for st in paths2[0]])
+                paths1_stmts = []
+                for k, v in paths1[0].items():
+                    if k not in {'subj', 'obj'}:
+                        paths1_stmts.extend(v)
+                paths2_stmts = []
+                for k, v in paths2[0].items():
+                    if k not in {'subj', 'obj'}:
+                        paths2_stmts.extend(v)
+                max_belief1 = max([st['belief'] for st in paths1_stmts])
+                max_belief2 = max([st['belief'] for st in paths2_stmts])
                 ordered_commons.append({
-                    ct: [sorted(paths1[0],
+                    ct: [sorted(paths1_stmts,
                                 key=lambda k: k['belief'],
                                 reverse=True),
-                         sorted(paths2[0],
+                         sorted(paths2_stmts,
                                 key=lambda k: k['belief'],
                                 reverse=True)],
                     'lowest_highest_belief': min(max_belief1, max_belief2)
@@ -745,7 +753,7 @@ class IndraNetwork:
                 return []
 
             # Initialize edges list, statement index
-            edges = []
+            edges = {}
             e = 0
 
             # Get first edge statement
@@ -760,9 +768,12 @@ class IndraNetwork:
                 if self._pass_stmt(edge_stmt, **options):
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
-                    edges.append({**edge_stmt,
-                                  'subj': subj,
-                                  'obj': obj})
+                    try:
+                        edges[edge_stmt['stmt_type']].append(edge_stmt)
+                    except KeyError:
+                        edges['subj'] = subj
+                        edges['obj'] = obj
+                        edges[edge_stmt['stmt_type']] = [edge_stmt]
                     if self.verbose > 3:
                         logger.info('edge stmt passed filter, appending to '
                                     'edge list.')
