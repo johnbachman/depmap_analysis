@@ -485,23 +485,23 @@ class IndraNetwork:
         return []
 
     def _loop_common_targets(self, common_targets, source, target, **options):
-        """Order common_targets targets by lowest bs in pair."""
+        """Order common_targets targets by lowest belief in pair."""
         ordered_commons = []
         added_targets = 0
         for ct in common_targets:
             paths1 = self._get_hash_path(path=[source, ct], **options)
             paths2 = self._get_hash_path(path=[target, ct], **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
-                max_bs1 = max([st['bs'] for st in paths1[0]])
-                max_bs2 = max([st['bs'] for st in paths2[0]])
+                max_belief1 = max([st['belief'] for st in paths1[0]])
+                max_belief2 = max([st['belief'] for st in paths2[0]])
                 ordered_commons.append({
                     ct: [sorted(paths1[0],
-                                key=lambda k: k['bs'],
+                                key=lambda k: k['belief'],
                                 reverse=True),
                          sorted(paths2[0],
-                                key=lambda k: k['bs'],
+                                key=lambda k: k['belief'],
                                 reverse=True)],
-                    'lowest_highest_belief': min(max_bs1, max_bs2)
+                    'lowest_highest_belief': min(max_belief1, max_belief2)
                 })
                 added_targets += 1
                 if added_targets >= self.MAX_PATHS:
@@ -716,7 +716,7 @@ class IndraNetwork:
         """Return edges from DiGraph or MultiDigraph in a uniform format"""
         if simple_graph:
             try:
-                stmt_edge = self.dir_edges.get((s, o))['stmt_list'][index]
+                stmt_edge = self.dir_edges.get((s, o))['statements'][index]
             except IndexError:
                 # To keep it consistent with below Multi DiGraph implementation
                 stmt_edge = None
@@ -791,7 +791,7 @@ class IndraNetwork:
             return False
 
         # Filter belief score
-        if edge_stmt['bs'] < options['bsco']:
+        if edge_stmt['belief'] < options['bsco']:
             if self.verbose:
                 logger.info('Did not pass belief score')
             return False
@@ -836,8 +836,8 @@ class IndraNetwork:
             return cost
 
     def _aggregated_path_belief(self, path):
-        bs_list = [self.dir_edges[e]['bs'] for e in zip(path[:-1], path[1:])]
-        return nf.ag_belief_score(bs_list)
+        belief_list = [self.dir_edges[e]['belief'] for e in zip(path[:-1], path[1:])]
+        return nf.ag_belief_score(belief_list)
 
     def _get_sort_key(self, path, hash_path, method=None):
         """Calculate a number to sort the path on

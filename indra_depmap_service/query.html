@@ -353,8 +353,8 @@
       let htmlString = '';
       let badgeStart = '<span class="badge badge-secondary badge-pill float-right ';
       let badgeEnd = '</span>';
-      for (source in stmt.evidence) {
-        htmlString += badgeStart + 'source-'+ source + '">' + source + ': ' + stmt.evidence[source].toString() + badgeEnd
+      for (source in stmt.source_counts) {
+        htmlString += badgeStart + 'source-'+ source + '">' + source + ': ' + stmt.source_counts[source].toString() + badgeEnd
       }
       return htmlString
     }

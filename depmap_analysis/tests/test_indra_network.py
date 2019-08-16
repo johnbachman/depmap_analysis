@@ -7,7 +7,7 @@ import indra_db.tests.util as tu
 from indra_db.util.dump_sif import load_db_content, make_ev_strata, \
     make_dataframe, NS_LIST
 
-from depmap_analysis.network_functions.network_functions import \
+from depmap_analysis.network_functions.net_functions import \
     sif_dump_df_to_nx_digraph
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 
@@ -27,7 +27,7 @@ df = make_dataframe(reconvert=True,
 
 # Create fake belief dict
 bsd = {}
-for n, h in df['hash'].iteritems():
+for n, h in df['stmt_hash'].iteritems():
     bsd[h] = rnd()
 
 # Add custom row to df that can be checked later
@@ -38,9 +38,10 @@ test_hash = 1234567890
 test_row = {
     'agA_ns': 'TEST', 'agA_id': '1234', 'agA_name': test_edge[0],
     'agB_ns': 'TEST', 'agB_id': '2345', 'agB_name': test_edge[1],
-    'stmt_type': 'TestStatement', 'evidence_count': 1, 'hash': test_hash
+    'stmt_type': 'TestStatement', 'evidence_count': 1, 'stmt_hash': test_hash
 }
-test_evidence = {'tester': 1}
+test_source = 'pc11'
+test_evidence = {test_source: 1}
 test_belief = 0.987654321
 df = df.append(test_row,
     ignore_index=True)
@@ -74,17 +75,19 @@ class TestNetwork(unittest.TestCase):
             'bsco': 0.0,
             'curated_db_only': False,
             'fplx_expand': False,
-            'k_shortest': 1
+            'k_shortest': 1,
+            'two_way': True
         }
 
         result = self.indra_network.handle_query(**query)
         assert result['timeout'] is False
         assert isinstance(result['paths_by_node_count'], (dict, defaultdict))
-        assert 2 in result['paths_by_node_count']
-        assert len(result['paths_by_node_count'][2]) == 1
-        assert isinstance(result['paths_by_node_count'][2][0],
+        assert 2 in result['paths_by_node_count']['forward']
+        assert not result['paths_by_node_count']['backward']
+        assert len(result['paths_by_node_count']['forward'][2]) == 1
+        assert isinstance(result['paths_by_node_count']['forward'][2][0],
                           (dict, defaultdict))
-        path_dict = result['paths_by_node_count'][2][0]
+        path_dict = result['paths_by_node_count']['forward'][2][0]
         assert path_dict['path'] == list(test_edge)
         assert isinstance(path_dict['cost'], str)
         assert isinstance(path_dict['sort_key'], str)
@@ -95,14 +98,15 @@ class TestNetwork(unittest.TestCase):
         assert stmt_dict['subj'], stmt_dict['obj'] == test_edge
         assert isinstance(stmt_dict['weight'], (np.longfloat, float))
         assert stmt_dict['stmt_type'] == test_row['stmt_type']
-        assert stmt_dict['stmt_hash'] == str(test_row['hash'])
+        assert stmt_dict['stmt_hash'] == str(test_row['stmt_hash'])
         assert stmt_dict['evidence_count'] == test_row['evidence_count']
-        assert isinstance(stmt_dict['evidence'], dict)
-        assert stmt_dict['evidence'] == test_evidence
-        assert stmt_dict['evidence']['tester'] == test_evidence['tester']
+        assert isinstance(stmt_dict['source_counts'], dict)
+        assert stmt_dict['source_counts'] == test_evidence
+        assert stmt_dict['source_counts'][test_source] == \
+               test_evidence[test_source]
         assert isinstance(stmt_dict['curated'], bool)
         assert stmt_dict['curated'] is True
-        assert stmt_dict['bs'] == test_belief
+        assert stmt_dict['belief'] == test_belief
 
     def test_dir_edge_structure(self):
         # Get an edge from test DB
@@ -120,14 +124,14 @@ class TestNetwork(unittest.TestCase):
         edge_dict_test = self.indra_network.dir_edges[test_edge]
         assert isinstance(edge_dict, dict)
         assert isinstance(edge_dict_test, dict)
-        assert isinstance(edge_dict['bs'], (np.longfloat, float))
-        assert isinstance(edge_dict_test['bs'], (np.longfloat, float))
+        assert isinstance(edge_dict['belief'], (np.longfloat, float))
+        assert isinstance(edge_dict_test['belief'], (np.longfloat, float))
         assert isinstance(edge_dict['weight'], np.longfloat)
         assert isinstance(edge_dict_test['weight'], np.longfloat)
 
         # Check stmt meta data list
-        stmt_list = edge_dict['stmt_list']
-        test_stmt_list = edge_dict_test['stmt_list']
+        stmt_list = edge_dict['statements']
+        test_stmt_list = edge_dict_test['statements']
         assert isinstance(stmt_list, list)
         assert isinstance(test_stmt_list, list)
         assert isinstance(stmt_list[0], dict)
@@ -146,18 +150,18 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(stmt_list[0]['evidence_count'], int)
         assert test_stmt_list[0]['evidence_count'] == 1
 
-        assert isinstance(stmt_list[0]['evidence'], dict)
-        assert isinstance(test_stmt_list[0]['evidence'], dict)
-        assert len(test_stmt_list[0]['evidence']) == 1
-        assert 'tester' in test_stmt_list[0]['evidence']
-        assert test_stmt_list[0]['evidence']['tester'] == 1
+        assert isinstance(stmt_list[0]['source_counts'], dict)
+        assert isinstance(test_stmt_list[0]['source_counts'], dict)
+        assert len(test_stmt_list[0]['source_counts']) == 1
+        assert test_source in test_stmt_list[0]['source_counts']
+        assert test_stmt_list[0]['source_counts'][test_source] == 1
 
         assert isinstance(stmt_list[0]['curated'], bool)
         assert test_stmt_list[0]['curated'] is True
 
-        assert isinstance(stmt_list[0]['bs'], (float, np.longfloat))
-        assert isinstance(test_stmt_list[0]['bs'], (float, np.longfloat))
-        assert test_stmt_list[0]['bs'] == 0.987654321
+        assert isinstance(stmt_list[0]['belief'], (float, np.longfloat))
+        assert isinstance(test_stmt_list[0]['belief'], (float, np.longfloat))
+        assert test_stmt_list[0]['belief'] == 0.987654321
 
     def test_multi_dir_edge_structure(self):
         # Get an edge from test DB
@@ -176,9 +180,9 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(edge_dict, dict)
         assert isinstance(edge_dict_test, dict)
 
-        assert isinstance(edge_dict['bs'], (np.longfloat, float))
-        assert isinstance(edge_dict_test['bs'], (np.longfloat, float))
-        assert edge_dict_test['bs'] == 0.987654321
+        assert isinstance(edge_dict['belief'], (np.longfloat, float))
+        assert isinstance(edge_dict_test['belief'], (np.longfloat, float))
+        assert edge_dict_test['belief'] == 0.987654321
 
         assert isinstance(edge_dict['weight'], (np.longfloat, float))
         assert isinstance(edge_dict_test['weight'], (np.longfloat, float))
@@ -192,11 +196,11 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(edge_dict['evidence_count'], int)
         assert edge_dict_test['evidence_count'] == 1
 
-        assert isinstance(edge_dict['evidence'], dict)
-        assert isinstance(edge_dict_test['evidence'], dict)
-        assert len(edge_dict_test['evidence']) == 1
-        assert 'tester' in edge_dict_test['evidence']
-        assert edge_dict_test['evidence']['tester'] == 1
+        assert isinstance(edge_dict['source_counts'], dict)
+        assert isinstance(edge_dict_test['source_counts'], dict)
+        assert len(edge_dict_test['source_counts']) == 1
+        assert test_source in edge_dict_test['source_counts']
+        assert edge_dict_test['source_counts'][test_source] == 1
 
         assert isinstance(edge_dict['curated'], bool)
         assert edge_dict_test['curated'] is True
