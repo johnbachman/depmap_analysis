@@ -503,12 +503,7 @@ class IndraNetwork:
                 max_belief1 = max([st['belief'] for st in paths1_stmts])
                 max_belief2 = max([st['belief'] for st in paths2_stmts])
                 ordered_commons.append({
-                    ct: [sorted(paths1_stmts,
-                                key=lambda k: k['belief'],
-                                reverse=True),
-                         sorted(paths2_stmts,
-                                key=lambda k: k['belief'],
-                                reverse=True)],
+                    ct: [paths1, paths2],
                     'lowest_highest_belief': min(max_belief1, max_belief2)
                 })
                 added_targets += 1
