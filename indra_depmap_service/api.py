@@ -77,12 +77,12 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
                    'strat_ev_dict': strat_ev_dict,
                    'include_entity_hierarchies': include_entity_hierarchies,
                    'verbosity': verbosity}
-        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(**options, multi=False)
+        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(multi=False, **options)
         dump_it_to_pickle(dir_graph_path, indra_dir_graph)
         INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
         if multi_digraph_path:
-            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(**options,
-                                                               multi=True)
+            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(multi=True,
+                                                               **options)
             dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
             INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
     else:
