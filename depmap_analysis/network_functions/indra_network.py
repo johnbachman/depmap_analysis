@@ -234,6 +234,10 @@ class IndraNetwork:
     @staticmethod
     def sanity_check(**options):
         """Checks for some possible gotchas in query"""
+        # Check for test
+        if options.get('test', False):
+            logger.info('Query handling test passed')
+            return False
         # Check non-resolving query
         sns, sid = nf.ns_id_from_name(options['source'])
         tns, tid = nf.ns_id_from_name(options['target'])
