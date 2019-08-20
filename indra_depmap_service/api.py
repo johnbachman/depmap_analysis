@@ -125,11 +125,11 @@ def process_query():
     logger.info('------------------------------------')
 
     try:
-        if 'test' in request.json and request.json.get('test', False):
-            return Response(json.dumps({'paths_by_node_count': {},
-                                        'common_targets': [],
-                                        'common_parents': [],
-                                        'timeout': False}),
+        # Test api by POSTing {'test': 'api'} to '/query/submit'
+        if 'test' in request.json and request.json.get('test', False) and \
+                request.json['test'] == 'api':
+            logger.info('api test successful')
+            return Response(json.dumps({'result': 'api test passed'}),
                             mimetype='application/json')
         result = indra_network.handle_query(**request.json.copy())
         logger.info('Query resolved at %s' %
