@@ -115,6 +115,17 @@ class TestNetwork(unittest.TestCase):
         assert stmt_dict['curated'] is True
         assert stmt_dict['belief'] == test_belief
 
+    def test_query_handling(self):
+        result = self.indra_network.handle_query(test=True)
+        assert {'paths_by_node_count', 'common_targets', 'common_parents',
+                'timeout'} == set(result.keys())
+        assert isinstance(result['paths_by_node_count'], dict)
+        assert not result['paths_by_node_count'].get('forward', False)
+        assert not result['paths_by_node_count'].get('backward', False)
+        assert isinstance(result['common_targets'], list)
+        assert isinstance(result['common_parents'], dict)
+        assert result['timeout'] is False
+
     def test_dir_edge_structure(self):
         # Get an edge from test DB
         e = None
