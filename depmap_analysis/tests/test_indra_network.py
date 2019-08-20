@@ -1,3 +1,4 @@
+import logging
 import unittest
 import numpy as np
 from random import random as rnd
@@ -10,6 +11,8 @@ from indra_db.util.dump_sif import load_db_content, make_ev_strata, \
 from depmap_analysis.network_functions.net_functions import \
     sif_dump_df_to_nx_digraph
 from depmap_analysis.network_functions.indra_network import IndraNetwork
+
+logger = logging.getLogger('IndraNetworkSearch test')
 
 # Get db
 db = tu.get_db_with_views(1000)
@@ -35,10 +38,11 @@ test_edge = ('GENE_A', 'GENE_B')
 test_medge = (*test_edge, 0)
 test_node = test_edge[0]
 test_hash = 1234567890
+test_type = 'TestStatement'
 test_row = {
     'agA_ns': 'TEST', 'agA_id': '1234', 'agA_name': test_edge[0],
     'agB_ns': 'TEST', 'agB_id': '2345', 'agB_name': test_edge[1],
-    'stmt_type': 'TestStatement', 'evidence_count': 1, 'stmt_hash': test_hash
+    'stmt_type': test_type, 'evidence_count': 1, 'stmt_hash': test_hash
 }
 test_source = 'pc11'
 test_evidence = {test_source: 1}
@@ -60,6 +64,7 @@ class TestNetwork(unittest.TestCase):
                 df=self.df, belief_dict=bsd, strat_ev_dict=sed, multi=True,
                 include_entity_hierarchies=True)
         )
+        self.indra_network.verbose = 2
 
     def test_network_search(self):
         query = {
@@ -80,6 +85,7 @@ class TestNetwork(unittest.TestCase):
         }
 
         result = self.indra_network.handle_query(**query)
+        logger.info('Got result: %s' % result)
         assert result['timeout'] is False
         assert isinstance(result['paths_by_node_count'], (dict, defaultdict))
         assert 2 in result['paths_by_node_count']['forward']
@@ -93,9 +99,10 @@ class TestNetwork(unittest.TestCase):
         assert isinstance(path_dict['sort_key'], str)
         stmts = path_dict['stmts']
         assert isinstance(stmts, list)
-        assert isinstance(stmts[0], list)
-        stmt_dict = stmts[0][0]
-        assert stmt_dict['subj'], stmt_dict['obj'] == test_edge
+        assert isinstance(stmts[0][test_type], list)
+        assert isinstance(stmts[0][test_type][0], dict)
+        assert stmts[0]['subj'], stmts[0]['obj'] == test_edge
+        stmt_dict = stmts[0][test_type][0]
         assert isinstance(stmt_dict['weight'], (np.longfloat, float))
         assert stmt_dict['stmt_type'] == test_row['stmt_type']
         assert stmt_dict['stmt_hash'] == str(test_row['stmt_hash'])
