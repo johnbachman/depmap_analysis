@@ -729,6 +729,8 @@ class IndraNetwork:
                 stmt_edge = None
             return stmt_edge
         else:
+            if not self.mdg_edges:
+                raise nx.NetworkXException('MultiDiGraph not loaded')
             return self.mdg_edges.get((s, o, index))
 
     def _get_hash_path(self, path, simple_graph=True, **options):
