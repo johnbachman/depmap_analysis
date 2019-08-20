@@ -4,7 +4,7 @@ import unittest
 from .api import app
 
 
-logger = logging.getLogger('api-test-logger')
+logger = logging.getLogger('api test')
 
 
 class IndraNetworkServiceTest(unittest.TestCase):
