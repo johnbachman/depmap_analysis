@@ -7,7 +7,7 @@ from datetime import datetime
 from time import time, gmtime, strftime
 
 from jinja2 import Template
-from flask import Flask, request, abort, Response
+from flask import Flask, request, abort, Response, url_for
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
 
@@ -21,6 +21,7 @@ logger = logging.getLogger('INDRA GDE API')
 
 HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
+STATIC = path.join(HERE, 'static')
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
 INDRA_MDG_CACHE = path.join(CACHE,
@@ -106,7 +107,7 @@ else:
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    return QUERY.render()
+    return QUERY.render(js_url=url_for('static', filename='netSearch.js'))
 
 
 @app.route('/query/submit', methods=['POST'])
