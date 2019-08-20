@@ -24,10 +24,13 @@ CACHE = path.join(HERE, '_cache')
 STATIC = path.join(HERE, 'static')
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
-INDRA_MDG_CACHE = path.join(CACHE,
-                            'nx_bs_fam_multi_digraph_db_refresh_20190702.pkl')
+INDRA_MDG_CACHE = path.join(
+    CACHE, 'indranet_bs_fam_multi_digraph_db_refresh_20190702.pkl'
+)
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
-INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_refresh_20190702.pkl')
+INDRA_DG_CACHE = path.join(
+    CACHE, 'indranet_bs_fam_dir_graph_db_refresh_20190702.pkl'
+)
 
 GRND_URI = None
 try:
