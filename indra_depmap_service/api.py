@@ -7,7 +7,7 @@ from datetime import datetime
 from time import time, gmtime, strftime
 
 from jinja2 import Template
-from flask import Flask, request, abort, Response
+from flask import Flask, request, abort, Response, url_for
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
 
@@ -21,12 +21,16 @@ logger = logging.getLogger('INDRA GDE API')
 
 HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
+STATIC = path.join(HERE, 'static')
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
-INDRA_MDG_CACHE = path.join(CACHE,
-                            'nx_bs_fam_multi_digraph_db_refresh_20190702.pkl')
+INDRA_MDG_CACHE = path.join(
+    CACHE, 'indranet_bs_fam_multi_digraph_db_refresh_20190702.pkl'
+)
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
-INDRA_DG_CACHE = path.join(CACHE, 'nx_bs_fam_dir_graph_db_refresh_20190702.pkl')
+INDRA_DG_CACHE = path.join(
+    CACHE, 'indranet_bs_fam_dir_graph_db_refresh_20190702.pkl'
+)
 
 GRND_URI = None
 try:
@@ -73,12 +77,12 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
                    'strat_ev_dict': strat_ev_dict,
                    'include_entity_hierarchies': include_entity_hierarchies,
                    'verbosity': verbosity}
-        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(**options, multi=False)
+        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(multi=False, **options)
         dump_it_to_pickle(dir_graph_path, indra_dir_graph)
         INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
         if multi_digraph_path:
-            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(**options,
-                                                               multi=True)
+            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(multi=True,
+                                                               **options)
             dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
             INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
     else:
@@ -106,7 +110,7 @@ else:
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    return QUERY.render()
+    return QUERY.render(js_url=url_for('static', filename='netSearch.js'))
 
 
 @app.route('/query/submit', methods=['POST'])
@@ -121,11 +125,11 @@ def process_query():
     logger.info('------------------------------------')
 
     try:
-        if 'test' in request.json and request.json.get('test', False):
-            return Response(json.dumps({'paths_by_node_count': {},
-                                        'common_targets': [],
-                                        'common_parents': [],
-                                        'timeout': False}),
+        # Test api by POSTing {'test': 'api'} to '/query/submit'
+        if 'test' in request.json and request.json.get('test', False) and \
+                request.json['test'] == 'api':
+            logger.info('api test successful')
+            return Response(json.dumps({'result': 'api test passed'}),
                             mimetype='application/json')
         result = indra_network.handle_query(**request.json.copy())
         logger.info('Query resolved at %s' %

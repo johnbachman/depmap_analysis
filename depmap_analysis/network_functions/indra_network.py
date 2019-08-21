@@ -234,6 +234,10 @@ class IndraNetwork:
     @staticmethod
     def sanity_check(**options):
         """Checks for some possible gotchas in query"""
+        # Check for test
+        if options.get('test', False):
+            logger.info('Query handling test passed')
+            return False
         # Check non-resolving query
         sns, sid = nf.ns_id_from_name(options['source'])
         tns, tid = nf.ns_id_from_name(options['target'])
@@ -492,15 +496,18 @@ class IndraNetwork:
             paths1 = self._get_hash_path(path=[source, ct], **options)
             paths2 = self._get_hash_path(path=[target, ct], **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
-                max_belief1 = max([st['belief'] for st in paths1[0]])
-                max_belief2 = max([st['belief'] for st in paths2[0]])
+                paths1_stmts = []
+                for k, v in paths1[0].items():
+                    if k not in {'subj', 'obj'}:
+                        paths1_stmts.extend(v)
+                paths2_stmts = []
+                for k, v in paths2[0].items():
+                    if k not in {'subj', 'obj'}:
+                        paths2_stmts.extend(v)
+                max_belief1 = max([st['belief'] for st in paths1_stmts])
+                max_belief2 = max([st['belief'] for st in paths2_stmts])
                 ordered_commons.append({
-                    ct: [sorted(paths1[0],
-                                key=lambda k: k['belief'],
-                                reverse=True),
-                         sorted(paths2[0],
-                                key=lambda k: k['belief'],
-                                reverse=True)],
+                    ct: [paths1, paths2],
                     'lowest_highest_belief': min(max_belief1, max_belief2)
                 })
                 added_targets += 1
@@ -722,6 +729,8 @@ class IndraNetwork:
                 stmt_edge = None
             return stmt_edge
         else:
+            if not self.mdg_edges:
+                raise nx.NetworkXException('MultiDiGraph not loaded')
             return self.mdg_edges.get((s, o, index))
 
     def _get_hash_path(self, path, simple_graph=True, **options):
@@ -745,7 +754,7 @@ class IndraNetwork:
                 return []
 
             # Initialize edges list, statement index
-            edges = []
+            edges = {}
             e = 0
 
             # Get first edge statement
@@ -760,9 +769,12 @@ class IndraNetwork:
                 if self._pass_stmt(edge_stmt, **options):
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
-                    edges.append({**edge_stmt,
-                                  'subj': subj,
-                                  'obj': obj})
+                    try:
+                        edges[edge_stmt['stmt_type']].append(edge_stmt)
+                    except KeyError:
+                        edges['subj'] = subj
+                        edges['obj'] = obj
+                        edges[edge_stmt['stmt_type']] = [edge_stmt]
                     if self.verbose > 3:
                         logger.info('edge stmt passed filter, appending to '
                                     'edge list.')
