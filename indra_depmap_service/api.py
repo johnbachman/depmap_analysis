@@ -7,7 +7,7 @@ from datetime import datetime
 from time import time, gmtime, strftime
 
 from jinja2 import Template
-from flask import Flask, request, abort, Response, url_for
+from flask import Flask, request, abort, Response, render_template
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
 
@@ -16,8 +16,9 @@ from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 app = Flask(__name__)
+app.config['DEBUG'] = True
 
-logger = logging.getLogger('INDRA GDE API')
+logger = logging.getLogger('INDRA Network Search API')
 
 HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
@@ -54,9 +55,6 @@ def _load_template(fname):
         template_str = f.read()
         template = Template(template_str)
     return template
-
-
-QUERY = _load_template('query.html')
 
 
 def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
@@ -110,7 +108,7 @@ else:
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    return QUERY.render(js_url=url_for('static', filename='netSearch.js'))
+    return render_template('query_template.html')
 
 
 @app.route('/query/submit', methods=['POST'])
