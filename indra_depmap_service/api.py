@@ -32,6 +32,7 @@ TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(
     CACHE, 'indranet_bs_fam_dir_graph_db_refresh_20190702.pkl'
 )
+DEFAULT_POST_URL = 'http://localhost:5000/query/submit'
 
 GRND_URI = None
 try:
@@ -108,7 +109,7 @@ else:
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    return render_template('query_template.html')
+    return render_template('query_template.html', post_url=DEFAULT_POST_URL)
 
 
 @app.route('/query/submit', methods=['POST'])
