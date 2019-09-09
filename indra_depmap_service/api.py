@@ -7,7 +7,7 @@ from datetime import datetime
 from time import time, gmtime, strftime
 
 from jinja2 import Template
-from flask import Flask, request, abort, Response, render_template
+from flask import Flask, request, abort, Response, render_template, url_for
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
 
@@ -32,7 +32,7 @@ TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(
     CACHE, 'indranet_bs_fam_dir_graph_db_refresh_20190702.pkl'
 )
-DEFAULT_POST_URL = 'http://localhost:5000/query/submit'
+LOCALHOST_POST_URL = 'http://localhost:5000/query/submit'
 
 GRND_URI = None
 try:
@@ -109,7 +109,7 @@ else:
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    return render_template('query_template.html', post_url=DEFAULT_POST_URL)
+    return render_template('query_template.html')
 
 
 @app.route('/query/submit', methods=['POST'])

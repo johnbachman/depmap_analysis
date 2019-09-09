@@ -1,3 +1,4 @@
+const SUBMIT_URL = './query/submit';
 const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
 const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=html&';
 const MAX_K_PATHS = 50;
