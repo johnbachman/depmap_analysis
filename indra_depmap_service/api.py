@@ -182,7 +182,7 @@ if __name__ == '__main__':
         INDRA_DG_CACHE = TEST_DG_CACHE
 
     indra_network = \
-        IndraNetwork(*load_indra_graph(INDRA_DG_CACHE, INDRA_MDG_CACHE))
+        IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
     if args.test:
         indra_network.small = True
         indra_network.verbose = args.verbose if args.verbose else 1
