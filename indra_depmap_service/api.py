@@ -177,15 +177,25 @@ if __name__ == '__main__':
 
     if args.cache:
         logger.info('Loading provided network files')
-        INDRA_DG_CACHE = args.cache[0]
-        INDRA_MDG_CACHE = args.cache[1] if len(args.cache) > 1 else None
+        dg_file = args.cache[0]
+        mdg_file = args.cache[1] if len(args.cache) > 1 else None
+        try:
+            indra_network = \
+                IndraNetwork(*load_indra_graph(dg_file, mdg_file))
+        except Exception as e:
+            logger.warning('Could not load the provided files. Reverting to '
+                           'default network...')
+
     elif args.test:
         logger.info('Running test network')
-        INDRA_DG_CACHE = TEST_DG_CACHE
+        dg_file = TEST_DG_CACHE
+        try:
+            indra_network = \
+                IndraNetwork(*load_indra_graph(dg_file))
+        except Exception as e:
+            logger.warning('Could not load the provided files. Reverting to '
+                           'default network...')
 
-    if len(indra_network.nodes) == 0:
-        indra_network = \
-            IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
     if args.test:
         indra_network.small = True
         indra_network.verbose = args.verbose if args.verbose else 1
