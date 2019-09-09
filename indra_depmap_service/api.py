@@ -85,9 +85,11 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
             dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
             INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
     else:
-        logger.info('Loading indra networks %s %s' %
-                    (dir_graph_path, 'and ' + multi_digraph_path if
-                    multi_digraph_path else ''))
+        logger.info('Loading indra network%s %s %s' %
+                    ('s' if multi_digraph_path else '',
+                     dir_graph_path,
+                     'and ' + multi_digraph_path if multi_digraph_path else
+                     ''))
         indra_dir_graph = pickle_open(dir_graph_path)
         if multi_digraph_path:
             indra_multi_digraph = pickle_open(multi_digraph_path)
@@ -96,7 +98,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
 
 
 if path.isfile(INDRA_DG_CACHE):
-    indra_network = IndraNetwork()
+    indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
 else:
     # Here should dump new cache instead, but raise error for now
 
@@ -181,8 +183,9 @@ if __name__ == '__main__':
         logger.info('Running test network')
         INDRA_DG_CACHE = TEST_DG_CACHE
 
-    indra_network = \
-        IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
+    if len(indra_network.nodes) == 0:
+        indra_network = \
+            IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
     if args.test:
         indra_network.small = True
         indra_network.verbose = args.verbose if args.verbose else 1
