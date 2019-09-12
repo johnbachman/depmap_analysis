@@ -1,9 +1,13 @@
 import json
+import boto3
+import pickle
 import logging
 import argparse
-from os import path
 import networkx as nx
+from os import path, makedirs
 from datetime import datetime
+from botocore import UNSIGNED
+from botocore.client import Config
 from time import time, gmtime, strftime
 
 from jinja2 import Template
@@ -23,16 +27,14 @@ logger = logging.getLogger('INDRA Network Search API')
 HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 STATIC = path.join(HERE, 'static')
+S3_BUCKET = 'depmap-analysis'
+INDRA_MDG = 'indranet_bs_fam_multi_digraph_db_refresh_20190702.pkl'
+INDRA_DG = 'indranet_bs_fam_dir_graph_db_refresh_20190702.pkl'
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
-INDRA_MDG_CACHE = path.join(
-    CACHE, 'indranet_bs_fam_multi_digraph_db_refresh_20190702.pkl'
-)
+INDRA_MDG_CACHE = path.join(CACHE, INDRA_MDG)
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
-INDRA_DG_CACHE = path.join(
-    CACHE, 'indranet_bs_fam_dir_graph_db_refresh_20190702.pkl'
-)
-LOCALHOST_POST_URL = 'http://localhost:5000/query/submit'
+INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
 
 GRND_URI = None
 try:
@@ -47,6 +49,14 @@ TIMEOUT = 30  # Timeout in seconds
 
 def _todays_date():
     return datetime.now().strftime('%Y%m%d')
+
+
+def _get_s3_client(unsigned=True):
+    if unsigned:
+        return boto3.client('s3',
+                            config=Config(signature_version=UNSIGNED))
+    else:
+        return boto3.client('s3')
 
 
 # Create a template object from the template file, load once
@@ -100,11 +110,24 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
 if path.isfile(INDRA_DG_CACHE):
     indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
 else:
-    # Here should dump new cache instead, but raise error for now
-
-    raise FileExistsError(
-        'Could not find one or both of %s and %s' %
-        (INDRA_DG_CACHE, INDRA_MDG_CACHE))
+    # Try to find file on s3
+    try:
+        logger.info('%s not found locally, trying to get file from s3...' %
+                    INDRA_DG_CACHE)
+        s3 = _get_s3_client(unsigned=True)
+        dg_key = 'indra_db_files/' + INDRA_DG
+        dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
+        dg_net = pickle.loads(dg_obj['Body'].read())
+        logger.info('Caching network to %s' % CACHE)
+        try:
+            makedirs(CACHE, exist_ok=True)
+            dump_it_to_pickle(path.join(CACHE, INDRA_DG) + '.pkl', dg_net)
+        except Exception as e:
+            logger.warning('Could not dump file to pickle')
+        indra_network = IndraNetwork(indra_dir_graph=dg_net)
+    except Exception as e:
+        logger.warning('Could not find %s locally or on s3' % INDRA_DG)
+        logger.exception(e)
 
 
 @app.route('/')
