@@ -121,7 +121,7 @@ else:
         logger.info('Caching network to %s' % CACHE)
         try:
             makedirs(CACHE, exist_ok=True)
-            dump_it_to_pickle(path.join(CACHE, INDRA_DG) + '.pkl', dg_net)
+            dump_it_to_pickle(path.join(CACHE, INDRA_DG), dg_net)
         except Exception as e:
             logger.warning('Could not dump file to pickle')
         indra_network = IndraNetwork(indra_dir_graph=dg_net)
