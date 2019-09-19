@@ -28,8 +28,8 @@ HERE = path.dirname(path.abspath(__file__))
 CACHE = path.join(HERE, '_cache')
 STATIC = path.join(HERE, 'static')
 S3_BUCKET = 'depmap-analysis'
-INDRA_MDG = 'indranet_bs_fam_multi_digraph_db_refresh_20190702.pkl'
-INDRA_DG = 'indranet_bs_fam_dir_graph_db_refresh_20190702.pkl'
+INDRA_MDG = 'indranet_multi_digraph_20190917.pkl'
+INDRA_DG = 'indranet_dir_graph_20190917.pkl'
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
 INDRA_MDG_CACHE = path.join(CACHE, INDRA_MDG)
