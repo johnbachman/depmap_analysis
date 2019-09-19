@@ -97,9 +97,9 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
     else:
         logger.info('Loading indra network%s %s %s' %
                     ('s' if multi_digraph_path else '',
-                     dir_graph_path,
-                     'and ' + multi_digraph_path if multi_digraph_path else
-                     ''))
+                     dir_graph_path.split()[-1],
+                     'and ' + multi_digraph_path.split()[-1] if
+                     multi_digraph_path else ''))
         indra_dir_graph = pickle_open(dir_graph_path)
         if multi_digraph_path:
             indra_multi_digraph = pickle_open(multi_digraph_path)
@@ -225,4 +225,5 @@ if __name__ == '__main__':
     if args.verbose:
         logger.info('Verbose level %d' % args.verbose)
         indra_network.verbose = args.verbose
+    logger.info('Running app from "if __name__ == \'__main__\'"')
     app.run(host=args.host, port=args.port)
