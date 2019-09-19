@@ -196,7 +196,9 @@ class IndraNetwork:
             ksp_forward = self.find_shortest_paths(**options)
             if options['two_way']:
                 ksp_backward = self.find_shortest_paths(**boptions)
-        if not ksp_forward and not ksp_backward:
+        ct = self.find_common_targets(**options)
+        cp = self.get_common_parents(**options)
+        if not ksp_forward and not ksp_backward and not ct and not cp:
             ckwargs = options.copy()
             bckwargs = boptions.copy()
             if kwargs['fplx_expand']:
@@ -211,6 +213,8 @@ class IndraNetwork:
                     logger.info('Parents search result: %s' % repr(ksp_forward))
 
             if not ksp_forward and not ksp_backward and GRND_URI:
+                logger.info('No paths found, trying to ground source and '
+                            'target')
                 ksp_forward = self.grounding_fallback(**ckwargs)
                 if options['two_way']:
                     ksp_backward = self.grounding_fallback(**bckwargs)
@@ -223,8 +227,6 @@ class IndraNetwork:
             if ksp_backward:
                 # Sort the results in ksp_forward if non-weighted search
                 ksp_backward = self._sort_stmts(ksp_backward)
-        ct = self.find_common_targets(**options)
-        cp = self.get_common_parents(**options)
         return {'paths_by_node_count': {'forward': ksp_forward,
                                         'backward': ksp_backward},
                 'common_targets': ct,
