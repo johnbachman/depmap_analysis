@@ -152,7 +152,8 @@ function fillResultsTable(data, source, target){
     var tableArea = document.getElementById('table-area');
 
     // Fill common parents table
-    if (data.result.common_parents.common_parents.length > 0) {
+    if (data.result.common_parents.common_parents &&
+        data.result.common_parents.common_parents.length > 0) {
       let cardHtml = generateCommonParents();
       tableArea.appendChild(cardHtml);
       document.getElementById('subject-placeholder-cp').textContent =
