@@ -3,6 +3,13 @@ const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=
 const MAX_K_PATHS = 50;
 let pathStmtHashes = [];
 
+const stmtOptions = ['Acetylation', 'Activation', 'ActiveForm', 'Autophosphorylation',
+  'Complex', 'Conversion', 'Deacetylation', 'DecreaseAmount', 'Deglycosylation',
+  'Dehydroxylation', 'Demethylation', 'Depalmitoylation', 'Dephosphorylation',
+  'Deribosylation', 'Desumoylation', 'Deubiquitination', 'Farnesylation',
+  'Gap', 'Gef', 'Geranylgeranylation', 'GtpActivation', 'Hydroxylation', 'IncreaseAmount',
+  'Inhibition', 'Methylation', 'Myristoylation', 'Palmitoylation', 'Phosphorylation',
+  'Ribosylation', 'Sumoylation', 'Translocation', 'Ubiquitination'];
 let stmtItems = [];
 for (s of stmtOptions) {
   stmtItems.push({
@@ -13,6 +20,7 @@ for (s of stmtOptions) {
   })
 }
 
+const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
 let nodeItems = [];
 for (let n of nodeOptions) {
   let sel = false;
@@ -42,7 +50,7 @@ function submitQuery() {
                                   document.getElementById('user_timeout').min,
                                   document.getElementById('user_timeout').max,
                                   false);
-  var nodeFilterList = [];
+  let nodeFilterList = [];
   for (c of document.getElementById('node-filter').children) {
     nodeFilterList.push(c.value)
   }
@@ -50,31 +58,31 @@ function submitQuery() {
     alert('Must select at least one node namespace to include in path');
     return;
   }
-  var stmtFilterList = [];
+  let stmtFilterList = [];
   for (c of document.getElementById('stmt-filter').children) {
     stmtFilterList.push(c.value)
   }
   if (!document.getElementById('fplx-edges').checked) {
     stmtFilterList.push('fplx')
   }
-  var nodeBlackList = [];
+  let nodeBlackList = [];
   for (nn of document.getElementById('node-blacklist').value.split(',')) {
     // Strip leading and trailing whitespace and push to array
     if (nn.replace(/\s/g, '')) nodeBlackList.push(nn.replace(/\s/g, ''));
-  };
-  var edgeHashBlacklist = [];
+  }
+  let edgeHashBlacklist = [];
   for (eh of document.getElementById('edge-hash-blacklist').value.split(',')) {
     // Strip whitespace
     if (eh.replace(/\s/g, '')) edgeHashBlacklist.push(eh.replace(/\s/g, ''))
-  };
+  }
   let cullBestNode = parseInt(document.getElementById('cull-best-node').value) || 0;
   if (cullBestNode && cullBestNode < 1) {
     alert('Culling best node every # paths must be positive integer');
     return;
   }
-  var statusBox = document.getElementById('query-status');
-  var source = document.getElementById('source').value;
-  var target = document.getElementById('target').value;
+  let statusBox = document.getElementById('query-status');
+  let source = document.getElementById('source').value;
+  let target = document.getElementById('target').value;
   let queryDict = {
     source: source,
     target: target,
@@ -186,7 +194,7 @@ function fillResultsTable(data, source, target){
     let pathsKeyedArrayBackward = data.result.paths_by_node_count.backward;
     let simpleCommonTargets = data.result.common_targets;
     let simpleSharedRegulators = data.result.shared_regulators;
-    var tableArea = document.getElementById('table-area');
+    let tableArea = document.getElementById('table-area');
     pathStmtHashes = data.result.paths_by_node_count.path_hashes;
 
     // Fill common parents table
@@ -300,7 +308,7 @@ function fillResultsTable(data, source, target){
       }
     }
     if (pathsKeyedArrayBackward && Object.keys(pathsKeyedArrayBackward).length > 0) {
-      var tableArea = document.getElementById('table-area');
+      let tableArea = document.getElementById('table-area');
       for (len in pathsKeyedArrayBackward) {
         let cardHtml = generateCardTable(len-1, 'b');
         tableArea.appendChild(cardHtml);
@@ -451,7 +459,7 @@ function generateTargetLinkout(pathPair) {
 }
 
 function generateCardTable(len, dir) {
-  var intermArrows = '';
+  let intermArrows = '';
   if (len > 1) {
     for (let i = 1; i < len; i++) {
       intermArrows += 'X' + i + '&rarr;'
