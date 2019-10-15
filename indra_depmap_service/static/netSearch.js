@@ -142,9 +142,31 @@ function submitQuery() {
   // })
 }
 
+function isEmptyResult(resultJson, allowTimeOut=false) {
+  /* Check if the resulting json from the query is empty
+  const EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
+                         'common_targets': [],
+                         'common_parents': {},
+                         'timeout': false};
+  */
+  if (allowTimeOut) {
+  return $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
+    $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
+    $.isEmptyObject(resultJson.common_targets) &&
+    $.isEmptyObject(resultJson.common_parents)
+  } else {
+  return $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
+    $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
+    $.isEmptyObject(resultJson.common_targets) &&
+    $.isEmptyObject(resultJson.common_parents) &&
+    !(resultJson.timeout)
+  }
+}
+
 function fillResultsTable(data, source, target){
   console.log(data);
   const statusBox = document.getElementById('query-status');
+  if (isEmptyResult(data.result, false) && !source && !target) return false;
   let downloadURL = data.download_link;
   let downloadLink = '';
   if (downloadURL) {
