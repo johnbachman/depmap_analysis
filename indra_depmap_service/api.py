@@ -1,7 +1,6 @@
 """INDRA Causal Network Search API"""
 import os
 import json
-import boto3
 import pickle
 import logging
 import argparse
@@ -12,16 +11,14 @@ from os import path, makedirs
 from time import time, gmtime, strftime
 
 from jinja2 import Template
-from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
+from indra_db.util.dump_sif import load_db_content, make_dataframe, \
+    NS_PRIORITY_LIST as NS_LIST
 from flask import Flask, request, abort, Response, render_template, jsonify,\
     session
 
 from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
-from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
-from depmap_analysis.network_functions.indra_network import IndraNetwork
 
-from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.indra_network import IndraNetwork,\
     EMPTY_RESULT
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
@@ -36,8 +33,6 @@ app.config['SECRET_KEY'] = os.environ['SESSION_KEY']
 
 logger = logging.getLogger('INDRA Network Search API')
 
-HERE = path.dirname(path.abspath(__file__))
-CACHE = path.join(HERE, '_cache')
 JSON_CACHE = path.join(HERE, '_json_res')
 STATIC = path.join(HERE, 'static')
 S3_BUCKET = 'depmap-analysis'
@@ -75,15 +70,6 @@ EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
                 'common_targets': [],
                 'common_parents': {},
                 'timeout': False}
-
-
-# Create a template object from the template file, load once
-def _load_template(fname):
-    template_path = path.join(HERE, fname)
-    with open(template_path, 'rt') as f:
-        template_str = f.read()
-        template = Template(template_str)
-    return template
 
 
 # Load network
