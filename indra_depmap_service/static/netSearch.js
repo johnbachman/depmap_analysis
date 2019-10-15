@@ -94,6 +94,7 @@ function submitQuery() {
     user_timeout: timeoutEntry,
     two_way: document.getElementById('two-ways').checked,
     shared_regulators: document.getElementById('shared-regulators').checked,
+    format: 'html'
   };
 
   // Hide on submit
