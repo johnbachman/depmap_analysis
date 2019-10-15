@@ -27,6 +27,13 @@
     const nodeOptions = {{ node_name_spaces|safe }};
   </script>
   <script src="{{ url_for('static', filename='netSearch.js') }}"></script>
+  <script>
+    $(document).ready(function() {
+      resetCounters();
+      clearAllTables();
+      fillResultsTable({{ search_results|safe }}, "{{ source }}", "{{ target }}")
+    });
+  </script>
   <style>
     h3 a.stmt_toggle {
       cursor: pointer;

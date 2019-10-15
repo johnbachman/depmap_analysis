@@ -35,6 +35,13 @@ SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
 REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
+EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
+                'common_targets': [],
+                'common_parents': {},
+                'timeout': False}
+MANDATORY = ['source', 'target', 'stmt_filter', 'node_filter',
+             'path_length', 'weighted', 'bsco', 'fplx_expand',
+             'k_shortest', 'curated_db_only', 'two_way']
 USER_OVERRIDE = False
 
 
@@ -65,6 +72,7 @@ class IndraNetwork:
         self.node_by_ns_id = indra_dir_graph.graph.get('node_by_ns_id', None)
         self.MAX_PATHS = MAX_PATHS
         self.TIMEOUT = TIMEOUT
+        self.MANDATORY = MANDATORY
         self.small = False
         self.verbose = 0
         self.query_recieve_time = 0.0
@@ -162,8 +170,8 @@ class IndraNetwork:
                     List of dicts keyed byshared regulator name, sorted on
                     highest lowest belief score
                 cp : dict
-                    Dict with result of common parents search together with the
-                    ns:id pairs used to resolve the query
+                    Dict with result of common parents search together with
+                    the ns:id pairs used to resolve the query
                 timeout : Bool
                     True if the query timed out
         """
@@ -174,19 +182,13 @@ class IndraNetwork:
                              gmtime(self.query_recieve_time)))
 
         if not self.sanity_check(**kwargs):
-            return {'paths_by_node_count': {'forward': {}, 'backward': {}},
-                    'common_targets': [],
-                    'common_parents': {},
-                    'timeout': False}
-
-        mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
-                     'path_length', 'weighted', 'bsco', 'fplx_expand',
-                     'k_shortest', 'curated_db_only', 'two_way', 'sign']
-        if not all([key in kwargs for key in mandatory]):
-            miss = [key in kwargs for key in mandatory].index(False)
+            # todo Add detailed test with info of netork stats like number
+            #  of nodes, edges, last updated, available network types
+            return EMPTY_RESULT
+        if not all([key in kwargs for key in self.MANDATORY]):
+            miss = [key in kwargs for key in self.MANDATORY].index(False)
             raise KeyError('Missing mandatory parameter "%s"' %
-                           mandatory[miss])
-
+                           self.MANDATORY[miss])
         options = translate_query(kwargs)
 
         k_shortest = kwargs.pop('k_shortest', None)

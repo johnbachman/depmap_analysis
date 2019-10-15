@@ -1,6 +1,7 @@
 """INDRA Causal Network Search API"""
 import os
 import json
+import boto3
 import pickle
 import logging
 import argparse
@@ -11,6 +12,7 @@ from os import path, makedirs
 from time import time, gmtime, strftime
 
 from jinja2 import Template
+from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from flask import Flask, request, abort, Response, render_template, jsonify,\
     session
 
@@ -18,6 +20,10 @@ from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
 from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
 from depmap_analysis.network_functions.indra_network import IndraNetwork
+
+from depmap_analysis.network_functions import net_functions as nf
+from depmap_analysis.network_functions.indra_network import IndraNetwork,\
+    EMPTY_RESULT
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
@@ -30,6 +36,10 @@ app.config['SECRET_KEY'] = os.environ['SESSION_KEY']
 
 logger = logging.getLogger('INDRA Network Search API')
 
+HERE = path.dirname(path.abspath(__file__))
+CACHE = path.join(HERE, '_cache')
+JSON_CACHE = path.join(HERE, '_json_res')
+STATIC = path.join(HERE, 'static')
 S3_BUCKET = 'depmap-analysis'
 STMT_HASH_CACHE = {}
 
@@ -154,16 +164,62 @@ if VERBOSITY > 0 and\
     indra_network.verbose = VERBOSITY
 
 
+def handle_query(**json_query):
+    """Handle POST queries to the indra network"""
+    result = indra_network.handle_query(**json_query.copy())
+    logger.info('Query resolved at %s' %
+                strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
+    if not result or not all(result.values()):
+        if API_DEBUG:
+            logger.info('API_DEBUG is set to "True" so no network is '
+                        'loaded, perhaps you meant to turn it off? '
+                        'Run "export API_DEBUG=0" in your terminal to do '
+                        'so and then restart the flask service')
+        else:
+            logger.info('Query returned with no path found')
+    res = {'result': result}
+    if indra_network.verbose > 5:
+        logger.info('Result: %s' % str(res))
+    return res
+
+
 @app.route('/')
 @app.route('/query')
 def get_query_page():
-    """Loads the query page"""
+    """Loads or responds to queries submitted on the query page"""
+    logger.info('Got query')
+    logger.info('Incoming Args -----------')
+    logger.info(repr(request.args))
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+
+    qh = session.get('query', '')
+    rf = os.path.join(JSON_CACHE, 'result_%s.json' % qh) if qh else False
+    qf = os.path.join(JSON_CACHE, 'query_%s.json' % qh) if qh else False
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
+
+    if all([qh, rf, qf, os.path.isfile(rf)]):
+        with open(rf) as fr:
+            search_results = json.load(fr)
+        with open(qf) as fq:
+            query = json.load(fq)
+            source = query['source']
+            target = query['target']
+    else:
+        search_results = {'result': EMPTY_RESULT}
+        source = ''
+        target = ''
+    node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
+                        'PUBCHEM']
     return render_template('query_template.html',
                            stmt_types=stmt_types,
-                           node_name_spaces=list(NS_LIST),
-                           has_signed_graph=has_signed_graph)
+                           node_name_spaces=list(node_name_spaces),
+                           has_signed_graph=has_signed_graph,
+                           search_results=json.dumps(search_results),
+                           source=source,
+                           target=target)
 
 
 @app.route('/query/submit', methods=['POST'])
@@ -185,33 +241,39 @@ def process_query():
             return Response(json.dumps({'result': 'api test passed'}),
                             mimetype='application/json')
         query_json = request.json.copy()
-        result = indra_network.handle_query(**query_json)
+        result = handle_query(**request.json)
         logger.info('Query resolved at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
-        qh = _get_query_hash(query_json)
-        if _is_empty_result(result):
-            if API_DEBUG:
-                logger.info('API_DEBUG is set to "True" so no network is '
-                            'loaded, perhaps you meant to turn it off? '
-                            'Run "export API_DEBUG=0" in your terminal to do '
-                            'so and then restart the flask service')
-            else:
-                logger.info('Query returned with no path found')
-            download_link = ''
-        else:
-            # Upload to public S3 and get the download link
-            json_fname = '%s_result.json' % qh
-            download_link = dump_query_result_to_s3(json_fname, result)
-
-        all_path_hashes = result['paths_by_node_count'].get('path_hashes', [])
-        session['query_hash'] = qh
-        STMT_HASH_CACHE[qh] = all_path_hashes
-        res = {'result': result,
-               'download_link': download_link,
-               'query_hash': qh}
         if indra_network.verbose > 5:
-            logger.info('Result: %s' % str(res))
-        return Response(json.dumps(res), mimetype='application/json')
+            logger.info('Result: %s' % str(result))
+        if request.json.get('format') and \
+                request.json['format'].lower() == 'html':
+            qh = _get_query_hash(query_json)
+            if _is_empty_result(result):
+                if API_DEBUG:
+                    logger.info('API_DEBUG is set to "True" so no network is '
+                                'loaded, perhaps you meant to turn it off? '
+                                'Run "export API_DEBUG=0" in your terminal to do '
+                                'so and then restart the flask service')
+                else:
+                    logger.info('Query returned with no path found')
+                download_link = ''
+            else:
+                # Upload to public S3 and get the download link
+                json_fname = '%s_result.json' % qh
+                download_link = dump_query_result_to_s3(json_fname, result)
+
+            all_path_hashes = result['paths_by_node_count'].get('path_hashes', [])
+            session['query_hash'] = qh
+            STMT_HASH_CACHE[qh] = all_path_hashes
+            res = {'result': result,
+                   'download_link': download_link,
+                   'query_hash': qh}
+            # Return response with redirect URL
+            return Response(json.dumps({'redirURL': '/query'}),
+                            mimetype='application/json')
+        else:
+            return Response(json.dumps(result), mimetype='application/json')
 
     except KeyError as e:
         # return 400 badly formatted
