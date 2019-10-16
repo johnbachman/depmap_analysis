@@ -151,22 +151,31 @@ if VERBOSITY > 0 and\
 
 
 def handle_query(**json_query):
-    """Handle POST queries to the indra network"""
+    """Handle queries to the indra network"""
     result = indra_network.handle_query(**json_query.copy())
     logger.info('Query resolved at %s' %
                 strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
-    if not result or not all(result.values()):
+    if _is_empty_result(result):
         if API_DEBUG:
             logger.info('API_DEBUG is set to "True" so no network is '
                         'loaded, perhaps you meant to turn it off? '
                         'Run "export API_DEBUG=0" in your terminal to do '
                         'so and then restart the flask service')
+        if result['timeout']:
+            logger.info('Query timed out with no path found')
         else:
             logger.info('Query returned with no path found')
     res = {'result': result}
     if indra_network.verbose > 5:
         logger.info('Result: %s' % str(res))
     return res
+
+
+def _is_empty_result(res):
+    for k, v in res.items():
+        if k is not 'timeout' and EMPTY_RESULT[k] != v:
+            return False
+    return True
 
 
 @app.route('/')
