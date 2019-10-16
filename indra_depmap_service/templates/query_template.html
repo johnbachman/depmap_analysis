@@ -29,6 +29,16 @@
   <script src="{{ url_for('static', filename='netSearch.js') }}"></script>
   <script>
     $(document).ready(function() {
+      let oldQuery = {{ old_query|safe }};
+      console.log(oldQuery);
+      if (!($.isEmptyObject(oldQuery))) {
+        let [oldStmtItems, oldNodeItems] = fillOldQuery(oldQuery);
+        const stmtFilter = new Choices('#stmt-filter', {choices: oldStmtItems});
+        const nodeFilter = new Choices('#node-filter', {choices: oldNodeItems});
+      } else {
+        const stmtFilter = new Choices('#stmt-filter', {choices: stmtItems});
+        const nodeFilter = new Choices('#node-filter', {choices: nodeItems});
+      }
       resetCounters();
       clearAllTables();
       fillResultsTable({{ search_results|safe }}, "{{ source }}", "{{ target }}")

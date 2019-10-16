@@ -32,10 +32,6 @@ for (let n of nodeOptions) {
     disabled: false
   })
 }
-$(document).ready(function() {
-  const stmtFilter = new Choices('#stmt-filter', {choices: stmtItems});
-  const nodeFilter = new Choices('#node-filter', {choices: nodeItems});
-});
 
 function submitQuery() {
   let beliefEntry = parseInRange(document.getElementById('belief-cutoff').value,
@@ -169,6 +165,63 @@ function isEmptyResult(resultJson, allowTimeOut=false) {
     $.isEmptyObject(resultJson.common_parents) &&
     !(resultJson.timeout)
   }
+}
+
+function fillOldQuery(oldQueryJson) {
+  // Input boxes: mandatory
+  document.getElementById('source').value = oldQueryJson.source;
+  document.getElementById('target').value = oldQueryJson.target;
+  // Input boxes: optional
+  if (!($.isEmptyObject(oldQueryJson.edge_hash_blacklist))) {
+    document.getElementById('edge-hash-blacklist').value = oldQueryJson.edge_hash_blacklist.join(', ')
+  }
+  if (!($.isEmptyObject(oldQueryJson.node_blacklist))) {
+    document.getElementById('node-blacklist').value = oldQueryJson.node_blacklist.join(', ')
+  }
+  if (oldQueryJson.path_length) document.getElementById('path-length').value = parseInt(oldQueryJson.path_length);
+  // if (oldQueryJson.sign) document.getElementById('sign-dd').value = oldQueryJson.sign;
+  if (oldQueryJson.bsco) document.getElementById('belief-cutoff').value = parseInRange(oldQueryJson.bsco, 0, 1, false);
+  if (oldQueryJson.k_shortest) document.getElementById('k-shortest').value = parseInt(oldQueryJson.k_shortest);
+  if (oldQueryJson.cull_best_node) {
+    document.getElementById('cull-best-node').value = parseInt(oldQueryJson.cull_best_node)
+  }
+  if (oldQueryJson.user_timeout) {
+    document.getElementById('user_timeout').value = parseInRange(oldQueryJson.user_timeout, 0, 999, false)
+  }
+  // Checkboxes
+  if (oldQueryJson.weighted) document.getElementById('weighted-search').checked = oldQueryJson.weighted;
+  // if (oldQueryJson.direct_only) document.getElementById('direct-only').checked = oldQueryJson.direct_only;
+  if (oldQueryJson.curated_db_only) document.getElementById('curated-db-only').checked = oldQueryJson.curated_db_only;
+  if (oldQueryJson.fplx_expand) document.getElementById('fplx-expand').checked = oldQueryJson.fplx_expand;
+  if (oldQueryJson.two_way) document.getElementById('two-ways').checked = oldQueryJson.two_way;
+  if (!($.isEmptyObject(oldQueryJson.stmt_filter))) {
+    document.getElementById('fplx-edges').checked = !oldQueryJson.stmt_filter.includes('fplx')
+  }
+
+  let stmtItems = [];
+  let selStmts = oldQueryJson.stmt_filter;
+  for (s of stmtOptions) {
+    let sel = selStmts.includes(s.toLowerCase());
+    stmtItems.push({
+      value: s.toLowerCase(),
+      label: s,
+      selected: sel,
+      disabled: false
+    })
+  }
+
+  let nodeItems = [];
+  let selNodes = oldQueryJson.node_filter;
+  for (let n of nodeOptions) {
+    let sel = selNodes.includes(n.toLowerCase());
+    nodeItems.push({
+      value: n.toLowerCase(),
+      label: n,
+      selected: sel,
+      disabled: false
+    })
+  }
+  return [stmtItems, nodeItems]
 }
 
 function fillResultsTable(data, source, target){
