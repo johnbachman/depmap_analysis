@@ -148,10 +148,13 @@ function submitQuery() {
 
 function isEmptyResult(resultJson, allowTimeOut=false) {
   /* Check if the resulting json from the query is empty
-  const EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
+  EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
                          'common_targets': [],
                          'common_parents': {},
                          'timeout': false};
+  With 'allowTimeOut' set to true, only the result itself is considered,
+  regardless of time out status. If 'allowTimeOut' is false, the empty result
+  has to be from a non-timed out query to be considered empty.
   */
   if (allowTimeOut) {
   return $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
