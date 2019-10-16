@@ -189,7 +189,7 @@ def get_query_page():
     logger.info(str(request.json))
     logger.info('------------------------------------')
 
-    qh = session.get('query', '')
+    qh = session.get('query')
     rf = os.path.join(JSON_CACHE, 'result_%s.json' % qh) if qh else False
     qf = os.path.join(JSON_CACHE, 'query_%s.json' % qh) if qh else False
     stmt_types = get_queryable_stmt_types()
