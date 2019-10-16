@@ -195,6 +195,7 @@ def get_query_page():
             target = query['target']
     else:
         search_results = {'result': EMPTY_RESULT}
+        query = {}
         source = ''
         target = ''
     node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
@@ -204,6 +205,7 @@ def get_query_page():
                            node_name_spaces=list(node_name_spaces),
                            has_signed_graph=has_signed_graph,
                            search_results=json.dumps(search_results),
+                           old_query=json.dumps(query),
                            source=source,
                            target=target)
 
