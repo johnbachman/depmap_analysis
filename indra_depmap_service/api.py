@@ -18,6 +18,7 @@ from flask import Flask, request, abort, Response, render_template, jsonify,\
 
 from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
+from indralab_web_templates.path_templates import path_temps
 
 from depmap_analysis.network_functions.indra_network import IndraNetwork,\
     EMPTY_RESULT
@@ -28,6 +29,7 @@ from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
     INDRA_SNG_CACHE, TEST_DG_CACHE, dump_query_result_to_s3
 
 app = Flask(__name__)
+app.register_blueprint(path_temps)
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = os.environ['SESSION_KEY']
 
