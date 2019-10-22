@@ -4,6 +4,9 @@ import json
 import pickle
 import logging
 import argparse
+import networkx as nx
+from fnvhash import fnv1a_32
+from os import path, makedirs, environ
 import requests
 from sys import argv
 from fnvhash import fnv1a_32
@@ -23,7 +26,8 @@ from indralab_web_templates.path_templates import path_temps
 
 from depmap_analysis.network_functions.indra_network import IndraNetwork,\
     EMPTY_RESULT
-from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
+from depmap_analysis.util.io_functions import pickle_open, \
+    dump_it_to_pickle, json_open, dump_it_to_json
 
 from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
     HERE, CACHE, INDRA_DG, INDRA_DG_CACHE, INDRA_SEG, INDRA_SEG_CACHE, \
@@ -31,6 +35,7 @@ from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
 
 app = Flask(__name__)
 app.register_blueprint(path_temps)
+app.config['SECRET_KEY'] = environ.get('NETWORK_SEARCH_SESSION_KEY', '')
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = os.environ['SESSION_KEY']
 
@@ -212,6 +217,14 @@ def get_query_page():
             query = json.load(fq)
             source = query['source']
             target = query['target']
+    qh = session.get('query_hash')
+    rf = path.join(JSON_CACHE, 'result_%s.json' % qh) if qh else False
+    qf = path.join(JSON_CACHE, 'query_%s.json' % qh) if qh else False
+    if all([qh, rf, qf, path.isfile(rf)]):
+        search_results = json_open(rf)
+        query = json_open(qf)
+        source = query['source']
+        target = query['target']
     else:
         search_results = {'result': EMPTY_RESULT}
         query = {}
@@ -255,7 +268,9 @@ def process_query():
             logger.info('Result: %s' % str(result))
         if request.json.get('format') and \
                 request.json['format'].lower() == 'html':
-            qh = _get_query_hash(query_json)
+            ignore_keys = ['format']
+            qc = {k: v for k, v in query_json.items() if k not in ignore_keys}
+            qh = _get_query_hash(qc)
             if _is_empty_result(result):
                 if API_DEBUG:
                     logger.info('API_DEBUG is set to "True" so no network is '
