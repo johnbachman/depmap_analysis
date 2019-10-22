@@ -8,6 +8,7 @@ import requests
 from sys import argv
 from fnvhash import fnv1a_32
 from os import path, makedirs
+from datetime import datetime
 from time import time, gmtime, strftime
 
 from jinja2 import Template
@@ -78,11 +79,21 @@ EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
 indra_network = IndraNetwork()
 
 
+def _todays_date():
+    return datetime.now().strftime('%Y%m%d')
+
+
 def _is_empty_result(res):
     for k, v in res.items():
         if k is not 'timeout' and EMPTY_RESULT[k] != v:
             return False
     return True
+
+
+def _get_query_resp_fstr(query_hash):
+    qf = path.join(JSON_CACHE, 'query_%s.json' % query_hash)
+    rf = path.join(JSON_CACHE, 'result_%s.json' % query_hash)
+    return qf, rf
 
 
 def _list_chunk_gen(lst, size=1000):
@@ -110,6 +121,10 @@ def sorted_json_string(json_thing):
 def _get_query_hash(query_json):
     """Create an FNV-1a 32-bit hash from the query json and model_id."""
     return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
+
+
+def _check_existence_and_date(fname):
+    pass
 
 
 if path.isfile(INDRA_DG_CACHE):
@@ -171,13 +186,6 @@ def handle_query(**json_query):
     if indra_network.verbose > 5:
         logger.info('Result: %s' % str(res))
     return res
-
-
-def _is_empty_result(res):
-    for k, v in res.items():
-        if k is not 'timeout' and EMPTY_RESULT[k] != v:
-            return False
-    return True
 
 
 @app.route('/')
