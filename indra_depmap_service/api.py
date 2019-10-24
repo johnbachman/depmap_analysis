@@ -161,7 +161,7 @@ def sorted_json_string(json_thing):
 
 
 def _get_query_hash(query_json):
-    """Create an FNV-1a 32-bit hash from the query json and model_id."""
+    """Create an FNV-1a 32-bit hash from the query json"""
     return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
 
 
