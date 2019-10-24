@@ -165,11 +165,36 @@ def _get_query_hash(query_json):
     return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
 
 
-def _check_existence_and_date(fname):
-    pass
+def _check_existence_and_date(fname, in_name=True):
+    """With in_name True, look for a datestring in the file name, otherwise
+    use the file creation date/last modification date.
+
+    This function should return True if the file exists and is (seemingly)
+    younger than the network that is currently in cache
+    """
+    if not path.isfile(fname):
+        return False
+    else:
+        if in_name:
+            try:
+                # Try YYYYmmdd
+                fdate = get_date_from_str(strip_out_date(fname, RE_YYYYMMDD),
+                                          DT_YmdHMS)
+            except ValueError:
+                # Try YYYY-mm-dd-HH-MM-SS
+                fdate = get_date_from_str(strip_out_date(fname, RE_YmdHMS_),
+                                          DT_YmdHMS)
+        else:
+            fdate = datetime.fromtimestamp(_get_earliest_date(fname))
+
+        # If fdate is younger than indranet, we're fine
+        return INDRANET_DATE < fdate
 
 
 if path.isfile(INDRA_DG_CACHE):
+    indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
+    INDRANET_DATE = get_date_from_str(strip_out_date(INDRA_DG_CACHE,
+                                                     RE_YYYYMMDD), DT_Ymd)
     if API_DEBUG:
         logger.info('Debugging API, no network will be loaded...')
     elif argv[0].split('/')[-1].lower() != 'api.py':
