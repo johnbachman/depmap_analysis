@@ -156,24 +156,11 @@ class IndraNetwork:
                      'k_shortest', 'curated_db_only', 'two_way']
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
-            raise KeyError('Missing mandatory parameter "%s"' % mandatory[miss])
-        options = {k: v for k, v in kwargs.items()  # Handled below
-                   if k not in ['sign', 'weighted']}
-        for k, v in kwargs.items():
-            if k == 'weighted':
-                logger.info('Doing %sweighted path search' % 'un' if not v
-                            else '')
-                options['weight'] = 'weight' if v else None
-            if k == 'sign':
-                options[k] = 1 if v == 'plus' \
-                    else (-1 if v == 'minus' else 0)
-            if k == 'edge_hash_blacklist' and options.get(k) and \
-                    isinstance(options[k][0], int):
-                options[k] = [str(i) for i in options[k]]
-            if k in ['node_filter', 'stmt_filter']:
-                options[k] = [s.lower() for s in options[k]]
-            if k == "cull_best_node":
-                options[k] = int(v) if v >= 1 else float('NaN')
+            raise KeyError('Missing mandatory parameter "%s"' %
+                           mandatory[miss])
+
+        options = translate_query(kwargs)
+
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
         user_timeout = kwargs.pop('user_timeout', None)
@@ -901,6 +888,31 @@ class IndraNetwork:
             return self.ehm.get_parents(uri=self.ehm.get_uri(ns, db_id))
         else:
             return set()
+
+
+def translate_query(query_json):
+    """Translate query json"""
+    options = {k: v for k, v in query_json.items()  # Handled below
+               if k not in ['sign', 'weighted']}
+    if 'sign_dict' not in options:
+        options['sign_dict'] = DEFAULT_SIGN_DICT
+    for k, v in query_json.items():
+        if k == 'weighted':
+            logger.info('Doing %sweighted path search' % 'un' if not v
+                        else '')
+            options['weight'] = 'weight' if v else None
+        if k == 'sign':
+            # Positive regulation: 0; Negative regulation: 1;
+            options[k] = 0 if v == 'plus' \
+                else (1 if v == 'minus' else None)
+        if k == 'edge_hash_blacklist' and options.get(k) and \
+                isinstance(options[k][0], int):
+            options[k] = [str(i) for i in options[k]]
+        if k in ['node_filter', 'stmt_filter']:
+            options[k] = [s.lower() for s in options[k]]
+        if k == "cull_best_node":
+            options[k] = int(v) if v >= 1 else float('NaN')
+    return options
 
 
 def edge_sign_to_node_sign(source, target, edge_sign):
