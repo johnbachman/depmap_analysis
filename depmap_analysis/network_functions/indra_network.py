@@ -7,6 +7,9 @@ from time import time, gmtime, strftime
 from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
+from indra.assemblers.indranet.net import default_sign_dict as \
+    DEFAULT_SIGN_DICT
+from indra.explanation.model_checker import SignedGraphModelChecker
 
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
@@ -24,6 +27,14 @@ MAX_PATHS = 50
 TIMEOUT = 30  # Timeout in seconds
 MIN_TIMEOUT = 2
 MAX_TIMEOUT = 120
+SIGN_TO_STANDARD = {0: '+', '+': '+', 'plus': '+',
+                    '-': '-', 'minus': '-', 1: '-'}
+SIGNS_TO_NODE_SIGN = {0: 0, '+': 0, 'plus': 0,
+                      '-': 1, 'minus': 1, 1: 1}
+REVERSE_SIGN = {0: 1, 1: 0,
+                '+': '-', '-': '+',
+                'plus': 'minus', 'minus': 'plus'}
+USER_OVERRIDE = False
 
 
 class IndraNetwork:
@@ -890,3 +901,56 @@ class IndraNetwork:
             return self.ehm.get_parents(uri=self.ehm.get_uri(ns, db_id))
         else:
             return set()
+
+
+def edge_sign_to_node_sign(source, target, edge_sign):
+    """Translates a signed edge or path to valid signed nodes
+
+    Paramters
+    ---------
+    source : Union[str, int]
+        The source node
+    target : Union[str, int]
+        Th target node
+    edge_sign : Union(0, 1, '+', '-', 'plus', 'minus')
+        The sign if the edge
+    Returns
+    -------
+    tuple(((a, sign), (b, sign)), ((a, sign), (b, sign)))
+        Tuple of tuples of the valid combinations of node-sign pairs
+    """
+    # + edge/path -> (a+, b+) and (a-, b-)
+    # - edge/path -> (a-, b+) and (a+, b-)
+    if SIGN_TO_STANDARD.get(edge_sign):
+        if SIGN_TO_STANDARD[edge_sign] == '+':
+            return (((source, edge_sign), (target, edge_sign)),
+                    ((source, REVERSE_SIGN[edge_sign]),
+                     (target, REVERSE_SIGN[edge_sign])))
+        elif SIGN_TO_STANDARD[edge_sign] == '-':
+            return (((source, edge_sign), (target, REVERSE_SIGN[edge_sign])),
+                    ((source, REVERSE_SIGN[edge_sign]), (target, edge_sign)))
+    else:
+        logger.warning('Invalid sign %s' % edge_sign)
+        return ()
+
+
+def signed_nodes_to_signed_edge(source, target):
+    """The inverse of edge_sign_to_node_sign
+
+    Assuming edge is a tuple of signed nodes:
+    edge = (a, sign), (b, sign)"""
+    # + edge/path -> (a+, b+) and (a-, b-)
+    # - edge/path -> (a-, b+) and (a+, b-)
+    source_name, source_sign = source
+    target_name, target_sign = target
+    if source_sign == target_sign:
+        plus = source_sign if SIGN_TO_STANDARD[source_sign] == '+' else \
+            REVERSE_SIGN[source_sign]
+        return source_name, target_name, plus
+    elif source_sign == REVERSE_SIGN[target_sign]:
+        minus = source_sign if SIGN_TO_STANDARD[source_sign] == '-' else\
+            REVERSE_SIGN[source_sign]
+        return source_name, target_name, minus
+    else:
+        logger.warning('Error translating signed nodes to signed edge')
+        return None, None, None
