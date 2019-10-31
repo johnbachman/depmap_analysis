@@ -9,6 +9,7 @@ import networkx.algorithms.simple_paths as simple_paths
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
+from indra.explanation.model_checker import SignedGraphModelChecker
 
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
@@ -28,7 +29,8 @@ except KeyError:
 
 
 def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
-                              multi=False, include_entity_hierarchies=True,
+                              graph_type='digraph',
+                              include_entity_hierarchies=True,
                               verbosity=0):
     """Return a NetworkX digraph from a pandas dataframe of a db dump
 
@@ -176,16 +178,22 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
             func=lambda ec: 1/np.longfloat(ec))
 
     # Create graph from df
-    if multi:
+    if graph_type is 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
-    else:
+    elif graph_type is 'digraph':
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
                                                   _weight_mapping)
+    elif graph_type is 'signed':
+        model = IndraNet.signed_from_df(sif_df,
+            flattening_method='complementary_belief',
+            weight_mapping=_weight_mapping)
+        indranet_graph =\
+            SignedGraphModelChecker(model=model).get_graph()
 
     # Add hierarchy relations to graph
-    if include_entity_hierarchies:
+    if include_entity_hierarchies and graph_type is not 'signed':
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
         ehm = hm.hierarchies['entity']
