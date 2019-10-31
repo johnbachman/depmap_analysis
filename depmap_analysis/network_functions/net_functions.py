@@ -38,16 +38,20 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
     ----------
     df : str|pd.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
-        DataFrame object
+        DataFrame object.
     belief_dict : str|dict
-        The file path to a belief dict that is keyed by statement hashes
-        corresponding to the statement hashes loaded in df
-    strat_ev_dict : str
-        The file path to a dict keyed by statement hashes containing the
-        stratified evidence count per statement
-    multi : bool
-        Default: False; Return an nx.MultiDiGraph if True, otherwise
-        return an nx.DiGraph
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the belief score for the corresponding statements.
+        The hashes should correspond to the hashes in the loaded dataframe.
+    strat_ev_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the stratified evidence count per statement. The
+        hashes should correspond to the hashes in the loaded dataframe.
+    graph_type : str
+        Return type for the returned graph. Currently supports:
+            - 'digraph': IndraNet(nx.DiGraph) (Default)
+            - 'multidigraph': IndraNet(nx.MultiDiGraph)
+            - 'signed': IndraNet(nx.MultiDiGraph)
     include_entity_hierarchies : bool
         Default: True
     verbosity: int
@@ -55,9 +59,12 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
 
     Returns
     -------
-    indranet_graph : nx.DiGraph or nx.MultiDiGraph
-        By default an nx.DiGraph is returned. By setting multi=True,
-        an nx.MultiDiGraph is returned instead."""
+    indranet_graph : IndraNet(graph_type)
+        The type is determined by the graph_type argument"""
+    graph_options = ['digraph', 'multidigraph', 'signed']
+    if graph_type not in graph_options:
+        raise ValueError('Graph type %s not supported. Can only chose between'
+                         ' %s' % (graph_type, graph_options))
     sed = None
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
 
@@ -82,6 +89,7 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
         Returns
         -------
         G : IndraNet
+            Graph with updated belief
         """
         for edge in G.edges:
             G.edges[edge]['weight'] = \
