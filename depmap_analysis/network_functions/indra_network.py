@@ -7,8 +7,7 @@ from time import time, gmtime, strftime
 from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
-from indra.assemblers.indranet.net import default_sign_dict as \
-    DEFAULT_SIGN_DICT
+from indra.assemblers.indranet.net import default_sign_dict
 from indra.explanation.model_checker import SignedGraphModelChecker
 
 from depmap_analysis.network_functions import famplex_functions as ff
@@ -27,10 +26,11 @@ MAX_PATHS = 50
 TIMEOUT = 30  # Timeout in seconds
 MIN_TIMEOUT = 2
 MAX_TIMEOUT = 120
+MAX_SIGNED_PATH_LEN = 7
 SIGN_TO_STANDARD = {0: '+', '+': '+', 'plus': '+',
                     '-': '-', 'minus': '-', 1: '-'}
-SIGNS_TO_NODE_SIGN = {0: 0, '+': 0, 'plus': 0,
-                      '-': 1, 'minus': 1, 1: 1}
+SIGNS_TO_INT_SIGN = {0: 0, '+': 0, 'plus': 0,
+                     '-': 1, 'minus': 1, 1: 1}
 REVERSE_SIGN = {0: 1, 1: 0,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
@@ -895,7 +895,7 @@ def translate_query(query_json):
     options = {k: v for k, v in query_json.items()  # Handled below
                if k not in ['sign', 'weighted']}
     if 'sign_dict' not in options:
-        options['sign_dict'] = DEFAULT_SIGN_DICT
+        options['sign_dict'] = default_sign_dict
     for k, v in query_json.items():
         if k == 'weighted':
             logger.info('Doing %sweighted path search' % 'un' if not v
