@@ -200,8 +200,7 @@ def process_query():
         # return 400 badly formatted
         if indra_network.verbose:
             logger.exception(e)
-        else:
-            logger.warning('Missing parameters in query')
+        logger.warning('Missing parameters in query')
         abort(Response('Missing parameters', 400))
 
     except ValueError as e:
