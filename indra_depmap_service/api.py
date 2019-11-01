@@ -223,16 +223,22 @@ if __name__ == '__main__':
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', default=5000, type=int)
     parser.add_argument('--test', action='store_true')
-    parser.add_argument('--cache', nargs='+', help='Provide the file for the '
-        'network instead of reading the default parameters. '
-        'Usage: --cache <DiGraph pickle> [MultiDiGraph pickle]')
+    parser.add_argument('--cache', nargs='+', help='Provide the file(s) for '
+        'the network instead of reading the default parameters. Use "none" as '
+        'a placeholder for a file that should be ignored. The DiGraph file '
+        'path is mandatory.'
+        'Usage: --cache <DiGraph pickle> [MultiDiGraph pickle|None] '
+        '[SignedGraphModelChecker pickle|None]')
     parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
 
     if args.cache:
         logger.info('Loading provided network files')
         dg_file = args.cache[0]
-        mdg_file = args.cache[1] if len(args.cache) > 1 else None
+        mdg_file = args.cache[1] if len(args.cache) in (2, 3) and\
+            args.cache[1].lower() != 'none' else None
+        sgmc_file = args.cache[2] if len(args.cache) >= 3 and\
+            args.cache[2].lower() != 'none' else None
         try:
             indra_network = \
                 IndraNetwork(*load_indra_graph(dg_file, mdg_file))
