@@ -387,7 +387,8 @@ class IndraNetwork:
             return self._loop_paths(nx.shortest_path(
                 self.nx_dir_graph_repr, source, target, options['weight']),
                 **options)
-        except NodeNotFound or NetworkXNoPath:
+        except NodeNotFound or NetworkXNoPath as e:
+            logger.warning(repr(e))
             return {}
 
     def _unweighted_direct(self, **options):
@@ -461,7 +462,7 @@ class IndraNetwork:
     def find_shortest_paths(self, source, target, **options):
         """Returns a list of shortest paths in ascending order"""
         try:
-            logger.info('Doing simple %s path search' % 'weigthed'
+            logger.info('Doing simple %spath search' % 'weigthed '
                         if options['weight'] else '')
             blacklist_options =\
                 {'ignore_nodes': options.get('node_blacklist', None)}
@@ -575,8 +576,8 @@ class IndraNetwork:
         while True:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
-                logger.info('Found all %d shortest paths, returning results.' %
-                            self.MAX_PATHS)
+                logger.info('Found all %d shortest paths, returning results.'\
+                            % self.MAX_PATHS)
                 return result
             if time() - self.query_recieve_time > self.TIMEOUT:
                 logger.info('Reached timeout (%d s) before finding all %d '
@@ -611,6 +612,7 @@ class IndraNetwork:
                     path = paths_gen.send(send_values)
                     edge_signs = None
             except StopIteration:
+                logger.info('Reached StopIteration, breaking')
                 break
             hash_path = self._get_hash_path(path, edge_signs, graph_type,
                                             **options)
@@ -1036,5 +1038,6 @@ def signed_nodes_to_signed_edge(source, target):
             REVERSE_SIGN[source_sign]
         return source_name, target_name, minus
     else:
-        logger.warning('Error translating signed nodes to signed edge')
+        logger.warning('Error translating signed nodes to signed edge using '
+                       '(%s, %s)' % (source, target))
         return None, None, None
