@@ -1,3 +1,4 @@
+import os
 import json
 import boto3
 import pickle
@@ -30,11 +31,15 @@ STATIC = path.join(HERE, 'static')
 S3_BUCKET = 'depmap-analysis'
 INDRA_MDG = 'indranet_multi_digraph_20190917.pkl'
 INDRA_DG = 'indranet_dir_graph_20190917.pkl'
+INDRA_SG_MC = 'indranet_sign_graph_mc_20190917.pkl'
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
 INDRA_MDG_CACHE = path.join(CACHE, INDRA_MDG)
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
+INDRA_SG_MC_CACHE = path.join(CACHE, INDRA_SG_MC)
+
+VERBOSITY = int(os.environ.get('VERBOSITY', 0))
 
 GRND_URI = None
 try:
@@ -68,7 +73,8 @@ def _load_template(fname):
     return template
 
 
-def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
+def load_indra_graph(dir_graph_path, multi_digraph_path=None,
+                     sign_graph_mc_path=None, update=False,
                      belief_dict=None, strat_ev_dict=None,
                      include_entity_hierarchies=True, verbosity=0):
     """Return a nx.DiGraph and nx.MultiDiGraph representation an INDRA DB dump
@@ -77,8 +83,9 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
     WARNING: this typically requires a lot of RAM and might slow down your
     computer significantly.
     """
-    global INDRA_DG_CACHE, INDRA_MDG_CACHE
+    global INDRA_DG_CACHE, INDRA_MDG_CACHE, INDRA_SG_MC_CACHE
     indra_multi_digraph = nx.MultiDiGraph()
+    signed_graph_mc = None
     if update:
         df = make_dataframe(True, load_db_content(True, NS_LIST))
         options = {'df': df,
@@ -86,14 +93,17 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
                    'strat_ev_dict': strat_ev_dict,
                    'include_entity_hierarchies': include_entity_hierarchies,
                    'verbosity': verbosity}
-        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(multi=False, **options)
+        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(**options)
         dump_it_to_pickle(dir_graph_path, indra_dir_graph)
         INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
         if multi_digraph_path:
-            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(multi=True,
-                                                               **options)
+            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(
+                graph_type='multidigraph', **options)
             dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
             INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
+        if sign_graph_mc_path:
+            signed_graph_mc = nf.sif_dump_df_to_nx_digraph(
+                graph_type='signed', **options)
     else:
         logger.info('Loading indra network%s %s %s' %
                     ('s' if multi_digraph_path else '',
@@ -103,12 +113,19 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None, update=False,
         indra_dir_graph = pickle_open(dir_graph_path)
         if multi_digraph_path:
             indra_multi_digraph = pickle_open(multi_digraph_path)
+        if sign_graph_mc_path:
+            signed_graph_mc = pickle_open(sign_graph_mc_path)
         logger.info('Finished loading indra networks.')
-    return indra_dir_graph, indra_multi_digraph
+    return indra_dir_graph, indra_multi_digraph, signed_graph_mc
 
 
 if path.isfile(INDRA_DG_CACHE):
-    indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
+    if path.isfile(INDRA_SG_MC_CACHE):
+        indra_network = IndraNetwork(
+            *load_indra_graph(dir_graph_path=INDRA_DG_CACHE,
+                              sign_graph_mc_path=INDRA_SG_MC_CACHE))
+    else:
+        indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
 else:
     # Try to find file on s3
     try:
@@ -126,8 +143,14 @@ else:
             logger.warning('Could not dump file to pickle')
         indra_network = IndraNetwork(indra_dir_graph=dg_net)
     except Exception as e:
-        logger.warning('Could not find %s locally or on s3' % INDRA_DG)
-        logger.exception(e)
+        logger.error('Could not find %s or %s locally or on s3' %
+                     (INDRA_DG, INDRA_SG_MC))
+        raise e
+
+# Set verbosity
+if VERBOSITY > 0:
+    logger.info('Setting verbosity to %d' % VERBOSITY)
+indra_network.verbose = VERBOSITY
 
 
 @app.route('/')
