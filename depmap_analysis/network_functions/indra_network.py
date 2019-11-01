@@ -64,11 +64,18 @@ class IndraNetwork:
     def handle_query(self, **kwargs):
         """Handles path query from client. Returns query result.
 
+        Notes:
+            - Parameters for yet to be implemented functionalities are not
+              mandatory and have no effect on the path search if provided
+            - Parameter combinations that will trigger some default responses:
+                * 'path_length' AND 'weighted':
+                    Defaults to unrestriced weighted search, i.e.
+                    path_length'=False and 'weighted'=True. Placing
+                    the path length constrain on top of the wigthed search
+                    can take a substantial amount of time
+                * 'weighted' AND ''
         The query is a json-friendly key-value structure contained in kwargs
         with the following parameters:
-
-        (Note that parameters that are not yet implemented are not mandatory
-        and have no effect on the path search if provided)
 
         Parameters
         ----------
@@ -96,12 +103,13 @@ class IndraNetwork:
         path_length: int|False
             a positive integer stating the number of edges that should be in
             the returned path. If False, return paths with any number of edges.
-        sign: str ['no_sign'|'plus'|'minus'] **currently not implemented**
-            Placeholder for future implementation of path searches in signed
-            graphs
+        sign: str ['no_sign'|'plus'|'minus']
+            If 'no_sign', do regular unsigned graph search over the directed
+            graph. If 'plus'/'minus', only paths with overall
+            positive/negative regulation will be returned.
         weighted: Bool
             If True, do a weighted path search. Weights in the network are
-            assigned as -log(belief score)
+            assigned as -log(belief score).
         bsco: 0 <= float <= 1.0
             Belief Score Cut-Off, a positive decimal number < 1.0 indicating
             at what belief score an edge statement should be ignored
@@ -152,14 +160,17 @@ class IndraNetwork:
         logger.info('Query received at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)',
                              gmtime(self.query_recieve_time)))
+
         if not self.sanity_check(**kwargs):
             return {'paths_by_node_count': {'forward': {}, 'backward': {}},
                     'common_targets': [],
                     'common_parents': {},
                     'timeout': False}
+
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
                      'k_shortest', 'curated_db_only', 'two_way']
+
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter "%s"' %
@@ -191,7 +202,7 @@ class IndraNetwork:
         boptions['source'] = options['target']
         boptions['target'] = options['source']
 
-        # Special case: 1 or 2 unweighted edges only
+        # Special case: 1 or 2 unweighted, unsigned edges only
         if not options['weight'] and options['path_length'] in [1, 2]:
             ksp_forward = self._unweighted_direct(**options)
             if options['two_way']:
@@ -401,7 +412,6 @@ class IndraNetwork:
         return {}
 
     def _one_edge_path(self, source, target, **options):
-        print('function _one_edge_path')
         res = {}
         if self.dir_edges.get((source, target), None):
             if self.verbose > 1:
@@ -460,7 +470,19 @@ class IndraNetwork:
         return res
 
     def find_shortest_paths(self, source, target, **options):
-        """Returns a list of shortest paths in ascending order"""
+        """Return a list of shortest paths with their support in ascending
+        order.
+
+        The paths are ranked by cost minimization (wegthed search) or
+        number of edges (unweighted search).
+
+        If weighted, use
+        depmap_analysis.network_functions.net_functions.shortest_simple_paths
+
+        If signed path search, use
+        indra.explanation.model_checker.signed_graph.\
+        SignedGraphModelChecker.find_paths
+        """
         try:
             logger.info('Doing simple %spath search' % 'weigthed '
                         if options['weight'] else '')
@@ -497,6 +519,7 @@ class IndraNetwork:
                 paths = iter(signed_paths)
 
             return self._loop_paths(paths, **options)
+
         except NodeNotFound as e:
             logger.warning(repr(e))
             return {}
@@ -817,7 +840,7 @@ class IndraNetwork:
                                  options['node_filter']))
                 return []
 
-            # Initialize edges list, statement index
+            # Initialize edges dict, statement index
             edges = {}
             e = 0
 
@@ -828,11 +851,11 @@ class IndraNetwork:
 
             # Exhaustively loop through all edge statments
             while edge_stmt:
-
                 # If edge statement passes, append to edges list
                 if self._pass_stmt(edge_stmt, **options):
                     # convert hash to string for javascript compatability
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
+                    # ToDo english assemble statements per type
                     try:
                         edges[edge_stmt['stmt_type']].append(edge_stmt)
                     except KeyError:
@@ -861,7 +884,7 @@ class IndraNetwork:
         return hash_path
 
     def _pass_stmt(self, edge_stmt, **options):
-        """Returns True if edge_stmt passes the below filters"""
+        """Returns True if edge_stmt passes the filters below"""
         # Failsafe for empty statements
         if not edge_stmt:
             logger.warning('No edge statement')
@@ -881,6 +904,7 @@ class IndraNetwork:
                                str(options['stmt_filter'])))
             return False
 
+        # Filter out statements with only readers as sources
         if options['curated_db_only'] and not edge_stmt['curated']:
             return False
 
@@ -1023,7 +1047,7 @@ def edge_sign_to_node_sign(source, target, edge_sign):
 def signed_nodes_to_signed_edge(source, target):
     """The inverse of edge_sign_to_node_sign
 
-    Assuming edge is a tuple of signed nodes:
+    Assuming source, target forms an edge of signed nodes:
     edge = (a, sign), (b, sign)"""
     # + edge/path -> (a+, b+) and (a-, b-)
     # - edge/path -> (a-, b+) and (a+, b-)
