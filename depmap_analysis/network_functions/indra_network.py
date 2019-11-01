@@ -40,12 +40,18 @@ USER_OVERRIDE = False
 class IndraNetwork:
     """Handle searches and graph output of the INDRA DB network"""
     def __init__(self, indra_dir_graph=nx.DiGraph(),
-                 indra_multi_dir_graph=nx.MultiDiGraph()):
+                 indra_multi_dir_graph=nx.MultiDiGraph(),
+                 indra_sign_graph_mc=None,
+                 signed_model=None):
         self.nx_dir_graph_repr = indra_dir_graph
         self.nx_md_graph_repr = indra_multi_dir_graph
-        self.nodes = self.nx_dir_graph_repr.nodes
+        self.sign_node_graph_mc = indra_sign_graph_mc if indra_sign_graph_mc\
+            else SignedGraphModelChecker(model=signed_model)
+        self.nodes = indra_dir_graph.nodes
+        self.signed_nodes = self.sign_node_graph_mc.get_graph().nodes
         self.dir_edges = indra_dir_graph.edges
         self.mdg_edges = indra_multi_dir_graph.edges
+        self.signed_edges = self.sign_node_graph_mc.model.edges
         self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS
