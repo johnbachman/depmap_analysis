@@ -244,6 +244,11 @@ class IndraNetwork:
         if options.get('test', False):
             logger.info('Query handling test passed')
             return False
+        # Check if source or target is in blacklist
+        if options['source'] in options['node_blacklist'] or\
+                options['target'] in options['node_blacklist']:
+            logger.warning('Source and/or target is blacklisted!')
+            return True
         # Check non-resolving query
         sns, sid = nf.ns_id_from_name(options['source'])
         tns, tid = nf.ns_id_from_name(options['target'])
