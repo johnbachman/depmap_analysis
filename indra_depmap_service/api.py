@@ -137,15 +137,17 @@ else:
         dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
         dg_net = pickle.loads(dg_obj['Body'].read())
 
-        sg_key = 'indra_db_file/' + INDRA_SG_MC
-        sg_obj = s3.get_object(Bucket=S3_BUCKET, Key=sg_key)
-        sg_net = pickle.loads(sg_obj['Body'].read())
+        if not path.isfile(INDRA_SG_MC_CACHE):
+            sg_key = 'indra_db_file/' + INDRA_SG_MC
+            sg_obj = s3.get_object(Bucket=S3_BUCKET, Key=sg_key)
+            sg_net = pickle.loads(sg_obj['Body'].read())
 
         logger.info('Caching network to %s' % CACHE)
         try:
             makedirs(CACHE, exist_ok=True)
             dump_it_to_pickle(path.join(CACHE, INDRA_DG), dg_net)
-            dump_it_to_pickle(path.join(CACHE, INDRA_SG_MC), sg_net)
+            if not path.isfile(INDRA_SG_MC_CACHE):
+                dump_it_to_pickle(path.join(CACHE, INDRA_SG_MC), sg_net)
         except Exception as e:
             logger.warning('Could not dump file to pickle')
         indra_network = IndraNetwork(indra_dir_graph=dg_net,
