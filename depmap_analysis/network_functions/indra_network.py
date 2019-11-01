@@ -970,8 +970,8 @@ def translate_query(query_json):
             options['weight'] = 'weight' if v else None
         if k == 'sign':
             # Positive regulation: 0; Negative regulation: 1;
-            options[k] = 0 if v == 'plus' \
-                else (1 if v == 'minus' else None)
+            options[k] = 0 if SIGN_TO_STANDARD.get(v) == '+' \
+                else (1 if SIGN_TO_STANDARD.get(v) == '-' else None)
         if k == 'edge_hash_blacklist' and options.get(k) and \
                 isinstance(options[k][0], int):
             options[k] = [str(i) for i in options[k]]
