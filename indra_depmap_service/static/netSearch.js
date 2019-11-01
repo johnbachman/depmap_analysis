@@ -90,7 +90,7 @@ function submitQuery() {
     node_filter: nodeFilterList,
     node_blacklist: nodeBlackList,
     path_length: parseInt(document.getElementById('path-length').value) || false,
-    // sign: document.getElementById('sign-dd').value,
+    sign: document.getElementById('sign-dd').value,
     weighted: document.getElementById('weighted-search').checked,
     bsco: beliefEntry,
     // direct_only: document.getElementById('direct-only').checked,
