@@ -458,14 +458,38 @@ class IndraNetwork:
         try:
             logger.info('Doing simple %s path search' % 'weigthed'
                         if options['weight'] else '')
-            blacklist_options = {}
-            blacklist_options['ignore_nodes'] = options.get('node_blacklist',
-                                                            None)
-            paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
-                                             source, target, options['weight'],
-                                             **blacklist_options)
-            # paths = nx.all_shortest_paths(self.nx_md_graph_repr,
-            #                               source, target, options['weight'])
+            blacklist_options =\
+                {'ignore_nodes': options.get('node_blacklist', None)}
+            if options['sign'] is None:
+                paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
+                                                 source, target,
+                                                 options['weight'],
+                                                 **blacklist_options)
+            else:
+                # Fixme Check what is meant by path length? len(nodes) or
+                #  len(path)
+                # Generate signed nodes from query's overall sign
+                signed_nodes = edge_sign_to_node_sign(source, target,
+                                                      options['sign'])
+                pl = options['path_length'] + 1 if options['path_length']\
+                    else MAX_SIGNED_PATH_LEN
+                signed_paths = []
+                for (s, ss), (t, ts) in signed_nodes:
+                    subj = (s, SIGNS_TO_INT_SIGN[ss])
+                    obj = (t, SIGNS_TO_INT_SIGN[ts])
+                    path_result = self.sign_node_graph_mc.find_paths(
+                        subj, obj, self.MAX_PATHS, pl)
+                    if path_result.result_code == 'PATHS_FOUND':
+                        signed_paths += path_result.paths
+                    if path_result.result_code == 'MAX_PATH_LENGTH_EXCEEDED':
+                        logger.warning('Length of signed path exceeded '
+                                       'maximum allowed (%d)' %
+                                       MAX_SIGNED_PATH_LEN)
+                if signed_paths and all(signed_paths):
+                    logger.info('Looking through %d signed paths' %
+                                len(signed_paths))
+                paths = iter(signed_paths)
+
             return self._loop_paths(paths, **options)
         except NodeNotFound as e:
             logger.warning(repr(e))
@@ -531,6 +555,10 @@ class IndraNetwork:
 
     def _loop_paths(self, paths_gen, **options):
         # len(path) = edge count + 1
+        sign = options['sign']
+        graph_type = 'digraph' if sign is None else 'signed'
+        if graph_type == 'signed':
+            logger.info('Looping signed paths')
         path_len = options['path_length'] + 1 if \
             options['path_length'] and not options['weight'] else False
         result = defaultdict(list)
@@ -555,7 +583,7 @@ class IndraNetwork:
             # if the modulo is 1, meaning that in the *following* path we
             # want another node culled
             send_values = None
-            if (added_paths % options.get(
+            if sign is None and (added_paths % options.get(
                     'cull_best_node', float('NaN')) == 1 and
                     prev_path is not None and len(prev_path['path']) >= 3):
                 degrees = self.nx_dir_graph_repr.degree(
@@ -568,17 +596,27 @@ class IndraNetwork:
             # Get next path and send culled nodes and edges info for the
             # path in the following iteration
             try:
-                path = paths_gen.send(send_values)
+                if sign is not None:
+                    signed_path_nodes = next(paths_gen)
+                    path = [n[0] for n in signed_path_nodes]
+                    edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                                  for s, t in zip(signed_path_nodes[:-1],
+                                                  signed_path_nodes[1:])]
+                else:
+                    path = paths_gen.send(send_values)
+                    edge_signs = None
             except StopIteration:
                 break
-            hash_path = self._get_hash_path(path, **options)
+            hash_path = self._get_hash_path(path, edge_signs, graph_type,
+                                            **options)
+
             if hash_path and all(hash_path):
                 if self.verbose > 1:
                     logger.info('Adding stmts and path from %s to path list' %
                                 repr(hash_path))
                 pd = {'stmts': hash_path,
                       'path': path,
-                      'cost': str(self._get_cost(path)),
+                      'cost': str(self._get_cost(path, edge_signs)),
                       'sort_key': str(self._get_sort_key(path, hash_path))}
                 if not path_len or (path_len and path_len == len(path)):
                     result[len(path)].append(pd)
@@ -725,28 +763,41 @@ class IndraNetwork:
             cp_results['common_parents'] = sorted(list(cp))
             return cp_results
 
-    def _get_edge(self, s, o, index, simple_graph):
-        """Return edges from DiGraph or MultiDigraph in a uniform format"""
-        if simple_graph:
-            try:
-                stmt_edge = self.dir_edges.get((s, o))['statements'][index]
-            except IndexError:
-                # To keep it consistent with below Multi DiGraph implementation
-                stmt_edge = None
-            return stmt_edge
-        else:
+    def _get_edge(self, s, o, index, edge_sign=None, graph='digraph'):
+        """Return edges from one of the loaded graphs in a uniform format"""
+        if graph == 'multi':
             if not self.mdg_edges:
                 raise nx.NetworkXException('MultiDiGraph not loaded')
             return self.mdg_edges.get((s, o, index))
+        elif graph == 'signed':
+            if edge_sign is None:
+                raise nx.NetworkXException('Argument edge_sign needs to be '
+                                           'specified to get signed edge.')
+            sign = SIGNS_TO_INT_SIGN[edge_sign]
+            try:
+                stmt_edge = self.signed_edges[(s, o, sign)][
+                    'statements'][index]
+            except IndexError:
+                stmt_edge = None
+            return stmt_edge
+        else:
+            try:
+                stmt_edge = self.dir_edges[(s, o)]['statements'][index]
+            except IndexError:
+                # To keep it consistent with the Multi DiGraph implementation
+                stmt_edge = None
+            return stmt_edge
 
-    def _get_hash_path(self, path, simple_graph=True, **options):
+    def _get_hash_path(self, path, edge_signs=None, graph_type='digraph',
+                       **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
         the n nodes in path. If simple_graph is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
         hash_path = []
+        es = edge_signs if edge_signs else [None]*(len(path)-1)
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
-        for subj, obj in zip(path[:-1], path[1:]):
+        for subj, obj, edge_sign in zip(path[:-1], path[1:], es):
             # Check node filter
             if self.nodes[subj]['ns'].lower() not in \
                     options['node_filter'] or self.nodes[obj]['ns'].lower() \
@@ -764,7 +815,7 @@ class IndraNetwork:
             e = 0
 
             # Get first edge statement
-            edge_stmt = self._get_edge(subj, obj, e, simple_graph)
+            edge_stmt = self._get_edge(subj, obj, e, edge_sign, graph_type)
             if self.verbose > 3:
                 logger.info('First edge stmt %s' % repr(edge_stmt))
 
@@ -788,7 +839,8 @@ class IndraNetwork:
 
                 # Incr statement index, get next edge statement
                 e += 1
-                edge_stmt = self._get_edge(subj, obj, e, simple_graph)
+                edge_stmt = self._get_edge(subj, obj, e, edge_sign,
+                                           graph_type)
 
             # If edges list contains anything, append to hash_path list
             if edges:
@@ -836,11 +888,15 @@ class IndraNetwork:
         # Return True is all filters were passed
         return True
 
-    def _get_cost(self, path, direct=True):
+    def _get_cost(self, path, edge_signs=None, direct=True, key='weight'):
         if direct:
             # Return sum of aggregated weights per edge
-            return sum(self.dir_edges[(s, o)]['weight'] for s, o in
-                       zip(path[:-1], path[1:]))
+            if edge_signs:
+                return sum(self.signed_edges[(s, o, es)][key] for
+                           s, o, es in zip(path[:-1], path[1:], edge_signs))
+            else:
+                return sum(self.dir_edges[(s, o)][key] for s, o in
+                           zip(path[:-1], path[1:]))
         else:
             # Return sum of averaged weights per stmts
             cost = 0
@@ -848,22 +904,27 @@ class IndraNetwork:
                 ew = []
                 e = self._get_edge(s, o, len(ew), direct)
                 while e:
-                    ew.append(e['weight'])
+                    ew.append(e[key])
                     e = self._get_edge(s, o, len(ew), direct)
                 cost += sum(ew)/len(ew)
             return cost
 
-    def _aggregated_path_belief(self, path):
-        belief_list = [self.dir_edges[e]['belief'] for e in zip(path[:-1], path[1:])]
+    def _aggregated_path_belief(self, path, edge_signs):
+        if edge_signs:
+            edge_list = zip(path[:-1], path[1:], edge_signs)
+        else:
+            edge_list = zip(path[:-1], path[1:])
+        belief_list = [self.dir_edges[e]['belief']
+                       for e in edge_list]
         return nf.ag_belief_score(belief_list)
 
-    def _get_sort_key(self, path, hash_path, method=None):
+    def _get_sort_key(self, path, hash_path, edge_signs=None, method=None):
         """Calculate a number to sort the path on
 
         `Method` allows to specify the calculation"""
 
         # Default: aggregated path belief score
-        sort_key = self._aggregated_path_belief(path)
+        sort_key = self._aggregated_path_belief(path, edge_signs)
         return sort_key
 
     @staticmethod
