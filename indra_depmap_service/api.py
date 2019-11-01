@@ -127,21 +127,29 @@ if path.isfile(INDRA_DG_CACHE):
     else:
         indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
 else:
-    # Try to find file on s3
+    # Try to find file(s) on s3
     try:
         logger.info('%s not found locally, trying to get file from s3...' %
                     INDRA_DG_CACHE)
         s3 = _get_s3_client(unsigned=True)
+
         dg_key = 'indra_db_files/' + INDRA_DG
         dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
         dg_net = pickle.loads(dg_obj['Body'].read())
+
+        sg_key = 'indra_db_file/' + INDRA_SG_MC
+        sg_obj = s3.get_object(Bucket=S3_BUCKET, Key=sg_key)
+        sg_net = pickle.loads(sg_obj['Body'].read())
+
         logger.info('Caching network to %s' % CACHE)
         try:
             makedirs(CACHE, exist_ok=True)
             dump_it_to_pickle(path.join(CACHE, INDRA_DG), dg_net)
+            dump_it_to_pickle(path.join(CACHE, INDRA_SG_MC), sg_net)
         except Exception as e:
             logger.warning('Could not dump file to pickle')
-        indra_network = IndraNetwork(indra_dir_graph=dg_net)
+        indra_network = IndraNetwork(indra_dir_graph=dg_net,
+                                     indra_sign_graph_mc=sg_net)
     except Exception as e:
         logger.error('Could not find %s or %s locally or on s3' %
                      (INDRA_DG, INDRA_SG_MC))
