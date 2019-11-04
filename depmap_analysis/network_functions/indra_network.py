@@ -48,10 +48,12 @@ class IndraNetwork:
         self.sign_node_graph_mc = indra_sign_graph_mc if indra_sign_graph_mc\
             else SignedGraphModelChecker(model=signed_model)
         self.nodes = indra_dir_graph.nodes
-        self.signed_nodes = self.sign_node_graph_mc.get_graph().nodes
+        self.signed_nodes = self.sign_node_graph_mc.get_graph().nodes if \
+            indra_sign_graph_mc or signed_model else set()
         self.dir_edges = indra_dir_graph.edges
         self.mdg_edges = indra_multi_dir_graph.edges
-        self.signed_edges = self.sign_node_graph_mc.model.edges
+        self.signed_edges = self.sign_node_graph_mc.model.edges if \
+            indra_sign_graph_mc or signed_model else set()
         self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.MAX_PATHS = MAX_PATHS

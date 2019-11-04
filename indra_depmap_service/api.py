@@ -40,6 +40,7 @@ INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
 INDRA_SG_MC_CACHE = path.join(CACHE, INDRA_SG_MC)
 
 VERBOSITY = int(os.environ.get('VERBOSITY', 0))
+DEBUG = bool(os.environ.get('API_DEBUG', False))
 
 GRND_URI = None
 try:
@@ -120,12 +121,16 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
 
 
 if path.isfile(INDRA_DG_CACHE):
-    if path.isfile(INDRA_SG_MC_CACHE):
-        indra_network = IndraNetwork(
-            *load_indra_graph(dir_graph_path=INDRA_DG_CACHE,
-                              sign_graph_mc_path=INDRA_SG_MC_CACHE))
+    if DEBUG:
+        logger.info('Debugging API, no network will be loaded...')
+        indra_network = IndraNetwork()
     else:
-        indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
+        if path.isfile(INDRA_SG_MC_CACHE):
+            indra_network = IndraNetwork(
+                *load_indra_graph(dir_graph_path=INDRA_DG_CACHE,
+                                  sign_graph_mc_path=INDRA_SG_MC_CACHE))
+        else:
+            indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
 else:
     # Try to find file(s) on s3
     try:
@@ -192,7 +197,13 @@ def process_query():
         logger.info('Query resolved at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
         if not result or not all(result.values()):
-            logger.info('Query returned with no path found')
+            if DEBUG:
+                logger.info('API_DEBUG is set to "True" so no network is '
+                            'loaded, perhaps you meant to turn it off? '
+                            'Run "export API_DEBUG=0" in your terminal to do '
+                            'so and then restart the flask service')
+            else:
+                logger.info('Query returned with no path found')
         res = {'result': result}
         if indra_network.verbose > 5:
             logger.info('Result: %s' % str(res))
