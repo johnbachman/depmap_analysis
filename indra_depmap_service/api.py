@@ -15,6 +15,8 @@ from jinja2 import Template
 from flask import Flask, request, abort, Response, render_template, url_for
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
+from indra.statements import get_all_descendants, Activation, Inhibition,\
+    IncreaseAmount, DecreaseAmount, AddModification, RemoveModification
 
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.indra_network import IndraNetwork
@@ -72,6 +74,22 @@ def _load_template(fname):
         template_str = f.read()
         template = Template(template_str)
     return template
+
+
+# Copied from emmaa_service/api.py
+def get_queryable_stmt_types():
+    """Return Statement class names that can be used for querying."""
+    def get_sorted_descendants(cls):
+        return sorted(get_names(get_all_descendants(cls)))
+
+    def get_names(classes):
+        return [s.__name__ for s in classes]
+
+    stmt_types = \
+        get_names([Activation, Inhibition, IncreaseAmount, DecreaseAmount]) + \
+        get_sorted_descendants(AddModification) + \
+        get_sorted_descendants(RemoveModification)
+    return stmt_types
 
 
 def load_indra_graph(dir_graph_path, multi_digraph_path=None,
@@ -172,7 +190,12 @@ if VERBOSITY > 0:
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    return render_template('query_template.html')
+    node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
+                        'PUBCHEM']
+    stmt_types = get_queryable_stmt_types()
+    return render_template('query_template.html',
+                           stmt_types=stmt_types,
+                           node_name_spaces=node_name_spaces)
 
 
 @app.route('/query/submit', methods=['POST'])

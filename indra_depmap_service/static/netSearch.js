@@ -2,14 +2,8 @@ const SUBMIT_URL = './query/submit';
 const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
 const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=html&';
 const MAX_K_PATHS = 50;
-const stmtOptions = ['Acetylation', 'Activation', 'ActiveForm', 'Autophosphorylation',
-  'Complex', 'Conversion', 'Deacetylation', 'DecreaseAmount', 'Deglycosylation',
-  'Dehydroxylation', 'Demethylation', 'Depalmitoylation', 'Dephosphorylation',
-  'Deribosylation', 'Desumoylation', 'Deubiquitination', 'Farnesylation',
-  'Gap', 'Gef', 'Geranylgeranylation', 'GtpActivation', 'Hydroxylation', 'IncreaseAmount',
-  'Inhibition', 'Methylation', 'Myristoylation', 'Palmitoylation', 'Phosphorylation',
-  'Ribosylation', 'Sumoylation', 'Translocation', 'Ubiquitination'];
-var stmtItems = [];
+
+let stmtItems = [];
 for (s of stmtOptions) {
   stmtItems.push({
     value: s.toLowerCase(),
@@ -19,8 +13,7 @@ for (s of stmtOptions) {
   })
 }
 
-const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
-var nodeItems = [];
+let nodeItems = [];
 for (let n of nodeOptions) {
   let sel = false;
   if (n === 'HGNC') sel = true;

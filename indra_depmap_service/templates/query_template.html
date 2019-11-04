@@ -22,6 +22,10 @@
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
   <!-- custom scripts -->
+  <script>
+    const stmtOptions = {{ stmt_types|safe }};
+    const nodeOptions = {{ node_name_spaces|safe }};
+  </script>
   <script src="{{ url_for('static', filename='netSearch.js') }}"></script>
   <style>
     h3 a.stmt_toggle {
