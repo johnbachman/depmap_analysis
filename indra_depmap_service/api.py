@@ -130,7 +130,7 @@ else:
     # Try to find file(s) on s3
     try:
         logger.info('%s not found locally, trying to get file from s3...' %
-                    INDRA_DG_CACHE)
+                    INDRA_DG)
         s3 = _get_s3_client(unsigned=True)
 
         dg_key = 'indra_db_files/' + INDRA_DG
@@ -160,7 +160,7 @@ else:
 # Set verbosity
 if VERBOSITY > 0:
     logger.info('Setting verbosity to %d' % VERBOSITY)
-indra_network.verbose = VERBOSITY
+    indra_network.verbose = VERBOSITY
 
 
 @app.route('/')
