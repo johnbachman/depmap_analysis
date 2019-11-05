@@ -1018,6 +1018,8 @@ def translate_query(query_json):
 def edge_sign_to_node_sign(source, target, edge_sign):
     """Translates a signed edge or path to valid signed nodes
 
+    Pairs with a negative source node are filtered out.
+
     Paramters
     ---------
     source : Union[str, int]
@@ -1031,18 +1033,17 @@ def edge_sign_to_node_sign(source, target, edge_sign):
     tuple(((a, sign), (b, sign)), ((a, sign), (b, sign)))
         Tuple of tuples of the valid combinations of node-sign pairs
     """
-    # + edge/path -> (a+, b+) and (a-, b-)
-    # - edge/path -> (a-, b+) and (a+, b-)
+    # + edge/path -> (a+, b+)
+    # - edge/path -> (a+, b-)
+    # (a-, b-) and (a-, b+) are also technically valid but not in this context.
     if SIGN_TO_STANDARD.get(edge_sign):
         if SIGN_TO_STANDARD[edge_sign] == '+':
-            return (((source, edge_sign), (target, edge_sign)),
-                    ((source, REVERSE_SIGN[edge_sign]),
-                     (target, REVERSE_SIGN[edge_sign])))
+            return (source, edge_sign), (target, edge_sign)
         elif SIGN_TO_STANDARD[edge_sign] == '-':
-            return (((source, edge_sign), (target, REVERSE_SIGN[edge_sign])),
-                    ((source, REVERSE_SIGN[edge_sign]), (target, edge_sign)))
+            return (source, REVERSE_SIGN[edge_sign]), (target, edge_sign)
     else:
-        logger.warning('Invalid sign %s' % edge_sign)
+        logger.warning('Invalid sign %s when translating signed edge to '
+                       'signed nodes' % edge_sign)
         return ()
 
 
