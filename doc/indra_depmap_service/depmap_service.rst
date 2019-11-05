@@ -36,8 +36,8 @@ done to http://localhost:5000/query/submit.
 Running the Service Using Flask
 ===============================
 
-If flask is pip installed, the service can be run using ``flask run`` instead. At least the environment variable
-``FLASK_APP`` has to be set to the filepath to ``api.py``.
+If flask is pip installed, the service can be run using ``flask run`` instead. To do this, at least the environment
+variable ``FLASK_APP`` has to be set to the filepath of ``api.py``.
 
 Searching
 =========
