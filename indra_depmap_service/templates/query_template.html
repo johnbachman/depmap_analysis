@@ -139,11 +139,11 @@
       </div>
       <div class="row">
         <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
-          <label><select id="sign-dd">
+          <label><select id="sign-dd" {% if not has_signed_graph %}disabled{% endif %}>
             <option selected="selected" value="no_sign">No sign</option>
             <option value="plus" title="Upregulation">+</option>
             <option value="minus" title="Downregulation">-</option>
-          </select>&nbsp;&nbsp;Sign</label>
+          </select>&nbsp;&nbsp;{% if has_signed_graph %}Sign{% else %}Signed graph not available{% endif %}</label>
         </div>
       </div>
       <div class="custom-control custom-checkbox">
