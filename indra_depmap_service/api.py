@@ -161,25 +161,21 @@ else:
     try:
         logger.info('%s not found locally, trying to get file from s3...' %
                     INDRA_DG)
+        makedirs(CACHE, exist_ok=True)
         s3 = _get_s3_client(unsigned=True)
-
+        logger.info('Caching network to %s' % CACHE)
         dg_key = 'indra_db_files/' + INDRA_DG
         dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
         dg_net = pickle.loads(dg_obj['Body'].read())
+        dump_it_to_pickle(path.join(CACHE, INDRA_DG), dg_net)
 
         if not path.isfile(INDRA_SG_MC_CACHE):
             sg_key = 'indra_db_file/' + INDRA_SG_MC
             sg_obj = s3.get_object(Bucket=S3_BUCKET, Key=sg_key)
             sg_net = pickle.loads(sg_obj['Body'].read())
-
-        logger.info('Caching network to %s' % CACHE)
-        try:
-            makedirs(CACHE, exist_ok=True)
-            dump_it_to_pickle(path.join(CACHE, INDRA_DG), dg_net)
-            if not path.isfile(INDRA_SG_MC_CACHE):
-                dump_it_to_pickle(path.join(CACHE, INDRA_SG_MC), sg_net)
-        except Exception as e:
-            logger.warning('Could not dump file to pickle')
+            dump_it_to_pickle(path.join(CACHE, INDRA_SG_MC), sg_net)
+        else:
+            sg_net = pickle_open(INDRA_SG_MC_CACHE)
         # For those using flask run
         if argv[0].split('/')[-1].lower() != 'api.py':
             indra_network = IndraNetwork(indra_dir_graph=dg_net,
