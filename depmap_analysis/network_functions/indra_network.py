@@ -106,10 +106,10 @@ class IndraNetwork:
         path_length: int|False
             a positive integer stating the number of edges that should be in
             the returned path. If False, return paths with any number of edges.
-        sign: str ['no_sign'|'plus'|'minus']
-            If 'no_sign', do regular unsigned graph search over the directed
-            graph. If 'plus'/'minus', only paths with overall
-            positive/negative regulation will be returned.
+        sign: None|str [None|'plus'|'minus']
+            If 'no_sign' or None, do regular unsigned graph search over the
+            directed graph. If 'plus'/'minus', only paths with overall
+            up/down regulation will be returned.
         weighted: Bool
             If True, do a weighted path search. Weights in the network are
             assigned as -log(belief score).
@@ -172,8 +172,7 @@ class IndraNetwork:
 
         mandatory = ['source', 'target', 'stmt_filter', 'node_filter',
                      'path_length', 'weighted', 'bsco', 'fplx_expand',
-                     'k_shortest', 'curated_db_only', 'two_way']
-
+                     'k_shortest', 'curated_db_only', 'two_way', 'sign']
         if not all([key in kwargs for key in mandatory]):
             miss = [key in kwargs for key in mandatory].index(False)
             raise KeyError('Missing mandatory parameter "%s"' %
