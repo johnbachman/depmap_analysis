@@ -8,7 +8,8 @@ from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
 from indra.assemblers.indranet.net import default_sign_dict
-from indra.explanation.model_checker import SignedGraphModelChecker
+from indra.explanation.model_checker import SignedGraphModelChecker,\
+    get_path_iter
 
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
@@ -499,26 +500,11 @@ class IndraNetwork:
                 # Fixme Check what is meant by path length? len(nodes) or
                 #  len(path)
                 # Generate signed nodes from query's overall sign
-                signed_nodes = edge_sign_to_node_sign(source, target,
-                                                      options['sign'])
-                pl = options['path_length'] + 1 if options['path_length']\
-                    else MAX_SIGNED_PATH_LEN
-                signed_paths = []
-                for (s, ss), (t, ts) in signed_nodes:
-                    subj = (s, SIGNS_TO_INT_SIGN[ss])
-                    obj = (t, SIGNS_TO_INT_SIGN[ts])
-                    path_result = self.sign_node_graph_mc.find_paths(
-                        subj, obj, self.MAX_PATHS, pl)
-                    if path_result.result_code == 'PATHS_FOUND':
-                        signed_paths += path_result.paths
-                    if path_result.result_code == 'MAX_PATH_LENGTH_EXCEEDED':
-                        logger.warning('Length of signed path exceeded '
-                                       'maximum allowed (%d)' %
-                                       MAX_SIGNED_PATH_LEN)
-                if signed_paths and all(signed_paths):
-                    logger.info('Looking through %d signed paths' %
-                                len(signed_paths))
-                paths = iter(signed_paths)
+                (src, src_sign), (trgt, trgt_sign) =\
+                    edge_sign_to_node_sign(source, target, options['sign'])
+                subj = (src, SIGNS_TO_INT_SIGN[src_sign])
+                obj = (trgt, SIGNS_TO_INT_SIGN[trgt_sign])
+                paths = get_path_iter(self.sign_node_graph_mc.graph, subj, obj)
 
             return self._loop_paths(paths, **options)
 
