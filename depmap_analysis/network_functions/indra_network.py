@@ -610,8 +610,6 @@ class IndraNetwork:
                 send_values = (culled_nodes, culled_edges)
                 if self.verbose > 1:
                     logger.info('Culled nodes: %s' % repr(culled_nodes))
-            # Get next path and send culled nodes and edges info for the
-            # path in the following iteration
             try:
                 if sign is not None:
                     signed_path_nodes = next(paths_gen)
@@ -620,10 +618,13 @@ class IndraNetwork:
                                   for s, t in zip(signed_path_nodes[:-1],
                                                   signed_path_nodes[1:])]
                 else:
+                    # Get next path and send culled nodes and edges info for
+                    # the path in the following iteration
                     path = paths_gen.send(send_values)
                     edge_signs = None
             except StopIteration:
-                logger.info('Reached StopIteration, breaking')
+                logger.info('Reached StopIteration: all paths found. '
+                            'breaking.')
                 break
             hash_path = self._get_hash_path(path, edge_signs, graph_type,
                                             **options)
