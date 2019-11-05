@@ -278,8 +278,9 @@ if __name__ == '__main__':
         '[SignedGraphModelChecker pickle|None]')
     parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
-
-    if args.cache:
+    if API_DEBUG:
+        pass
+    elif args.cache:
         logger.info('Loading provided network files')
         dg_file = args.cache[0]
         mdg_file = args.cache[1] if len(args.cache) in (2, 3) and\
