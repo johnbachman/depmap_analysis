@@ -5,6 +5,7 @@ import pickle
 import logging
 import argparse
 import networkx as nx
+from sys import argv
 from os import path, makedirs
 from datetime import datetime
 from botocore import UNSIGNED
@@ -42,7 +43,9 @@ INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
 INDRA_SG_MC_CACHE = path.join(CACHE, INDRA_SG_MC)
 
 VERBOSITY = int(os.environ.get('VERBOSITY', 0))
-DEBUG = bool(os.environ.get('API_DEBUG', False))
+API_DEBUG = int(os.environ.get('API_DEBUG', 0))
+if API_DEBUG:
+    logger.info('API_DEBUG set to %d' % API_DEBUG)
 
 GRND_URI = None
 try:
@@ -139,15 +142,18 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
 
 
 if path.isfile(INDRA_DG_CACHE):
-    if DEBUG:
+    if API_DEBUG:
         logger.info('Debugging API, no network will be loaded...')
         indra_network = IndraNetwork()
-    else:
+    elif argv[0].split('/')[-1].lower() == 'flask' and argv[1] == 'run':
+        # For those using flask run
         if path.isfile(INDRA_SG_MC_CACHE):
+            logger.info('Found both DiGraph and SignedGraph in cache')
             indra_network = IndraNetwork(
                 *load_indra_graph(dir_graph_path=INDRA_DG_CACHE,
                                   sign_graph_mc_path=INDRA_SG_MC_CACHE))
         else:
+            logger.info('Found DiGraph in cache')
             indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
 else:
     # Try to find file(s) on s3
@@ -173,15 +179,18 @@ else:
                 dump_it_to_pickle(path.join(CACHE, INDRA_SG_MC), sg_net)
         except Exception as e:
             logger.warning('Could not dump file to pickle')
-        indra_network = IndraNetwork(indra_dir_graph=dg_net,
-                                     indra_sign_graph_mc=sg_net)
+        # For those using flask run
+        if argv[0].split('/')[-1].lower() == 'flask' and argv[1] == 'run':
+            indra_network = IndraNetwork(indra_dir_graph=dg_net,
+                                         indra_sign_graph_mc=sg_net)
     except Exception as e:
         logger.error('Could not find %s or %s locally or on s3' %
                      (INDRA_DG, INDRA_SG_MC))
         raise e
 
 # Set verbosity
-if VERBOSITY > 0:
+if VERBOSITY > 0 and\
+        argv[0].split('/')[-1].lower() == 'flask' and argv[1] == 'run':
     logger.info('Setting verbosity to %d' % VERBOSITY)
     indra_network.verbose = VERBOSITY
 
@@ -193,9 +202,11 @@ def get_query_page():
     node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
                         'PUBCHEM']
     stmt_types = get_queryable_stmt_types()
+    has_signed_graph = bool(indra_network.signed_nodes)
     return render_template('query_template.html',
                            stmt_types=stmt_types,
-                           node_name_spaces=node_name_spaces)
+                           node_name_spaces=node_name_spaces,
+                           has_signed_graph=has_signed_graph)
 
 
 @app.route('/query/submit', methods=['POST'])
@@ -220,7 +231,7 @@ def process_query():
         logger.info('Query resolved at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
         if not result or not all(result.values()):
-            if DEBUG:
+            if API_DEBUG:
                 logger.info('API_DEBUG is set to "True" so no network is '
                             'loaded, perhaps you meant to turn it off? '
                             'Run "export API_DEBUG=0" in your terminal to do '
@@ -253,6 +264,7 @@ def process_query():
         abort(Response('Server error during handling of query', 500))
 
 
+# For those running with "python api.py"
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Run the Indra DepMap Service.')
     parser.add_argument('--host', default='127.0.0.1')
@@ -290,6 +302,10 @@ if __name__ == '__main__':
         except Exception as e:
             logger.warning('Could not load the provided files. Reverting to '
                            'default network...')
+    else:
+        indra_network = IndraNetwork(
+            *load_indra_graph(dir_graph_path=INDRA_DG_CACHE,
+                              sign_graph_mc_path=INDRA_SG_MC_CACHE))
 
     if args.test:
         indra_network.small = True
