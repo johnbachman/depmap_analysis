@@ -141,12 +141,13 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
     return indra_dir_graph, indra_multi_digraph, signed_graph_mc
 
 
+# Load network
+indra_network = IndraNetwork()
 if path.isfile(INDRA_DG_CACHE):
     if API_DEBUG:
         logger.info('Debugging API, no network will be loaded...')
-        indra_network = IndraNetwork()
-    elif argv[0].split('/')[-1].lower() == 'flask' and argv[1] == 'run':
-        # For those using flask run
+    elif argv[0].split('/')[-1].lower() != 'api.py':
+        # For those not using python api.py
         if path.isfile(INDRA_SG_MC_CACHE):
             logger.info('Found both DiGraph and SignedGraph in cache')
             indra_network = IndraNetwork(
@@ -180,7 +181,7 @@ else:
         except Exception as e:
             logger.warning('Could not dump file to pickle')
         # For those using flask run
-        if argv[0].split('/')[-1].lower() == 'flask' and argv[1] == 'run':
+        if argv[0].split('/')[-1].lower() != 'api.py':
             indra_network = IndraNetwork(indra_dir_graph=dg_net,
                                          indra_sign_graph_mc=sg_net)
     except Exception as e:
@@ -190,7 +191,7 @@ else:
 
 # Set verbosity
 if VERBOSITY > 0 and\
-        argv[0].split('/')[-1].lower() == 'flask' and argv[1] == 'run':
+        argv[0].split('/')[-1].lower() != 'api.py':
     logger.info('Setting verbosity to %d' % VERBOSITY)
     indra_network.verbose = VERBOSITY
 
