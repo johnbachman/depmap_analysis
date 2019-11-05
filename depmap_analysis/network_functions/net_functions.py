@@ -186,14 +186,14 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
             func=lambda ec: 1/np.longfloat(ec))
 
     # Create graph from df
-    if graph_type is 'multidigraph':
+    if graph_type == 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
     elif graph_type is 'digraph':
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
                                                   _weight_mapping)
-    elif graph_type is 'signed':
+    elif graph_type == 'signed':
         model = IndraNet.signed_from_df(sif_df,
             flattening_method='complementary_belief',
             weight_mapping=_weight_mapping)
@@ -201,7 +201,7 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
             SignedGraphModelChecker(model=model).get_graph()
 
     # Add hierarchy relations to graph
-    if include_entity_hierarchies and graph_type is not 'signed':
+    if include_entity_hierarchies and graph_type != 'signed':
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
         ehm = hm.hierarchies['entity']
