@@ -415,18 +415,30 @@ class IndraNetwork:
 
     def _one_edge_path(self, source, target, **options):
         res = {}
-        if self.dir_edges.get((source, target), None):
-            if self.verbose > 1:
-                logger.info('Found direct path from %s to %s' %
-                            (source, target))
-            path = [source, target]
-            hash_path = self._get_hash_path([source, target], **options)
-            if hash_path and all(hash_path):
-                pd = {'stmts': hash_path,
-                      'path': path,
-                      'cost': str(self._get_cost(path)),
-                      'sort_key': str(self._get_sort_key(path, hash_path))}
-                res = {2: [pd]}
+        path = [source, target]
+        hash_path = []
+        if options['sign'] is None:
+            if self.dir_edges.get((source, target), None):
+                if self.verbose > 1:
+                    logger.info('Found direct path from %s to %s' %
+                                (source, target))
+                hash_path = self._get_hash_path(path, **options)
+        elif options['sign'] is not None:
+            int_sign = SIGNS_TO_INT_SIGN[options['sign']]
+            if self.signed_edges.get((source, target, int_sign)):
+                if self.verbose > 1:
+                    logger.info('Found direct signed path from %s to %s' %
+                                (source, target))
+                hash_path = self._get_hash_path(path,
+                                                edge_signs=[int_sign],
+                                                graph_type='signed',
+                                                **options)
+        if hash_path and all(hash_path):
+            pd = {'stmts': hash_path,
+                  'path': path,
+                  'cost': str(self._get_cost(path)),
+                  'sort_key': str(self._get_sort_key(path, hash_path))}
+            res = {2: [pd]}
         return res
 
     def _two_edge_path(self, source, target, **options):
@@ -497,7 +509,7 @@ class IndraNetwork:
                                                  **blacklist_options)
             else:
                 # Fixme Check what is meant by path length? len(nodes) or
-                #  len(path)
+                #  len(edges)?
                 # Generate signed nodes from query's overall sign
                 (src, src_sign), (trgt, trgt_sign) =\
                     edge_sign_to_node_sign(source, target, options['sign'])
