@@ -26,11 +26,13 @@ TIMEOUT = 30  # Timeout in seconds
 MIN_TIMEOUT = 2
 MAX_TIMEOUT = 120
 MAX_SIGNED_PATH_LEN = 7
-SIGN_TO_STANDARD = {0: '+', '+': '+', 'plus': '+',
-                    '-': '-', 'minus': '-', 1: '-'}
-SIGNS_TO_INT_SIGN = {0: 0, '+': 0, 'plus': 0,
-                     '-': 1, 'minus': 1, 1: 1}
-REVERSE_SIGN = {0: 1, 1: 0,
+INT_PLUS = 0
+INT_MINUS = 1
+SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
+                    '-': '-', 'minus': '-', INT_MINUS: '-'}
+SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
+                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS}
+REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 USER_OVERRIDE = False
@@ -40,21 +42,23 @@ class IndraNetwork:
     """Handle searches and graph output of the INDRA DB network"""
     def __init__(self, indra_dir_graph=nx.DiGraph(),
                  indra_multi_dir_graph=nx.MultiDiGraph(),
-                 indra_sign_graph_mc=None,
-                 signed_model=None):
+                 indra_sign_edge_graph=nx.MultiDiGraph(),
+                 indra_sign_node_graph=None):
         self.nx_dir_graph_repr = indra_dir_graph
         self.nx_md_graph_repr = indra_multi_dir_graph
-        self.sign_node_graph_mc = indra_sign_graph_mc if indra_sign_graph_mc\
-            else SignedGraphModelChecker(model=signed_model)
+        self.sign_node_graph_repr = signed_edges_to_signed_nodes(
+            indra_sign_edge_graph) if indra_sign_node_graph\
+            is None else indra_sign_node_graph
+        self.sign_edge_graph_repr = indra_sign_edge_graph
         self.nodes = indra_dir_graph.nodes
-        self.signed_nodes = self.sign_node_graph_mc.get_graph().nodes if \
-            indra_sign_graph_mc or signed_model else set()
+        self.signed_nodes = self.sign_node_graph_repr.nodes
         self.dir_edges = indra_dir_graph.edges
         self.mdg_edges = indra_multi_dir_graph.edges
-        self.signed_edges = self.sign_node_graph_mc.model.edges if \
-            indra_sign_graph_mc or signed_model else set()
+        self.signed_node_edges = self.sign_node_graph_repr.edges
+        self.signed_edges = indra_sign_edge_graph.edges
         self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
+        self.node_by_ns_id = indra_dir_graph.graph.get('node_by_ns_id', None)
         self.MAX_PATHS = MAX_PATHS
         self.TIMEOUT = TIMEOUT
         self.small = False
@@ -257,8 +261,8 @@ class IndraNetwork:
             logger.info('Query handling test passed')
             return False
         # Check if source or target is in blacklist
-        if options['source'] in options['node_blacklist'] or\
-                options['target'] in options['node_blacklist']:
+        if options['source'] in options.get('node_blacklist') or\
+                options['target'] in options.get('node_blacklist'):
             logger.warning('Source and/or target is blacklisted!')
             return True
         # Check non-resolving query
@@ -442,23 +446,33 @@ class IndraNetwork:
 
     def _two_edge_path(self, source, target, **options):
 
-        def _paths_genr(s, t, imts, ign_nodes, ign_edges):
+        def _paths_genr(s, t, imts, ign_nodes, ign_hashes):
             for i in imts:
-                if i not in ign_nodes:
-                    yield [s, i, t]
-                else:
+                if isinstance(i, tuple) and i[0] in ign_nodes or \
+                        i in ign_nodes:
                     continue
+                else:
+                    yield [s, i, t]
 
         # Loop the set of all intermediate nodes
-        ignores_nodes = options['node_blacklist']
-        ignores_edges = options['edge_hash_blacklist']
-        intermediates = set(self.nx_dir_graph_repr.succ[source]) & \
-            set(self.nx_dir_graph_repr.pred[target])
-        paths_gen = _paths_genr(source, target, intermediates, ignores_nodes,
-                                ignores_edges)
+        ign_options = {'ign_nodes': options.get('node_blacklist', []),
+                       'ign_hashes': options.get('edge_hash_blacklist', [])}
+        if options['sign'] is not None:
+            sign_source, signed_target =\
+                path_sign_to_signed_nodes(source, target, options['sign'])
+            sign_interm = set(self.sign_node_graph_repr.succ[sign_source]) & \
+                set(self.sign_node_graph_repr.pred[signed_target])
+            paths_gen = _paths_genr(sign_source, signed_target, sign_interm,
+                                    **ign_options)
+        else:
+            intermediates = set(self.nx_dir_graph_repr.succ[source]) & \
+                set(self.nx_dir_graph_repr.pred[target])
+            paths_gen = _paths_genr(source, target, intermediates,
+                                    **ign_options)
         res = defaultdict(list)
         added_paths = 0
-        for path in paths_gen:
+        graph_type = 'digraph' if options['sign'] is None else 'signed'
+        for _path in paths_gen:
             if added_paths >= self.MAX_PATHS:
                 logger.info('Found all %d shortest paths, returning results.' %
                             self.MAX_PATHS)
@@ -469,7 +483,15 @@ class IndraNetwork:
                                                           MAX_PATHS))
                 self.query_timed_out = True
                 return res
-            hash_path = self._get_hash_path(path, **options)
+            if options['sign'] is None:
+                path = _path
+                edge_signs = None
+            else:
+                path = [n[0] for n in _path]
+                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                              for s, t in zip(_path[:-1], _path[1:])]
+            hash_path = self._get_hash_path(path, edge_signs, graph_type,
+                                            **options)
             if hash_path and all(hash_path):
                 if self.verbose > 1:
                     logger.info('Adding stmts and path from %s to path list' %
@@ -507,14 +529,21 @@ class IndraNetwork:
                                                  options['weight'],
                                                  **blacklist_options)
             else:
-                # Fixme Check what is meant by path length? len(nodes) or
+                # TodO
+                #  1.Check what is meant by path length? len(nodes) or
                 #  len(edges)?
+                #  2. Use nf.shortest_simple_paths and try weighted search
                 # Generate signed nodes from query's overall sign
                 (src, src_sign), (trgt, trgt_sign) =\
-                    edge_sign_to_node_sign(source, target, options['sign'])
+                    path_sign_to_signed_nodes(source, target, options['sign'])
                 subj = (src, SIGNS_TO_INT_SIGN[src_sign])
                 obj = (trgt, SIGNS_TO_INT_SIGN[trgt_sign])
-                paths = get_path_iter(self.sign_node_graph_mc.graph, subj, obj)
+                signed_blacklisted_nodes = []
+                for n in options.get('node_blacklist', []):
+                    signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
+                paths = nf.shortest_simple_paths(
+                    self.sign_node_graph_repr, subj, obj, options['weight'],
+                    ignore_nodes=signed_blacklisted_nodes)
 
             return self._loop_paths(paths, **options)
 
@@ -1012,7 +1041,7 @@ def translate_query(query_json):
     return options
 
 
-def edge_sign_to_node_sign(source, target, edge_sign):
+def path_sign_to_signed_nodes(source, target, edge_sign):
     """Translates a signed edge or path to valid signed nodes
 
     Pairs with a negative source node are filtered out.

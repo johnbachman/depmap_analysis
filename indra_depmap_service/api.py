@@ -33,13 +33,26 @@ STATIC = path.join(HERE, 'static')
 S3_BUCKET = 'depmap-analysis'
 INDRA_MDG = 'indranet_multi_digraph_latest.pkl'
 INDRA_DG = 'indranet_dir_graph_latest.pkl'
-INDRA_SG_MC = 'indranet_sign_graph_mc_latest.pkl'
+INDRA_SNG = 'indranet_sign_node_graph_latest.pkl'
+INDRA_SEG = 'indranet_sign_edge_graph_latest.pkl'
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
 INDRA_MDG_CACHE = path.join(CACHE, INDRA_MDG)
 TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
-INDRA_SG_MC_CACHE = path.join(CACHE, INDRA_SG_MC)
+INDRA_SNG_CACHE = path.join(CACHE, INDRA_SNG)
+INDRA_SEG_CACHE = path.join(CACHE, INDRA_SEG)
+
+FILES = {
+    'dir_graph_path': INDRA_DG_CACHE if path.isfile(INDRA_DG_CACHE)
+    else None,
+    'multi_digraph_path': INDRA_MDG_CACHE if path.isfile(INDRA_MDG_CACHE)
+    else None,
+    'sign_edge_graph_path': INDRA_SEG_CACHE if path.isfile(INDRA_SEG_CACHE)
+    else None,
+    'sign_node_graph_path': INDRA_SNG_CACHE if path.isfile(INDRA_SNG_CACHE)
+    else None
+}
 
 VERBOSITY = int(os.environ.get('VERBOSITY', 0))
 API_DEBUG = int(os.environ.get('API_DEBUG', 0))
@@ -95,8 +108,8 @@ def get_queryable_stmt_types():
 
 
 def load_indra_graph(dir_graph_path, multi_digraph_path=None,
-                     sign_graph_mc_path=None, update=False,
-                     belief_dict=None, strat_ev_dict=None,
+                     sign_node_graph_path=None, sign_edge_graph_path=None,
+                     update=False, belief_dict=None, strat_ev_dict=None,
                      include_entity_hierarchies=True, verbosity=0):
     """Return a nx.DiGraph and nx.MultiDiGraph representation an INDRA DB dump
 
@@ -104,9 +117,11 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
     WARNING: this typically requires a lot of RAM and might slow down your
     system significantly.
     """
-    global INDRA_DG_CACHE, INDRA_MDG_CACHE, INDRA_SG_MC_CACHE
+    global INDRA_DG_CACHE, INDRA_MDG_CACHE, INDRA_SNG_CACHE, INDRA_SEG_CACHE
     indra_multi_digraph = nx.MultiDiGraph()
-    signed_graph_mc = None
+    indra_signed_edge_graph = nx.MultiDiGraph()
+    indra_signed_node_graph = nx.DiGraph()
+
     if update:
         df = make_dataframe(True, load_db_content(True, NS_LIST))
         options = {'df': df,
@@ -122,18 +137,21 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
                 graph_type='multidigraph', **options)
             dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
             INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
-        if sign_graph_mc_path:
-            signed_graph_mc = nf.sif_dump_df_to_nx_digraph(
-                graph_type='signed', **options)
+        if sign_node_graph_path or sign_edge_graph_path:
+            indra_signed_edge_graph, indra_signed_node_graph = \
+                nf.sif_dump_df_to_nx_digraph(graph_type='signed', **options)
     else:
         logger.info('Loading indra network representations from pickles')
         indra_dir_graph = pickle_open(dir_graph_path)
         if multi_digraph_path:
             indra_multi_digraph = pickle_open(multi_digraph_path)
-        if sign_graph_mc_path:
-            signed_graph_mc = pickle_open(sign_graph_mc_path)
+        if sign_edge_graph_path:
+            indra_signed_edge_graph = pickle_open(sign_edge_graph_path)
+        if sign_node_graph_path:
+            indra_signed_node_graph = pickle_open(sign_node_graph_path)
         logger.info('Finished loading indra networks.')
-    return indra_dir_graph, indra_multi_digraph, signed_graph_mc
+    return indra_dir_graph, indra_multi_digraph, indra_signed_edge_graph,\
+        indra_signed_node_graph
 
 
 # Load network
@@ -142,15 +160,7 @@ if path.isfile(INDRA_DG_CACHE):
     if API_DEBUG:
         logger.info('Debugging API, no network will be loaded...')
     elif argv[0].split('/')[-1].lower() != 'api.py':
-        # For those not using python api.py
-        if path.isfile(INDRA_SG_MC_CACHE):
-            logger.info('Found both DiGraph and SignedGraph in cache')
-            indra_network = IndraNetwork(
-                *load_indra_graph(dir_graph_path=INDRA_DG_CACHE,
-                                  sign_graph_mc_path=INDRA_SG_MC_CACHE))
-        else:
-            logger.info('Found DiGraph in cache')
-            indra_network = IndraNetwork(*load_indra_graph(INDRA_DG_CACHE))
+        indra_network = IndraNetwork(*load_indra_graph(**FILES))
 else:
     # Try to find file(s) on s3
     try:
@@ -162,22 +172,21 @@ else:
         dg_key = 'indra_db_files/' + INDRA_DG
         dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
         dg_net = pickle.loads(dg_obj['Body'].read())
-        dump_it_to_pickle(path.join(CACHE, INDRA_DG), dg_net)
+        dump_it_to_pickle(INDRA_DG_CACHE, dg_net)
 
-        if not path.isfile(INDRA_SG_MC_CACHE):
-            sg_key = 'indra_db_file/' + INDRA_SG_MC
-            sg_obj = s3.get_object(Bucket=S3_BUCKET, Key=sg_key)
-            sg_net = pickle.loads(sg_obj['Body'].read())
-            dump_it_to_pickle(path.join(CACHE, INDRA_SG_MC), sg_net)
+        if FILES['sign_edge_graph_path'] is None:
+            seg_key = 'indra_db_file/' + INDRA_SEG
+            seg_obj = s3.get_object(Bucket=S3_BUCKET, Key=seg_key)
+            seg_net = pickle.loads(seg_obj['Body'].read())
+            dump_it_to_pickle(INDRA_SEG_CACHE, seg_net)
         else:
-            sg_net = pickle_open(INDRA_SG_MC_CACHE)
-        # For those using flask run
+            seg_net = pickle_open(FILES['sign_edge_graph_path'])
         if argv[0].split('/')[-1].lower() != 'api.py':
             indra_network = IndraNetwork(indra_dir_graph=dg_net,
-                                         indra_sign_graph_mc=sg_net)
+                                         indra_sign_edge_graph=seg_net)
     except Exception as e:
         logger.error('Could not find %s or %s locally or on s3' %
-                     (INDRA_DG, INDRA_SG_MC))
+                     (INDRA_DG, INDRA_SEG))
         raise e
 
 # Set verbosity
@@ -194,7 +203,7 @@ def get_query_page():
     node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
                         'PUBCHEM']
     stmt_types = get_queryable_stmt_types()
-    has_signed_graph = bool(indra_network.signed_nodes)
+    has_signed_graph = bool(len(indra_network.signed_nodes))
     return render_template('query_template.html',
                            stmt_types=stmt_types,
                            node_name_spaces=node_name_spaces,
@@ -275,10 +284,12 @@ if __name__ == '__main__':
     elif args.cache:
         logger.info('Loading provided network files')
         dg_file = args.cache[0]
-        mdg_file = args.cache[1] if len(args.cache) in (2, 3) and\
+        mdg_file = args.cache[1] if len(args.cache) in (2, 3, 4) and\
             args.cache[1].lower() != 'none' else None
-        sgmc_file = args.cache[2] if len(args.cache) >= 3 and\
+        seg_file = args.cache[2] if len(args.cache) >= 3 and\
             args.cache[2].lower() != 'none' else None
+        sng_file = args.cache[3] if len(args.cache) > 3 and\
+            args.cache[3].lower() != 'none' else None
         try:
             indra_network = \
                 IndraNetwork(*load_indra_graph(dg_file, mdg_file))
@@ -297,8 +308,7 @@ if __name__ == '__main__':
                            'default network...')
     else:
         indra_network = IndraNetwork(
-            *load_indra_graph(dir_graph_path=INDRA_DG_CACHE,
-                              sign_graph_mc_path=INDRA_SG_MC_CACHE))
+            *load_indra_graph(**FILES))
 
     if args.test:
         indra_network.small = True
