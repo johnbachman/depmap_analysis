@@ -1,24 +1,23 @@
 import os
 import json
-import boto3
 import pickle
 import logging
 import argparse
-import networkx as nx
 from sys import argv
 from os import path, makedirs
 from datetime import datetime
-from botocore import UNSIGNED
-from botocore.client import Config
 from time import time, gmtime, strftime
 
+import boto3
+import networkx as nx
+from botocore import UNSIGNED
+from botocore.client import Config
 from jinja2 import Template
-from flask import Flask, request, abort, Response, render_template, url_for
+from flask import Flask, request, abort, Response, render_template
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.config import CONFIG_DICT
-from indra.statements import get_all_descendants, Activation, Inhibition,\
+from indra.statements import get_all_descendants, Activation, Inhibition, \
     IncreaseAmount, DecreaseAmount, AddModification, RemoveModification
-
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
