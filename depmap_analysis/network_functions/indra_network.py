@@ -1,16 +1,14 @@
 import logging
-import requests
-import networkx as nx
 from itertools import product
 from collections import defaultdict
 from time import time, gmtime, strftime
-from networkx import NodeNotFound, NetworkXNoPath
 
+import requests
+import networkx as nx
+from networkx import NodeNotFound, NetworkXNoPath
 from indra.config import CONFIG_DICT
 from indra.assemblers.indranet.net import default_sign_dict
-from indra.explanation.model_checker import SignedGraphModelChecker,\
-    get_path_iter
-
+from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 
