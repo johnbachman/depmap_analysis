@@ -524,20 +524,19 @@ class IndraNetwork:
             blacklist_options =\
                 {'ignore_nodes': options.get('node_blacklist', None)}
             if options['sign'] is None:
+                # Do unsigned path search
                 paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
                                                  source, target,
                                                  options['weight'],
                                                  **blacklist_options)
             else:
-                # TodO
-                #  1.Check what is meant by path length? len(nodes) or
-                #  len(edges)?
-                #  2. Use nf.shortest_simple_paths and try weighted search
                 # Generate signed nodes from query's overall sign
                 (src, src_sign), (trgt, trgt_sign) =\
                     path_sign_to_signed_nodes(source, target, options['sign'])
+                # Get signed nodes for source and target
                 subj = (src, SIGNS_TO_INT_SIGN[src_sign])
                 obj = (trgt, SIGNS_TO_INT_SIGN[trgt_sign])
+                # Generate signed blacklisted nodes
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
