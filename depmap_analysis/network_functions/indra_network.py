@@ -686,6 +686,12 @@ class IndraNetwork:
                         logger.info('Max path length reached, returning '
                                     'results.')
                     return result
+                elif options['weight'] and graph_type == 'signed' and\
+                        len(path) > 7:
+                    logger.warning('Extremely long signed paths detected, '
+                                   'aborting for to avoid long wait for '
+                                   'Networkx to return further paths.')
+                    return result
                 else:
                     logger.warning('This option should not happen')
             else:
