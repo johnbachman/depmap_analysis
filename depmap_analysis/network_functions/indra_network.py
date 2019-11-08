@@ -76,7 +76,7 @@ class IndraNetwork:
                     path_length'=False and 'weighted'=True. Placing
                     the path length constrain on top of the wigthed search
                     can take a substantial amount of time
-                * 'weighted' AND ''
+
         The query is a json-friendly key-value structure contained in kwargs
         with the following parameters:
 
@@ -150,8 +150,8 @@ class IndraNetwork:
                     Dict keyed by node count with the results of directed path
                     search from target to source
                 ct : dict('target')
-                    List of dicts keyed by common target name, sorted on highest
-                    lowest belief score
+                    List of dicts keyed by common target name, sorted on
+                    highest lowest belief score
                 cp : dict
                     Dict with result of common parents search together with the
                     ns:id pairs used to resolve the query
@@ -227,7 +227,8 @@ class IndraNetwork:
                 if options['two_way']:
                     ksp_backward = self.try_parents(**bckwargs)
                 if self.verbose > 2:
-                    logger.info('Parents search result: %s' % repr(ksp_forward))
+                    logger.info('Parents search result: %s' %
+                                repr(ksp_forward))
 
             if not ksp_forward and not ksp_backward and GRND_URI:
                 logger.info('No paths found, trying to ground source and '
@@ -1020,20 +1021,21 @@ def edge_sign_to_node_sign(source, target, edge_sign):
 
     Paramters
     ---------
-    source : Union[str, int]
+    source : str|int
         The source node
-    target : Union[str, int]
-        Th target node
+    target : str|int
+        The target node
     edge_sign : Union(0, 1, '+', '-', 'plus', 'minus')
-        The sign if the edge
+        The sign of the edge
+
     Returns
     -------
-    tuple(((a, sign), (b, sign)), ((a, sign), (b, sign)))
-        Tuple of tuples of the valid combinations of node-sign pairs
+    sign_tuple : (a, sign), (b, sign)
+        Tuple of tuples of the valid combination of signed nodes
     """
-    # + edge/path -> (a+, b+)
-    # - edge/path -> (a+, b-)
-    # (a-, b-) and (a-, b+) are also technically valid but not in this context.
+    # + path -> (a+, b+)
+    # - path -> (a+, b-)
+    # (a-, b-) and (a-, b+) are also technically valid but not in this context
     if SIGN_TO_STANDARD.get(edge_sign):
         if SIGN_TO_STANDARD[edge_sign] == '+':
             return (source, edge_sign), (target, edge_sign)
@@ -1046,10 +1048,11 @@ def edge_sign_to_node_sign(source, target, edge_sign):
 
 
 def signed_nodes_to_signed_edge(source, target):
-    """The inverse of edge_sign_to_node_sign
+    """Create the triple (node, node, sign) from a signed node pair
 
     Assuming source, target forms an edge of signed nodes:
-    edge = (a, sign), (b, sign)"""
+    edge = (a, sign), (b, sign), return the corresponding signed edge triple
+    """
     # + edge/path -> (a+, b+) and (a-, b-)
     # - edge/path -> (a-, b+) and (a+, b-)
     source_name, source_sign = source
