@@ -103,7 +103,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
 
     If update is True, make a fresh snapshot from the INDRA DB.
     WARNING: this typically requires a lot of RAM and might slow down your
-    computer significantly.
+    system significantly.
     """
     global INDRA_DG_CACHE, INDRA_MDG_CACHE, INDRA_SG_MC_CACHE
     indra_multi_digraph = nx.MultiDiGraph()
@@ -127,11 +127,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
             signed_graph_mc = nf.sif_dump_df_to_nx_digraph(
                 graph_type='signed', **options)
     else:
-        logger.info('Loading indra network%s %s %s' %
-                    ('s' if multi_digraph_path else '',
-                     dir_graph_path.split()[-1],
-                     'and ' + multi_digraph_path.split()[-1] if
-                     multi_digraph_path else ''))
+        logger.info('Loading indra network representations from pickles')
         indra_dir_graph = pickle_open(dir_graph_path)
         if multi_digraph_path:
             indra_multi_digraph = pickle_open(multi_digraph_path)
