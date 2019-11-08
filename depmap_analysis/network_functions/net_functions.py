@@ -1,16 +1,15 @@
 import logging
+from decimal import Decimal
+
 import requests
 import numpy as np
 import pandas as pd
 import networkx as nx
-from decimal import Decimal
 import networkx.algorithms.simple_paths as simple_paths
-
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
-from indra.explanation.model_checker import SignedGraphModelChecker
-
+from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
@@ -194,13 +193,16 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
                                                   'complementary_belief',
                                                   _weight_mapping)
     elif graph_type == 'signed':
-        model = IndraNet.signed_from_df(sif_df,
+        signed_edge_graph = IndraNet.signed_from_df(sif_df,
             flattening_method='complementary_belief',
             weight_mapping=_weight_mapping)
-        indranet_graph =\
-            SignedGraphModelChecker(model=model).get_graph()
+        signed_node_graph = signed_edges_to_signed_nodes(
+            graph=signed_edge_graph, copy_edge_data={'weight'})
+        signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+        signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+        return signed_edge_graph, signed_node_graph
 
-    # Add hierarchy relations to graph
+    # Add hierarchy relations to graph (not applicable for signed graphs)
     if include_entity_hierarchies and graph_type != 'signed':
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
