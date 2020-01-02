@@ -1,15 +1,15 @@
 import logging
+from decimal import Decimal
+
 import requests
 import numpy as np
 import pandas as pd
 import networkx as nx
-from decimal import Decimal
 import networkx.algorithms.simple_paths as simple_paths
-
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
-
+from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
@@ -28,7 +28,8 @@ except KeyError:
 
 
 def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
-                              multi=False, include_entity_hierarchies=True,
+                              graph_type='digraph',
+                              include_entity_hierarchies=True,
                               verbosity=0):
     """Return a NetworkX digraph from a pandas dataframe of a db dump
 
@@ -36,16 +37,20 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
     ----------
     df : str|pd.DataFrame
         A dataframe, either as a file path to a pickle or a pandas
-        DataFrame object
+        DataFrame object.
     belief_dict : str|dict
-        The file path to a belief dict that is keyed by statement hashes
-        corresponding to the statement hashes loaded in df
-    strat_ev_dict : str
-        The file path to a dict keyed by statement hashes containing the
-        stratified evidence count per statement
-    multi : bool
-        Default: False; Return an nx.MultiDiGraph if True, otherwise
-        return an nx.DiGraph
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the belief score for the corresponding statements.
+        The hashes should correspond to the hashes in the loaded dataframe.
+    strat_ev_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the stratified evidence count per statement. The
+        hashes should correspond to the hashes in the loaded dataframe.
+    graph_type : str
+        Return type for the returned graph. Currently supports:
+            - 'digraph': IndraNet(nx.DiGraph) (Default)
+            - 'multidigraph': IndraNet(nx.MultiDiGraph)
+            - 'signed': SignedGraphModelChecker(ModelChecker)
     include_entity_hierarchies : bool
         Default: True
     verbosity: int
@@ -53,9 +58,12 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
 
     Returns
     -------
-    indranet_graph : nx.DiGraph or nx.MultiDiGraph
-        By default an nx.DiGraph is returned. By setting multi=True,
-        an nx.MultiDiGraph is returned instead."""
+    indranet_graph : IndraNet(graph_type)
+        The type is determined by the graph_type argument"""
+    graph_options = ['digraph', 'multidigraph', 'signed']
+    if graph_type not in graph_options:
+        raise ValueError('Graph type %s not supported. Can only chose between'
+                         ' %s' % (graph_type, graph_options))
     sed = None
     readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
 
@@ -80,6 +88,7 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
         Returns
         -------
         G : IndraNet
+            Graph with updated belief
         """
         for edge in G.edges:
             G.edges[edge]['weight'] = \
@@ -176,16 +185,25 @@ def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
             func=lambda ec: 1/np.longfloat(ec))
 
     # Create graph from df
-    if multi:
+    if graph_type == 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
-    else:
+    elif graph_type is 'digraph':
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
                                                   _weight_mapping)
+    elif graph_type == 'signed':
+        signed_edge_graph = IndraNet.signed_from_df(sif_df,
+            flattening_method='complementary_belief',
+            weight_mapping=_weight_mapping)
+        signed_node_graph = signed_edges_to_signed_nodes(
+            graph=signed_edge_graph, copy_edge_data={'weight'})
+        signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+        signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+        return signed_edge_graph, signed_node_graph
 
-    # Add hierarchy relations to graph
-    if include_entity_hierarchies:
+    # Add hierarchy relations to graph (not applicable for signed graphs)
+    if include_entity_hierarchies and graph_type != 'signed':
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
         ehm = hm.hierarchies['entity']
@@ -402,7 +420,7 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
     A simple path is a path with no repeated nodes.
 
     If a weighted shortest path search is to be used, no negative weights
-    are allawed.
+    are allowed.
 
     Parameters
     ----------

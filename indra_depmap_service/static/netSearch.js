@@ -2,14 +2,8 @@ const SUBMIT_URL = './query/submit';
 const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
 const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=html&';
 const MAX_K_PATHS = 50;
-const stmtOptions = ['Acetylation', 'Activation', 'ActiveForm', 'Autophosphorylation',
-  'Complex', 'Conversion', 'Deacetylation', 'DecreaseAmount', 'Deglycosylation',
-  'Dehydroxylation', 'Demethylation', 'Depalmitoylation', 'Dephosphorylation',
-  'Deribosylation', 'Desumoylation', 'Deubiquitination', 'Farnesylation',
-  'Gap', 'Gef', 'Geranylgeranylation', 'GtpActivation', 'Hydroxylation', 'IncreaseAmount',
-  'Inhibition', 'Methylation', 'Myristoylation', 'Palmitoylation', 'Phosphorylation',
-  'Ribosylation', 'Sumoylation', 'Translocation', 'Ubiquitination'];
-var stmtItems = [];
+
+let stmtItems = [];
 for (s of stmtOptions) {
   stmtItems.push({
     value: s.toLowerCase(),
@@ -19,8 +13,7 @@ for (s of stmtOptions) {
   })
 }
 
-const nodeOptions = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM'];
-var nodeItems = [];
+let nodeItems = [];
 for (let n of nodeOptions) {
   let sel = false;
   if (n === 'HGNC') sel = true;
@@ -90,7 +83,7 @@ function submitQuery() {
     node_filter: nodeFilterList,
     node_blacklist: nodeBlackList,
     path_length: parseInt(document.getElementById('path-length').value) || false,
-    // sign: document.getElementById('sign-dd').value,
+    sign: document.getElementById('sign-dd').value,
     weighted: document.getElementById('weighted-search').checked,
     bsco: beliefEntry,
     // direct_only: document.getElementById('direct-only').checked,
@@ -152,7 +145,8 @@ function fillResultsTable(data, source, target){
     var tableArea = document.getElementById('table-area');
 
     // Fill common parents table
-    if (data.result.common_parents.common_parents.length > 0) {
+    if (data.result.common_parents.common_parents &&
+        data.result.common_parents.common_parents.length > 0) {
       let cardHtml = generateCommonParents();
       tableArea.appendChild(cardHtml);
       document.getElementById('subject-placeholder-cp').textContent =

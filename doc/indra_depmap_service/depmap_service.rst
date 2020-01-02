@@ -14,8 +14,9 @@ To run the service locally, two things are needed:
 2. Download the latest network representations of the indra network
    (might require AWS S3 login). The files needed are:
 
-   * ``nx_bs_fam_dir_graph_db_refresh_20190702.pkl``
-   * ``nx_bs_fam_multi_digraph_db_refresh_20190702.pkl``
+   * ``indranet_signed_nodes_graph_latest.pkl``
+   * ``indranet_multi_digraph_latest.pkl``
+   * ``indranet_dir_graph_latest.pkl``
 
 Running the Service Locally
 ===========================
@@ -23,14 +24,20 @@ Running the Service Locally
 Running the service locally requires Python 3.5+. Dependencies are the same
 as for INDRA and INDRA_DB::
 
-  python api.py [-h] [--host HOST] [--port PORT] [--cache DG_GRAPH MDG_GRAPH]
+  python api.py [-h] [--host HOST] [--port PORT] [--cache DG_GRAPH MDG_GRAPH|None SIGN_GRAPH_MC|None]
 
 where ``HOST`` is the address to use (default is ``127.0.0.1``), ``PORT``
-is the port to use (default is ``5000``) and ``DG_GRAPH`` and ``MDG_GRAPH`` are pickled NetworkX files representing
-the INDRA knowledge network in DiGraph and MultiDiGraph representations, respectively. The ``--cache``
+is the port to use (default is ``5000``) and ``DG_GRAPH``, ``MDG_GRAPH`` and ``SIGN_GRAPH_MC`` are pickled graphs representing
+the INDRA knowledge network in DiGraph, MultiDiGraph and SignedGraph representations, respectively. The ``--cache``
 flag overrides the defaults in the file so that any file can be provided. If default settings are used for ``HOST``
 and ``PORT``, a web ui is hosted on http://localhost:5000/query and query submissions are
 done to http://localhost:5000/query/submit.
+
+Running the Service Using Flask
+===============================
+
+If flask is pip installed, the service can be run using ``flask run`` instead. To do this, at least the environment
+variable ``FLASK_APP`` has to be set to the filepath of ``api.py``.
 
 Searching
 =========
