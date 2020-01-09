@@ -20,7 +20,7 @@ import logging
 import pickle as pkl
 import argparse as ap
 import itertools as itt
-from time import time, strftime
+from datetime import datetime
 from random import choice as rnd_choice
 
 import pandas as pd
@@ -988,8 +988,10 @@ if __name__ == '__main__':
         'opposite signs. `None` - No filter is applied when merging the data '
         'sets. The resulting correlation dictionary will simply be the '
         'intersection of the provided data sets.')
-    parser.add_argument('-o', '--outbasename', default=str(int(time())),
-                        help='Base name for outfiles. Default: UTC timestamp.')
+    parser.add_argument('-o', '--outbasename',
+                        default=datetime.utcnow().strftime('%Y%m%d'),
+                        help='Base name for outfiles. Default: UTC '
+                             'timestamp.')
     parser.add_argument('-rec', '--recalc-crispr', action='store_true',
                         help='With \'-r\', recalculate full gene-gene '
                              'correlations of CRISPR data set.')
@@ -1051,9 +1053,11 @@ if __name__ == '__main__':
                              'nested dict and the dir_graph')
     a = parser.parse_args()
 
-    with open(a.outbasename+'dep_map_script_log{}.log'.format(
-            str(int(time()))), 'w', newline='\n') as f:
-        f.write('Created on {}\n'.format(strftime('%Y %b %d, %H:%M:%S')))
+    ymd_date = datetime.utcnow().strftime('%Y%m%d')
+    with open(a.outbasename+'dep_map_script_log_%s.log' % ymd_date,
+              'w', newline='\n') as f:
+        f.write('Created on %s\n' %
+                datetime.utcnow().strftime('%Y %b %d, %H:%M:%S'))
         f.write('Execution path: {}\n\n'.format(os.getcwd()))
         f.write('Command line option : value\n---------------------------\n')
         for arg in vars(a):
