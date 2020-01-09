@@ -964,8 +964,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         else:
             dnf_logger.info('Calculating mean and standard deviation for set %s'
                             ' from %s' % (gene_set_name, dataset_dict['data']))
-            stats = get_stats(corr_matrix_to_generator(full_corr_matrix))
-            sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
+            mu, si = get_stats(corr_matrix_to_generator(full_corr_matrix))
+            dnf_logger.info('Set %s mean: %f, st dev: %f' %
+                            (gene_set_name, mu, si))
+            sigma_dict = {'mean': mu, 'sigma': si}
 
         # Get corr matrix and the accompanied set of genes
         filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids,\
