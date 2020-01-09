@@ -452,8 +452,8 @@ def nested_stmt_dict_to_nx_graph(nest_d):
 
 def pd_to_nx_graph(corr_sr, source='id1', target='id2',
                    edge_attr='correlation', use_abs_corr=True):
-    """Return a graph from a pandas sereis containing correlaton between gene A
-    and gene B, using the correlation as edge weight
+    """Return a graph from a pandas series containing correlaton between gene
+    A and gene B, using the correlation as edge weight
 
     Parameters
     ----------
@@ -555,7 +555,7 @@ def histogram_from_tuple_generator(tuple_gen, binsize, first,
     home_brewed_histo = np.zeros(number_of_bins, dtype=int)
     for g1, g1, flt in tuple_gen:
         home_brewed_histo[io.map2index(start=first, binsize=binsize,
-                                    value=flt)] += 1
+                                       value=flt)] += 1
     return home_brewed_histo
 
 
@@ -821,11 +821,11 @@ def merge_correlation_data(correlation_dicts_list, settings):
 
 
 def merge_correlation_dicts_recursive(correlation_dicts_list):
-    """ This should be the recursive version of correlation_dicts_list(). Call
+    """This should be the recursive version of correlation_dicts_list(). Call
     this function from correlation_dicts_list()
 
     :param correlation_dicts_list:
-    :return: pass
+    :return:
     """
     pass
 
