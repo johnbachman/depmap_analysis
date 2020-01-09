@@ -28,7 +28,7 @@ from numpy import float64
 from indra.tools import assemble_corpus as ac
 
 import depmap_analysis.util.io_functions as io
-import depmap_analysis.network_functions.network_functions as nf
+import depmap_analysis.network_functions.net_functions as nf
 import depmap_analysis.network_functions.famplex_functions as ff
 from depmap_analysis.network_functions import depmap_network_functions as dnf
 
