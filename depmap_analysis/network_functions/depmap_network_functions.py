@@ -216,6 +216,91 @@ def nested_stmt_dict_to_nx_multidigraph(nest_d):
     return nx_muldir
 
 
+def _merge_belief(sif_df, belief_dict):
+    if isinstance(belief_dict, str):
+        belief_dict = io.pickle_open(belief_dict)
+    elif isinstance(belief_dict, dict):
+        belief_dict = belief_dict
+
+    hashes = []
+    beliefs = []
+    for k, v in belief_dict.items():
+        hashes.append(k)
+        beliefs.append(v)
+
+    sif_df = sif_df.merge(
+        right=pd.DataFrame(data={'stmt_hash': hashes, 'belief': beliefs}),
+        how='left',
+        on='stmt_hash'
+    )
+    # Check for missing hashes
+    if sif_df['belief'].isna().sum() > 0:
+        dnf_logger.warning('%d rows with missing belief score found' %
+                       sif_df['belief'].isna().sum())
+        dnf_logger.info('Setting missing belief scores to 1/evidence count')
+    return sif_df
+
+
+def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
+    """Convert a sif dump df to a nested dict
+
+    Paramters
+    ---------
+    sif_df_in : pd.DataFrame
+        A pd.DataFrame with at least the columns 'agA_name', 'agB_name',
+        'stmt_type', 'stmt_hash'. Any other columns will be part of the
+        list of dictionaries in the innermost entry.
+    belief_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the belief score for the corresponding statements.
+        The hashes should correspond to the hashes in the loaded dataframe.
+
+    Returns
+    -------
+    nest_d : dict(dict(())
+    """
+
+    if isinstance(sif_df_in, str):
+        sif_df = io.pickle_open(sif_df_in)
+    elif isinstance(sif_df_in, pd.DataFrame):
+        sif_df = sif_df_in
+
+    mandatory_columns = ('agA_name', 'agB_name', 'stmt_type', 'stmt_hash')
+    if not set(mandatory_columns).issubset(set(sif_df.columns.values)):
+        raise ValueError('Data frame must at least have the columns %s' %
+                         '"' + '", "'.join(mandatory_columns) + '"')
+
+    if belief_dict:
+        sif_df = _merge_belief(sif_df, belief_dict)
+
+    dnf_logger.info('Producing nested dict of stmts from sif dump df')
+    nest_d = {}
+    for index, row in sif_df.iterrows():
+        rd = row.to_dict()
+        a_name = rd.pop('agA_name')
+        b_name = rd.pop('agB_name')
+
+        if nest_d.get(a_name):
+            if nest_d[a_name].get(b_name):
+                # a-b relation already exists and should be a list
+                try:
+                    nest_d[a_name][b_name].append(rd)
+                except KeyError:
+                    dnf_logger.error('KeyError when trying to append new '
+                                     'statement for relation %s %s relation'
+                                     % (a_name, b_name))
+                except AttributeError:
+                    dnf_logger.error('AttributeError for %s %s' %
+                                     (a_name, b_name))
+            else:
+                # First a-b relation, add inner dict as list
+                nest_d[a_name][b_name] = [rd]
+        else:
+            # First addition of this a_name agent
+            nest_d[a_name] = {b_name: [rd]}
+    return nest_d
+
+
 def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
     """Returns a directed graph from a two layered nested dictionary
 
