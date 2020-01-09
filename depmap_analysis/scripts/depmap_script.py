@@ -64,7 +64,7 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
                     continue
                 cd = nested_dict[ok][ik]['meta_data']
                 fo.write('%s,%s,%s,%s\n' %
-                         (ok, ik, 
+                         (ok, ik,
                           str(cd['crispr']) if cd and json.dumps(cd.get(
                               'crispr'))
                           else '0',
@@ -578,7 +578,8 @@ def main(args):
     # Get nested dicts from statements
     if args.light_weight_stmts:
         hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
-        nested_dict_statements = dnf.nested_hash_dict_from_pd_dataframe(hash_df)
+        nested_dict_statements = \
+            dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
         nested_dict_statements = io.pickle_open(args.nested_dict_in)
     elif args.sif_df_in:
@@ -604,7 +605,7 @@ def main(args):
         # Save as pickle file
         if args.directed_graph_out:
             io.dump_it_to_pickle(fname=args.directed_graph_out,
-                              pyobj=nx_dir_graph)
+                                 pyobj=nx_dir_graph)
     dir_node_set = set(nx_dir_graph.nodes)
 
     # LOOP THROUGH THE UNIQUE CORRELATION PAIRS, MATCH WITH INDRA NETWORK
@@ -679,7 +680,7 @@ def main(args):
                     skipped += 1
                     if args.verbosity:
                         logger.info('Skipped outer_id=%s and inner_id=%s' %
-                                (outer_id, inner_id))
+                                    (outer_id, inner_id))
                     continue
 
                 id1, id2 = outer_id, inner_id
@@ -708,7 +709,7 @@ def main(args):
                     skipped += 1
                     if args.verbosity:
                         logger.info('Skipped outer_id=%s and inner_id=%s' %
-                                (outer_id, inner_id))
+                                    (outer_id, inner_id))
                     continue
 
                 id1, id2 = outer_id, inner_id
