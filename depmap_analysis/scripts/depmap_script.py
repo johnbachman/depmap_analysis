@@ -581,12 +581,17 @@ def main(args):
         nested_dict_statements = dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
         nested_dict_statements = io.pickle_open(args.nested_dict_in)
+    elif args.sif_df_in:
+        nested_dict_statements = dnf.sif_dump_df_to_nest_d(args.sif_df_in,
+                                                           belief_dict)
     else:
         nested_dict_statements = dnf.dedupl_nested_dict_gen(stmts_all,
                                                             belief_dict)
         if args.nested_dict_out:
             io.dump_it_to_pickle(fname=args.nested_dict_out,
-                              pyobj=nested_dict_statements)
+                                 pyobj=nested_dict_statements)
+    assert nested_dict_statements is not None, print(
+        nested_dict_statements.__class__)
 
     # Get directed simple graph
     if args.directed_graph_in:
@@ -1040,6 +1045,9 @@ if __name__ == '__main__':
     parser.add_argument('-noweb', '--no-web-files', action='store_true',
                         help='With the flag active, no output files aimed for '
         'web services are produced')
+    parser.add_argument('--sif-df-in',
+                        help='Use a sif dump dataframe for generating the '
+                             'nested dict and the dir_graph')
     a = parser.parse_args()
 
     with open(a.outbasename+'dep_map_script_log{}.log'.format(
