@@ -557,7 +557,8 @@ def main(args):
     # provided list as set unless you're already loading a pre-calculated
     # nested dict and/or precalculated directed graph.
 
-    if not (args.light_weight_stmts or args.nested_dict_in):
+    if not args.light_weight_stmts and not args.nested_dict_in and \
+            not args.sif_df_in:
         if args.statements_in:  # Get statments from file
             stmts_all = set(ac.load_statements(args.statements_in))
         # Use api to get statements. _NOT_ the same as querying for each ID
