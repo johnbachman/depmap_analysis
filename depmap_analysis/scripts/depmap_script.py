@@ -52,6 +52,7 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
             open(fname.split('.')[0]+'_sr_only.csv', 'a') as fosro:
         for ok in nested_dict:
             for ik in nested_dict[ok]:
+                cd = nested_dict[ok][ik]['meta_data']
                 if excl_sr and nested_dict[ok][ik]['sr_only']:
                     logger.info('Skipping sr only: %s and %s' % (ik, ok))
                     fosro.write('%s,%s,%s,%s\n' %
@@ -62,7 +63,6 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
                          str(cd['rnai']) if cd and json.dumps(cd.get('rnai'))
                          else '0'))
                     continue
-                cd = nested_dict[ok][ik]['meta_data']
                 fo.write('%s,%s,%s,%s\n' %
                          (ok, ik,
                           str(cd['crispr']) if cd and json.dumps(cd.get(
