@@ -1262,7 +1262,7 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
     return corr_matrix_df
 
 
-def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
+def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin=None,
                 filter_type='z_scor_diff'):
     """Filter for passing correlation scores based on their difference in
     standard deviation
@@ -1293,6 +1293,10 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         If True, the correlations are similar enough as measured by their
         difference in their distance from the mean standard deviation.
     """
+    if filter_type in {'z_score_mean', 'z_score_diff', 'z_score_product'} \
+            and margin is None:
+        raise ValueError('Margin needs to be set for filter type %' %
+                         filter_type)
     if filter_type == 'z_score_mean':
         return _z_score_mean_co(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'z_score_diff':
