@@ -98,7 +98,9 @@ def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
 
 
 def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
-    # Limit to any a-x-b OR a-b expl
+    # Limit to any a-x-b OR a-b expl (this COULD include explanations where
+    # 'direct' and NOT 'pathway' is the explanation, but this should be a
+    # very small set)
     expl_df = expl_df[(expl_df['type'] == 'pathway') |
                       (expl_df['type'] == 'direct')]
 
@@ -125,8 +127,8 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     # Pairs where a-x-b AND NOT a-b explanation exists
     pairs_axb_only = set()
 
-    # Pairs where NOT a-x-b AND a-b explanation exists
-    pairs_direct_only = set()
+    # all a-x-b "pathway" explanations, should be union of the above two
+    pairs_any_axb = set()
 
     for s, o in all_ab_corr_pairs:
         # Get all interaction types associated with given subject s and
@@ -134,18 +136,20 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
         int_types = set(expl_df['type'][(expl_df['subj'] == s) &
                                         (expl_df['obj'] == o)].values)
         if 'pathway' in int_types:
+            pairs_any_axb.add((s, o))
             if 'direct' in int_types:
+                # Direct and pathway
                 pairs_axb_direct.add((s, o))
             else:
+                # Pathway and NOT direct
                 pairs_axb_only.add((s, o))
-        elif 'direct' in int_types:
-            pairs_direct_only.add((s, o))
+        else:
+            # Skip direct only
+            continue
 
-    # Get the combined set of pairs where at least a-x-b expl exists
+    # The union should be all pairs where a-x-b explanations exist
     ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
-
-    # Sort by comb_zsc
-    # print(expl_df.sort_values(by='comb_zsc', ascending=False).head(10))
+    assert ab_axb_union == pairs_any_axb
 
     # a-x-b AND direct
     all_x_corrs_direct, top_x_corrs_direct, corr_vs_maxavg_direct = \
@@ -174,15 +178,10 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
                             'corr_vs_maxavg': corr_vs_maxavg_no_direct},
             'all_axb': {'all_x_corrs': all_x_corrs_union,
                         'top_x_corrs': top_x_corrs_union,
-                        'corr_vs_maxavg': top_x_corrs_union}}
+                        'corr_vs_maxavg': corr_vs_maxavg_union}}
 
 
 if __name__ == '__main__':
-    # ToDo
-    #  - Functionalize the setup that has to be repeated for each SD range
-    #    (so we dont reload the correlation lookup)
-    #  - Get the underlying correlation distribution for each range (all
-    #    correlations with a-x-b explantion, regardless of direct)
     expl_pairs_csv = '/home/klas/repos/depmap_analysis/output_data' \
                      '/19Q4_hgnc_fplx/{range}/_explanations_of_pairs.csv'
     crispr_corr = '/home/klas/repos/depmap_analysis/input_data/depmap' \
@@ -201,7 +200,7 @@ if __name__ == '__main__':
     rcorr_matrix.columns = names
     rcorr_matrix.index = names
 
-    # Load _explanations_of_pairs.csv for your range
+    # Load _explanations_of_pairs.csv for each range
     for sd in ['1_2sd', '2_3sd', '3_4sd', '4_5sd', '5_sd', 'rnd']:
         fname = expl_pairs_csv.format(range=sd)
         if not path.isfile(fname):
@@ -220,7 +219,7 @@ if __name__ == '__main__':
                     plt.hist([v['all_x_corrs']], bins='auto')
                     plt.savefig(path.join(expl_dir, 'all_corrs_%s.png' % k),
                                 format='png')
-                    # plt.show()
+                    plt.show()
                 else:
                     logger.warning('Empty result for %s in range %s'
                                    % (k, sd))
