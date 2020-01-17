@@ -5,9 +5,8 @@ import math
 import logging
 import itertools as itt
 from math import ceil, log10
-from collections import Mapping
-from collections import OrderedDict
-from collections import defaultdict
+from random import choices
+from collections import Mapping, OrderedDict, defaultdict
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -54,6 +53,29 @@ def create_nested_dict():
     defaultdict(create_nested_dict)
     """
     return defaultdict(create_nested_dict)
+
+
+def mean_z_score(mu1, sig1, c1, mu2, sig2, c2):
+    return 0.5 * _z_sc(num=c1, mu=mu1, sigma=sig1) + \
+        0.5 * _z_sc(num=c2, mu=mu2, sigma=sig2)
+
+
+def comb_z_sc_gen(crispr_corr, rnai_corr, stats_dict):
+    cmu = stats_dict['crispr']['mu']
+    csig = stats_dict['crispr']['sigma']
+    rmu = stats_dict['rnai']['mu']
+    rsig = stats_dict['crispr']['sigma']
+    comb_gene_set = tuple(
+        set(crispr_corr.columns.values).intersection(rnai_corr.columns.values)
+    )
+    while True:
+        g1, g2 = choices(comb_gene_set, k=2)
+        while g1 == g2:
+            g1, g2 = choices(comb_gene_set, k=2)
+        cc = crispr_corr.loc[g1, g2]
+        rc = rnai_corr.loc[g1, g2]
+        yield mean_z_score(mu1=cmu, sig1=csig, c1=cc,
+                           mu2=rmu, sig2=rsig, c2=rc)
 
 
 def csv_file_to_generator(fname, column_list):

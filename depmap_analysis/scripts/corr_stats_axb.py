@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from os import path, environ
 from depmap_analysis.util.io_functions import pickle_open
 from depmap_analysis.network_functions.depmap_network_functions import \
-    _z_sc, pass_filter
+    mean_z_score, pass_filter
 
 
 logger = logging.getLogger('DepMap Corr Stats')
@@ -40,11 +40,6 @@ rsig = 0.077614
 #                      'pointing to the parent directory where the output '
 #                      'data for all the different SD ranges are in '
 #                      'subdirectories.')
-
-
-def mean_z_score(mu1, sig1, c1, mu2, sig2, c2):
-    return 0.5 * _z_sc(num=c1, mu=mu1, sigma=sig1) + \
-        0.5 * _z_sc(num=c2, mu=mu2, sigma=sig2)
 
 
 def func1(d):
