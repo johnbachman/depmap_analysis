@@ -76,7 +76,7 @@ def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
                     mu1=cmu, sig1=csig, c1=crispr_cm.loc[x, obj],
                     mu2=rmu, sig2=rsig, c2=rnai_cm.loc[x, obj])
                 all_ += [ax_corr, xb_corr]
-                ab_avg_corrs.append(0.5 * ax_corr + 0.5 * xb_corr)
+                ab_avg_corrs.append(0.5 * abs(ax_corr) + 0.5 * abs(xb_corr))
             else:
                 # if warn < 3:
                 #     warn += 1
