@@ -211,15 +211,36 @@ if __name__ == '__main__':
             results = main(expl_df=df,
                            crispr_corr_matrix=ccorr_matrix,
                            rnai_corr_matrix=rcorr_matrix)
-            expl_dir = path.dirname(expl_pairs_csv.format(range=sd))
+            expl_dir = path.dirname(fname)
 
+            # Loop the different sets:
+            #   - axb_and_dir - subset where direct AND pathway explains
+            #   - axb_not_dir - subset where pathway, NOT direct explans
+            #   - all_axb - the distribution of the any explanation
             for k, v in results.items():
-                # Plot the
-                if len(v['all_x_corrs']) > 0:
-                    plt.hist([v['all_x_corrs']], bins='auto')
-                    plt.savefig(path.join(expl_dir, 'all_corrs_%s.png' % k),
-                                format='png')
-                    plt.show()
-                else:
-                    logger.warning('Empty result for %s in range %s'
-                                   % (k, sd))
+                # Plot:
+                #   1: all_x_corrs - the distribution of all gathered a-x,
+                #      x-b combined z-scores
+                #   2: top_x_corrs - the strongest (over the a-x, x-b average)
+                #      z-score per A-B. List contains (A, B, topx).
+                #   3:
+                for plot_type in ['all_x_corrs', 'top_x_corrs']:
+                    if len(v[plot_type]) > 0:
+                        if isinstance(v[plot_type][0], tuple):
+                            data = [t[-1] for t in v[plot_type]]
+                        else:
+                            data = v[plot_type]
+                        plt.hist(x=data, bins='auto')
+                        plt.title('%s %s; %s' %
+                                  (plot_type.replace('_', ' ').capitalize(),
+                                   k.replace('_', ' '),
+                                   sd))
+                        plt.xlabel('combined z-score')
+                        plt.ylabel('count')
+                        plt.savefig(path.join(expl_dir,
+                                              '%s_%s.png' % (plot_type, k)),
+                                    format='png')
+                        plt.show()
+                    else:
+                        logger.warning('Empty result for %s (%s) in range %s'
+                                       % (k, plot_type, sd))
