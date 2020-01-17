@@ -244,6 +244,20 @@ if __name__ == '__main__':
                                               '%s_%s.png' % (plot_type, k)),
                                     format='png')
                         plt.show()
+                        if plot_type == 'all_x_corrs':
+                            abs_data = [abs(c) for c in data]
+                            plt.hist(x=abs_data, bins='auto')
+                            plt.title('%s %s (abs); %s' %
+                                      (plot_type.replace('_', ' ').capitalize(),
+                                       k.replace('_', ' '),
+                                       sd))
+                            plt.xlabel('combined z-score')
+                            plt.ylabel('count')
+                            plt.savefig(path.join(expl_dir,
+                                                  '%s_%s_abs.png' %
+                                                  (plot_type, k)),
+                                        format='png')
+                            plt.show()
                     else:
                         logger.warning('Empty result for %s (%s) in range %s'
                                        % (k, plot_type, sd))
