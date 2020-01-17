@@ -110,6 +110,9 @@ def has_common_parent(ho=hm.hierarchies['entity'], ns1='HGNC', id1=None,
     bool
         True if hgnc1 and hgnc2 has one or more common parents.
     """
-    return bool(common_parent(ho, ns1, id1, ns2, id2, type))
-
-
+    try:
+        return bool(common_parent(ho, ns1, id1, ns2, id2, type))
+    except Exception:
+        logger.error('Error when looking for common parent between %s:%s '
+                     'and %s:%s' % (ns1, id1, ns2, id2))
+        return False
