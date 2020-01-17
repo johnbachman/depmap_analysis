@@ -42,37 +42,44 @@ rsig = 0.077614
 #                      'subdirectories.')
 
 
-def func1(d):
+def mean_z_score_wrap(d):
     return mean_z_score(mu1=cmu, sig1=csig, c1=d['crispr'],
                         mu2=rmu, sig2=rsig, c2=d['rnai'])
 
 
 def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
-    all_ = []
-    top = []
+    all_corrs = []
+    top_corrs = []
     ab_to_axb_avg = []
+    all_azb_corrs = []
     for subj, obj in so_pairs:
         ab_avg_corrs = []
-        path_row = df[(df['subj'] == subj) &
+        path_rows = df[(df['subj'] == subj) &
                       (df['obj'] == obj) &
-                      (df['type'] == 'pathway')]
-        x_list = [x[0] for x in path_row['X'].values[0]]
-        comb_zsc = path_row['comb_zsc'].values[0]
+                      ((df['type'] == 'pathway') |
+                       (df['type'] == 'shared_target'))]
+        # TODO: Consider shared targets as well, without double-counting
+        # Xs such that X is shared target and also pathway
+        x_set = set()
+        for path_row in path_rows.itertuples():
+            x_set.update([x[0] for x in path_row.X])
+
+        comb_zsc = path_row.comb_zsc
         warn = 0
-        for x in x_list:
-            if x in crispr_cm.columns and x in rnai_cm.columns and \
-                    pass_filter(corr1=crispr_cm.loc[subj, x],
-                                mu1=cmu, sigma1=csig,
-                                corr2=rnai_cm.loc[subj, x],
-                                mu2=rmu, sigma2=rsig,
-                                filter_type='sign'):
+        for x in x_set:
+            if x in crispr_cm.columns and x in rnai_cm.columns: # and \
+                    #pass_filter(corr1=crispr_cm.loc[subj, x],
+                    #            mu1=cmu, sigma1=csig,
+                    #            corr2=rnai_cm.loc[subj, x],
+                    #            mu2=rmu, sigma2=rsig,
+                    #            filter_type='sign'):
                 ax_corr = mean_z_score(
                     mu1=cmu, sig1=csig, c1=crispr_cm.loc[subj, x],
                     mu2=rmu, sig2=rsig, c2=rnai_cm.loc[subj, x])
                 xb_corr = mean_z_score(
                     mu1=cmu, sig1=csig, c1=crispr_cm.loc[x, obj],
                     mu2=rmu, sig2=rsig, c2=rnai_cm.loc[x, obj])
-                all_ += [ax_corr, xb_corr]
+                all_corrs += [ax_corr, xb_corr]
                 ab_avg_corrs.append(0.5 * abs(ax_corr) + 0.5 * abs(xb_corr))
             else:
                 # if warn < 3:
@@ -82,24 +89,36 @@ def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
                 # else:
                 #     logger.warning('Muting warnings...')
                 continue
+
+        for z in set(crispr_cm.columns).intersection(rnai_cm.columns):
+            az_corr = mean_z_score(
+                         mu1=cmu, sig1=csig, c1=crispr_cm.loc[z, subj],
+                         mu2=rmu, sig2=rsig, c2=rnai_cm.loc[z, subj])
+            bz_corr = mean_z_score(
+                         mu1=cmu, sig1=csig, c1=crispr_cm.loc[z, obj],
+                         mu2=rmu, sig2=rsig, c2=rnai_cm.loc[z, obj])
+            ab_avg_corrs.append(0.5 * abs(ax_corr) + 0.5 * abs(xb_corr)) 
+            all_azb_corrs += [az_corr, bz_corr]
+ 
         # if warn:
         #     logger.warning('%d missing X genes out of %d in correlation '
         #                    'matrices' % (warn, len(x_list)))
         if len(ab_avg_corrs) > 0:
-            max_magn_avg = max(ab_avg_corrs) if max(ab_avg_corrs) > abs(min(
-                ab_avg_corrs)) else min(ab_avg_corrs)
-            top.append((subj, obj, max_magn_avg))
+            max_magn_avg = max(ab_avg_corrs)
+            top_corrs.append((subj, obj, max_magn_avg))
             ab_to_axb_avg.append((subj, obj, comb_zsc, max_magn_avg))
 
-    return all_, top, ab_to_axb_avg
+    return all_corrs, top_corrs, ab_to_axb_avg, all_azb_corrs
 
 
 def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     # Limit to any a-x-b OR a-b expl (this COULD include explanations where
     # 'direct' and NOT 'pathway' is the explanation, but this should be a
     # very small set)
+    logger.info("Filter expl_df to pathway, direct, shared_target")
     expl_df = expl_df[(expl_df['type'] == 'pathway') |
-                      (expl_df['type'] == 'direct')]
+                      (expl_df['type'] == 'direct') |
+                      (expl_df['type'] == 'shared_target')]
 
     # Re-map the columns containing string representations of objects
     expl_df.meta_data = expl_df['meta_data'].apply(lambda x:
@@ -107,13 +126,14 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     expl_df.X = expl_df['X'].apply(lambda x: ast.literal_eval(x))
 
     # Get combined z score
+    logger.info("Adding combined z score to expl_df")
     expl_df['comb_zsc'] = None
     for index, row in expl_df.iterrows():
         cd = row.meta_data
         if not cd:
             cd = {'crispr': crispr_corr_matrix.loc[row.subj, row.obj],
                   'rnai': rnai_corr_matrix.loc[row.subj, row.obj]}
-        row.comb_zsc = func1(cd)
+        row.comb_zsc = mean_z_score_wrap(cd)
 
     # Get all correlation pairs
     all_ab_corr_pairs = set(map(lambda p: tuple(p),
@@ -127,12 +147,13 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     # all a-x-b "pathway" explanations, should be union of the above two
     pairs_any_axb = set()
 
+    logger.info("Stratifying correlations by interaction type")
     for s, o in all_ab_corr_pairs:
         # Get all interaction types associated with given subject s and
         # object o
         int_types = set(expl_df['type'][(expl_df['subj'] == s) &
                                         (expl_df['obj'] == o)].values)
-        if 'pathway' in int_types:
+        if 'pathway' in int_types or 'shared_target' in int_types:
             pairs_any_axb.add((s, o))
             if 'direct' in int_types:
                 # Direct and pathway
@@ -149,17 +170,23 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     assert ab_axb_union == pairs_any_axb
 
     # a-x-b AND direct
-    all_x_corrs_direct, top_x_corrs_direct, corr_vs_maxavg_direct = \
+    logger.info("Getting correlations for a-x-b AND direct")
+    all_x_corrs_direct, top_x_corrs_direct, corr_vs_maxavg_direct, \
+            all_azb_corrs_direct = \
         get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
                        rnai_cm=rnai_corr_matrix, so_pairs=pairs_axb_direct)
 
     # a-x-b AND NOT direct
-    all_x_corrs_no_direct, top_x_corrs_no_direct, corr_vs_maxavg_no_direct = \
+    logger.info("Getting correlations for a-x-b AND NOT direct")
+    all_x_corrs_no_direct, top_x_corrs_no_direct, corr_vs_maxavg_no_direct, \
+            all_azb_corrs_no_direct = \
         get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
                        rnai_cm=rnai_corr_matrix, so_pairs=pairs_axb_only)
 
     # a-x-b (with and without direct)
-    all_x_corrs_union, top_x_corrs_union, corr_vs_maxavg_union = \
+    logger.info("Getting correlations for all a-x-b (direct and indirect)")
+    all_x_corrs_union, top_x_corrs_union, corr_vs_maxavg_union, \
+            all_azb_corrs_union = \
         get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
                        rnai_cm=rnai_corr_matrix, so_pairs=ab_axb_union)
 
@@ -169,13 +196,16 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     #                    rnai_cm=rnai_corr_matrix, so_pairs=all_ab_corr_pairs)
     return {'axb_and_dir': {'all_x_corrs': all_x_corrs_direct,
                             'top_x_corrs': top_x_corrs_direct,
-                            'corr_vs_maxavg': corr_vs_maxavg_direct},
+                            'corr_vs_maxavg': corr_vs_maxavg_direct,
+                            'all_azb_corrs': all_azb_corrs_direct},
             'axb_not_dir': {'all_x_corrs': all_x_corrs_no_direct,
                             'top_x_corrs': top_x_corrs_no_direct,
-                            'corr_vs_maxavg': corr_vs_maxavg_no_direct},
+                            'corr_vs_maxavg': corr_vs_maxavg_no_direct,
+                            'all_azb_corrs': all_azb_corrs_no_direct},
             'all_axb': {'all_x_corrs': all_x_corrs_union,
                         'top_x_corrs': top_x_corrs_union,
-                        'corr_vs_maxavg': corr_vs_maxavg_union}}
+                        'corr_vs_maxavg': corr_vs_maxavg_union,
+                        'all_azb_corrs': all_azb_corrs_union}}
 
 
 if __name__ == '__main__':
@@ -199,7 +229,8 @@ if __name__ == '__main__':
     rcorr_matrix.index = names
 
     # Load _explanations_of_pairs.csv for each range
-    for sd in ['1_2sd', '2_3sd', '3_4sd', '4_5sd', '5_sd', 'rnd']:
+    #for sd in ['1_2sd', '2_3sd', '3_4sd', '4_5sd', '5_sd', 'rnd']:
+    for sd in ['4_5sd']:
         fname = join(expl_pairs_csv, sd, '_explanations_of_pairs.csv')
         if not path.isfile(fname):
             logger.info('Skipping %s, file does not exist' % fname)
@@ -222,7 +253,8 @@ if __name__ == '__main__':
                 #   2: top_x_corrs - the strongest (over the a-x, x-b average)
                 #      z-score per A-B. List contains (A, B, topx).
                 #   3:
-                for plot_type in ['all_x_corrs', 'top_x_corrs']:
+                for plot_type in ['all_azb_corrs', 'all_x_corrs',
+                                  'top_x_corrs']:
                     if len(v[plot_type]) > 0:
                         if isinstance(v[plot_type][0], tuple):
                             data = [t[-1] for t in v[plot_type]]
