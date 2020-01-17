@@ -1,5 +1,7 @@
+import sys
 import ast
 import logging
+from os.path import join
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -104,7 +106,7 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     expl_df = expl_df[(expl_df['type'] == 'pathway') |
                       (expl_df['type'] == 'direct')]
 
-    # Re-map the columns contatining string representations of objects
+    # Re-map the columns containing string representations of objects
     expl_df.meta_data = expl_df['meta_data'].apply(lambda x:
                                                    ast.literal_eval(x))
     expl_df.X = expl_df['X'].apply(lambda x: ast.literal_eval(x))
@@ -182,12 +184,13 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
 
 
 if __name__ == '__main__':
-    expl_pairs_csv = '/home/klas/repos/depmap_analysis/output_data' \
-                     '/19Q4_hgnc_fplx/{range}/_explanations_of_pairs.csv'
-    crispr_corr = '/home/klas/repos/depmap_analysis/input_data/depmap' \
-                  '/19Q4/_crispr_all_correlations.h5'
-    rnai_corr = '/home/klas/repos/depmap_analysis/input_data/depmap' \
-                '/demeter/_rnai_all_correlations.h5'
+    if len(sys.argv) < 4:
+        print(f"Usage: {sys.argv[0]} <basepath_to_expls> <path_to_crispr_h5> "
+               "<path_to_rnai_h5>")
+        sys.exit(0)
+    expl_pairs_csv = sys.argv[1] # Path to output data folder
+    crispr_corr = sys.argv[2] # Path to crispr correlations file
+    rnai_corr = sys.argv[3] # Path to RNAi correlations file
     # Load rnai and crispr correlation sets for correlation lookup
     # - could possibly merge them to cut time in half and save RAM
     logger.info('Loading correlation matrices...')
@@ -202,7 +205,7 @@ if __name__ == '__main__':
 
     # Load _explanations_of_pairs.csv for each range
     for sd in ['1_2sd', '2_3sd', '3_4sd', '4_5sd', '5_sd', 'rnd']:
-        fname = expl_pairs_csv.format(range=sd)
+        fname = join(expl_pairs_csv, sd, '_explanations_of_pairs.csv')
         if not path.isfile(fname):
             logger.info('Skipping %s, file does not exist' % fname)
         else:
