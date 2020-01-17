@@ -4,7 +4,12 @@
 # SIF_DIR : where the DB dumps are
 # Remember to check the mu sigma values for any new depmap dataset
 
-ll=1; ul=2;
+cmu=0.003076; csig=0.056813;
+rmu=0.006854; rsig=0.077614;
+
+lw_sif=db_dump_df_lite_hgnc_fplx.csv
+
+ll=5; ul='';
 echo "Running $ll-$ul SD"
 echo "Output goes to ${OUTDIR}/${ll}_${ul}sd/"
 python depmap_script.py -cf "${DATA_DIR}/19Q4/Achilles_gene_effect.csv" -cc "${OUTDIR}/_crispr_all_correlations.h5"\
