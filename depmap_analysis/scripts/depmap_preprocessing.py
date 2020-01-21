@@ -90,8 +90,9 @@ if __name__ == '__main__':
     z_corr = run_corr_merge(**options)
 
     # Write merged correlations combined z score
-    outdir = args.output_dir if args.output_dir else path.dirname(
-        args.crispr_raw)
+    outdir = args.output_dir if args.output_dir else (path.dirname(
+        args.crispr_corr) if args.crispr_corr else path.dirname(
+        args.crispr_raw))
     logger.info(f'Writing combined correlations to {outdir}')
     fname = 'combined_z_score.h5'
     z_corr.to_hdf(path.join(outdir, fname), fname)
