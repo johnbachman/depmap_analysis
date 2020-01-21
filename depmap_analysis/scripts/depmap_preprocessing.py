@@ -15,7 +15,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
     if not crispr_raw and not crispr_corr:
         raise ValueError('Need to provide one of crispr_raw or '
                          'cripsr_corr')
-    if not rnai_raw and not rnai_raw:
+    if not rnai_raw and not rnai_corr:
         raise ValueError('Need to provide one of rnai_raw or rnai_corr')
 
     # First check for correlation matrix, then get it if it doesn't exist
