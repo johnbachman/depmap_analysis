@@ -695,6 +695,78 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     return get_gaussian_stats(bin_edges, interp_gaussian)
 
 
+def raw_depmap_to_corr(depmap_raw_df):
+    """Pre-process and create a correlation
+
+    Parameters
+    ----------
+    depmap_raw_df : pd.DataFrame
+
+    Returns
+    -------
+    corr : pd.DataFrame
+        A pd.DataFrame containing the correlation of the
+    """
+    # Rename
+    if len(depmap_raw_df.columns[0].split()) > 1:
+        dnf_logger.info('renaming columns to contain only gene names')
+        gene_names = [n.split()[0] for n in depmap_raw_df.columns]
+        depmap_raw_df.columns = gene_names
+
+    # Drop duplicates
+    depmap_raw_df = depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
+
+    # Calculate correlation
+    dnf_logger.info('Calculating data correlation matrix. This will take '
+                    'some time 10 - 50 min.')
+    corr = depmap_raw_df.corr()
+    dnf_logger.info('Done calculating data correlation matrix.')
+    return corr
+
+
+def merge_corr_df(corr_df, other_corr_df):
+    """Merge two correlation matrices containing their combined z-scores
+
+    Parameters
+    ----------
+    corr_df : pd.DataFrame
+        A square pandas DataFrame containing gene-gene correlation values
+        to be merged with other_corr_df.
+    other_corr_df : pd.Dataframe
+        A square pandas DataFrame containing gene-gene correlation values
+        to be merged with corr_df.
+
+    Returns
+    -------
+    pd.DataFrame
+        A merged correlation matrix containing the merged values a z-scores
+    """
+    def _rename(corr):
+        gene_names = [n.split()[0] for n in corr.columns]
+        corr.columns = gene_names
+        corr.index = gene_names
+        return corr
+
+    def _z_scored(corr):
+        mean = corr.values.mean()
+        sd = corr.values.std()
+        return (corr - mean) / sd
+
+    # Rename columns/indices to gene name only
+    if len(corr_df.columns[0].split()) > 1:
+        corr_df = _rename(corr_df)
+    if len(other_corr_df.columns[0].split()) > 1:
+        other_corr_df = _rename(other_corr_df)
+
+    # Get corresponding z-score matrices
+    corr_z = _z_scored(corr_df)
+    other_z = _z_scored(other_corr_df)
+
+    # Merge
+    dep_z = (corr_z + other_z) / 2
+    return dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
+
+
 def get_gene_gene_corr_dict(tuple_generator):
     """Returns a gene-gene correlation nested dict from a gene correlation
     generator
