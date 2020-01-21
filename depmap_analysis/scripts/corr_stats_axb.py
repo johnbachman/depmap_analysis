@@ -1,11 +1,10 @@
 import sys
 import ast
 import logging
-from os.path import join
+from os import path, environ
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from os import path, environ
 from depmap_analysis.util.io_functions import pickle_open
 from depmap_analysis.network_functions.depmap_network_functions import \
     mean_z_score, pass_filter
@@ -231,7 +230,7 @@ if __name__ == '__main__':
     # Load _explanations_of_pairs.csv for each range
     #for sd in ['1_2sd', '2_3sd', '3_4sd', '4_5sd', '5_sd', 'rnd']:
     for sd in ['4_5sd']:
-        fname = join(expl_pairs_csv, sd, '_explanations_of_pairs.csv')
+        fname = path.join(expl_pairs_csv, sd, '_explanations_of_pairs.csv')
         if not path.isfile(fname):
             logger.info('Skipping %s, file does not exist' % fname)
         else:
@@ -241,7 +240,6 @@ if __name__ == '__main__':
                            crispr_corr_matrix=ccorr_matrix,
                            rnai_corr_matrix=rcorr_matrix)
             expl_dir = path.dirname(fname)
-
             # Loop the different sets:
             #   - axb_and_dir - subset where direct AND pathway explains
             #   - axb_not_dir - subset where pathway, NOT direct explans
