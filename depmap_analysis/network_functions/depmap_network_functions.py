@@ -718,7 +718,7 @@ def raw_depmap_to_corr(depmap_raw_df):
 
     # Calculate correlation
     dnf_logger.info('Calculating data correlation matrix. This will take '
-                    'some time 10 - 50 min.')
+                    '10 - 50 min.')
     corr = depmap_raw_df.corr()
     dnf_logger.info('Done calculating data correlation matrix.')
     return corr
@@ -750,6 +750,7 @@ def merge_corr_df(corr_df, other_corr_df):
     def _z_scored(corr):
         mean = corr.values.mean()
         sd = corr.values.std()
+        dnf_logger.info('Mean value: %f; St dev: %f' % (mean, sd))
         return (corr - mean) / sd
 
     # Rename columns/indices to gene name only
