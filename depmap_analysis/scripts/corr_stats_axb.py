@@ -174,11 +174,13 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     assert ab_axb_union == pairs_any_axb
 
     # a-x-b AND direct
+    """
     logger.info("Getting correlations for a-x-b AND direct")
     all_x_corrs_direct, avg_x_corrs_direct, top_x_corrs_direct, \
             all_azb_corrs_direct, azb_avg_corrs_direct = \
         get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
                        rnai_cm=rnai_corr_matrix, so_pairs=pairs_axb_direct)
+    """
 
     # a-x-b AND NOT direct
     logger.info("Getting correlations for a-x-b AND NOT direct")
@@ -187,17 +189,20 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
         get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
                        rnai_cm=rnai_corr_matrix, so_pairs=pairs_axb_only)
 
+    """
     # a-x-b (with and without direct)
     logger.info("Getting correlations for all a-x-b (direct and indirect)")
     all_x_corrs_union, avg_x_corrs_union, top_x_corrs_union, \
             all_azb_corrs_union, azb_avg_corrs_union = \
         get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
                        rnai_cm=rnai_corr_matrix, so_pairs=ab_axb_union)
+    """
 
     # All corrs for range (all pairs regardless of explanation type)
     # all_x_corrs, top_x_corrs, corr_vs_maxavg = \
     #     get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
     #                    rnai_cm=rnai_corr_matrix, so_pairs=all_ab_corr_pairs)
+    """
     return {'axb_and_dir': {'all_x_corrs': all_x_corrs_direct,
                             'avg_x_corrs': avg_x_corrs_direct,
                             'top_x_corrs': top_x_corrs_direct,
@@ -213,7 +218,12 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
                         'top_x_corrs': top_x_corrs_union,
                         'all_azb_corrs': all_azb_corrs_union,
                         'azb_avg_corrs': azb_avg_corrs_union}}
-
+    """
+    return {'axb_not_dir': {'all_x_corrs': all_x_corrs_no_direct,
+                            'avg_x_corrs': avg_x_corrs_no_direct,
+                            'top_x_corrs': top_x_corrs_no_direct,
+                            'all_azb_corrs': all_azb_corrs_no_direct,
+                            'azb_avg_corrs': azb_avg_corrs_no_direct}}
 
 if __name__ == '__main__':
     if len(sys.argv) < 4:
@@ -300,22 +310,6 @@ if __name__ == '__main__':
                                           '%s_%s.png' % (plot_type, k)),
                                 format='png')
                     plt.show()
-                    """
-                    if plot_type == 'all_x_corrs':
-                        abs_data = [abs(c) for c in data]
-                        plt.hist(x=abs_data, bins='auto')
-                        plt.title('%s %s (abs); %s' %
-                                  (plot_type.replace('_', ' ').capitalize(),
-                                   k.replace('_', ' '),
-                                   sd))
-                        plt.xlabel('combined z-score')
-                        plt.ylabel('count')
-                        plt.savefig(path.join(expl_dir,
-                                              '%s_%s_abs.png' %
-                                              (plot_type, k)),
-                                    format='png')
-                        plt.show()
-                    """
                 else:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
