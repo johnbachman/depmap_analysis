@@ -62,10 +62,10 @@ if API_DEBUG:
 
 GRND_URI = None
 try:
-    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
+    GRND_URI = CONFIG_DICT['GILDA_URL']
 except KeyError:
     logger.warning('Indra Grounding service not available. Add '
-                   'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
+                   'GILDA_URL to `indra/config.ini`')
 
 MAX_PATHS = 50
 TIMEOUT = 30  # Timeout in seconds

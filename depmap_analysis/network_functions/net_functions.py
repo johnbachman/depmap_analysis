@@ -21,7 +21,7 @@ NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 
 GRND_URI = None
 try:
-    GRND_URI = CONFIG_DICT['INDRA_GROUNDING_SERVICE_URL']
+    GRND_URI = CONFIG_DICT['GILDA_URL']
 except KeyError:
     logger.warning('Indra Grounding service not available. Add '
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
