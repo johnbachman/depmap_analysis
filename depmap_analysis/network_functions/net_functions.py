@@ -9,8 +9,11 @@ from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
+from indra.belief import load_default_probs
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
+from indra_reading.readers import get_reader_classes
+
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.io_functions import pickle_open
@@ -31,6 +34,18 @@ SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
 REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
+
+READERS = set([rc.name.lower() for rc in get_reader_classes()])
+READERS.update(['medscan', 'rlimsp'])
+
+
+def _get_smallest_belief_prior():
+    def_probs = load_default_probs()
+    return min([v for v in def_probs['syst'].values() if v > 0])# +
+               #[[v for v in def_probs['rand'].values() if v > 0]])
+
+
+MIN_BELIEF = _get_smallest_belief_prior()
 
 
 GRND_URI = None
