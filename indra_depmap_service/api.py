@@ -15,7 +15,7 @@ from indra.config import CONFIG_DICT
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
-from .util import load_indra_graph, _get_s3_client,\
+from .util import load_indra_graph, get_s3_client,\
     get_queryable_stmt_types, API_PATH as HERE, CACHE, INDRA_DG, \
     INDRA_DG_CACHE, INDRA_SEG, INDRA_SEG_CACHE, INDRA_SNG_CACHE, TEST_DG_CACHE
 
@@ -77,7 +77,7 @@ else:
         logger.info('%s not found locally, trying to get file from s3...' %
                     INDRA_DG)
         makedirs(CACHE, exist_ok=True)
-        s3 = _get_s3_client(unsigned=True)
+        s3 = get_s3_client(unsigned=True)
         logger.info('Caching network to %s' % CACHE)
         dg_key = 'indra_db_files/' + INDRA_DG
         dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
