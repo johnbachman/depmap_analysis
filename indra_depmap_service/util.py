@@ -12,7 +12,8 @@ from botocore.client import Config
 from indra.util.aws import get_s3_client, get_s3_file_tree
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.statements import get_all_descendants, Activation, Inhibition, \
-    IncreaseAmount, DecreaseAmount, AddModification, RemoveModification
+    IncreaseAmount, DecreaseAmount, AddModification, RemoveModification,\
+    Complex
 
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
@@ -55,7 +56,7 @@ def get_queryable_stmt_types():
 
     stmt_types = \
         _get_names([
-            Activation, Inhibition, IncreaseAmount, DecreaseAmount
+            Activation, Inhibition, IncreaseAmount, DecreaseAmount, Complex
         ]) + \
         _get_sorted_descendants(AddModification) + \
         _get_sorted_descendants(RemoveModification)
