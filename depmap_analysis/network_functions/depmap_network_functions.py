@@ -132,7 +132,8 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             corr_df_sample = corrrelation_df_matrix.sample(
                 n, axis=0).sample(n, axis=1)
 
-            # Increase sample until number of extractable pairs exceed max_pairs
+            # Increase sample until number of extractable pairs exceed
+            # max_pairs
             while corr_df_sample.notna().sum().sum() <= max_pairs:
                 n += 1
                 corr_df_sample = corrrelation_df_matrix.sample(
@@ -151,7 +152,8 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     # Only get HGNC symbols (first in tuple) since we're gonna compare to
     # INDRA statements, which is currently done with HGNC symbols
-    # todo change to output HGNC IDs instead when switching to HGNC id in stmts
+    # todo change to output HGNC IDs instead when switching to HGNC id in
+    #  stmts
     return ((gene_name_array[i][0], gene_name_array[j][0],
             str(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
@@ -268,7 +270,7 @@ def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
 
     Paramters
     ---------
-    sif_df_in : pd.DataFrame
+    sif_df_in : pd.DataFrame|str
         A pd.DataFrame with at least the columns 'agA_name', 'agB_name',
         'stmt_type', 'stmt_hash'. Any other columns will be part of the
         list of dictionaries in the innermost entry.
@@ -734,7 +736,7 @@ def merge_corr_df(corr_df, other_corr_df):
     corr_df : pd.DataFrame
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with other_corr_df.
-    other_corr_df : pd.Dataframe
+    other_corr_df : pd.DataFrame
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with corr_df.
 
@@ -891,12 +893,14 @@ def merge_correlation_data(correlation_dicts_list, settings):
                                 0.5 * _z_sc(num=other_corr,
                                             mu=other_sigma_dict['mean'],
                                             sigma=other_sigma_dict['sigma'])
-                        assert merged_corr_dict[o_gene][i_gene].get(set_name)\
-                            is not None
-                        assert merged_corr_dict[o_gene][i_gene].get(other_name)\
-                            is not None
-                        assert merged_corr_dict[o_gene].get(o_gene) is None
-                        assert merged_corr_dict[i_gene].get(i_gene) is None
+                        assert merged_corr_dict[o_gene][i_gene].get(
+                            set_name, None) is not None
+                        assert merged_corr_dict[o_gene][i_gene].get(
+                            other_name, None) is not None
+                        assert merged_corr_dict[o_gene].get(o_gene, None)\
+                            is None
+                        assert merged_corr_dict[i_gene].get(i_gene, None)\
+                            is None
                         npairs += 1
 
                     # Did not pass filter
