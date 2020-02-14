@@ -30,7 +30,7 @@ db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
 
 
-def _entry_exist_dict(nest_dict, outer_key, inner_key):
+def entry_exist_dict(nest_dict, outer_key, inner_key):
     if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
         return True
     else:
@@ -791,7 +791,7 @@ def get_gene_gene_corr_dict(tuple_generator):
             continue
         else:
             corr = float(c)
-            if _entry_exist_dict(corr_nest_dict, gene1, gene2):
+            if entry_exist_dict(corr_nest_dict, gene1, gene2):
                 doublets += 1
             corr_nest_dict[gene1][gene2] = corr
     count += 1
@@ -862,12 +862,12 @@ def merge_correlation_data(correlation_dicts_list, settings):
         for o_gene, d in shortest_dict.items():
             for i_gene, corr in d.items():
                 if o_gene is not i_gene and \
-                        not _entry_exist_dict(merged_corr_dict, o_gene, i_gene):
+                        not entry_exist_dict(merged_corr_dict, o_gene, i_gene):
                     # Check both directions
                     other_corr = None
-                    if _entry_exist_dict(other_dict, o_gene, i_gene):
+                    if entry_exist_dict(other_dict, o_gene, i_gene):
                         other_corr = other_dict[o_gene][i_gene]
-                    elif _entry_exist_dict(other_dict, i_gene, o_gene):
+                    elif entry_exist_dict(other_dict, i_gene, o_gene):
                         other_corr = other_dict[i_gene][o_gene]
 
                     if other_corr and pass_filter(
@@ -1628,8 +1628,12 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     # Row should be a mini dataframe with keys:
     # agent_1=subj, agent_2=obj, type, hash
     for index, row in hash_pair_dataframe.iterrows():
-        (subj, obj, stmt_type, stmt_hash) = row
-        if _entry_exist_dict(nest_hash_dict, subj, obj):
+        if len(row) == 4:
+            subj, obj, stmt_type, stmt_hash = row
+        else:
+            subj, obj, stmt_type, stmt_hash = row.agA_name, row.agB_name, \
+                                              row.stmt_type, row.stmt_hash
+        if entry_exist_dict(nest_hash_dict, subj, obj):
             # Entry subj-obj already exists and should be a list
             nest_hash_dict[subj][obj].append((stmt_type, stmt_hash))
         else:
