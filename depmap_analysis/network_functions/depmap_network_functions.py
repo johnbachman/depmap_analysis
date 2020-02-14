@@ -352,7 +352,17 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
     if not belief_dict:
         dnf_logger.info('No Belief Score dictionary provided')
         dnf_logger.warning('API belief score checkup is not implemented yet')
-        pass  # ToDo connect to API, calculate belief or use stmt belief
+        pass  # ToDo Download from sif dump on s3
+
+    else:
+        if isinstance(next(iter(belief_dict)), str):
+            k_int = False
+        elif isinstance(next(iter(belief_dict)), int):
+            k_int = True
+        else:
+            dnf_logger.warning('Belief dict seems to have keys that are not '
+                               'str or int.')
+            k_int = None
 
     # Flag to check if the statement dict has belief score in it or not
     has_belief = False
@@ -377,15 +387,16 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
                     if not has_belief:
                         for typ, hsh in inner_obj:
                             try:
-                                bs = belief_dict[str(hsh)]
+                                bs = belief_dict[int(hsh)] if k_int else \
+                                    belief_dict[str(hsh)]
                             except KeyError:
-                                bs = 1
+                                bs = 0.1  # Todo get min belief for any stmt
                                 error_count += 1
-                                if error_count < 50:
+                                if error_count < 10:
                                     dnf_logger.warning('No entry found in '
                                                        'belief dict for hash '
                                                        '%s' % str(hsh))
-                                if error_count == 50:
+                                if error_count == 10:
                                     dnf_logger.warning('Muting belief dict '
                                                        'KeyError...')
                             t = (typ, hsh, bs)
