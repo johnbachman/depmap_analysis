@@ -115,11 +115,12 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         raise ValueError('Graph type %s not supported. Can only chose between'
                          ' %s' % (graph_type, graph_options))
     sed = None
-    readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
 
     def _curated_func(ev_dict):
+        """Return False if no source dict exists, or if all sources are
+        readers, otherwise return True."""
         return False if not ev_dict else \
-            (False if all(s.lower() in readers for s in ev_dict) else True)
+            (False if all(s.lower() in READERS for s in ev_dict) else True)
 
     def _weight_from_belief(belief):
         """Map belief score 'belief' to weight. If the calculation goes below
