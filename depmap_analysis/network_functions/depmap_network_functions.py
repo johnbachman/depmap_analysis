@@ -117,7 +117,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
     if all_pairs == 0:
         dnf_logger.warning('Correlation matrix is empty')
-        sys.exit('Script aborted due to empty correlation matrix')
+        raise ValueError('Script aborted due to empty correlation matrix')
 
     corr_df_sample = pd.DataFrame()
     if max_pairs:
@@ -286,6 +286,8 @@ def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
         sif_df = io.pickle_open(sif_df_in)
     elif isinstance(sif_df_in, pd.DataFrame):
         sif_df = sif_df_in
+    else:
+        raise ValueError('sif_df_in must be of type str or pd.DataFrame')
 
     mandatory_columns = ('agA_name', 'agB_name', 'stmt_type', 'stmt_hash')
     if not set(mandatory_columns).issubset(set(sif_df.columns.values)):
@@ -1174,7 +1176,7 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
 
     if filtered_correlation_matrix.notna().sum().sum() == 0:
         dnf_logger.warning('Correlation matrix is empty')
-        sys.exit('Script aborted due to empty correlation matrix')
+        raise ValueError('Script aborted due to empty correlation matrix')
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
