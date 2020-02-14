@@ -1,5 +1,8 @@
 import logging
 from decimal import Decimal
+from collections import defaultdict
+
+import requests
 import subprocess
 
 import requests
@@ -353,9 +356,9 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
     nested_dict_stmts : defaultdict(dict)
         Nested dict of statements: nest_d[subj][obj]
     gene_a : str
-        HGNC name of gene A in an A-X-B connection
+        Name of node A in an A-X-B connection
     gene_b : str
-        HGNC name of gene B in an A-X-B connection
+        Name of node B in an A-X-B connection
     x_type : str
         One of 'x_is_intermediary', 'x_is_downstream' or 'x_is_upstream'
 
@@ -364,33 +367,49 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
     dir_path_nodes_wb : list[(node, rank)]
         A list of node, rank tuples.
     """
+    def _tuple_rank(ax_stmts, xb_stmts):
+        def _body(t):
+            assert len(t) == 2 or len(t) == 3
+            bel = MIN_BELIEF
+            if len(t) == 2:
+                tp, hs = t
+            elif len(t) == 3:
+                tp, hs, bel = t
+            else:
+                raise IndexError('Tuple must have len(t) == 2,3 Tuple: %s' %
+                                 repr(t))
+            return tp, hs, bel
+        ax_score_list = []
+        xb_score_list = []
+        for tup in ax_stmts:
+            typ, hsh_a, belief = _body(tup)
+            ax_score_list.append(belief)
+        for tup in xb_stmts:
+            typ, hsh_b, belief = _body(tup)
+            xb_score_list.append(belief)
+        return ax_score_list, xb_score_list
+
+    def _dict_rank(ax_stmts, xb_stmts):
+        ax_score_list = []
+        xb_score_list = []
+        for sd in ax_stmts:
+            ax_score_list.append(float(sd.get('belief', MIN_BELIEF)))
+        for sd in xb_stmts:
+            xb_score_list.append(float(sd.get('belief', MIN_BELIEF)))
+        return ax_score_list, xb_score_list
 
     def _calc_rank(nest_dict_stmts, subj_ax, obj_ax, subj_xb, obj_xb):
         ax_stmts = nest_dict_stmts[subj_ax][obj_ax]
         xb_stmts = nest_dict_stmts[subj_xb][obj_xb]
-        ax_score_list = []
-        xb_score_list = []
         hsh_a, hsh_b = None, None
 
         # The statment with the highest belief score should
         # represent the edge (potentially multiple stmts per edge)
-        # To get latest belief score: see indra_db.belief
-        for tup in ax_stmts:
-            assert len(tup) == 2 or len(tup) == 3
-            belief = 1
-            if len(tup) == 2:
-                typ, hsh_a = tup
-            elif len(tup) == 3:
-                typ, hsh_a, belief = tup
-            ax_score_list.append(belief)
-        for tup in xb_stmts:
-            assert len(tup) == 2 or len(tup) == 3
-            belief = 1
-            if len(tup) == 2:
-                typ, hsh_b = tup
-            elif len(tup) == 3:
-                typ, hsh_b, belief = tup
-            xb_score_list.append(belief)
+
+        if isinstance(ax_stmts[0], tuple):
+            ax_score_list, xb_score_list = _tuple_rank(ax_stmts, xb_stmts)
+        elif isinstance(ax_stmts[0], (dict, defaultdict)):
+            ax_score_list, xb_score_list = _dict_rank(ax_stmts, xb_stmts)
 
         # Rank by multiplying the best two belief scores for each edge
         rank = max(ax_score_list) * max(xb_score_list)
@@ -405,6 +424,7 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
         return rank
 
     dir_path_nodes_wb = []
+
     if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
