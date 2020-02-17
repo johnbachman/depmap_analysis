@@ -92,13 +92,13 @@ def comb_z_sc_gen(crispr_corr, rnai_corr, stats_dict):
     csig = stats_dict['crispr']['sigma']
     rmu = stats_dict['rnai']['mu']
     rsig = stats_dict['crispr']['sigma']
-    comb_gene_set = tuple(
+    comb_gene_tuples = tuple(
         set(crispr_corr.columns.values).intersection(rnai_corr.columns.values)
     )
     while True:
-        g1, g2 = choices(comb_gene_set, k=2)
+        g1, g2 = choices(comb_gene_tuples, k=2)
         while g1 == g2:
-            g1, g2 = choices(comb_gene_set, k=2)
+            g1, g2 = choices(comb_gene_tuples, k=2)
         cc = crispr_corr.loc[g1, g2]
         rc = rnai_corr.loc[g1, g2]
         yield mean_z_score(mu1=cmu, sig1=csig, c1=cc,
