@@ -61,6 +61,33 @@ def mean_z_score(mu1, sig1, c1, mu2, sig2, c2):
 
 
 def comb_z_sc_gen(crispr_corr, rnai_corr, stats_dict):
+    """Generate random samples of combined_z_sc from the input matrices
+
+    Parameters
+    crispr_corr : pd.DataFrame
+        Correlation matrix with gene-gene-correlation score
+    rnai_corr : pd.DataFrame
+        Correlation matrix with gene-gene-correlation score
+    stats_dict : dict
+        Nested dictionary containing the mean and standard deviations of the
+        input correlation matrices. Expected structure:
+            {
+                'crispr': {
+                    'mu': <mean>,
+                    'sigma': <standard deviation>
+                },
+                'rnai': {
+                    'mu': <mean>,
+                    'sigma': <standard deviation>
+                }
+            }
+
+    Yields
+    ------
+    float
+        A random sample of the combined z-score from the two correlations
+        matrices
+    """
     cmu = stats_dict['crispr']['mu']
     csig = stats_dict['crispr']['sigma']
     rmu = stats_dict['rnai']['mu']
