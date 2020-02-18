@@ -74,7 +74,162 @@ def gilda_pinger():
         return False
 
 
-GILDA_TIMEOUT = False
+def _curated_func(ev_dict):
+    """Return False if no source dict exists, or if all sources are
+    readers, otherwise return True."""
+    return False if not ev_dict else \
+        (False if all(s.lower() in READERS for s in ev_dict) else True)
+
+
+
+def _weight_from_belief(belief):
+    """Map belief score 'belief' to weight. If the calculation goes below
+    precision, return longfloat precision insted to avoid making the
+    weight zero."""
+    return np.max([NP_PRECISION, -np.log(belief, dtype=np.longfloat)])
+
+
+def _weight_mapping(G, verbosity=0):
+    """Mapping function for adding the weight of the flattened edges
+
+    Parameters
+    ----------
+    G : IndraNet
+        Incoming graph
+
+    Returns
+    -------
+    G : IndraNet
+        Graph with updated belief
+    """
+    for edge in G.edges:
+        try:
+            G.edges[edge]['weight'] = \
+                _weight_from_belief(G.edges[edge]['belief'])
+        except FloatingPointError as err:
+            logger.warning('FloatingPointError from unexpected belief '
+                           '%s. Resetting ag_belief to 10*np.longfloat '
+                           'precision (%.0e)' %
+                           (G.edges[edge]['belief'],
+                            Decimal(NP_PRECISION * 10)))
+            if verbosity == 1:
+                logger.error('Error string: %s' % err)
+            elif verbosity > 1:
+                logger.error('Exception output follows:')
+                logger.exception(err)
+            G.edges[edge]['weight'] = NP_PRECISION
+    return G
+
+
+def sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity=0):
+    """Merge the sif dump df with the provided dictionaries
+
+    Parameters
+    ----------
+    df : str|pd.DataFrame
+        A dataframe, either as a file path to a pickle or a pandas
+        DataFrame object.
+    belief_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the belief score for the corresponding statements.
+        The hashes should correspond to the hashes in the loaded dataframe.
+    strat_ev_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the stratified evidence count per statement. The
+        hashes should correspond to the hashes in the loaded dataframe.
+
+    Returns
+    -------
+    pd.DataFrame
+        A pandas DataFrame with new columns from the merge
+    """
+    sed = None
+
+    if isinstance(df, str):
+        merged_df = pickle_open(df)
+    else:
+        merged_df = df
+
+    if 'hash' in merged_df.columns:
+        merged_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
+
+    if isinstance(belief_dict, str):
+        belief_dict = pickle_open(belief_dict)
+    elif isinstance(belief_dict, dict):
+        belief_dict = belief_dict
+
+    if isinstance(strat_ev_dict, str):
+        sed = pickle_open(strat_ev_dict)
+    elif isinstance(strat_ev_dict, dict):
+        sed = strat_ev_dict
+
+
+    # Extend df with these columns:
+    #   belief score from provided dict
+    #   stratified evidence count by source
+    # Extend df with famplex rows
+    # 'stmt_hash' must exist as column in the input dataframe for merge to work
+    # Preserve all rows in merged_df, so do left join:
+    # merged_df.merge(other, how='left', on='stmt_hash')
+
+    hashes = []
+    beliefs = []
+    for k, v in belief_dict.items():
+        hashes.append(k)
+        beliefs.append(v)
+
+    merged_df = merged_df.merge(
+        right=pd.DataFrame(data={'stmt_hash': hashes, 'belief': beliefs}),
+        how='left',
+        on='stmt_hash'
+    )
+    # Check for missing hashes
+    if merged_df['belief'].isna().sum() > 0:
+        logger.warning('%d rows with missing belief score found' %
+                       merged_df['belief'].isna().sum())
+        if verbosity > 1:
+            logger.info('Missing hashes in belief dict: %s' % list(
+                merged_df['stmt_hash'][merged_df['belief'].isna() == True]))
+        logger.info('Setting missing belief scores to 1/evidence count')
+
+    hashes = []
+    strat_dicts = []
+    for k, v in sed.items():
+        hashes.append(k)
+        strat_dicts.append(v)
+
+    merged_df = merged_df.merge(
+        right=pd.DataFrame(data={'stmt_hash': hashes,
+                                 'source_counts': strat_dicts}),
+        how='left',
+        on='stmt_hash'
+    )
+    # Check for missing hashes
+    if merged_df['source_counts'].isna().sum() > 0:
+        logger.warning('%d rows with missing evidence found' %
+                       merged_df['source_counts'].isna().sum())
+        if verbosity > 1:
+            logger.info('Missing hashes in stratified evidence dict: %s' %
+                        list(merged_df['stmt_hash'][merged_df['source_counts'].isna()
+                                            == True]))
+
+    logger.info('Setting "curated" flag')
+    # Map to boolean 'curated' for reader/non-reader
+    merged_df['curated'] = merged_df['source_counts'].apply(func=_curated_func)
+
+    logger.info('Setting edge weights')
+    # Add weight: -log(belief) or 1/evidence count if no belief
+    has_belief = (merged_df['belief'].isna() == False)
+    has_no_belief = (merged_df['belief'].isna() == True)
+    merged_df['weight'] = 0
+    if has_belief.sum() > 0:
+        merged_df.loc[has_belief, 'weight'] = merged_df['belief'].apply(
+            func=_weight_from_belief)
+    if has_no_belief.sum() > 0:
+        merged_df.loc[has_no_belief, 'weight'] = merged_df['evidence_count'].apply(
+            func=lambda ec: 1/np.longfloat(ec))
+
+    return merged_df
 
 
 def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
@@ -114,139 +269,15 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     if graph_type not in graph_options:
         raise ValueError('Graph type %s not supported. Can only chose between'
                          ' %s' % (graph_type, graph_options))
-    sed = None
 
-    def _curated_func(ev_dict):
-        """Return False if no source dict exists, or if all sources are
-        readers, otherwise return True."""
-        return False if not ev_dict else \
-            (False if all(s.lower() in READERS for s in ev_dict) else True)
+    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity)
 
-    def _weight_from_belief(belief):
-        """Map belief score 'belief' to weight. If the calculation goes below
-        precision, return longfloat precision insted to avoid making the
-        weight zero."""
-        return np.max([NP_PRECISION, -np.log(belief, dtype=np.longfloat)])
-
-    def _weight_mapping(G):
-        """Mapping function for adding the weight of the flattened edges
-
-        Parameters
-        ----------
-        G : IndraNet
-            Incoming graph
-
-        Returns
-        -------
-        G : IndraNet
-            Graph with updated belief
-        """
-        for edge in G.edges:
-            try:
-                G.edges[edge]['weight'] = \
-                    _weight_from_belief(G.edges[edge]['belief'])
-            except FloatingPointError as err:
-                logger.warning('FloatingPointError from unexpected belief '
-                               '%s. Resetting ag_belief to 10*np.longfloat '
-                               'precision (%.0e)' %
-                               (G.edges[edge]['belief'],
-                                Decimal(NP_PRECISION * 10)))
-                if verbosity == 1:
-                    logger.error('Error string: %s' % err)
-                elif verbosity > 1:
-                    logger.error('Exception output follows:')
-                    logger.exception(err)
-                G.edges[edge]['weight'] = NP_PRECISION
-        return G
-
-    if isinstance(df, str):
-        sif_df = pickle_open(df)
-    else:
-        sif_df = df
-
-    if 'hash' in sif_df.columns:
-        sif_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
-
-    if isinstance(belief_dict, str):
-        belief_dict = pickle_open(belief_dict)
-    elif isinstance(belief_dict, dict):
-        belief_dict = belief_dict
-
-    if isinstance(strat_ev_dict, str):
-        sed = pickle_open(strat_ev_dict)
-    elif isinstance(strat_ev_dict, dict):
-        sed = strat_ev_dict
-
-    # Extend df with these columns:
-    #   belief score from provided dict
-    #   stratified evidence count by source
-    # Extend df with famplex rows
-    # 'stmt_hash' must exist as column in the input dataframe for merge to work
-    # Preserve all rows in sif_df, so do left join:
-    # sif_df.merge(other, how='left', on='stmt_hash')
-
-    hashes = []
-    beliefs = []
-    for k, v in belief_dict.items():
-        hashes.append(k)
-        beliefs.append(v)
-
-    sif_df = sif_df.merge(
-        right=pd.DataFrame(data={'stmt_hash': hashes, 'belief': beliefs}),
-        how='left',
-        on='stmt_hash'
-    )
-    # Check for missing hashes
-    if sif_df['belief'].isna().sum() > 0:
-        logger.warning('%d rows with missing belief score found' %
-                       sif_df['belief'].isna().sum())
-        if verbosity > 1:
-            logger.info('Missing hashes in belief dict: %s' % list(
-                sif_df['stmt_hash'][sif_df['belief'].isna() == True]))
-        logger.info('Setting missing belief scores to 1/evidence count')
-
-    hashes = []
-    strat_dicts = []
-    for k, v in sed.items():
-        hashes.append(k)
-        strat_dicts.append(v)
-
-    sif_df = sif_df.merge(
-        right=pd.DataFrame(data={'stmt_hash': hashes,
-                                 'source_counts': strat_dicts}),
-        how='left',
-        on='stmt_hash'
-    )
-    # Check for missing hashes
-    if sif_df['source_counts'].isna().sum() > 0:
-        logger.warning('%d rows with missing evidence found' %
-                       sif_df['source_counts'].isna().sum())
-        if verbosity > 1:
-            logger.info('Missing hashes in stratified evidence dict: %s' %
-                        list(sif_df['stmt_hash'][sif_df['source_counts'].isna()
-                                            == True]))
     # Map ns:id to node name
     logger.info('Creating dictionary with mapping from (ns,id) to node name')
     ns_id_name_tups = set(
         zip(sif_df.agA_ns, sif_df.agA_id, sif_df.agA_name)).union(
         set(zip(sif_df.agB_ns, sif_df.agB_id, sif_df.agB_name)))
     ns_id_to_nodename = {(ns, _id): name for ns, _id, name in ns_id_name_tups}
-
-    logger.info('Setting "curated" flag')
-    # Map to boolean 'curated' for reader/non-reader
-    sif_df['curated'] = sif_df['source_counts'].apply(func=_curated_func)
-
-    logger.info('Setting edge weights')
-    # Add weight: -log(belief) or 1/evidence count if no belief
-    has_belief = (sif_df['belief'].isna() == False)
-    has_no_belief = (sif_df['belief'].isna() == True)
-    sif_df['weight'] = 0
-    if has_belief.sum() > 0:
-        sif_df.loc[has_belief, 'weight'] = sif_df['belief'].apply(
-            func=_weight_from_belief)
-    if has_no_belief.sum() > 0:
-        sif_df.loc[has_no_belief, 'weight'] = sif_df['evidence_count'].apply(
-            func=lambda ec: 1/np.longfloat(ec))
 
     # Create graph from df
     if graph_type == 'multidigraph':
