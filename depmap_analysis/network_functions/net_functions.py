@@ -27,10 +27,10 @@ except KeyError:
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 
-def sif_dump_df_to_nx_digraph(df, strat_ev_dict, belief_dict,
-                              graph_type='digraph',
-                              include_entity_hierarchies=True,
-                              verbosity=0):
+def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
+                           graph_type='digraph',
+                           include_entity_hierarchies=True,
+                           verbosity=0):
     """Return a NetworkX digraph from a pandas dataframe of a db dump
 
     Parameters

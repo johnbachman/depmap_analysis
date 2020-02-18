@@ -9,7 +9,7 @@ from indra_db.util.dump_sif import load_db_content, make_ev_strata, \
     make_dataframe, NS_LIST
 
 from depmap_analysis.network_functions.net_functions import \
-    sif_dump_df_to_nx_digraph
+    sif_dump_df_to_digraph
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 
 logger = logging.getLogger('IndraNetworkSearch test')
@@ -57,10 +57,10 @@ class TestNetwork(unittest.TestCase):
     def setUp(self):
         self.df = df
         self.indra_network = IndraNetwork(
-            indra_dir_graph=sif_dump_df_to_nx_digraph(
+            indra_dir_graph=sif_dump_df_to_digraph(
                 df=self.df, belief_dict=bsd, strat_ev_dict=sed, multi=False,
                 include_entity_hierarchies=True),
-            indra_multi_dir_graph=sif_dump_df_to_nx_digraph(
+            indra_multi_dir_graph=sif_dump_df_to_digraph(
                 df=self.df, belief_dict=bsd, strat_ev_dict=sed, multi=True,
                 include_entity_hierarchies=True)
         )

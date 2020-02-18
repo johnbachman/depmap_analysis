@@ -85,17 +85,17 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
                    'strat_ev_dict': strat_ev_dict,
                    'include_entity_hierarchies': include_entity_hierarchies,
                    'verbosity': verbosity}
-        indra_dir_graph = nf.sif_dump_df_to_nx_digraph(**options)
+        indra_dir_graph = nf.sif_dump_df_to_digraph(**options)
         dump_it_to_pickle(dir_graph_path, indra_dir_graph)
         INDRA_DG_CACHE = path.join(CACHE, dir_graph_path)
         if multi_digraph_path:
-            indra_multi_digraph = nf.sif_dump_df_to_nx_digraph(
+            indra_multi_digraph = nf.sif_dump_df_to_digraph(
                 graph_type='multidigraph', **options)
             dump_it_to_pickle(multi_digraph_path, indra_multi_digraph)
             INDRA_MDG_CACHE = path.join(CACHE, multi_digraph_path)
         if sign_node_graph_path or sign_edge_graph_path:
             indra_signed_edge_graph, indra_signed_node_graph = \
-                nf.sif_dump_df_to_nx_digraph(graph_type='signed', **options)
+                nf.sif_dump_df_to_digraph(graph_type='signed', **options)
     else:
         logger.info('Loading indra network representations from pickles')
         indra_dir_graph = pickle_open(dir_graph_path)
@@ -167,18 +167,18 @@ def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
                'verbosity': verbosity}
 
     if mdg:
-        network = nf.sif_dump_df_to_nx_digraph(graph_type='multi', **options)
+        network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
         dump_it_to_pickle(INDRA_MDG_CACHE, network)
         if dump_to_s3:
             _dump_network_to_s3(INDRA_MDG, network)
     if dg:
-        network = nf.sif_dump_df_to_nx_digraph(**options)
+        network = nf.sif_dump_df_to_digraph(**options)
         dump_it_to_pickle(INDRA_DG_CACHE, network)
         if dump_to_s3:
             _dump_network_to_s3(INDRA_DG, network)
     if sg:
-        network, isng = nf.sif_dump_df_to_nx_digraph(graph_type='signed',
-                                                     **options)
+        network, isng = nf.sif_dump_df_to_digraph(graph_type='signed',
+                                                  **options)
         dump_it_to_pickle(INDRA_SEG_CACHE, network)
         dump_it_to_pickle(INDRA_SNG_CACHE, isng)
         if dump_to_s3:
