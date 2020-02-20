@@ -296,9 +296,11 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
                                                   'complementary_belief',
                                                   _weight_mapping)
     elif graph_type == 'signed':
-        signed_edge_graph = IndraNet.signed_from_df(sif_df,
+        signed_edge_graph = IndraNet.signed_from_df(
+            df=sif_df,
             flattening_method='complementary_belief',
-            weight_mapping=_weight_mapping)
+            weight_mapping=_weight_mapping
+        )
         signed_node_graph = signed_edges_to_signed_nodes(
             graph=signed_edge_graph, copy_edge_data={'weight'})
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
@@ -306,7 +308,8 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         return signed_edge_graph, signed_node_graph
 
     # Add hierarchy relations to graph (not applicable for signed graphs)
-    if include_entity_hierarchies and graph_type != 'signed':
+    if include_entity_hierarchies and graph_type in ('multidigraph',
+                                                     'digraph'):
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
         logger.info('Adding entity hierarchy manager as graph attribute')
