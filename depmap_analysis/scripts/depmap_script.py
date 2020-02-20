@@ -206,7 +206,7 @@ def _arg_dict(args_struct):
     return args_dict
 
 
-def loop_body(args):
+def loop_body(args, hgnc_name2id=None, fplx_name2id=None):
 
     global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
         directed_im_expl_count, both_im_dir_expl_count, \
@@ -272,7 +272,34 @@ def loop_body(args):
                 explanations_of_pairs.append(stmt_tuple)
 
     # Check common parent
-    if ff.has_common_parent(id1=id1, id2=id2):
+
+    # Get ns:id
+    id1_ns, id1_id = None, None
+    id2_ns, id2_id = None, None
+
+    # HGNC
+    if hgnc_name2id:
+        id1_ns, id1_id = (hgnc_name2id[id1], 'HGNC') if \
+            hgnc_name2id.get(id1) else (None, None)
+        id2_ns, id2_id = (hgnc_name2id[id2], 'HGNC') if \
+            hgnc_name2id.get(id2) else (None, None)
+
+    # Try FPLX if not HGNC
+    if id1_id is None and fplx_name2id:
+        id1_ns, id1_id = (fplx_name2id[id1], 'FPLX') if \
+            fplx_name2id.get(id1) else (None, None)
+    if id2_id is None and fplx_name2id:
+        id2_ns, id2_id = (fplx_name2id[id2], 'FPLX') if \
+            fplx_name2id.get(id2) else (None, None)
+
+    # Last resort: GILDA
+    if id1_id is None:
+        id1_ns, id1_id = nf.ns_id_from_name(id1)
+    if id2_id is None:
+        id2_ns, id2_id = nf.ns_id_from_name(id2)
+
+    if id1_id and id2_id and ff.has_common_parent(ns1=id1_ns, id1=id1_id,
+                                                  ns2=id2_ns, id2=id2_id):
         has_common_parent = True
         found = True
         parents = list(ff.common_parent(id1=id1, id2=id2))
@@ -434,8 +461,9 @@ def loop_body(args):
                         '%s.' % (id1, id2))
 
 
-def main(args):
-
+def main(args, hgnc_name2id=None, fplx_name2id=None):
+    if hgnc_name2id or fplx_name2id:
+        logger.info('Using loaded dict(s) for mapping')
     global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
         directed_im_expl_count, both_im_dir_expl_count, \
         any_axb_non_sr_expl_count, sr_expl_count, \
@@ -1101,6 +1129,12 @@ if __name__ == '__main__':
     parser.add_argument('--sif-df-in',
                         help='Use a sif dump dataframe for generating the '
                              'nested dict and the dir_graph')
+    parser.add_argument('--hgnc-name2id',
+                        help='Pickled dict mapping hgnc names to hgnc ids '
+                             'used in the db dump input.')
+    parser.add_argument('--fplx-name2id',
+                        help='Pickled dict mapping fplx names to fplx ids '
+                             'used in the db dump input.')
     a = parser.parse_args()
 
     ymd_date = datetime.utcnow().strftime('%Y%m%d')
@@ -1112,6 +1146,16 @@ if __name__ == '__main__':
         f.write('Command line option : value\n---------------------------\n')
         for arg in vars(a):
             f.write('{} : {}\n'.format(arg, getattr(a, arg)))
-    done = main(a)
+
+    # Load mappings
+    if a.hgnc_name2id:
+        hgnc_nm2id_map = io.pickle_open(a.hgnc_name2id)
+    else:
+        hgnc_nm2id_map = None
+    if a.fplx_name2id:
+        fplx_nm2id_map = io.pickle_open(a.fplx_name2id)
+    else:
+        fplx_nm2id_map = None
+    done = main(a, hgnc_name2id=hgnc_nm2id_map, fplx_name2id=fplx_nm2id_map)
     if done == 0 or done is None:
         logger.info('Script finished without errors')
