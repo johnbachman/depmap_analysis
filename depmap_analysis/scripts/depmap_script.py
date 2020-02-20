@@ -26,6 +26,7 @@ from random import choice as rnd_choice
 import pandas as pd
 from numpy import float64
 from indra.tools import assemble_corpus as ac
+from indra_db.util.dump_sif import load_pickle_from_s3
 
 import depmap_analysis.util.io_functions as io
 import depmap_analysis.network_functions.net_functions as nf
@@ -482,7 +483,10 @@ def main(args):
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
     if args.belief_score_dict:
-        if args.belief_score_dict.endswith('.json'):
+        if args.belief_score_dict == 's3':
+            belief_key = 'belief_dict.pkl'
+            belief_dict = load_pickle_from_s3(key=belief_key)
+        elif args.belief_score_dict.endswith('.json'):
             belief_dict = io.json_open(args.belief_score_dict)
         elif args.belief_score_dict.endswith('.pkl'):
             belief_dict = io.pickle_open(args.belief_score_dict)
@@ -585,7 +589,11 @@ def main(args):
 
     # Get nested dicts from statements
     if args.light_weight_stmts:
-        hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
+        with open(args.light_weight_stmts, 'r') as csvf:
+            first_line = csvf.readline()
+            delim = '\t' if '\t' in first_line else ','
+
+        hash_df = pd.read_csv(args.light_weight_stmts, delimiter=delim)
         nested_dict_statements = \
             dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
@@ -599,8 +607,7 @@ def main(args):
         if args.nested_dict_out:
             io.dump_it_to_pickle(fname=args.nested_dict_out,
                                  pyobj=nested_dict_statements)
-    assert nested_dict_statements is not None, print(
-        nested_dict_statements.__class__)
+    assert nested_dict_statements is not None
 
     # Get directed simple graph
     if args.directed_graph_in:
@@ -625,14 +632,17 @@ def main(args):
     common_parent = 0  # Count if common parent found per set(A,B)
     part_of_explained = 0  # Count pairs part the "explained set"
     ab_expl_count = 0  # Count A-B/B-A as one per set(A,B)
-    directed_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
-    any_axb_non_sr_expl_count = 0  # Count if shared target found per set(A,B)
+    directed_im_expl_count = 0  # Count any A>X>B,B>X>A as one per set(A,B)
+    any_axb_non_sr_expl_count = 0  # if shared target found per set(A,B)
     sr_expl_count = 0  # Count if shared regulator found per set(A,B)
-    shared_regulator_only_expl_count = 0  # Count if only shared regulator found
+    shared_regulator_only_expl_count = 0  # Count if only shared regulator
     explanations_of_pairs = []  # Saves all non shared regulator explanations
     sr_explanations = []  # Saves all shared regulator explanations
     unexplained = []  # Unexplained correlations
     skipped = 0
+
+    # KeyError count
+    key_errs = 0
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
     # connection type or correlation).
@@ -656,7 +666,8 @@ def main(args):
     #
     # Used to get: directed graph
     # 1. all nodes of directed graph -> 1st dropdown
-    # 2. dir -> undir graph -> jsons to check all corr neighbors -> 2nd dropdown
+    # 2. dir -> undir graph -> jsons to check all corr neighbors ->
+    #    2nd dropdown
     # 3. jsons to check if connection is direct or intermediary
 
     # Using the following loop structure for counter variables:
@@ -774,7 +785,8 @@ def main(args):
     # loop brca dependency ONLY
     elif args.brca_dependencies and not \
             (args_dict.get('rnai') or args_dict.get('crispr')):
-        logger.info('Gene pairs generated from BRCA gene enrichment data only.')
+        logger.info('Gene pairs generated from BRCA gene enrichment data '
+                    'only.')
         brca_data_set = pd.read_csv(args.brca_dependencies, header=0)
         depend_in_breast_genes = brca_data_set.drop(
             axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
