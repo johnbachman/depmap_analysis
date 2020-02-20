@@ -232,8 +232,9 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
             merged_df.loc[has_belief, 'weight'] = merged_df['belief'].apply(
                 func=_weight_from_belief)
         if has_no_belief.sum() > 0:
-            merged_df.loc[has_no_belief, 'weight'] = merged_df['evidence_count'].apply(
-                func=lambda ec: 1/np.longfloat(ec))
+            merged_df.loc[has_no_belief, 'weight'] = \
+                merged_df['evidence_count'].apply(
+                    func=lambda ec: 1/np.longfloat(ec))
     else:
         logger.info('Skipping setting edge weight')
 
