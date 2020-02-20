@@ -34,6 +34,8 @@ from depmap_analysis.network_functions import depmap_network_functions as dnf
 
 logger = logging.getLogger('DepMap Script')
 
+KEY_ERR_TOL = 100
+
 # 1. no geneset -> use corr from full DepMap data, no filtering needed
 # 2. geneset, not strict -> interaction has to contain at least one gene from
 #    the loaded list
@@ -50,11 +52,16 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
             fosro.write(separator.join(header)+'\n')
     with open(fname, 'a') as fo, \
             open(fname.split('.')[0]+'_sr_only.csv', 'a') as fosro:
+        skip = 0
         for ok in nested_dict:
             for ik in nested_dict[ok]:
                 cd = nested_dict[ok][ik]['meta_data']
                 if excl_sr and nested_dict[ok][ik]['sr_only']:
-                    logger.info('Skipping sr only: %s and %s' % (ik, ok))
+                    skip += 1
+                    if skip < 10:
+                        logger.info('Skipping sr only: %s and %s' % (ik, ok))
+                    elif skip == 10:
+                        logger.info('Muting skip messages...')
                     fosro.write('%s,%s,%s,%s\n' %
                         (ok, ik,
                          str(cd['crispr']) if cd and json.dumps(cd.get(
@@ -674,17 +681,24 @@ def main(args):
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
-        for outer_id, do in master_corr_dict.items():
-            for inner_id, dataset_dict in do.items():
-                if len(dataset_dict.keys()) == 0:
-                    skipped += 1
-                    if args.verbosity:
-                        logger.info('Skipped outer_id=%s and inner_id=%s' %
-                                    (outer_id, inner_id))
-                    continue
+        try:
+            for outer_id, do in master_corr_dict.items():
+                for inner_id, dataset_dict in do.items():
+                    if len(dataset_dict.keys()) == 0:
+                        skipped += 1
+                        if args.verbosity:
+                            logger.info('Skipped outer_id=%s and inner_id=%s'
+                                        % (outer_id, inner_id))
+                        continue
 
-                id1, id2 = outer_id, inner_id
-                loop_body(args)
+                    id1, id2 = outer_id, inner_id
+                    loop_body(args, hgnc_name2id=hgnc_name2id,
+                              fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     # Loop rnai and/or crispr AND BRCA cell line dependencies
     elif args_dict.get('rnai') or args_dict.get('crispr') and \
@@ -703,51 +717,58 @@ def main(args):
                                                   'gene']
         genes = set(depend_in_breast_genes['Gene/Compound'].values)
 
-        for outer_id, do in master_corr_dict.items():
-            for inner_id, knockout_dict in do.items():
-                if len(knockout_dict.keys()) == 0:
-                    skipped += 1
-                    if args.verbosity:
-                        logger.info('Skipped outer_id=%s and inner_id=%s' %
-                                    (outer_id, inner_id))
-                    continue
+        try:
+            for outer_id, do in master_corr_dict.items():
+                for inner_id, knockout_dict in do.items():
+                    if len(knockout_dict.keys()) == 0:
+                        skipped += 1
+                        if args.verbosity:
+                            logger.info('Skipped outer_id=%s and inner_id=%s'
+                                        % (outer_id, inner_id))
+                        continue
 
-                id1, id2 = outer_id, inner_id
-                dataset_dict = {}
-                gene1_data = []
-                gene2_data = []
+                    id1, id2 = outer_id, inner_id
+                    dataset_dict = {}
+                    gene1_data = []
+                    gene2_data = []
 
-                # Get BRCA dep data
-                if id1 in genes:
-                    for row in depend_in_breast_genes[
-                        depend_in_breast_genes[
-                            'Gene/Compound'] == id1].iterrows():
-                        gene1_data.append((row[1]['Dataset'],
-                                           row[1]['T-Statistic'],
-                                           row[1]['P-Value']))
-                if id2 in genes:
-                    for row in depend_in_breast_genes[
-                        depend_in_breast_genes[
-                            'Gene/Compound'] == id2].iterrows():
-                        gene2_data.append((row[1]['Dataset'],
-                                           row[1]['T-Statistic'],
-                                           row[1]['P-Value']))
+                    # Get BRCA dep data
+                    if id1 in genes:
+                        for row in depend_in_breast_genes[
+                            depend_in_breast_genes[
+                                'Gene/Compound'] == id1].iterrows():
+                            gene1_data.append((row[1]['Dataset'],
+                                               row[1]['T-Statistic'],
+                                               row[1]['P-Value']))
+                    if id2 in genes:
+                        for row in depend_in_breast_genes[
+                            depend_in_breast_genes[
+                                'Gene/Compound'] == id2].iterrows():
+                            gene2_data.append((row[1]['Dataset'],
+                                               row[1]['T-Statistic'],
+                                               row[1]['P-Value']))
 
-                dataset_dict[id1] = gene1_data
-                dataset_dict[id2] = gene2_data
+                    dataset_dict[id1] = gene1_data
+                    dataset_dict[id2] = gene2_data
 
-                dataset_dict['crispr'] = (knockout_dict['crispr'] if
-                                          knockout_dict.get('crispr')
-                                          else None),
-                dataset_dict['rnai'] = (knockout_dict['rnai'] if
-                                        knockout_dict.get('rnai')
-                                        else None)
+                    dataset_dict['crispr'] = (knockout_dict['crispr'] if
+                                              knockout_dict.get('crispr')
+                                              else None),
+                    dataset_dict['rnai'] = (knockout_dict['rnai'] if
+                                            knockout_dict.get('rnai')
+                                            else None)
 
-                if id1 not in genes and id2 not in genes:
-                    dataset_dict = knockout_dict
+                    if id1 not in genes and id2 not in genes:
+                        dataset_dict = knockout_dict
 
-                # Run loop body
-                loop_body(args)
+                    # Run loop body
+                    loop_body(args, hgnc_name2id=hgnc_name2id,
+                              fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     # loop brca dependency ONLY
     elif args.brca_dependencies and not \
@@ -762,33 +783,42 @@ def main(args):
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
-        for id1, id2 in itt.combinations(genes, 2):
-            gene1_data = []
-            gene2_data = []
-            # For each non-diagonal pair in file, insert in dataset_dict:
-            # geneA, geneB,
-            # dataset for A, dataset for B,
-            # T-stat for A, T-stat for B,
-            # P-value for A, P-value
-            for row in depend_in_breast_genes[
-                 depend_in_breast_genes['Gene/Compound'] == id1].iterrows():
-                gene1_data.append((row[1]['Dataset'],
-                                   row[1]['T-Statistic'],
-                                   row[1]['P-Value']))
+        try:
+            for id1, id2 in itt.combinations(genes, 2):
+                gene1_data = []
+                gene2_data = []
+                # For each non-diagonal pair in file, insert in dataset_dict:
+                # geneA, geneB,
+                # dataset for A, dataset for B,
+                # T-stat for A, T-stat for B,
+                # P-value for A, P-value
+                for row in depend_in_breast_genes[
+                     depend_in_breast_genes[
+                         'Gene/Compound'] == id1].iterrows():
+                    gene1_data.append((row[1]['Dataset'],
+                                       row[1]['T-Statistic'],
+                                       row[1]['P-Value']))
 
-            for row in depend_in_breast_genes[
-                 depend_in_breast_genes['Gene/Compound'] == id2].iterrows():
-                gene2_data.append((row[1]['Dataset'],
-                                   row[1]['T-Statistic'],
-                                   row[1]['P-Value']))
-            # dataset_dict = {id1:
-            #                 [(dataset1, T-stat1, P-value1),
-            #                  (dataset2, T-stat2, P-value2)],
-            #                 id2:
-            #                  [(..., ...)],
-            #                  ...}
-            dataset_dict = {id1: gene1_data, id2: gene2_data}
-            loop_body(args)
+                for row in depend_in_breast_genes[
+                    depend_in_breast_genes[
+                        'Gene/Compound'] == id2].iterrows():
+                    gene2_data.append((row[1]['Dataset'],
+                                       row[1]['T-Statistic'],
+                                       row[1]['P-Value']))
+                # dataset_dict = {id1:
+                #                 [(dataset1, T-stat1, P-value1),
+                #                  (dataset2, T-stat2, P-value2)],
+                #                 id2:
+                #                  [(..., ...)],
+                #                  ...}
+                dataset_dict = {id1: gene1_data, id2: gene2_data}
+                loop_body(args, hgnc_name2id=hgnc_name2id,
+                          fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     # loop random pairs from data set
     elif args_dict.get('sampling_gene_file'):
@@ -802,10 +832,17 @@ def main(args):
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
-        for _ in range(npairs):
-            id1, id2 = _rnd_pair_gen(rnd_gene_set)
-            assert not isinstance(id1, list)
-            loop_body(args)
+        try:
+            for _ in range(npairs):
+                id1, id2 = _rnd_pair_gen(rnd_gene_set)
+                assert not isinstance(id1, list)
+                loop_body(args, hgnc_name2id=hgnc_name2id,
+                          fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     long_string = ''
     long_string += '-' * 63 + '\n'
@@ -885,9 +922,9 @@ def main(args):
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
         io.dump_it_to_json(args.outbasename + '_explainable_ids.json',
-                        explained_nodes)
+                           explained_nodes)
 
-        # Get undir graph and save each neighbor lookup as json for 2nd dropdown
+        # Get undir graph, save each neighbor lookup as json for 2nd dropdown
         nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
         dnf.nx_undir_to_neighbor_lookup_json(
             expl_undir_graph=nx_expl_undir_graph, outbasename=args.outbasename)
