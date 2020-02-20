@@ -121,7 +121,8 @@ def _weight_mapping(G, verbosity=0):
     return G
 
 
-def sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity=0):
+def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
+                       verbosity=0):
     """Merge the sif dump df with the provided dictionaries
 
     Parameters
@@ -137,6 +138,10 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity=0):
         The file path to a pickled dict or a dict object keyed by statement
         hash containing the stratified evidence count per statement. The
         hashes should correspond to the hashes in the loaded dataframe.
+    set_weights : bool
+        If True, set the edge weights. Default: True.
+    verbosity : int
+        Output various extra messages if > 1.
 
     Returns
     -------
@@ -162,7 +167,6 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity=0):
         sed = pickle_open(strat_ev_dict)
     elif isinstance(strat_ev_dict, dict):
         sed = strat_ev_dict
-
 
     # Extend df with these columns:
     #   belief score from provided dict
@@ -209,25 +213,29 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity=0):
         logger.warning('%d rows with missing evidence found' %
                        merged_df['source_counts'].isna().sum())
         if verbosity > 1:
-            logger.info('Missing hashes in stratified evidence dict: %s' %
-                        list(merged_df['stmt_hash'][merged_df['source_counts'].isna()
-                                            == True]))
+            logger.info(
+                'Missing hashes in stratified evidence dict: %s' %
+                list(merged_df['stmt_hash'][
+                         merged_df['source_counts'].isna() == True]))
 
     logger.info('Setting "curated" flag')
     # Map to boolean 'curated' for reader/non-reader
     merged_df['curated'] = merged_df['source_counts'].apply(func=_curated_func)
 
-    logger.info('Setting edge weights')
-    # Add weight: -log(belief) or 1/evidence count if no belief
-    has_belief = (merged_df['belief'].isna() == False)
-    has_no_belief = (merged_df['belief'].isna() == True)
-    merged_df['weight'] = 0
-    if has_belief.sum() > 0:
-        merged_df.loc[has_belief, 'weight'] = merged_df['belief'].apply(
-            func=_weight_from_belief)
-    if has_no_belief.sum() > 0:
-        merged_df.loc[has_no_belief, 'weight'] = merged_df['evidence_count'].apply(
-            func=lambda ec: 1/np.longfloat(ec))
+    if set_weights:
+        logger.info('Setting edge weights')
+        # Add weight: -log(belief) or 1/evidence count if no belief
+        has_belief = (merged_df['belief'].isna() == False)
+        has_no_belief = (merged_df['belief'].isna() == True)
+        merged_df['weight'] = 0
+        if has_belief.sum() > 0:
+            merged_df.loc[has_belief, 'weight'] = merged_df['belief'].apply(
+                func=_weight_from_belief)
+        if has_no_belief.sum() > 0:
+            merged_df.loc[has_no_belief, 'weight'] = merged_df['evidence_count'].apply(
+                func=lambda ec: 1/np.longfloat(ec))
+    else:
+        logger.info('Skipping setting edge weight')
 
     return merged_df
 
