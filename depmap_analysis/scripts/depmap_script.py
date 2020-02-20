@@ -226,7 +226,7 @@ def loop_body(args):
     has_common_parent = False  # Flag common parent
 
     for subj, obj in itt.permutations((id1, id2), r=2):
-        if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
+        if dnf.entry_exist_dict(nested_dict_statements, subj, obj):
 
             # Get the statements
             stmts = nested_dict_statements[subj][obj]
@@ -249,7 +249,8 @@ def loop_body(args):
         if subj in dir_node_set and obj in dir_node_set:
             dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
                                   set(nx_dir_graph.pred[obj]))
-            if dir_path_nodes:
+            if dir_path_nodes and \
+                    dnf.entry_exist_dict(nested_dict_statements, subj, obj):
                 found = True
                 x_is_intermediary = True
                 if args.verbosity:
@@ -399,27 +400,27 @@ def loop_body(args):
             # Correlation/meta data
             explained_nested_dict[s][o]['meta_data'] = dataset_dict
             # common_parents
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'common_parents'):
                 explained_nested_dict[s][o]['common_parents'] = []
             # directed
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'directed'):
                 explained_nested_dict[s][o]['directed'] = []
             # undirected
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'undirected'):
                 explained_nested_dict[s][o]['undirected'] = []
             # x_is_intermediary
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'x_is_intermediary'):
                 explained_nested_dict[s][o]['x_is_intermediary'] = []
             # x_is_upstream
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'x_is_upstream'):
                 explained_nested_dict[s][o]['x_is_upstream'] = []
             # x_is_downstream
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'x_is_downstream'):
                 explained_nested_dict[s][o]['x_is_downstream'] = []
 
