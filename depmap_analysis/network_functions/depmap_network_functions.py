@@ -1473,6 +1473,28 @@ def _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     return _z_sc(corr1, mu1, sigma1) * _z_sc(corr2, mu2, sigma2) > margin
 
 
+def get_sign(num):
+    """Get the sign of num
+
+    Parameters
+    ----------
+    num : number
+        Any valid number as int, float or str
+
+    Returns
+    -------
+    int
+        -1 or +1
+    """
+    if isinstance(num, str):
+        try:
+            num = float(num)
+        except ValueError as err:
+            dnf_logger.warning('object is not recognized as a number')
+            raise err
+    return math.copysign(1, num)
+
+
 def same_sign(n1, n2):
     """Return True if n1 and n2 have the same sign
 
