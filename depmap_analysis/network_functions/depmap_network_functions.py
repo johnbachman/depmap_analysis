@@ -1414,7 +1414,7 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin=None,
         Mean of the correlations of the first dataset
     sigma1: float
         Standard deviation of the correlations of the first dataset
-    corr2: float
+    n2: float
         Correlation from second data set
     mu2: float
         Mean of the correlations of the second dataset
@@ -1445,7 +1445,7 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin=None,
     elif filter_type == 'z_score_product':
         return _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'sign':
-        return _same_sign(corr1, corr2)
+        return same_sign(corr1, corr2)
     # No filter/filter not recognized:
     else:
         return True
@@ -1473,39 +1473,44 @@ def _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     return _z_sc(corr1, mu1, sigma1) * _z_sc(corr2, mu2, sigma2) > margin
 
 
-def _same_sign(corr1, corr2):
-    """Return True if corr1 and corr2 have the same sign
+def same_sign(n1, n2):
+    """Return True if n1 and n2 have the same sign
 
     Special cases:
         zeros:
-            1. if corr1 == 0 AND corr2 == 0, return True
-            2. if corr1 == 0 XOR corr2 == 0, return False
+            1. if n1 == 0 AND n2 == 0, return True
+            2. if n1 == 0 XOR n2 == 0, return False
 
+        inf and NaN:
+            if not math.isfinite(n1) OR not math.isfinite(n2), return False
+
+        Can't be interpreted as number, return False
     """
     # Catch non-numeric correlations
     try:
-        if isinstance(corr1, str):
-            corr1 = float(corr1)
-        if isinstance(corr2, str):
-            corr2 = float(corr2)
+        if isinstance(n1, str):
+            n1 = float(n1)
+        if isinstance(n2, str):
+            n2 = float(n2)
     except ValueError:
         dnf_logger.warning('Correlation could not be interpreted as numeric. '
                            'Skipping...')
         return False
 
     # Catch nan and inf
-    if not math.isfinite(corr1) or not math.isfinite(corr2):
+    if not math.isfinite(n1) or not math.isfinite(n2):
         dnf_logger.warning('Correlation is undefined. Skipping...')
         return False
 
     # Both zero
-    if corr1 == 0 and corr2 == 0:
+    if n1 == 0 and n2 == 0:
         return True
-    # XOR: if (corr1==0 or corr2==0) and not (corr1==0 and corr2==0)
-    elif (corr1 == 0) ^ (corr2 == 0):
+
+    # XOR: if (n1==0 or n2==0) and not (n1==0 and n2==0)
+    elif (n1 == 0) ^ (n2 == 0):
         return False
 
-    return math.copysign(1, corr1) == math.copysign(1, corr2)
+    return math.copysign(1, n1) == math.copysign(1, n2)
 
 
 def get_directed(stmts, undirected_types=None):
