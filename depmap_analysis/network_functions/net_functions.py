@@ -123,6 +123,11 @@ def _weight_mapping(G, verbosity=0):
     return G
 
 
+def _english_from_row(row):
+    return _english_from_agents_type(row.agA_name, row.agB_name,
+                                     row.stmt_type)
+
+
 def _english_from_agents_type(agA_name, agB_name, stmt_type):
     agA = Agent(agA_name)
     agB = Agent(agB_name)
@@ -237,7 +242,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     merged_df['curated'] = merged_df['source_counts'].apply(func=_curated_func)
 
     # Make english statement
-    merged_df['english'] = merged_df['']
+    merged_df['english'] = merged_df.apply(_english_from_row, axis=1)
 
     if set_weights:
         logger.info('Setting edge weights')
