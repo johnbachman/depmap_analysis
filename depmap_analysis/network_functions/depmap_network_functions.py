@@ -176,13 +176,15 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
 
     corr_value_matrix = corr_df_sample.values
     gene_name_array = corr_df_sample.index.values
+    if not isinstance(gene_name_array[0], str):
+        gene_name_array = [n[0] for n in gene_name_array]
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     # Only get HGNC symbols (first in tuple) since we're gonna compare to
     # INDRA statements, which is currently done with HGNC symbols
     # todo change to output HGNC IDs instead when switching to HGNC id in
     #  stmts
-    return ((gene_name_array[i][0], gene_name_array[j][0],
-            str(corr_value_matrix[i, j]))
+    return ((gene_name_array[i], gene_name_array[j],
+            float(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
             if not np.isnan(corr_value_matrix[i, j]))
 
