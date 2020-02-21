@@ -13,6 +13,8 @@ from requests.exceptions import ConnectionError
 from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
 from indra.belief import load_default_probs
+from indra.assemblers.english import EnglishAssembler
+from indra.statements import Agent, get_statement_by_name
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra_reading.readers import get_reader_classes
@@ -121,6 +123,17 @@ def _weight_mapping(G, verbosity=0):
     return G
 
 
+def _english_from_agents_type(agA_name, agB_name, stmt_type):
+    agA = Agent(agA_name)
+    agB = Agent(agB_name)
+    StmtClass = get_statement_by_name(stmt_type)
+    if stmt_type.lower() == 'complex':
+        stmt = StmtClass([agA, agB])
+    else:
+        stmt = StmtClass(agA, agB)
+    return EnglishAssembler([stmt]).make_model()
+
+
 def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
                        verbosity=0):
     """Merge the sif dump df with the provided dictionaries
@@ -171,6 +184,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     # Extend df with these columns:
     #   belief score from provided dict
     #   stratified evidence count by source
+    #   english string from mock statements
     # Extend df with famplex rows
     # 'stmt_hash' must exist as column in the input dataframe for merge to work
     # Preserve all rows in merged_df, so do left join:
@@ -221,6 +235,9 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     logger.info('Setting "curated" flag')
     # Map to boolean 'curated' for reader/non-reader
     merged_df['curated'] = merged_df['source_counts'].apply(func=_curated_func)
+
+    # Make english statement
+    merged_df['english'] = merged_df['']
 
     if set_weights:
         logger.info('Setting edge weights')
