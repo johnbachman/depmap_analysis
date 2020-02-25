@@ -19,7 +19,7 @@ from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 logger = logging.getLogger('INDRA Network Search util')
 
-API_PATH = path.dirname(path.abspath('./api.py'))
+API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
 
