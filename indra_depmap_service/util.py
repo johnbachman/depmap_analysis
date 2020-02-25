@@ -150,7 +150,7 @@ def _load_pickle_from_s3(s3, key, bucket):
     return pyobj
 
 
-def _dump_network_to_s3(name, indranet_graph_object):
+def _dump_pickle_to_s3(name, indranet_graph_object):
     s3 = get_s3_client(unsigned=False)
     key = 'indra_db_files/' + name
     s3.put_object(Bucket=NET_BUCKET, Key=key,
@@ -170,20 +170,20 @@ def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
         dump_it_to_pickle(INDRA_MDG_CACHE, network)
         if dump_to_s3:
-            _dump_network_to_s3(INDRA_MDG, network)
+            _dump_pickle_to_s3(INDRA_MDG, network)
     if dg:
         network = nf.sif_dump_df_to_digraph(**options)
         dump_it_to_pickle(INDRA_DG_CACHE, network)
         if dump_to_s3:
-            _dump_network_to_s3(INDRA_DG, network)
+            _dump_pickle_to_s3(INDRA_DG, network)
     if sg:
         network, isng = nf.sif_dump_df_to_digraph(graph_type='signed',
                                                   **options)
         dump_it_to_pickle(INDRA_SEG_CACHE, network)
         dump_it_to_pickle(INDRA_SNG_CACHE, isng)
         if dump_to_s3:
-            _dump_network_to_s3(INDRA_SEG, network)
-            _dump_network_to_s3(INDRA_SNG, network)
+            _dump_pickle_to_s3(INDRA_SEG, network)
+            _dump_pickle_to_s3(INDRA_SNG, network)
 
 
 if __name__ == '__main__':
