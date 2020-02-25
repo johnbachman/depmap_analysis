@@ -133,7 +133,7 @@ function fillResultsTable(data, source, target){
   let downloadURL = data.download_link;
   let downloadLink = '';
   if (downloadURL) {
-    downloadLink = ` Click <a href="${downloadURL}">here</a> to download the results as a json`
+    downloadLink = ` Click <a href="${downloadURL}" download>here</a> to download the results as a json`
   }
   if (data.result.common_targets.length > 0 ||
       Object.keys(data.result.common_parents).length > 0 ||
