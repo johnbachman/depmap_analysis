@@ -12,12 +12,13 @@ from jinja2 import Template
 from flask import Flask, request, abort, Response, render_template
 
 from indra.config import CONFIG_DICT
+from indra.util.aws import get_s3_client
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
-from .util import load_indra_graph, get_s3_client,\
-    get_queryable_stmt_types, API_PATH as HERE, CACHE, INDRA_DG, \
-    INDRA_DG_CACHE, INDRA_SEG, INDRA_SEG_CACHE, INDRA_SNG_CACHE, TEST_DG_CACHE
+from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
+    HERE, CACHE, INDRA_DG, INDRA_DG_CACHE, INDRA_SEG, INDRA_SEG_CACHE, \
+    INDRA_SNG_CACHE, TEST_DG_CACHE
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
