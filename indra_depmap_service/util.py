@@ -112,7 +112,7 @@ def _get_latest_files():
     necc_files = ['belief_dict', 'db_dump_df', 'strat_ev']
     s3 = get_s3_client(unsigned=False)
     tree = get_s3_file_tree(s3, bucket=SIF_BUCKET, prefix='indra_db_sif_dump',
-                     with_dt=True)
+                            with_dt=True)
     # Find all pickles
     keys = [key for key in tree.gets('key') if key[0].endswith('.pkl')]
     # Sort newest first
@@ -121,7 +121,7 @@ def _get_latest_files():
     latest_dir = keys[0][0].split('/')[-2]
     # Get keys of those pickles
     keys_in_latest_dir = [k[0] for k in keys if latest_dir in k[0] and
-                          any(nf in k[0] for nf in necc_files)]
+                          any(nfl in k[0] for nfl in necc_files)]
     # Map key to resource
     necc_keys = {}
     for n in necc_files:
@@ -131,7 +131,7 @@ def _get_latest_files():
     df = _load_pickle_from_s3(s3, key=necc_keys['db_dump_df'],
                               bucket=SIF_BUCKET)
     sev = _load_pickle_from_s3(s3, key=necc_keys['strat_ev'],
-                              bucket=SIF_BUCKET)
+                               bucket=SIF_BUCKET)
     bd = _load_pickle_from_s3(s3, key=necc_keys['belief_dict'],
                               bucket=SIF_BUCKET)
     return df, sev, bd
