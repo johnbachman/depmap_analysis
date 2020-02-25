@@ -1,5 +1,4 @@
 """INDRA Causal Network Search API"""
-import os
 import re
 import json
 import pickle
@@ -12,7 +11,6 @@ import requests
 import platform
 from sys import argv
 from fnvhash import fnv1a_32
-from os import path, makedirs
 from os import path, makedirs, environ, stat
 from datetime import datetime
 from time import time, gmtime, strftime
@@ -62,9 +60,9 @@ FILES = {
     else None
 }
 
-STMTS_FROM_HSH_URL = os.environ.get('INDRA_DB_HASHES_URL')
-VERBOSITY = int(os.environ.get('VERBOSITY', 0))
-API_DEBUG = int(os.environ.get('API_DEBUG', 0))
+STMTS_FROM_HSH_URL = environ.get('INDRA_DB_HASHES_URL')
+VERBOSITY = int(environ.get('VERBOSITY', 0))
+API_DEBUG = int(environ.get('API_DEBUG', 0))
 if API_DEBUG:
     logger.info('API_DEBUG set to %d' % API_DEBUG)
 
@@ -266,19 +264,9 @@ def get_query_page():
     logger.info(str(request.json))
     logger.info('------------------------------------')
 
-    qh = session.get('query')
-    rf = os.path.join(JSON_CACHE, 'result_%s.json' % qh) if qh else False
-    qf = os.path.join(JSON_CACHE, 'query_%s.json' % qh) if qh else False
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
 
-    if all([qh, rf, qf, os.path.isfile(rf)]):
-        with open(rf) as fr:
-            search_results = json.load(fr)
-        with open(qf) as fq:
-            query = json.load(fq)
-            source = query['source']
-            target = query['target']
     qh = session.get('query_hash')
     rf = path.join(JSON_CACHE, 'result_%s.json' % qh) if qh else False
     qf = path.join(JSON_CACHE, 'query_%s.json' % qh) if qh else False
