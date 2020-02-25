@@ -130,11 +130,17 @@ function submitQuery() {
 function fillResultsTable(data, source, target){
   console.log(data);
   var statusBox = document.getElementById('query-status');
+  let downloadURL = data.download_link;
+  let downloadLink = '';
+  if (downloadURL) {
+    downloadLink = ` Click <a href="${downloadURL}">here</a> to download the results as a json`
+  }
   if (data.result.common_targets.length > 0 ||
       Object.keys(data.result.common_parents).length > 0 ||
       Object.keys(data.result.paths_by_node_count).length > 0) {
-    if (data.result.timeout) statusBox.textContent = 'Query timed out with results!';
-    else statusBox.textContent = 'Query resolved!';
+    if (data.result.timeout) statusBox.innerHTML = 'Query timed out with' +
+      ' results!' + downloadLink;
+    else statusBox.innerHTML = 'Query resolved!' + downloadLink;
     // for each path length:
     //   for each path:
     //     Output: path | list supporting statements per edge

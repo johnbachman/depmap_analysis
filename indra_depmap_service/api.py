@@ -19,7 +19,7 @@ from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
     HERE, CACHE, INDRA_DG, INDRA_DG_CACHE, INDRA_SEG, INDRA_SEG_CACHE, \
-    INDRA_SNG_CACHE, TEST_DG_CACHE
+    INDRA_SNG_CACHE, TEST_DG_CACHE, dump_query_result_to_s3
 
 app = Flask(__name__)
 app.config['DEBUG'] = False
@@ -174,10 +174,12 @@ def process_query():
             logger.info('api test successful')
             return Response(json.dumps({'result': 'api test passed'}),
                             mimetype='application/json')
-        result = indra_network.handle_query(**request.json.copy())
+        query_json = request.json.copy()
+        result = indra_network.handle_query(**query_json)
         logger.info('Query resolved at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
-        if not result or not all(result.values()):
+        qh = _get_query_hash(query_json)
+        if _is_empty_result(result):
             if API_DEBUG:
                 logger.info('API_DEBUG is set to "True" so no network is '
                             'loaded, perhaps you meant to turn it off? '
@@ -185,7 +187,13 @@ def process_query():
                             'so and then restart the flask service')
             else:
                 logger.info('Query returned with no path found')
-        res = {'result': result}
+            download_link = ''
+        else:
+            # Upload to public S3 and get the download link
+            json_fname = '%s_result.json' % qh
+            download_link = dump_query_result_to_s3(json_fname, result)
+        res = {'result': result,
+               'download_link': download_link}
         if indra_network.verbose > 5:
             logger.info('Result: %s' % str(res))
         return Response(json.dumps(res), mimetype='application/json')

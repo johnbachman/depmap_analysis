@@ -143,12 +143,12 @@ def _load_pickle_from_s3(s3, key, bucket):
         pyobj = pickle.loads(res['Body'].read())
     except Exception as err:
         logger.error('Someting went wrong while loading, reading or '
-                         'unpickling the object from s3')
+                     'unpickling the object from s3')
         raise err
     return pyobj
 
 
-def _dump_json_to_s3(name, json_obj, public=False):
+def _dump_json_to_s3(name, json_obj, public=False, get_url=False):
     """Set public=True for public read access"""
     s3 = get_s3_client(unsigned=False)
     key = 'indra_network_search/' + name
@@ -157,6 +157,15 @@ def _dump_json_to_s3(name, json_obj, public=False):
     if public:
         options['ACL'] = 'public-read'
     s3.put_object(Body=json.dumps(json_obj), **options)
+    if get_url:
+        return s3.generate_presigned_url(
+            'get_object', Params={'Key': key, 'Bucket': SIF_BUCKET})
+
+
+def dump_query_result_to_s3(filename, json_obj):
+    download_link = _dump_json_to_s3(name=filename, json_obj=json_obj,
+                                     public=True, get_url=True)
+    return download_link.split('?')[0]
 
 
 def _dump_pickle_to_s3(name, indranet_graph_object):
