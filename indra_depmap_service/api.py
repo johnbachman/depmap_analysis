@@ -5,6 +5,7 @@ import pickle
 import logging
 import argparse
 from sys import argv
+from fnvhash import fnv1a_32
 from os import path, makedirs
 from time import time, gmtime, strftime
 
@@ -54,6 +55,10 @@ except KeyError:
 
 MAX_PATHS = 50
 TIMEOUT = 30  # Timeout in seconds
+EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
+                'common_targets': [],
+                'common_parents': {},
+                'timeout': False}
 
 
 # Create a template object from the template file, load once
@@ -67,6 +72,36 @@ def _load_template(fname):
 
 # Load network
 indra_network = IndraNetwork()
+
+
+def _is_empty_result(res):
+    for k, v in res.items():
+        if k is not 'timeout' and EMPTY_RESULT[k] != v:
+            return False
+    return True
+
+
+def sorted_json_string(json_thing):
+    """Produce a string that is unique to a json's contents."""
+    if isinstance(json_thing, str):
+        return json_thing
+    elif isinstance(json_thing, (tuple, list)):
+        return '[%s]' % (','.join(sorted(sorted_json_string(s)
+                                         for s in json_thing)))
+    elif isinstance(json_thing, dict):
+        return '{%s}' % (','.join(sorted(k + sorted_json_string(v)
+                                         for k, v in json_thing.items())))
+    elif isinstance(json_thing, (int, float)):
+        return str(json_thing)
+    else:
+        raise TypeError('Invalid type: %s' % type(json_thing))
+
+
+def _get_query_hash(query_json):
+    """Create an FNV-1a 32-bit hash from the query json and model_id."""
+    return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
+
+
 if path.isfile(INDRA_DG_CACHE):
     if API_DEBUG:
         logger.info('Debugging API, no network will be loaded...')
