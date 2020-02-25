@@ -1,5 +1,5 @@
 """Utility functions for the INDRA Causal Network Search API in api.py"""
-import boto3
+import json
 import pickle
 import logging
 import argparse
@@ -146,6 +146,17 @@ def _load_pickle_from_s3(s3, key, bucket):
                          'unpickling the object from s3')
         raise err
     return pyobj
+
+
+def _dump_json_to_s3(name, json_obj, public=False):
+    """Set public=True for public read access"""
+    s3 = get_s3_client(unsigned=False)
+    key = 'indra_network_search/' + name
+    options = {'Bucket': SIF_BUCKET,
+               'Key': key}
+    if public:
+        options['ACL'] = 'public-read'
+    s3.put_object(Body=json.dumps(json_obj), **options)
 
 
 def _dump_pickle_to_s3(name, indranet_graph_object):
