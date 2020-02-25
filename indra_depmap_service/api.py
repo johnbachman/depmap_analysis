@@ -21,7 +21,7 @@ from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
     INDRA_SNG_CACHE, TEST_DG_CACHE
 
 app = Flask(__name__)
-app.config['DEBUG'] = True
+app.config['DEBUG'] = False
 
 logger = logging.getLogger('INDRA Network Search API')
 
