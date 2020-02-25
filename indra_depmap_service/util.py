@@ -5,9 +5,7 @@ import logging
 import argparse
 import networkx as nx
 from os import path
-from botocore import UNSIGNED
 from datetime import datetime
-from botocore.client import Config
 
 from indra.util.aws import get_s3_client, get_s3_file_tree
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
