@@ -359,7 +359,7 @@ function generateTargetLinkout(pathPair) {
     for (let path of paths) {
       let subj = path.subj;
       let obj = path.obj;
-      htmlString += `<h5><b>${subj} &rarr; ${obj}</b><span class="float-right">Support: ${(Object.keys(path).length-2).toString()} + </span></h5>`;
+      htmlString += `<h5><b>${subj} &rarr; ${obj}</b><span class="float-right">Support: ${(Object.keys(path).length-2).toString()}</span></h5>`;
       for (let stmt_type in path) {
         if ((stmt_type !== 'subj') && (stmt_type !== 'obj')) {
           // let dbLink = '';
