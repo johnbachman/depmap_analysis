@@ -1101,3 +1101,18 @@ def signed_nodes_to_signed_edge(source, target):
         logger.warning('Error translating signed nodes to signed edge using '
                        '(%s, %s)' % (source, target))
         return None, None, None
+
+
+def list_all_hashes(ksp_results):
+    hash_set = set()
+    for path_length in ksp_results:
+        for res in ksp_results[path_length]:
+            stmt_dict_list = res['stmts']
+            for stmt_dict in stmt_dict_list:
+                for stmt_type in stmt_dict:
+                    if stmt_type in ('subj', 'obj'):
+                        continue
+                    meta_list = stmt_dict[stmt_type]
+                    hash_set.update([item['stmt_hash'] for item in
+                                     meta_list])
+    return list(hash_set)
