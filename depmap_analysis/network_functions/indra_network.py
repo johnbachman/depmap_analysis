@@ -247,8 +247,12 @@ class IndraNetwork:
             if ksp_backward:
                 # Sort the results in ksp_forward if non-weighted search
                 ksp_backward = self._sort_stmts(ksp_backward)
+        fwd_hshs = list_all_hashes(ksp_forward) if ksp_forward else []
+        bwd_hshs = list_all_hashes(ksp_backward) if ksp_backward else []
+        all_path_hashes = fwd_hshs + bwd_hshs
         return {'paths_by_node_count': {'forward': ksp_forward,
-                                        'backward': ksp_backward},
+                                        'backward': ksp_backward,
+                                        'path_hashes': all_path_hashes},
                 'common_targets': ct,
                 'common_parents': cp,
                 'timeout': self.query_timed_out}
