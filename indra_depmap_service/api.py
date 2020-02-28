@@ -86,6 +86,12 @@ def _is_empty_result(res):
     return True
 
 
+def _list_chunk_gen(lst, size=1000):
+    """Given list, generate chunks <= size"""
+    n = max(1, size)
+    return (lst[k:k+n] for k in range(0, len(lst), n))
+
+
 def sorted_json_string(json_thing):
     """Produce a string that is unique to a json's contents."""
     if isinstance(json_thing, str):
@@ -227,6 +233,43 @@ def process_query():
         logger.exception(e)
         logger.warning('Unhandled internal error, see above error messages')
         abort(Response('Server error during handling of query', 500))
+
+
+@app.route('/stmts_download/stmts.json')
+def stmts_download():
+    """Getting statement jsons from a list of hashes"""
+    # Print inputs.
+    logger.info('Got request for statements')
+    logger.info('Incoming Args -----------')
+    logger.info(repr(request.args))
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+
+    query_hash = session.get('query_hash', '')
+    stmt_hashes = STMT_HASH_CACHE.pop(query_hash, [])
+
+    if not STMTS_FROM_HSH_URL:
+        logger.error('No URL for statement download set')
+        return abort(500)
+
+    if not stmt_hashes:
+        logger.info('No hashes provided, returning')
+        return jsonify([])
+
+    logger.info('Got %d hashes' % len(stmt_hashes))
+
+    stmt_list = []
+    hash_list_iter = _list_chunk_gen(stmt_hashes)
+    for hash_list in hash_list_iter:
+        res = requests.post(STMTS_FROM_HSH_URL, json={'hashes': hash_list})
+        if res.status_code == 200:
+            stmts = res.json().get('statements')
+            if stmts:
+                stmt_list += [stmts]
+    logger.info('Returning %d json statements' % len(stmt_list))
+    return Response(json.dumps(stmt_list), mimetype='application/json',
+                    content_type='attachment')
 
 
 # For those running with "python api.py"
