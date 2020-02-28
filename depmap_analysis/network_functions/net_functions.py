@@ -393,16 +393,20 @@ def ag_belief_score(belief_list):
     return ag_belief
 
 
-def pinger(domain):
+def pinger(domain, timeout=2):
     """Returns True if host at domain is responding"""
     # response = os.system("ping -c 1 -w2 " + domain + " > /dev/null 2>&1")
-    return subprocess.run(["ping", "-c", "1", '-w2', domain]).returncode == 0
+    return subprocess.run(["ping", "-c", "1", '-w%d' % int(timeout),
+                           domain]).returncode == 0
 
 
 def ns_id_from_name(name, gilda_retry=False):
     """Query the groudning service for the most likely ns:id pair for name"""
     global GILDA_TIMEOUT
+    if gilda_retry:
+        logger.info('Trying to reach GILDA service again...')
     if gilda_retry and pinger(GRND_URI):
+        logger.info('GILDA is responding again!')
         GILDA_TIMEOUT = False
 
     if GRND_URI and not GILDA_TIMEOUT:
