@@ -394,6 +394,7 @@ def ag_belief_score(belief_list):
 
 
 def pinger(domain):
+    """Returns True if host at domain is responding"""
     # response = os.system("ping -c 1 -w2 " + domain + " > /dev/null 2>&1")
     return subprocess.run(["ping", "-c", "1", '-w2', domain]).returncode == 0
 

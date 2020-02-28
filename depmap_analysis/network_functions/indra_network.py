@@ -270,7 +270,7 @@ class IndraNetwork:
             logger.warning('Source and/or target is blacklisted!')
             return True
         # Check non-resolving query
-        sns, sid = nf.ns_id_from_name(options['source'])
+        sns, sid = nf.ns_id_from_name(options['source'], gilda_retry=True)
         tns, tid = nf.ns_id_from_name(options['target'])
         if (sns and sns.lower() not in options['node_filter']) or \
                 (tns and tns.lower() not in options['node_filter']):
