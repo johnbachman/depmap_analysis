@@ -1,6 +1,4 @@
 const SUBMIT_URL = './query/submit';
-const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
-const INDRA_DB_URL_HASHES = 'https://db.indra.bio/statements/from_hashes';
 const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=html&';
 const MAX_K_PATHS = 50;
 let pathStmtHashes = [];
@@ -284,37 +282,6 @@ function fillResultsTable(data, source, target){
     document.getElementById('download-link').hidden = false;
   }
 }
-
-function getStmtJsons(hashList) {
-  // Make call to server to get stmt jsons
-  let queryDict = {'hashes': hashList};
-
-  return $.ajax({
-    url: INDRA_DB_URL_HASHES,
-    type: 'POST',
-    dataType: 'json',
-    contentType: 'application/json',
-    data: JSON.stringify(queryDict),
-    complete: function(xhr, statustText) {
-      console.log(xhr);
-      console.log(statustText);
-      switch (xhr.status) {
-        case 200:
-          break;
-        // ToDo Add more messages for different HTML errors
-        default:
-          console.log('Submission error: check ajax response');
-          statusBox.textContent = 'Error: ' + xhr.status + ': ' + xhr.responseText;
-          break;
-      }
-    }
-
-  });
-}
-
-Promise.all(promise_list).then(function (response_array) {
-  //
-});
 
 function clearAllTables() {
   // Delete cards
