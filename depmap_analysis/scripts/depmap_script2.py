@@ -215,11 +215,15 @@ def get_st(s, o, corr, net, signed, **kwargs):
 
 
 def expl_ab(s, o, corr, net, signed, **kwargs):
-    pass
+    edge_dict = net.edges.get((s, o, kwargs['sign']), None) if signed else \
+        net.edges.get((s, o), None)
+    if edge_dict:
+        return s, o, edge_dict.get('statements')
+    return s, o, None
 
 
 def expl_ba(s, o, corr, net, signed, **kwargs):
-    pass
+    return expl_ab(o, s, corr, net, signed, **kwargs)
 
 
 def get_edge_statements(s, o, corr, net, signed, **kwargs):
