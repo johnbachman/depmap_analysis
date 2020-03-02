@@ -190,12 +190,28 @@ def expl_bxa(s, o, corr, net, signed, **kwargs):
     return expl_axb(o, s, corr, net, signed, **kwargs)
 
 
+# Shared regulator: A<-X->B
 def get_sr(s, o, corr, net, signed, **kwargs):
-    pass
+    if signed:
+        pass  # Todo: implement for signed
+    else:
+        x_nodes = set(net.pred[s]) & set(net.pred[o])
+        if x_nodes:
+            return s, o, list(x_nodes)
+        else:
+            return None
 
 
+# Shared target: A->X<-B
 def get_st(s, o, corr, net, signed, **kwargs):
-    pass
+    if signed:
+        pass  # Todo: implement for signed
+    else:
+        x_nodes = set(net.succ[s]) & set(net.succ[o])
+        if x_nodes:
+            return s, o, list(x_nodes)
+        else:
+            return None
 
 
 def expl_ab(s, o, corr, net, signed, **kwargs):
