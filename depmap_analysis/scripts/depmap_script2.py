@@ -175,8 +175,10 @@ def match_correlations(corr_z, indranet, **kwargs):
 
 
 def find_cp(s, o, corr, net, signed, **kwargs):
-    s_ns, s_id = ns_id_from_name(s)
-    o_ns, o_id = ns_id_from_name(o)
+    s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
+    if not s_id or not o_id:
+        s_ns, s_id = ns_id_from_name(s)
+        o_ns, o_id = ns_id_from_name(o)
     parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
     if parents:
         return s, o, parents
