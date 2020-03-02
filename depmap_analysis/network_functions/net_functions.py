@@ -123,8 +123,21 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
             Graph with updated belief
         """
         for edge in G.edges:
-            G.edges[edge]['weight'] = \
-                _weight_from_belief(G.edges[edge]['belief'])
+            try:
+                G.edges[edge]['weight'] = \
+                    _weight_from_belief(G.edges[edge]['belief'])
+            except FloatingPointError as err:
+                logger.warning('FloatingPointError from unexpected belief '
+                               '%s. Resetting ag_belief to 10*np.longfloat '
+                               'precision (%.0e)' %
+                               (G.edges[edge]['belief'],
+                                Decimal(NP_PRECISION * 10)))
+                if verbosity == 1:
+                    logger.error('Error string: %s' % err)
+                elif verbosity > 1:
+                    logger.error('Exception output follows:')
+                    logger.exception(err)
+                G.edges[edge]['weight'] = NP_PRECISION
         return G
 
     if isinstance(df, str):

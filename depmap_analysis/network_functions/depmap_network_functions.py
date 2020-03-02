@@ -5,9 +5,8 @@ import math
 import logging
 import itertools as itt
 from math import ceil, log10
-from collections import Mapping
-from collections import OrderedDict
-from collections import defaultdict
+from random import choices
+from collections import Mapping, OrderedDict, defaultdict
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -54,6 +53,29 @@ def create_nested_dict():
     defaultdict(create_nested_dict)
     """
     return defaultdict(create_nested_dict)
+
+
+def mean_z_score(mu1, sig1, c1, mu2, sig2, c2):
+    return 0.5 * _z_sc(num=c1, mu=mu1, sigma=sig1) + \
+        0.5 * _z_sc(num=c2, mu=mu2, sigma=sig2)
+
+
+def comb_z_sc_gen(crispr_corr, rnai_corr, stats_dict):
+    cmu = stats_dict['crispr']['mu']
+    csig = stats_dict['crispr']['sigma']
+    rmu = stats_dict['rnai']['mu']
+    rsig = stats_dict['crispr']['sigma']
+    comb_gene_set = tuple(
+        set(crispr_corr.columns.values).intersection(rnai_corr.columns.values)
+    )
+    while True:
+        g1, g2 = choices(comb_gene_set, k=2)
+        while g1 == g2:
+            g1, g2 = choices(comb_gene_set, k=2)
+        cc = crispr_corr.loc[g1, g2]
+        rc = rnai_corr.loc[g1, g2]
+        yield mean_z_score(mu1=cmu, sig1=csig, c1=cc,
+                           mu2=rmu, sig2=rsig, c2=rc)
 
 
 def csv_file_to_generator(fname, column_list):
@@ -216,6 +238,91 @@ def nested_stmt_dict_to_nx_multidigraph(nest_d):
     return nx_muldir
 
 
+def _merge_belief(sif_df, belief_dict):
+    if isinstance(belief_dict, str):
+        belief_dict = io.pickle_open(belief_dict)
+    elif isinstance(belief_dict, dict):
+        belief_dict = belief_dict
+
+    hashes = []
+    beliefs = []
+    for k, v in belief_dict.items():
+        hashes.append(k)
+        beliefs.append(v)
+
+    sif_df = sif_df.merge(
+        right=pd.DataFrame(data={'stmt_hash': hashes, 'belief': beliefs}),
+        how='left',
+        on='stmt_hash'
+    )
+    # Check for missing hashes
+    if sif_df['belief'].isna().sum() > 0:
+        dnf_logger.warning('%d rows with missing belief score found' %
+                       sif_df['belief'].isna().sum())
+        dnf_logger.info('Setting missing belief scores to 1/evidence count')
+    return sif_df
+
+
+def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
+    """Convert a sif dump df to a nested dict
+
+    Paramters
+    ---------
+    sif_df_in : pd.DataFrame
+        A pd.DataFrame with at least the columns 'agA_name', 'agB_name',
+        'stmt_type', 'stmt_hash'. Any other columns will be part of the
+        list of dictionaries in the innermost entry.
+    belief_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the belief score for the corresponding statements.
+        The hashes should correspond to the hashes in the loaded dataframe.
+
+    Returns
+    -------
+    nest_d : dict(dict(())
+    """
+
+    if isinstance(sif_df_in, str):
+        sif_df = io.pickle_open(sif_df_in)
+    elif isinstance(sif_df_in, pd.DataFrame):
+        sif_df = sif_df_in
+
+    mandatory_columns = ('agA_name', 'agB_name', 'stmt_type', 'stmt_hash')
+    if not set(mandatory_columns).issubset(set(sif_df.columns.values)):
+        raise ValueError('Data frame must at least have the columns %s' %
+                         '"' + '", "'.join(mandatory_columns) + '"')
+
+    if belief_dict:
+        sif_df = _merge_belief(sif_df, belief_dict)
+
+    dnf_logger.info('Producing nested dict of stmts from sif dump df')
+    nest_d = {}
+    for index, row in sif_df.iterrows():
+        rd = row.to_dict()
+        a_name = rd.pop('agA_name')
+        b_name = rd.pop('agB_name')
+
+        if nest_d.get(a_name):
+            if nest_d[a_name].get(b_name):
+                # a-b relation already exists and should be a list
+                try:
+                    nest_d[a_name][b_name].append(rd)
+                except KeyError:
+                    dnf_logger.error('KeyError when trying to append new '
+                                     'statement for relation %s %s relation'
+                                     % (a_name, b_name))
+                except AttributeError:
+                    dnf_logger.error('AttributeError for %s %s' %
+                                     (a_name, b_name))
+            else:
+                # First a-b relation, add inner dict as list
+                nest_d[a_name][b_name] = [rd]
+        else:
+            # First addition of this a_name agent
+            nest_d[a_name] = {b_name: [rd]}
+    return nest_d
+
+
 def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
     """Returns a directed graph from a two layered nested dictionary
 
@@ -367,8 +474,8 @@ def nested_stmt_dict_to_nx_graph(nest_d):
 
 def pd_to_nx_graph(corr_sr, source='id1', target='id2',
                    edge_attr='correlation', use_abs_corr=True):
-    """Return a graph from a pandas sereis containing correlaton between gene A
-    and gene B, using the correlation as edge weight
+    """Return a graph from a pandas series containing correlaton between gene
+    A and gene B, using the correlation as edge weight
 
     Parameters
     ----------
@@ -470,7 +577,7 @@ def histogram_from_tuple_generator(tuple_gen, binsize, first,
     home_brewed_histo = np.zeros(number_of_bins, dtype=int)
     for g1, g1, flt in tuple_gen:
         home_brewed_histo[io.map2index(start=first, binsize=binsize,
-                                    value=flt)] += 1
+                                       value=flt)] += 1
     return home_brewed_histo
 
 
@@ -586,6 +693,79 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     interp_gaussian = np.exp(interp_log_gaussian(bin_positions))
 
     return get_gaussian_stats(bin_edges, interp_gaussian)
+
+
+def raw_depmap_to_corr(depmap_raw_df):
+    """Pre-process and create a correlation
+
+    Parameters
+    ----------
+    depmap_raw_df : pd.DataFrame
+
+    Returns
+    -------
+    corr : pd.DataFrame
+        A pd.DataFrame containing the correlation of the
+    """
+    # Rename
+    if len(depmap_raw_df.columns[0].split()) > 1:
+        dnf_logger.info('renaming columns to contain only gene names')
+        gene_names = [n.split()[0] for n in depmap_raw_df.columns]
+        depmap_raw_df.columns = gene_names
+
+    # Drop duplicates
+    depmap_raw_df = depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
+
+    # Calculate correlation
+    dnf_logger.info('Calculating data correlation matrix. This will take '
+                    '10 - 50 min.')
+    corr = depmap_raw_df.corr()
+    dnf_logger.info('Done calculating data correlation matrix.')
+    return corr
+
+
+def merge_corr_df(corr_df, other_corr_df):
+    """Merge two correlation matrices containing their combined z-scores
+
+    Parameters
+    ----------
+    corr_df : pd.DataFrame
+        A square pandas DataFrame containing gene-gene correlation values
+        to be merged with other_corr_df.
+    other_corr_df : pd.Dataframe
+        A square pandas DataFrame containing gene-gene correlation values
+        to be merged with corr_df.
+
+    Returns
+    -------
+    pd.DataFrame
+        A merged correlation matrix containing the merged values a z-scores
+    """
+    def _rename(corr):
+        gene_names = [n.split()[0] for n in corr.columns]
+        corr.columns = gene_names
+        corr.index = gene_names
+        return corr
+
+    def _z_scored(corr):
+        mean = corr.values.mean()
+        sd = corr.values.std()
+        dnf_logger.info('Mean value: %f; St dev: %f' % (mean, sd))
+        return (corr - mean) / sd
+
+    # Rename columns/indices to gene name only
+    if len(corr_df.columns[0].split()) > 1:
+        corr_df = _rename(corr_df)
+    if len(other_corr_df.columns[0].split()) > 1:
+        other_corr_df = _rename(other_corr_df)
+
+    # Get corresponding z-score matrices
+    corr_z = _z_scored(corr_df)
+    other_z = _z_scored(other_corr_df)
+
+    # Merge
+    dep_z = (corr_z + other_z) / 2
+    return dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
 
 
 def get_gene_gene_corr_dict(tuple_generator):
@@ -736,11 +916,11 @@ def merge_correlation_data(correlation_dicts_list, settings):
 
 
 def merge_correlation_dicts_recursive(correlation_dicts_list):
-    """ This should be the recursive version of correlation_dicts_list(). Call
+    """This should be the recursive version of correlation_dicts_list(). Call
     this function from correlation_dicts_list()
 
     :param correlation_dicts_list:
-    :return: pass
+    :return:
     """
     pass
 
@@ -879,8 +1059,10 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         else:
             dnf_logger.info('Calculating mean and standard deviation for set %s'
                             ' from %s' % (gene_set_name, dataset_dict['data']))
-            stats = get_stats(corr_matrix_to_generator(full_corr_matrix))
-            sigma_dict = {'mean': stats[0], 'sigma': stats[1]}
+            mu, si = get_stats(corr_matrix_to_generator(full_corr_matrix))
+            dnf_logger.info('Set %s mean: %f, st dev: %f' %
+                            (gene_set_name, mu, si))
+            sigma_dict = {'mean': mu, 'sigma': si}
 
         # Get corr matrix and the accompanied set of genes
         filtered_corr_matrix, set_hgnc_syms, set_hgnc_ids,\
@@ -1175,7 +1357,7 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
     return corr_matrix_df
 
 
-def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
+def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin=None,
                 filter_type='z_scor_diff'):
     """Filter for passing correlation scores based on their difference in
     standard deviation
@@ -1206,6 +1388,10 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin,
         If True, the correlations are similar enough as measured by their
         difference in their distance from the mean standard deviation.
     """
+    if filter_type in {'z_score_mean', 'z_score_diff', 'z_score_product'} \
+            and margin is None:
+        raise ValueError('Margin needs to be set for filter type %' %
+                         filter_type)
     if filter_type == 'z_score_mean':
         return _z_score_mean_co(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'z_score_diff':
