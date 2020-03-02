@@ -4,13 +4,15 @@ import json
 import pickle
 import logging
 import argparse
+import requests
 from sys import argv
 from fnvhash import fnv1a_32
 from os import path, makedirs
 from time import time, gmtime, strftime
 
 from jinja2 import Template
-from flask import Flask, request, abort, Response, render_template
+from flask import Flask, request, abort, Response, render_template, jsonify,\
+    session
 
 from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
@@ -23,10 +25,12 @@ from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
 
 app = Flask(__name__)
 app.config['DEBUG'] = False
+app.config['SECRET_KEY'] = os.environ['SESSION_KEY']
 
 logger = logging.getLogger('INDRA Network Search API')
 
 S3_BUCKET = 'depmap-analysis'
+STMT_HASH_CACHE = {}
 
 
 FILES = {
@@ -41,6 +45,7 @@ FILES = {
     else None
 }
 
+STMTS_FROM_HSH_URL = os.environ.get('INDRA_DB_HASHES_URL')
 VERBOSITY = int(os.environ.get('VERBOSITY', 0))
 API_DEBUG = int(os.environ.get('API_DEBUG', 0))
 if API_DEBUG:
@@ -79,6 +84,12 @@ def _is_empty_result(res):
         if k is not 'timeout' and EMPTY_RESULT[k] != v:
             return False
     return True
+
+
+def _list_chunk_gen(lst, size=1000):
+    """Given list, generate chunks <= size"""
+    n = max(1, size)
+    return (lst[k:k+n] for k in range(0, len(lst), n))
 
 
 def sorted_json_string(json_thing):
@@ -192,8 +203,13 @@ def process_query():
             # Upload to public S3 and get the download link
             json_fname = '%s_result.json' % qh
             download_link = dump_query_result_to_s3(json_fname, result)
+
+        all_path_hashes = result['paths_by_node_count'].get('path_hashes', [])
+        session['query_hash'] = qh
+        STMT_HASH_CACHE[qh] = all_path_hashes
         res = {'result': result,
-               'download_link': download_link}
+               'download_link': download_link,
+               'query_hash': qh}
         if indra_network.verbose > 5:
             logger.info('Result: %s' % str(res))
         return Response(json.dumps(res), mimetype='application/json')
@@ -217,6 +233,43 @@ def process_query():
         logger.exception(e)
         logger.warning('Unhandled internal error, see above error messages')
         abort(Response('Server error during handling of query', 500))
+
+
+@app.route('/stmts_download/stmts.json')
+def stmts_download():
+    """Getting statement jsons from a list of hashes"""
+    # Print inputs.
+    logger.info('Got request for statements')
+    logger.info('Incoming Args -----------')
+    logger.info(repr(request.args))
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+
+    query_hash = session.get('query_hash', '')
+    stmt_hashes = STMT_HASH_CACHE.pop(query_hash, [])
+
+    if not STMTS_FROM_HSH_URL:
+        logger.error('No URL for statement download set')
+        return abort(500)
+
+    if not stmt_hashes:
+        logger.info('No hashes provided, returning')
+        return jsonify([])
+
+    logger.info('Got %d hashes' % len(stmt_hashes))
+
+    stmt_list = []
+    hash_list_iter = _list_chunk_gen(stmt_hashes)
+    for hash_list in hash_list_iter:
+        res = requests.post(STMTS_FROM_HSH_URL, json={'hashes': hash_list})
+        if res.status_code == 200:
+            stmts = res.json().get('statements')
+            if stmts:
+                stmt_list += [stmts]
+    logger.info('Returning %d json statements' % len(stmt_list))
+    return Response(json.dumps(stmt_list), mimetype='application/json',
+                    content_type='attachment')
 
 
 # For those running with "python api.py"

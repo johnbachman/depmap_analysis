@@ -1,7 +1,7 @@
 const SUBMIT_URL = './query/submit';
-const INDRA_DB_URL_HASH = 'https://db.indra.bio/statements/from_hash/';
 const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=html&';
 const MAX_K_PATHS = 50;
+let pathStmtHashes = [];
 
 let stmtItems = [];
 for (s of stmtOptions) {
@@ -94,6 +94,13 @@ function submitQuery() {
     user_timeout: timeoutEntry,
     two_way: document.getElementById('two-ways').checked
   };
+
+  // Hide on submit
+  document.getElementById('download-link').hidden = true;
+
+  // Empty hash list on submit
+  pathStmtHashes = [];
+
   let _url = SUBMIT_URL;
   statusBox.textContent = 'Query submitted...';
   console.log('Query submitted:');
@@ -110,6 +117,9 @@ function submitQuery() {
       switch (xhr.status) {
         case 200:
           break;
+        case 504:
+          // Server timeout
+          statusBox.textContent = 'Error: 504: Gateway Time-out';
         // ToDo Add more messages for different HTML errors
         default:
           console.log('Submission error: check ajax response');
@@ -129,7 +139,7 @@ function submitQuery() {
 
 function fillResultsTable(data, source, target){
   console.log(data);
-  var statusBox = document.getElementById('query-status');
+  const statusBox = document.getElementById('query-status');
   let downloadURL = data.download_link;
   let downloadLink = '';
   if (downloadURL) {
@@ -149,6 +159,7 @@ function fillResultsTable(data, source, target){
     let pathsKeyedArrayBackward = data.result.paths_by_node_count.backward;
     let simpleCommonTargets = data.result.common_targets;
     var tableArea = document.getElementById('table-area');
+    pathStmtHashes = data.result.paths_by_node_count.path_hashes;
 
     // Fill common parents table
     if (data.result.common_parents.common_parents &&
@@ -264,6 +275,11 @@ function fillResultsTable(data, source, target){
   } else {
     if (data.result.timeout) statusBox.textContent = 'Query timed out!';
     else statusBox.textContent = 'No path found, try expanding the search parameters';
+  }
+
+  // If we have hashes, show download link
+  if (pathStmtHashes.length > 0) {
+    document.getElementById('download-link').hidden = false;
   }
 }
 

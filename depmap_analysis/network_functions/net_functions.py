@@ -2,10 +2,12 @@ import logging
 from decimal import Decimal
 
 import requests
+import subprocess
 import numpy as np
 import pandas as pd
 import networkx as nx
 import networkx.algorithms.simple_paths as simple_paths
+from requests.exceptions import ConnectionError
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
@@ -25,6 +27,17 @@ try:
 except KeyError:
     logger.warning('Indra Grounding service not available. Add '
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
+
+
+def pinger(domain, timeout=2):
+    """Returns True if host at domain is responding"""
+    # response = os.system("ping -c 1 -w2 " + domain + " > /dev/null 2>&1")
+    return subprocess.run(["ping", "-c", "1", '-w%d' % int(timeout),
+                           domain]).returncode == 0
+
+
+GILDA_TIMEOUT = not pinger(GRND_URI.replace('http://', '').replace(
+    '/ground', ''))
 
 
 def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
@@ -390,9 +403,17 @@ def ag_belief_score(belief_list):
     return ag_belief
 
 
-def ns_id_from_name(name):
-    """Query the groudninfg service for the most likely ns:id pair for name"""
-    if GRND_URI:
+def ns_id_from_name(name, gilda_retry=False):
+    """Query the groudning service for the most likely ns:id pair for name"""
+    global GILDA_TIMEOUT
+    if gilda_retry:
+        logger.info('Trying to reach GILDA service again...')
+    if gilda_retry and pinger(GRND_URI.replace('http://', '').replace(
+            '/ground', '')):
+        logger.info('GILDA is responding again!')
+        GILDA_TIMEOUT = False
+
+    if GRND_URI and not GILDA_TIMEOUT:
         try:
             res = requests.post(GRND_URI, json={'text': name})
             if res.status_code == 200:
@@ -404,9 +425,15 @@ def ns_id_from_name(name):
                                res.status_code)
         except IndexError:
             logger.info('No grounding exists for %s' % name)
+        except ConnectionError as err2:
+            logger.warning('GILDA has timed out, ignoring future ')
+            GILDA_TIMEOUT = True
     else:
-        logger.warning('Indra Grounding service not available. Add '
-                       'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
+        if GILDA_TIMEOUT:
+            logger.warning('Indra Grounding service not available.')
+        else:
+            logger.warning('Indra Grounding service not available. Add '
+                           'GILDA_URL to `indra/config.ini`')
     return None, None
 
 

@@ -247,8 +247,12 @@ class IndraNetwork:
             if ksp_backward:
                 # Sort the results in ksp_forward if non-weighted search
                 ksp_backward = self._sort_stmts(ksp_backward)
+        fwd_hshs = list_all_hashes(ksp_forward) if ksp_forward else []
+        bwd_hshs = list_all_hashes(ksp_backward) if ksp_backward else []
+        all_path_hashes = fwd_hshs + bwd_hshs
         return {'paths_by_node_count': {'forward': ksp_forward,
-                                        'backward': ksp_backward},
+                                        'backward': ksp_backward,
+                                        'path_hashes': all_path_hashes},
                 'common_targets': ct,
                 'common_parents': cp,
                 'timeout': self.query_timed_out}
@@ -266,7 +270,7 @@ class IndraNetwork:
             logger.warning('Source and/or target is blacklisted!')
             return True
         # Check non-resolving query
-        sns, sid = nf.ns_id_from_name(options['source'])
+        sns, sid = nf.ns_id_from_name(options['source'], gilda_retry=True)
         tns, tid = nf.ns_id_from_name(options['target'])
         if (sns and sns.lower() not in options['node_filter']) or \
                 (tns and tns.lower() not in options['node_filter']):
@@ -1101,3 +1105,18 @@ def signed_nodes_to_signed_edge(source, target):
         logger.warning('Error translating signed nodes to signed edge using '
                        '(%s, %s)' % (source, target))
         return None, None, None
+
+
+def list_all_hashes(ksp_results):
+    hash_set = set()
+    for path_length in ksp_results:
+        for res in ksp_results[path_length]:
+            stmt_dict_list = res['stmts']
+            for stmt_dict in stmt_dict_list:
+                for stmt_type in stmt_dict:
+                    if stmt_type in ('subj', 'obj'):
+                        continue
+                    meta_list = stmt_dict[stmt_type]
+                    hash_set.update([item['stmt_hash'] for item in
+                                     meta_list])
+    return list(hash_set)
