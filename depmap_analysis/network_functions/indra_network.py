@@ -284,8 +284,7 @@ class IndraNetwork:
 
     def grounding_fallback(self, **ckwargs):
         """Retry search with alternative names found by grounding service"""
-        if self.verbose:
-            logger.info('Expanding search using grounding service')
+        logger.info('Expanding search using grounding service')
         org_source = ckwargs['source']
         org_target = ckwargs['target']
 
