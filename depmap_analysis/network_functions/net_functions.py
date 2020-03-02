@@ -29,15 +29,21 @@ except KeyError:
                    'INDRA_GROUNDING_SERVICE_URL to `indra/config.ini`')
 
 
-def pinger(domain, timeout=2):
+def pinger(domain, timeout=1):
     """Returns True if host at domain is responding"""
-    # response = os.system("ping -c 1 -w2 " + domain + " > /dev/null 2>&1")
     return subprocess.run(["ping", "-c", "1", '-w%d' % int(timeout),
                            domain]).returncode == 0
 
 
-GILDA_TIMEOUT = not pinger(GRND_URI.replace('http://', '').replace(
-    '/ground', ''))
+def gilda_pinger():
+    """Return True if the gilda service is available"""
+    try:
+        return requests.post(GRND_URI, json={'text': 'erk'}).status_code == 200
+    except ConnectionError:
+        return False
+
+
+GILDA_TIMEOUT = False
 
 
 def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
@@ -408,8 +414,7 @@ def ns_id_from_name(name, gilda_retry=False):
     global GILDA_TIMEOUT
     if gilda_retry:
         logger.info('Trying to reach GILDA service again...')
-    if gilda_retry and pinger(GRND_URI.replace('http://', '').replace(
-            '/ground', '')):
+    if gilda_retry and gilda_pinger():
         logger.info('GILDA is responding again!')
         GILDA_TIMEOUT = False
 
@@ -426,7 +431,7 @@ def ns_id_from_name(name, gilda_retry=False):
         except IndexError:
             logger.info('No grounding exists for %s' % name)
         except ConnectionError as err2:
-            logger.warning('GILDA has timed out, ignoring future ')
+            logger.warning('GILDA has timed out, ignoring future requests')
             GILDA_TIMEOUT = True
     else:
         if GILDA_TIMEOUT:
