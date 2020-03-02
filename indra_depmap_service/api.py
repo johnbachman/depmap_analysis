@@ -235,6 +235,40 @@ def process_query():
         abort(Response('Server error during handling of query', 500))
 
 
+@app.route('/node', methods=['POST'])
+def node_check():
+    logger.info('Got request for node check')
+    logger.info('Incoming Args -----------')
+    logger.info(repr(request.args))
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+
+    node = request.json.get('node')
+
+    if node:
+        in_network = node in indra_network.nodes
+        return jsonify({'node': node, 'in_network': in_network})
+    return jsonify({'node': None, 'in_network': False})
+
+
+@app.route('/nodes', methods=['POST'])
+def nodes_check():
+    logger.info('Got request to check multiple nodes')
+    logger.info('Incoming Args -----------')
+    logger.info(repr(request.args))
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+
+    nodes = request.json.get('nodes')
+
+    if nodes:
+        result = {node: node in indra_network.nodes for node in nodes}
+        return jsonify(result)
+    return jsonify({})
+
+
 @app.route('/stmts_download/stmts.json')
 def stmts_download():
     """Getting statement jsons from a list of hashes"""
