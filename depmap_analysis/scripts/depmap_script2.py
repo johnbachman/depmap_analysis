@@ -148,17 +148,17 @@ def match_correlations(corr_z, indranet, **kwargs):
             # Some functions reverses A, B hence the s, o assignment
             s, o, expl_data = expl_func(A, B, zsc, indranet, signed_search,
                                         **kwargs)
-
-            expl_dict['agA'].append(s)
-            expl_dict['agB'].append(o)
-            expl_dict['z-score'].append(zsc)
+            if expl_data:
+                expl_dict['agA'].append(s)
+                expl_dict['agB'].append(o)
+                expl_dict['z-score'].append(zsc)
+                expl_dict['expl type'].append(expl_type)
+                expl_dict['expl data'].append(expl_data)
 
             stats[expl_type] = bool(expl_data)
 
         # Set explained column
         stats['explained'] = any([b for b in stats.values()])
-
-        # for
 
         # Assert that all columns are the same length
         if not all(len(ls) for ls in stats_dict.values()):
@@ -176,11 +176,18 @@ def find_cp(s, o, corr, net, signed, **kwargs):
 
 
 def expl_axb(s, o, corr, net, signed, **kwargs):
-    pass
+    if signed:
+        pass  # Todo implement signed check
+    else:
+        x_nodes = set(net.succ[s]) & set(net.pred[o])
+        if x_nodes:
+            return s, o, list(x_nodes)
+        else:
+            return s, o, None
 
 
 def expl_bxa(s, o, corr, net, signed, **kwargs):
-    pass
+    return expl_axb(o, s, corr, net, signed, **kwargs)
 
 
 def get_sr(s, o, corr, net, signed, **kwargs):
