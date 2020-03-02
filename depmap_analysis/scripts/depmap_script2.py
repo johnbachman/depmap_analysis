@@ -210,7 +210,7 @@ def get_sr(s, o, corr, net, signed, **kwargs):
         if x_nodes:
             return s, o, list(x_nodes)
         else:
-            return None
+            return s, o, None
 
 
 # Shared target: A->X<-B
@@ -222,7 +222,7 @@ def get_st(s, o, corr, net, signed, **kwargs):
         if x_nodes:
             return s, o, list(x_nodes)
         else:
-            return None
+            return s, o, None
 
 
 def expl_ab(s, o, corr, net, signed, **kwargs):
