@@ -27,7 +27,10 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from datetime import datetime
-from depmap_analysis.network_functions.net_functions import SIGNS_TO_INT_SIGN
+from depmap_analysis.network_functions.net_functions import \
+    SIGNS_TO_INT_SIGN, ns_id_from_name
+from depmap_analysis.network_functions.famplex_functions import \
+    has_common_parent, common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, same_sign, get_sign
 from depmap_analysis.util.statistics import DepMapExplainer
@@ -172,7 +175,13 @@ def match_correlations(corr_z, indranet, **kwargs):
 
 
 def find_cp(s, o, corr, net, signed, **kwargs):
-    pass
+    s_ns, s_id = ns_id_from_name(s)
+    o_ns, o_id = ns_id_from_name(o)
+    parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
+    if parents:
+        return s, o, parents
+    else:
+        return s, o, None
 
 
 def expl_axb(s, o, corr, net, signed, **kwargs):
