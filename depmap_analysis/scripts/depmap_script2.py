@@ -163,6 +163,10 @@ def match_correlations(corr_z, indranet, **kwargs):
         # Set explained column
         stats['explained'] = any([b for b in stats.values()])
 
+        # Add stats to stats_dict
+        for expl_tp in stats:
+            stats_dict[expl_tp].append(stats[expl_tp])
+
         # Assert that all columns are the same length
         if not all(len(ls) for ls in stats_dict.values()):
             raise IndexError('Unequal column lengths in stats_dict after '
