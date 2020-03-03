@@ -23,17 +23,21 @@ if the IndraNetwork
 #   An object of a new class that wraps a dataframe that can generate
 #   different explanations statistics
 """
+import logging
+import argparse
 import numpy as np
 import pandas as pd
 import networkx as nx
 from datetime import datetime
 from depmap_analysis.network_functions.net_functions import \
     SIGNS_TO_INT_SIGN, ns_id_from_name
-from depmap_analysis.network_functions.famplex_functions import \
-    has_common_parent, common_parent
+from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, same_sign, get_sign
 from depmap_analysis.util.statistics import DepMapExplainer
+
+
+logger = logging.getLogger('DepMap Script')
 
 
 def match_correlations(corr_z, indranet, **kwargs):
@@ -172,8 +176,10 @@ def match_correlations(corr_z, indranet, **kwargs):
             raise IndexError('Unequal column lengths in stats_dict after '
                              'iteration')
 
-    explainer.stats_df.append(other=pd.DataFrame(data=stats_dict))
-    explainer.expl_df.append(other=pd.DataFrame(data=expl_dict))
+    explainer.stats_df = explainer.stats_df.append(other=pd.DataFrame(
+        data=stats_dict))
+    explainer.expl_df = explainer.expl_df.append(other=pd.DataFrame(
+        data=expl_dict))
     explainer.has_data = True
     return explainer
 
