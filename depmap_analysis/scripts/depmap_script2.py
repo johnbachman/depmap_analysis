@@ -28,13 +28,16 @@ import argparse
 import numpy as np
 import pandas as pd
 import networkx as nx
+from pathlib import Path
 from datetime import datetime
+from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 from depmap_analysis.network_functions.net_functions import \
     SIGNS_TO_INT_SIGN, ns_id_from_name
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, same_sign, get_sign
 from depmap_analysis.util.statistics import DepMapExplainer
+from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 
 
 logger = logging.getLogger('DepMap Script')
@@ -49,7 +52,8 @@ def match_correlations(corr_z, indranet, **kwargs):
         The pre-processed correlation matrix. No more processing of the
         matrix should have to be done here, i.e. it should already have
         filtered the correlations to the proper SD ranges and removed the
-        genes that are not applicable for this explanations
+        genes that are not applicable for this explanation,
+        self correlations should also have been removed.
     indranet : nx.DiGraph
         The graph representation of the indra network. Each edge should
         have an attribute named 'statements' containing a list of sources
@@ -78,6 +82,8 @@ def match_correlations(corr_z, indranet, **kwargs):
     stats_columns = id_columns + bool_columns
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
 
+    # The generator skips self correlations as it yields pairs from the
+    # upper triangle of the square matrix
     corr_iter = corr_matrix_to_generator(corr_z)
     signed_search = kwargs.get('signed_search', False)
     ymd_date = kwargs['indra_datetime'] if kwargs.get('indra_datetime') else\
@@ -280,3 +286,107 @@ def get_ns_id(subj, obj, net):
     o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
 
     return s_ns, s_id, o_ns, o_id
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('DepMap Explainer main script')
+    #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
+    corr_group = parser.add_mutually_exclusive_group(
+        required=True)
+    corr_group.add_argument(
+        '--raw-data', nargs=2, type=str,
+        help='--raw-data CRISPR RNAI | File paths to CRISPR raw data and RNAi '
+             'raw data from the DepMap Portal. The CRISPR file name should '
+             'match '
+             '*gene_effect.csv. The RNAi file name should match '
+             '*gene_dep_scores.csv'
+    )
+    corr_group.add_argument(
+        '--raw-corr', nargs=2, type=str,
+        help='--raw-corr CRISPR RNAI | File paths to raw correlation data ('
+             'before z-score conversion) containing hdf compressed '
+             'correlation data. These files contain the result of running '
+             '`raw_df.corr()`'
+    )
+    corr_group.add_argument(
+        '--z-score', type=str,
+        help='The file path to the fully merged correlation matrix '
+             'containing z-scores.')
+
+    #   1b Load indranet
+    parser.add_argument(
+        '--indranet', type=str, required=True,
+        help='The indra network to use for explanations. Should be either a '
+             'DiGraph or signed DiGraph (a MultiDiGraph with max two edges '
+             'per node pair, one edge per sign).'
+    )
+
+    #   2. Filter to SD range
+    parser.add_argument('--sd-range', nargs='+', type=float, required=True,
+                        help='SD range to filter to')
+    #   3. Ignore list as file
+    parser.add_argument(
+        '--ignore-list', type=str,
+        help='Provide a text file with one gene name per line to skip in the'
+             'explanations')
+
+    # 4 output
+    parser.add_argument(
+        '--outname', required=True, type=str,
+        help='The output name (could contain a path as well) of the pickle '
+             'dump of the explainer object')
+
+    args = parser.parse_args()
+    run_options = {}
+
+    # Check options
+    sd_l, sd_u = args.sd_range if len(args.sd_range) == 2 else\
+        ((args.sd_range[0], None) if len(args.sd_range) == 1 else (None, None))
+
+    outname = args.outname if args.outname.endswith('.pkl') else \
+        args.outname + '.pkl'
+    outpath = Path(outname)
+
+    if not Path(args.indranet).is_file():
+        raise FileNotFoundError(f'{args.indranet} does not exist')
+
+    if not sd_l and not sd_u:
+        raise ValueError('Must specify at least a lower bound for the SD '
+                         'range')
+
+    # Get the z-score corr matrix
+    if args.z_score:
+        z_corr = pd.read_hdf(args.z_score)
+    else:
+        z_sc_options = {
+            'crispr_raw': args.raw_data[0],
+            'rnai_raw': args.raw_data[1],
+            'crispr_corr': args.raw_corr[0],
+            'rnai_corr': args.raw_corr[1]
+        }
+        z_corr = run_corr_merge(**z_sc_options)
+
+    # Get indranet
+    net = pickle_open(args.indranet)
+    run_options['indranet'] = net
+    run_options['signed_search'] = net.is_multigraph()  # Todo check signed
+
+    # 2. Filter to SD range
+    if sd_l and sd_u:
+        z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
+                        ((z_corr < -sd_l) & (z_corr > -sd_u))]
+    elif sd_l and not sd_u:
+        z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
+    run_options['corr_z'] = z_corr
+
+    # 3. Ignore list as file
+    ignore_file = args.ignore_list
+    if ignore_file:
+        with open(ignore_file, 'r') as f:
+            run_options['explained_set'] = set(f.readlines())
+
+    explanations = match_correlations(**run_options)
+
+    # mkdir in case it  doesn't exist
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+    dump_it_to_pickle(fname=outpath.as_posix(), pyobj=explanations)
