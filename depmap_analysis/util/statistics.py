@@ -1,4 +1,5 @@
 import pandas as pd
+from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 
 class DepMapExplainer:
@@ -14,6 +15,7 @@ class DepMapExplainer:
         self.is_signed = True if network_type in {'signed', 'pybel'} else False
         self.summary = {}
         self.summary_str = ''
+        self.corr_stats_axb = {}
 
     def __str__(self):
         return self.summary_str
@@ -94,3 +96,29 @@ class DepMapExplainer:
             (self.stats_df['not in graph'] == False)
         ].index
         return len(indices)
+
+    # corr_stats_axb
+    def get_corr_stats_axb(self, z_corr=None):
+        """Get statistics of the correlations associated with different
+        explanation types
+
+        Parameters
+        ----------
+        z_corr : pd.DataFrame
+            A pd.DataFrame containing the correlation z scores used to
+            create the statistics in this object
+
+        Returns
+        -------
+        dict
+            A Dict containing correlation data for different explanations
+        """
+        if not self.corr_stats_axb:
+            if not z_corr:
+                raise ValueError('The z score correlation matrix must be '
+                                 'provided when running corr_stats_axb for '
+                                 'the first time.')
+            if isinstance(z_corr, str):
+                z_corr = pd.read_hdf(z_corr)
+            self.corr_stats_axb = axb_stats(self.expl_df, z_corr)
+        return self.corr_stats_axb
