@@ -5,7 +5,7 @@ class DepMapExplainer:
 
     def __init__(self, stats_columns, expl_columns, indra_network_date,
                  tag=None, network_type='digraph'):
-        self.tag = tag if tag else None
+        self.tag = tag
         self.indra_network_date = indra_network_date
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
