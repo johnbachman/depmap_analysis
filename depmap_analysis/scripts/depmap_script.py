@@ -905,8 +905,8 @@ def main(args, hgnc_name2id=None, fplx_name2id=None):
     long_string += '>    %i correlations have an explanation involving a ' \
                    'common parent' % common_parent + '\n'
     if args.explained_set:
-        long_string += '>    %i gene pairs were considered explained as part ' \
-                       'of the "explained set"' % part_of_explained + '\n'
+        long_string += '>    %i gene pairs were considered explained as ' \
+                       'part of the "explained set"' % part_of_explained + '\n'
     long_string += '>    %i explanations involving direct connection or ' \
                    'complex' % ab_expl_count + '\n'
     long_string += '>    %i correlations have a directed explanation ' \
