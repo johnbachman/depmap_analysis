@@ -74,7 +74,10 @@ class DepMapExplainer:
 
     def save_summary(self, fname):
         """Save summary to a file"""
-        pass
+        with open(fname, 'w') as f:
+            f.write('explanation,count\n')
+            for e, c in self.summary.items():
+                f.write(f'{e},{c}\n')
 
     def _get_sr_only(self):
         # Select rows that match the following conditions
