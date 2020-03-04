@@ -225,25 +225,17 @@ def main(expl_df, z_corr, eval_str=False):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 4:
-        print(f"Usage: {sys.argv[0]} <basepath_to_expls> <path_to_crispr_h5> "
-               "<path_to_rnai_h5>")
+    if len(sys.argv) < 3:
+        print(f"Usage: {sys.argv[0]} <basepath_to_expls> "
+              f"<path_to_combined_z_sc_corr_h5>")
         sys.exit(0)
-    expl_pairs_csv = sys.argv[1] # Path to output data folder
-    crispr_corr = sys.argv[2] # Path to crispr correlations file
-    rnai_corr = sys.argv[3] # Path to RNAi correlations file
-    # Load rnai and crispr correlation sets for correlation lookup
-    # - could possibly merge them to cut time in half and save RAM
-    logger.info('Loading correlation matrices...')
-    ccorr_matrix = pd.read_hdf(crispr_corr)
-    names = [n.split()[0] for n in ccorr_matrix.columns.values]
-    ccorr_matrix.columns = names
-    ccorr_matrix.index = names
-    rcorr_matrix = pd.read_hdf(rnai_corr)
-    names = [n.split()[0] for n in rcorr_matrix.columns.values]
-    rcorr_matrix.columns = names
-    rcorr_matrix.index = names
-
+    expl_pairs_csv = sys.argv[1]  # Path to output data folder
+    z_corr_file = sys.argv[2]  # Path to merged z scored correlations file
+    logger.info('Loading correlation matrix...')
+    z_cm = pd.read_hdf(z_corr_file)
+    names = [n.split()[0] for n in z_cm.columns.values]
+    z_cm.columns = names
+    z_cm.index = names
 
     #sds = ['1_2sd', '2_3sd', '3_4sd', '4_5sd', '5_sd', 'rnd']
     sds = ['3_4sd'] #, '4_5sd']
@@ -264,9 +256,7 @@ if __name__ == '__main__':
             else:
                 logger.info('Getting pairs from %s' % expl_fname)
                 df = pd.read_csv(expl_fname, delimiter=',')
-                results = main(expl_df=df,
-                               crispr_corr_matrix=ccorr_matrix,
-                               rnai_corr_matrix=rcorr_matrix)
+                results = main(expl_df=df, z_corr=z_cm)
                 results_by_sd[sd] = results
                 logger.info("Pickling results file %s" % results_file)
                 with open(results_file, 'wb') as f:
