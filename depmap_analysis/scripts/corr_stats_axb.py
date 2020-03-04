@@ -1,3 +1,6 @@
+"""Get the distribution of correlation z scores for pairs a-x or x-b where x
+is an intermediate between gene pair a-b.
+"""
 import sys
 import ast
 import pickle
@@ -7,18 +10,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from depmap_analysis.util.io_functions import pickle_open
-from depmap_analysis.network_functions.depmap_network_functions import \
-    mean_z_score, pass_filter
 
 
 logger = logging.getLogger('DepMap Corr Stats')
-
-
-# Stats for 19Q4 release for crispr set and for version 5 of the RNAi set
-cmu = 0.003076
-csig = 0.056813
-rmu = 0.006854
-rsig = 0.077614
 
 # DM_INPUT_DIR = environ.get(
 #     'DEPMAP_DIR',
