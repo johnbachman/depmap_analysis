@@ -67,9 +67,9 @@ class DepMapExplainer:
                          'explained set', 'common parent',
                          'complex or direct', 'x intermediate',
                          'shared regulator', 'shared target', 'sr only']:
-
+                summary = self.get_summary()
                 self.summary_str += f'{(expl +": ").ljust(22)}' \
-                                    f'{self.summary[expl]}\n'
+                                    f'{summary[expl]}\n'
         return self.summary_str
 
     def save_summary(self, fname):
