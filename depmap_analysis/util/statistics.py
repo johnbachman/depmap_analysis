@@ -74,9 +74,10 @@ class DepMapExplainer:
 
     def save_summary(self, fname):
         """Save summary to a file"""
+        summary = self.get_summary()
         with open(fname, 'w') as f:
             f.write('explanation,count\n')
-            for e, c in self.summary.items():
+            for e, c in summary.items():
                 f.write(f'{e},{c}\n')
 
     def _get_sr_only(self):
