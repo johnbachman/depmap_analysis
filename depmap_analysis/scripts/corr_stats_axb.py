@@ -103,7 +103,7 @@ def main(expl_df, z_corr, eval_str=False):
         A pd.DataFrame containing all available explanations for the pairs
         of genes in z_corr
     z_corr : pd.DataFrame
-        A pd.DataFrame of correalation z score
+        A pd.DataFrame of correalation z scores
     eval_str : bool
         If True, run ast.literal_eval() on the 'expl data' column of expl_df
 
