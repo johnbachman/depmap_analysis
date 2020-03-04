@@ -62,7 +62,14 @@ class DepMapExplainer:
 
     def get_summary_str(self):
         if not self.summary_str:
-            self.summary_str = ''
+            for expl in ['total checked', 'not in graph', 'explained',
+                         'explained (excl sr)', 'unexplained',
+                         'explained set', 'common parent',
+                         'complex or direct', 'x intermediate',
+                         'shared regulator', 'shared target', 'sr only']:
+
+                self.summary_str += f'{(expl +": ").ljust(22)}' \
+                                    f'{self.summary[expl]}\n'
         return self.summary_str
 
     def save_summary(self, fname):
