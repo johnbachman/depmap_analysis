@@ -42,12 +42,7 @@ rsig = 0.077614
 #                      'subdirectories.')
 
 
-def mean_z_score_wrap(d):
-    return mean_z_score(mu1=cmu, sig1=csig, c1=d['crispr'],
-                        mu2=rmu, sig2=rsig, c2=d['rnai'])
-
-
-def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
+def get_corr_stats(df, z_sc_cm, so_pairs):
     all_axb_corrs = []
     top_axb_corrs = []
     #ab_to_axb_avg = []
@@ -56,27 +51,23 @@ def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
     axb_avg_corrs = []
     for subj, obj in so_pairs:
         ab_avg_corrs = []
-        path_rows = df[(df['subj'] == subj) &
-                      (df['obj'] == obj) &
-                      ((df['type'] == 'pathway') |
-                       (df['type'] == 'shared_target'))]
+        path_rows = df[(df['agA'] == subj) &
+                       (df['agB'] == obj) &
+                       ((df['expl type'] == 'a-x-b') |
+                        (df['expl type'] == 'b-x-a') |
+                       (df['expl type'] == 'shared target'))]
+
         # Make sure we don't double-count Xs such that X is shared target
         # and also a pathway; also, don't include X if X = subj or obj
         x_set = set()
-        for path_row in path_rows.itertuples():
-            x_set.update([x[0] for x in path_row.X
-                         if x[0] not in (subj, obj)])
+        for ix, path_row in path_rows.iterrows():
+            x_set.update([x for x in path_row['expl data']
+                          if x not in (subj, obj)])
 
-        comb_zsc = path_row.comb_zsc
-        warn = 0
         for x in x_set:
-            if x in crispr_cm.columns and x in rnai_cm.columns:
-                ax_corr = mean_z_score(
-                    mu1=cmu, sig1=csig, c1=crispr_cm.loc[subj, x],
-                    mu2=rmu, sig2=rsig, c2=rnai_cm.loc[subj, x])
-                xb_corr = mean_z_score(
-                    mu1=cmu, sig1=csig, c1=crispr_cm.loc[x, obj],
-                    mu2=rmu, sig2=rsig, c2=rnai_cm.loc[x, obj])
+            if x in z_sc_cm.columns:
+                ax_corr = z_sc_cm.loc[subj, x]
+                xb_corr = z_sc_cm.loc[x, obj]
                 all_axb_corrs += [ax_corr, xb_corr]
                 avg_corr = 0.5 * abs(ax_corr) + 0.5 * abs(xb_corr)
                 ab_avg_corrs.append(avg_corr)
@@ -90,13 +81,9 @@ def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
                 #     logger.warning('Muting warnings...')
                 continue
 
-        for z in set(crispr_cm.columns).intersection(rnai_cm.columns):
-            az_corr = mean_z_score(
-                         mu1=cmu, sig1=csig, c1=crispr_cm.loc[z, subj],
-                         mu2=rmu, sig2=rsig, c2=rnai_cm.loc[z, subj])
-            bz_corr = mean_z_score(
-                         mu1=cmu, sig1=csig, c1=crispr_cm.loc[z, obj],
-                         mu2=rmu, sig2=rsig, c2=rnai_cm.loc[z, obj])
+        for z in set(z_sc_cm.columns):
+            az_corr = z_sc_cm.loc[z, subj]
+            bz_corr = z_sc_cm.loc[z, obj]
             all_azb_corrs.extend([az_corr, bz_corr])
             azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
 
@@ -112,33 +99,43 @@ def get_corr_stats(df, crispr_cm, rnai_cm, so_pairs):
             azb_avg_corrs)
 
 
-def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
+def main(expl_df, z_corr, eval_str=False):
+    """Get statistics of the correlations associated with different
+    explanation types
+
+    Parameters
+    ----------
+    expl_df: pd.DataFrame
+        A pd.DataFrame containing all available explanations for the pairs
+        of genes in z_corr
+    z_corr : pd.DataFrame
+        A pd.DataFrame of correalation z score
+    eval_str : bool
+        If True, run ast.literal_eval() on the 'expl data' column of expl_df
+
+    Returns
+    -------
+    dict
+        A Dict containing correlation data for different explanations
+    """
     # Limit to any a-x-b OR a-b expl (this COULD include explanations where
     # 'direct' and NOT 'pathway' is the explanation, but this should be a
     # very small set)
     logger.info("Filter expl_df to pathway, direct, shared_target")
-    expl_df = expl_df[(expl_df['type'] == 'pathway') |
-                      (expl_df['type'] == 'direct') |
-                      (expl_df['type'] == 'shared_target')]
+    expl_df = expl_df[(expl_df['expl type'] == 'a-x-b') |
+                      (expl_df['expl type'] == 'b-x-a') |
+                      (expl_df['expl type'] == 'a-b') |
+                      (expl_df['expl type'] == 'b-a') |
+                      (expl_df['expl type'] == 'shared target')]
 
     # Re-map the columns containing string representations of objects
-    expl_df.meta_data = expl_df['meta_data'].apply(lambda x:
-                                                   ast.literal_eval(x))
-    expl_df.X = expl_df['X'].apply(lambda x: ast.literal_eval(x))
-
-    # Get combined z score
-    logger.info("Adding combined z score to expl_df")
-    expl_df['comb_zsc'] = None
-    for index, row in expl_df.iterrows():
-        cd = row.meta_data
-        if not cd:
-            cd = {'crispr': crispr_corr_matrix.loc[row.subj, row.obj],
-                  'rnai': rnai_corr_matrix.loc[row.subj, row.obj]}
-        row.comb_zsc = mean_z_score_wrap(cd)
+    if eval_str:
+        expl_df['expl data'] = \
+            expl_df['expl data'].apply(lambda x: ast.literal_eval(x))
 
     # Get all correlation pairs
     all_ab_corr_pairs = set(map(lambda p: tuple(p),
-                                expl_df[['subj', 'obj']].values))
+                                expl_df[['agA', 'agB']].values))
     # Pairs where a-x-b AND a-b explanation exists
     pairs_axb_direct = set()
 
@@ -155,9 +152,11 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
             continue
         # Get all interaction types associated with given subject s and
         # object o
-        int_types = set(expl_df['type'][(expl_df['subj'] == s) &
-                                        (expl_df['obj'] == o)].values)
-        if 'pathway' in int_types or 'shared_target' in int_types:
+        int_types = set(expl_df['expl type'][(expl_df['agA'] == s) &
+                                             (expl_df['agB'] == o)].values)
+        # Check intersection of types
+        axb_types = {'a-x-b', 'b-x-a', 'shared target'}.intersection(int_types)
+        if axb_types:
             pairs_any_axb.add((s, o))
             if 'direct' in int_types:
                 # Direct and pathway
@@ -185,9 +184,8 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
     # a-x-b AND NOT direct
     logger.info("Getting correlations for a-x-b AND NOT direct")
     all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
-            all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
-        get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
-                       rnai_cm=rnai_corr_matrix, so_pairs=pairs_axb_only)
+        all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
+        get_corr_stats(df=expl_df, z_sc_cm=z_corr, so_pairs=pairs_axb_only)
 
     """
     # a-x-b (with and without direct)
@@ -224,6 +222,7 @@ def main(expl_df, crispr_corr_matrix, rnai_corr_matrix):
                             'top_x_corrs': top_x_corrs_no_direct,
                             'all_azb_corrs': all_azb_corrs_no_direct,
                             'azb_avg_corrs': azb_avg_corrs_no_direct}}
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 4:
