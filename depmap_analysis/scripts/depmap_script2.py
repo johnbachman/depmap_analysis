@@ -17,7 +17,7 @@ if the IndraNetwork
 # Questions:
 #   Q1. Where would the cutting down to specific SD ranges be done?
 #   A: Probably outside match correlations, somewhere inside or after
-#      preprocessing. Better to do it all at once for one
+#      preprocessing. Better to do it all at once for one dump of the data
 
 # Output:
 #   An object of a new class that wraps a dataframe that can generate
@@ -86,11 +86,17 @@ def match_correlations(corr_z, indranet, **kwargs):
     # upper triangle of the square matrix
     corr_iter = corr_matrix_to_generator(corr_z)
     signed_search = kwargs.get('signed_search', False)
-    ymd_date = kwargs['indra_datetime'] if kwargs.get('indra_datetime') else\
-        datetime.now().strftime('%Y%m%d')
+    ymd_now = datetime.now().strftime('%Y%m%d')
+    indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
+        else ymd_now
+    depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
+        else ymd_now
     explainer = DepMapExplainer(stats_columns=stats_columns,
                                 expl_columns=expl_columns,
-                                indra_network_date=ymd_date)
+                                info={'indra_network_date': indra_date,
+                                      'depmap_release_date': depmap_date},
+                                )
+
     stats_dict = {k: [] for k in stats_columns}
     expl_dict = {k: [] for k in expl_columns}
 
