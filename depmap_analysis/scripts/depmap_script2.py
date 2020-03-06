@@ -94,7 +94,7 @@ def match_correlations(corr_z, indranet, **kwargs):
     explainer = DepMapExplainer(stats_columns=stats_columns,
                                 expl_columns=expl_columns,
                                 info={'indra_network_date': indra_date,
-                                      'depmap_release_date': depmap_date},
+                                      'depmap_date': depmap_date},
                                 )
 
     stats_dict = {k: [] for k in stats_columns}

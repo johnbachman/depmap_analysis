@@ -8,7 +8,7 @@ class DepMapExplainer:
                  network_type='digraph'):
         self.tag = tag
         self.indra_network_date = info['indra_network_date']
-        self.depmap_date = info['depmap_info']
+        self.depmap_date = info['depmap_date']
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
