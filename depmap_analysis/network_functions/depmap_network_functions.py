@@ -740,16 +740,19 @@ def _get_partial_gaussian_stats(bin_edges, hist):
 
 
 def raw_depmap_to_corr(depmap_raw_df):
-    """Pre-process and create a correlation
+    """Pre-process and create a correlation matrix
+
+    Any multi indexing is removed. Duplicated columns are also removed.
 
     Parameters
     ----------
     depmap_raw_df : pd.DataFrame
+        The raw data from the DepMap portal as a pd.DataFrame
 
     Returns
     -------
     corr : pd.DataFrame
-        A pd.DataFrame containing the correlation of the
+        A pd.DataFrame containing the pearson correlations of the raw data.
     """
     # Rename
     if len(depmap_raw_df.columns[0].split()) > 1:
