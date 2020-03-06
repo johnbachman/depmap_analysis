@@ -12,14 +12,22 @@ class DepMapExplainer:
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
-        self.has_data = False
+        self._has_data = False
         self.is_signed = True if network_type in {'signed', 'pybel'} else False
         self.summary = {}
         self.summary_str = ''
         self.corr_stats_axb = {}
 
     def __str__(self):
-        return self.summary_str
+        return self.summary_str if self.has_data() else \
+            'DepMapExplainer is empty'
+
+    def has_data(self):
+        if len(self.stats_df) > 0 or len(self.expl_df) > 0:
+            self._has_data = True
+        else:
+            self._has_data = False
+        return self._has_data
 
     def summarize(self):
         if not self.summary_str:
