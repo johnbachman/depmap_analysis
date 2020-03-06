@@ -771,7 +771,7 @@ def raw_depmap_to_corr(depmap_raw_df):
     return corr
 
 
-def merge_corr_df(corr_df, other_corr_df):
+def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
     """Merge two correlation matrices containing their combined z-scores
 
     Parameters
@@ -782,6 +782,9 @@ def merge_corr_df(corr_df, other_corr_df):
     other_corr_df : pd.DataFrame
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with corr_df.
+    remove_self_corr : bool
+        If True, remove self correlations from the resulting DataFrame.
+        Default: True
 
     Returns
     -------
@@ -812,6 +815,10 @@ def merge_corr_df(corr_df, other_corr_df):
 
     # Merge
     dep_z = (corr_z + other_z) / 2
+    if remove_self_corr:
+        # Assumes the max correlation ONLY occurs on the diagonal
+        self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
+        dep_z = dep_z[dep_z != self_corr_value]
     return dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
 
 

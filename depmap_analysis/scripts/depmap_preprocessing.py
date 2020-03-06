@@ -11,7 +11,8 @@ logger = logging.getLogger('DepMap PreProcessing')
 
 
 def run_corr_merge(crispr_raw=None, rnai_raw=None,
-                   crispr_corr=None, rnai_corr=None, output_dir=None):
+                   crispr_corr=None, rnai_corr=None, output_dir=None,
+                   remove_self_corr=True):
     """Return a merged correlation matrix from DepMap data
 
     Start with with either the raw DepMap files or pre-calculated
@@ -35,6 +36,10 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         If used, write the correlation matrices to this directory.
         Otherwise they will be written to the same directory as the raw
         input data.
+    remove_self_corr : bool
+        If True, remove self correlations from the resulting DataFrame.
+        Default: True
+
 
     Returns
     -------
@@ -77,7 +82,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         rnai_corr_df.to_hdf(path.join(in_dir, name), name)
 
     # Merge the correlation matrices
-    return merge_corr_df(crispr_corr_df, rnai_corr_df)
+    return merge_corr_df(crispr_corr_df, rnai_corr_df, remove_self_corr)
 
 
 if __name__ == '__main__':
