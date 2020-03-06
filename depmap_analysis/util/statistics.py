@@ -4,10 +4,11 @@ from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 class DepMapExplainer:
 
-    def __init__(self, stats_columns, expl_columns, indra_network_date,
-                 tag=None, network_type='digraph'):
+    def __init__(self, stats_columns, expl_columns, info, tag=None,
+                 network_type='digraph'):
         self.tag = tag
-        self.indra_network_date = indra_network_date
+        self.indra_network_date = info['indra_network_date']
+        self.depmap_date = info['depmap_info']
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
@@ -70,8 +71,8 @@ class DepMapExplainer:
                          'complex or direct', 'x intermediate',
                          'shared regulator', 'shared target', 'sr only']:
                 summary = self.get_summary()
-                self.summary_str += f'{(expl +": ").ljust(22)}' \
-                                    f'{summary[expl]}\n'
+                self.summary_str +=\
+                    (expl +": ").ljust(22) + summary[expl] + '\n'
         return self.summary_str
 
     def save_summary(self, fname):
