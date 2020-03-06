@@ -75,7 +75,10 @@ def get_corr_stats(df, z_sc_cm, so_pairs):
                 #     logger.warning('Muting warnings...')
                 continue
 
+        # Get the set of possible correlation z scores
         for z in set(z_sc_cm.columns):
+            if z == subj or z == obj:
+                continue
             az_corr = z_sc_cm.loc[z, subj]
             bz_corr = z_sc_cm.loc[z, obj]
             all_azb_corrs.extend([az_corr, bz_corr])
