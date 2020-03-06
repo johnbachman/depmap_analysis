@@ -72,7 +72,7 @@ class DepMapExplainer:
                          'shared regulator', 'shared target', 'sr only']:
                 summary = self.get_summary()
                 self.summary_str +=\
-                    (expl +": ").ljust(22) + summary[expl] + '\n'
+                    (expl +": ").ljust(22) + str(summary[expl]) + '\n'
         return self.summary_str
 
     def save_summary(self, fname):
@@ -98,7 +98,6 @@ class DepMapExplainer:
         ].index
         return len(indices)
 
-    # corr_stats_axb
     def get_corr_stats_axb(self, z_corr=None):
         """Get statistics of the correlations associated with different
         explanation types
@@ -117,8 +116,8 @@ class DepMapExplainer:
         if not self.corr_stats_axb:
             if not z_corr:
                 raise ValueError('The z score correlation matrix must be '
-                                 'provided when running corr_stats_axb for '
-                                 'the first time.')
+                                 'provided when running get_corr_stats_axb '
+                                 'for the first time.')
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
             self.corr_stats_axb = axb_stats(self.expl_df, z_corr)
