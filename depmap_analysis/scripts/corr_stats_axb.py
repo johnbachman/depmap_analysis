@@ -37,6 +37,12 @@ logger = logging.getLogger('DepMap Corr Stats')
 
 
 def get_corr_stats(df, z_sc_cm, so_pairs):
+    # Check for and remove self correlations
+    if not np.isnan(z_sc_cm.loc[z_sc_cm.columns[0], z_sc_cm.columns[0]]):
+        logger.info('Removing self correlations')
+        diag_val = z_sc_cm.loc[z_sc_cm.columns[0], z_sc_cm.columns[0]]
+        z_sc_cm = z_sc_cm[z_sc_cm != diag_val]
+
     all_axb_corrs = []
     top_axb_corrs = []
     #ab_to_axb_avg = []
@@ -81,6 +87,8 @@ def get_corr_stats(df, z_sc_cm, so_pairs):
                 continue
             az_corr = z_sc_cm.loc[z, subj]
             bz_corr = z_sc_cm.loc[z, obj]
+            if np.isnan(az_corr) or np.isnan(bz_corr):
+                continue  # Is there a more efficient way of doing this?
             all_azb_corrs.extend([az_corr, bz_corr])
             azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
 
