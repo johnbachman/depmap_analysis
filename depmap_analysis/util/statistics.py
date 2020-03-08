@@ -1,5 +1,10 @@
+import logging
 import pandas as pd
+import matplotlib.pyplot as plt
+from pathlib import Path
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
+
+logger = logging.getLogger(__name__)
 
 
 class DepMapExplainer:
@@ -9,6 +14,7 @@ class DepMapExplainer:
         self.tag = tag
         self.indra_network_date = info['indra_network_date']
         self.depmap_date = info['depmap_date']
+        self.sd_range = info['sd_range']
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
@@ -130,3 +136,35 @@ class DepMapExplainer:
                 z_corr = pd.read_hdf(z_corr)
             self.corr_stats_axb = axb_stats(self.expl_df, z_corr)
         return self.corr_stats_axb
+
+    def plot_corr_stats(self, outdir, z_corr=None):
+        od = Path(outdir)
+        if not od.is_dir():
+            od.mkdir(parents=True, exist_ok=True)
+        corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
+        sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
+            if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
+        for k, v in corr_stats.items():
+            for plot_type in ['all_azb_corrs', 'azb_avg_corrs', 'all_x_corrs',
+                              'avg_x_corrs', 'top_x_corrs']:
+                if len(v[plot_type]) > 0:
+                    if isinstance(v[plot_type][0], tuple):
+                        data = [t[-1] for t in v[plot_type]]
+                    else:
+                        data = v[plot_type]
+                    plt.hist(x=data, bins='auto')
+                    plt.title('%s %s; %s' %
+                              (plot_type.replace('_', ' ').capitalize(),
+                               k.replace('_', ' '),
+                               sd))
+                    plt.xlabel('combined z-score')
+                    plt.ylabel('count')
+                    plt.savefig(
+                        od.joinpath('%s_%s.png' % (plot_type, k)).as_posix(),
+                        format='png'
+                    )
+                    plt.show()
+                else:
+                    logger.warning('Empty result for %s (%s) in range %s'
+                                   % (k, plot_type, sd))
+
