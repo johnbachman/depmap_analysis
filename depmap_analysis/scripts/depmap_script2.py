@@ -43,7 +43,7 @@ from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 logger = logging.getLogger('DepMap Script')
 
 
-def match_correlations(corr_z, indranet, **kwargs):
+def match_correlations(corr_z, indranet, sd_range, **kwargs):
     """The main loop for matching correlations with INDRA explanations
 
     Parameters
@@ -59,6 +59,8 @@ def match_correlations(corr_z, indranet, **kwargs):
         have an attribute named 'statements' containing a list of sources
         supporting that edge. If signed search, indranet is expected to be an
         nx.MultiDiGraph with edges keyes by (gene, gene, sign) tuples.
+    sd_range : tuple[float]
+        The SD ranges that the corr_z is filtered to
 
     Returns
     -------
@@ -94,7 +96,9 @@ def match_correlations(corr_z, indranet, **kwargs):
     explainer = DepMapExplainer(stats_columns=stats_columns,
                                 expl_columns=expl_columns,
                                 info={'indra_network_date': indra_date,
-                                      'depmap_date': depmap_date},
+                                      'depmap_date': depmap_date,
+                                      'sd_range': sd_range,
+                                      },
                                 )
 
     stats_dict = {k: [] for k in stats_columns}
@@ -384,6 +388,7 @@ if __name__ == '__main__':
     elif sd_l and not sd_u:
         z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
     run_options['corr_z'] = z_corr
+    run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
 
     # 3. Ignore list as file
     ignore_file = args.ignore_list
