@@ -414,7 +414,7 @@ def ns_id_from_name(name, gilda_retry=False):
     global GILDA_TIMEOUT
     if gilda_retry:
         logger.info('Trying to reach GILDA service again...')
-    if gilda_retry and gilda_pinger():
+    if gilda_retry and GILDA_TIMEOUT and gilda_pinger():
         logger.info('GILDA is responding again!')
         GILDA_TIMEOUT = False
 
