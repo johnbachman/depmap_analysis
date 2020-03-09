@@ -217,7 +217,8 @@ class IndraNetwork:
                 ksp_backward = self.find_shortest_paths(**boptions)
         ct = self.find_common_targets(**options)
         cp = self.get_common_parents(**options)
-        if not ksp_forward and not ksp_backward and not ct and not cp:
+        if not ksp_forward and not ksp_backward and not ct and \
+                not cp.get('common_parents', []):
             ckwargs = options.copy()
             bckwargs = boptions.copy()
             if kwargs['fplx_expand']:
