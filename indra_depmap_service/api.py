@@ -333,7 +333,8 @@ if __name__ == '__main__':
             args.cache[3].lower() != 'none' else None
         try:
             indra_network = \
-                IndraNetwork(*load_indra_graph(dg_file, mdg_file))
+                IndraNetwork(*load_indra_graph(dg_file, mdg_file, sng_file,
+                                               seg_file))
         except Exception as e:
             logger.warning('Could not load the provided files. Reverting to '
                            'default network...')
