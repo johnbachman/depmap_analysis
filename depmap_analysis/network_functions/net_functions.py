@@ -530,10 +530,12 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 
     """
     if source not in G:
-        raise nx.NodeNotFound('source node %s not in graph' % source)
+        s = source[0] if isinstance(source, tuple) else source
+        raise nx.NodeNotFound('source node %s not in graph' % s)
 
     if target not in G:
-        raise nx.NodeNotFound('target node %s not in graph' % target)
+        t = target[0] if isinstance(target, tuple) else target
+        raise nx.NodeNotFound('target node %s not in graph' % t)
 
     if weight is None:
         length_func = len
