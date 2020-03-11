@@ -128,7 +128,7 @@ class DepMapExplainer:
             A Dict containing correlation data for different explanations
         """
         if not self.corr_stats_axb:
-            if not z_corr:
+            if z_corr is None:
                 raise ValueError('The z score correlation matrix must be '
                                  'provided when running get_corr_stats_axb '
                                  'for the first time.')
@@ -167,4 +167,29 @@ class DepMapExplainer:
                 else:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
+
+    def plot_dists(self, outdir, z_corr=None):
+        od = Path(outdir)
+        if not od.is_dir():
+            od.mkdir(parents=True, exist_ok=True)
+        corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
+        all_ind = corr_stats['axb_not_dir']
+        #all_res, db_res, sd):
+        #all_ind = all_res['axb_not_dir']
+        #db_ind = db_res['axb_not_dir']
+        plt.hist(all_ind['azb_avg_corrs'], bins='auto', normed=1, color='b',
+                 alpha=0.3)
+        plt.hist(all_ind['avg_x_corrs'], bins='auto', normed=1, color='r',
+                 alpha=0.3)
+        #plt.hist(db_ind['avg_x_corrs'], bins='auto', normed=1, color='g',
+        #         alpha=0.3)
+
+        sd_str = '%d_%d' % self.sd_range
+        plt.title('A-B corrs %s, indirect paths only' % sd_str)
+        plt.ylabel('Norm. Density')
+        plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
+        plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)',
+                    'A-X-B for X in path (DB only)'])
+        plt.savefig(od.joinpath('%s_axb_hist_comparison.pdf' %
+                                 sd_str).as_posix(), format='pdf')
 
