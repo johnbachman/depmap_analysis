@@ -416,7 +416,7 @@ if __name__ == '__main__':
     outpath = Path(outname)
 
     if not Path(args.indranet).is_file():
-        raise FileNotFoundError(f'{args.indranet} does not exist')
+        raise FileNotFoundError(f'File {args.indranet} does not exist')
 
     if not sd_l and not sd_u:
         raise ValueError('Must specify at least a lower bound for the SD '
@@ -443,9 +443,11 @@ if __name__ == '__main__':
 
     # 2. Filter to SD range
     if sd_l and sd_u:
+        logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
         z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
                         ((z_corr < -sd_l) & (z_corr > -sd_u))]
     elif sd_l and not sd_u:
+        logger.info(f'Filtering correlations to {sd_l}+ SD')
         z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
     run_options['corr_z'] = z_corr
     run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
