@@ -28,7 +28,11 @@ import argparse
 import numpy as np
 import pandas as pd
 import networkx as nx
+import multiprocessing as mp
+from time import time
+from math import floor
 from pathlib import Path
+from itertools import islice
 from datetime import datetime
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 from depmap_analysis.network_functions.net_functions import \
@@ -43,7 +47,104 @@ from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 logger = logging.getLogger('DepMap Script')
 
 
-def match_correlations(corr_z, indranet, sd_range, **kwargs):
+def _match_correlation_body(corr_iter, expl_types, stats_columns,
+                            expl_columns, bool_columns, min_columns,
+                            explained_set, signed_search):
+    # Separate out this part
+
+    stats_dict = {k: [] for k in stats_columns}
+    expl_dict = {k: [] for k in expl_columns}
+
+    for A, B, zsc in corr_iter:
+        # Initialize current iteration stats
+        stats = {k: False for k in bool_columns}
+
+        # Append to stats_dict
+        stats_dict['agA'].append(A)
+        stats_dict['agB'].append(B)
+        stats_dict['z-score'].append(zsc)
+
+        # Skip if A or B not in graph
+        if A not in indranet.nodes or B not in indranet.nodes:
+            for k in set(stats_dict.keys()).difference(set(min_columns)):
+                if k == 'not in graph':
+                    # Flag not in graph
+                    stats_dict[k].append(True)
+                else:
+                    # All columns are NaN's
+                    stats_dict[k].append(np.nan)
+            continue
+
+        # Get ns:id
+        a_ns, a_id, b_ns, b_id = get_ns_id(A, B, indranet)
+
+        # Append to stats dict
+        stats_dict['agA_ns'].append(a_ns)
+        stats_dict['agB_ns'].append(b_ns)
+        stats_dict['agA_id'].append(a_id)
+        stats_dict['agB_id'].append(b_id)
+
+        # If in expl set, skip other explanations
+        if explained_set:
+            if A in explained_set and B in explained_set:
+                # Set explained set = True
+                stats_dict['explained set'].append(True)
+
+                # Set overall explained = True
+                stats_dict['explained'].append(True)
+
+                # All other columns to False
+                for k in set(bool_columns).difference(
+                        {'explained set', 'explained'}):
+                    stats_dict[k].append(False)
+
+                # Set explanation type and data
+                # Append to expl_dict
+                expl_dict['agA'].append(A)
+                expl_dict['agB'].append(B)
+                expl_dict['z-score'].append(zsc)
+                expl_dict['expl type'].append('explained set')
+                expl_dict['expl data'].append(np.nan)
+
+                # And skip the rest of explanations
+                continue
+
+        # Loop expl functions
+        for expl_type, expl_func in expl_types.items():
+            # Function signature: s, o, corr, net, signed, **kwargs
+            # Function should return what will be kept in the 'expl_data'
+            # column of the expl_df
+
+            # Skip if 'explained set', which is caught above
+            if expl_type == 'explained set':
+                continue
+
+            # Some functions reverses A, B hence the s, o assignment
+            s, o, expl_data = expl_func(A, B, zsc, indranet, signed_search)
+            if expl_data:
+                expl_dict['agA'].append(s)
+                expl_dict['agB'].append(o)
+                expl_dict['z-score'].append(zsc)
+                expl_dict['expl type'].append(expl_type)
+                expl_dict['expl data'].append(expl_data)
+
+            stats[expl_type] = bool(expl_data)
+
+        # Set explained column
+        stats['explained'] = any([b for b in stats.values()])
+
+        # Add stats to stats_dict
+        for expl_tp in stats:
+            stats_dict[expl_tp].append(stats[expl_tp])
+
+        # Assert that all columns are the same length
+        if not all(len(ls) for ls in stats_dict.values()):
+            raise IndexError('Unequal column lengths in stats_dict after '
+                             'iteration')
+    return stats_dict, expl_dict
+
+
+def match_correlations(corr_z, sd_range, **kwargs):
     """The main loop for matching correlations with INDRA explanations
 
     Parameters
@@ -83,9 +184,11 @@ def match_correlations(corr_z, indranet, sd_range, **kwargs):
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
+    explained_set = kwargs.get('explained_set', {})
 
     # The generator skips self correlations as it yields pairs from the
     # upper triangle of the square matrix
+    estim_pairs = floor(len(corr_z)**2/2 - len(corr_z))
     corr_iter = corr_matrix_to_generator(corr_z)
     signed_search = kwargs.get('signed_search', False)
     ymd_now = datetime.now().strftime('%Y%m%d')
@@ -93,6 +196,43 @@ def match_correlations(corr_z, indranet, sd_range, **kwargs):
         else ymd_now
     depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
         else ymd_now
+
+    print(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} with '
+          f'about {estim_pairs} pairs to check')
+    tstart = time()
+
+    with mp.Pool() as pool:
+        MAX_SUB = 64
+        max_executions = min(estim_pairs, MAX_SUB)
+        chunksize = max(estim_pairs // MAX_SUB, 1)
+        for n in range(max_executions):
+            corr_iter_slice = list(islice(corr_iter, n*chunksize,
+                                          (n+1)*chunksize))
+            pool.apply_async(func=_match_correlation_body,
+                             # corr_iter, expl_types, stats_columns,
+                             # expl_columns, bool_columns, min_columns,
+                             # explained_set, signed_search
+                             args=(
+                                 corr_iter_slice,
+                                 expl_types,
+                                 stats_columns,
+                                 expl_columns,
+                                 bool_columns,
+                                 min_columns,
+                                 explained_set,
+                                 signed_search
+                             ),
+                             callback=success_callback)
+
+        logger.info('Done submitting work to pool workers')
+        pool.close()
+        pool.join()
+
+    print(f'Execution time: {time() - tstart} seconds')
+    print(f'Done at {datetime.now().strftime("%H:%M:%S")}')
+
+    # Here initialize a DepMapExplainer and append the result fro the
+    # different processes
     explainer = DepMapExplainer(stats_columns=stats_columns,
                                 expl_columns=expl_columns,
                                 info={'indra_network_date': indra_date,
@@ -101,101 +241,14 @@ def match_correlations(corr_z, indranet, sd_range, **kwargs):
                                       },
                                 )
 
-    stats_dict = {k: [] for k in stats_columns}
-    expl_dict = {k: [] for k in expl_columns}
+    logger.info(f'Generating DepMapExplainer with output from '
+                f'{len(output_list)} results')
+    for stats_dict, expl_dict in output_list:
+        explainer.stats_df = explainer.stats_df.append(other=pd.DataFrame(
+            data=stats_dict))
+        explainer.expl_df = explainer.expl_df.append(other=pd.DataFrame(
+            data=expl_dict))
 
-    for A, B, zsc in corr_iter:
-        # Initialize current iteration stats
-        stats = {k: False for k in bool_columns}
-
-        # Append to stats_dict
-        stats_dict['agA'].append(A)
-        stats_dict['agB'].append(B)
-        stats_dict['z-score'].append(zsc)
-
-        # Skip if A or B not in graph
-        if A not in indranet.nodes or B not in indranet.nodes:
-            for k in set(stats_dict.keys()).difference(set(min_columns)):
-                if k == 'not in graph':
-                    # Flag not in graph
-                    stats_dict[k].append(True)
-                else:
-                    # All columns are NaN's
-                    stats_dict[k].append(np.nan)
-            continue
-
-        # Get ns:id
-        a_ns, a_id, b_ns, b_id = get_ns_id(A, B, indranet)
-
-        # Append to stats dict
-        stats_dict['agA_ns'].append(a_ns)
-        stats_dict['agB_ns'].append(b_ns)
-        stats_dict['agA_id'].append(a_id)
-        stats_dict['agB_id'].append(b_id)
-
-        # If in expl set, skip other explanations
-        if kwargs.get('explained_set'):
-            if A in kwargs['explained_set'] and B in kwargs['eplained_Set']:
-                # Set explained set = True
-                stats_dict['explained set'].append(True)
-
-                # Set overall explained = True
-                stats_dict['explained'].append(True)
-
-                # All other columns to False
-                for k in set(bool_columns).difference(
-                        {'explained set', 'explained'}):
-                    stats_dict[k].append(False)
-
-                # Set explanation type and data
-                # Append to expl_dict
-                expl_dict['agA'].append(A)
-                expl_dict['agB'].append(B)
-                expl_dict['z-score'].append(zsc)
-                expl_dict['expl type'].append('explained set')
-                expl_dict['expl data'].append(np.nan)
-
-                # And skip the rest of explanations
-                continue
-
-        # Loop expl functions
-        for expl_type, expl_func in expl_types.items():
-            # Function signature: s, o, corr, net, signed, **kwargs
-            # Function should return what will be kept in the 'expl_data'
-            # column of the expl_df
-
-            # Skip if 'explained set', which is caught above
-            if expl_type == 'explained set':
-                continue
-
-            # Some functions reverses A, B hence the s, o assignment
-            s, o, expl_data = expl_func(A, B, zsc, indranet, signed_search,
-                                        **kwargs)
-            if expl_data:
-                expl_dict['agA'].append(s)
-                expl_dict['agB'].append(o)
-                expl_dict['z-score'].append(zsc)
-                expl_dict['expl type'].append(expl_type)
-                expl_dict['expl data'].append(expl_data)
-
-            stats[expl_type] = bool(expl_data)
-
-        # Set explained column
-        stats['explained'] = any([b for b in stats.values()])
-
-        # Add stats to stats_dict
-        for expl_tp in stats:
-            stats_dict[expl_tp].append(stats[expl_tp])
-
-        # Assert that all columns are the same length
-        if not all(len(ls) for ls in stats_dict.values()):
-            raise IndexError('Unequal column lengths in stats_dict after '
-                             'iteration')
-
-    explainer.stats_df = explainer.stats_df.append(other=pd.DataFrame(
-        data=stats_dict))
-    explainer.expl_df = explainer.expl_df.append(other=pd.DataFrame(
-        data=expl_dict))
     explainer.has_data = True
     return explainer
 
@@ -298,6 +351,11 @@ def get_ns_id(subj, obj, net):
     return s_ns, s_id, o_ns, o_id
 
 
+def success_callback(res):
+    logger.info('Appending a result')
+    output_list.append(res)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Explainer main script')
     #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
@@ -377,9 +435,11 @@ if __name__ == '__main__':
         z_corr = run_corr_merge(**z_sc_options)
 
     # Get indranet
-    net = pickle_open(args.indranet)
-    run_options['indranet'] = net
-    run_options['signed_search'] = net.is_multigraph()  # Todo check signed
+    indranet = pickle_open(args.indranet)
+    # run_options['indranet'] = indranet  # Use in global scope
+
+    # Todo check signed
+    run_options['signed_search'] = indranet.is_multigraph()
 
     # 2. Filter to SD range
     if sd_l and sd_u:
@@ -396,6 +456,8 @@ if __name__ == '__main__':
         with open(ignore_file, 'r') as f:
             run_options['explained_set'] = set(f.readlines())
 
+    # Create output list in global scope
+    output_list = []
     explanations = match_correlations(**run_options)
 
     # mkdir in case it  doesn't exist
