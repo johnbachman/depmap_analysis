@@ -322,17 +322,17 @@ def get_edge_statements(s, o, corr, net, signed, **kwargs):
         return net.edges.get((s, o))
 
 
-def _get_signed_interm(s, o, corr, net, x_set):
+def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
     # Make sure we have the right sign type
     int_sign = SIGNS_TO_INT_SIGN[get_sign(corr)]
 
     # ax and xb sign need to match correlation sign
     x_approved = set()
     for x in x_set:
-        ax_plus = net.edges.get((s, x, INT_PLUS), {})
-        ax_minus = net.edges.get((s, x, INT_MINUS), {})
-        xb_plus = net.edges.get((x, o, INT_PLUS), {})
-        xb_minus = net.edges.get((x, o, INT_MINUS), {})
+        ax_plus = sign_edge_net.edges.get((s, x, INT_PLUS), {})
+        ax_minus = sign_edge_net.edges.get((s, x, INT_MINUS), {})
+        xb_plus = sign_edge_net.edges.get((x, o, INT_PLUS), {})
+        xb_minus = sign_edge_net.edges.get((x, o, INT_MINUS), {})
 
         if int_sign == INT_PLUS:
             if ax_plus and xb_plus or ax_minus and xb_minus:
