@@ -36,7 +36,7 @@ from itertools import islice
 from datetime import datetime
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 from depmap_analysis.network_functions.net_functions import \
-    SIGNS_TO_INT_SIGN, ns_id_from_name
+    SIGNS_TO_INT_SIGN, INT_MINUS, INT_PLUS, ns_id_from_name
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, same_sign, get_sign, iter_chunker
@@ -320,6 +320,27 @@ def get_edge_statements(s, o, corr, net, signed, **kwargs):
         return net.edges.get((s, o, corr_sign), None)
     else:
         return net.edges.get((s, o))
+
+
+def _get_signed_interm(s, o, corr, net, x_set):
+    # Make sure we have the right sign type
+    int_sign = SIGNS_TO_INT_SIGN[get_sign(corr)]
+
+    # ax and xb sign need to match correlation sign
+    x_approved = set()
+    for x in x_set:
+        ax_plus = net.edges.get((s, x, INT_PLUS), {})
+        ax_minus = net.edges.get((s, x, INT_MINUS), {})
+        xb_plus = net.edges.get((x, o, INT_PLUS), {})
+        xb_minus = net.edges.get((x, o, INT_MINUS), {})
+
+        if int_sign == INT_PLUS:
+            if ax_plus and xb_plus or ax_minus and xb_minus:
+                x_approved.add(x)
+        if int_sign == INT_MINUS:
+            if ax_plus and xb_minus or ax_minus and xb_plus:
+                x_approved.add(x)
+    return x_approved
 
 
 def get_ns_id(subj, obj, net):
