@@ -188,7 +188,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
 
     # The generator skips self correlations as it yields pairs from the
     # upper triangle of the square matrix
-    estim_pairs = floor(len(corr_z)**2/2 - len(corr_z))
+    estim_pairs = floor(corr_z.notna().sum().sum()/2)
     corr_iter = corr_matrix_to_generator(corr_z)
     signed_search = kwargs.get('signed_search', False)
     ymd_now = datetime.now().strftime('%Y%m%d')
