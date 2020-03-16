@@ -39,7 +39,7 @@ from depmap_analysis.network_functions.net_functions import \
     SIGNS_TO_INT_SIGN, ns_id_from_name
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, same_sign, get_sign
+    corr_matrix_to_generator, same_sign, get_sign, iter_chunker
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 
@@ -186,10 +186,6 @@ def match_correlations(corr_z, sd_range, **kwargs):
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
     explained_set = kwargs.get('explained_set', {})
 
-    # The generator skips self correlations as it yields pairs from the
-    # upper triangle of the square matrix
-    estim_pairs = floor(corr_z.notna().sum().sum()/2)
-    corr_iter = corr_matrix_to_generator(corr_z)
     signed_search = kwargs.get('signed_search', False)
     ymd_now = datetime.now().strftime('%Y%m%d')
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
@@ -197,23 +193,25 @@ def match_correlations(corr_z, sd_range, **kwargs):
     depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
         else ymd_now
 
+    bool_matrix = np.invert(np.isnan(corr_z.values))
+    estim_pairs = floor((bool_matrix.sum() - bool_matrix.diagonal().sum())/2)
     print(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} with '
           f'about {estim_pairs} pairs to check')
     tstart = time()
 
     with mp.Pool() as pool:
-        MAX_SUB = 64
-        max_executions = min(estim_pairs, MAX_SUB)
-        chunksize = max(estim_pairs // MAX_SUB, 1)
-        for n in range(max_executions):
-            corr_iter_slice = list(islice(corr_iter, n*chunksize,
-                                          (n+1)*chunksize))
+        MAX_SUB = 512
+        # Pick one more so we don't do more than MAX_SUB
+        chunksize = max(estim_pairs // MAX_SUB, 1) + 1
+        chunk_iter = iter_chunker(n=chunksize,
+                                  iterable=corr_matrix_to_generator(corr_z))
+        for chunk in chunk_iter:
             pool.apply_async(func=_match_correlation_body,
                              # corr_iter, expl_types, stats_columns,
                              # expl_columns, bool_columns, min_columns,
                              # explained_set, signed_search
                              args=(
-                                 corr_iter_slice,
+                                 chunk,
                                  expl_types,
                                  stats_columns,
                                  expl_columns,
