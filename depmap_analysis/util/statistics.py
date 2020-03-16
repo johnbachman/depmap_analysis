@@ -28,6 +28,10 @@ class DepMapExplainer:
         return self.summary_str if self.has_data() else \
             'DepMapExplainer is empty'
 
+    def __len__(self):
+        # Will return the number of pairs checked
+        return len(self.stats_df)
+
     def has_data(self):
         if len(self.stats_df) > 0 or len(self.expl_df) > 0:
             self._has_data = True
