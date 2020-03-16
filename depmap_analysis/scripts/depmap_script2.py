@@ -264,14 +264,16 @@ def find_cp(s, o, corr, net, signed, **kwargs):
 
 
 def expl_axb(s, o, corr, net, signed, **kwargs):
+    x_set = set(net.succ[s]) & set(net.pred[o])
     if signed:
-        pass  # Todo implement signed check
+        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
     else:
-        x_nodes = set(net.succ[s]) & set(net.pred[o])
-        if x_nodes:
-            return s, o, list(x_nodes)
-        else:
-            return s, o, None
+        x_nodes = x_set
+
+    if x_nodes:
+        return s, o, list(x_nodes)
+    else:
+        return s, o, None
 
 
 def expl_bxa(s, o, corr, net, signed, **kwargs):
@@ -280,37 +282,43 @@ def expl_bxa(s, o, corr, net, signed, **kwargs):
 
 # Shared regulator: A<-X->B
 def get_sr(s, o, corr, net, signed, **kwargs):
+    x_set = set(net.pred[s]) & set(net.pred[o])
+
     if signed:
-        pass  # Todo: implement for signed
+        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
     else:
-        x_nodes = set(net.pred[s]) & set(net.pred[o])
-        if x_nodes:
-            return s, o, list(x_nodes)
-        else:
-            return s, o, None
+        x_nodes = x_set
+
+    if x_nodes:
+        return s, o, list(x_nodes)
+    else:
+        return s, o, None
 
 
 # Shared target: A->X<-B
 def get_st(s, o, corr, net, signed, **kwargs):
+    x_set = set(net.succ[s]) & set(net.succ[o])
+
     if signed:
-        pass  # Todo: implement for signed
+        x_nodes = _get_signed_interm(s, o, corr, net,x_set)
     else:
-        x_nodes = set(net.succ[s]) & set(net.succ[o])
-        if x_nodes:
-            return s, o, list(x_nodes)
-        else:
-            return s, o, None
+        x_nodes = x_set
+
+    if x_nodes:
+        return s, o, list(x_nodes)
+    else:
+        return s, o, None
 
 
 def expl_ab(s, o, corr, net, signed, **kwargs):
-    edge_dict = net.edges.get((s, o, kwargs['sign']), None) if signed else \
-        net.edges.get((s, o), None)
+    edge_dict = get_edge_statements(s, o, corr, net, signed, **kwargs)
     if edge_dict:
         return s, o, edge_dict.get('statements')
     return s, o, None
 
 
 def expl_ba(s, o, corr, net, signed, **kwargs):
+    # Reverse order call to expl_ab
     return expl_ab(o, s, corr, net, signed, **kwargs)
 
 
@@ -324,7 +332,7 @@ def get_edge_statements(s, o, corr, net, signed, **kwargs):
 
 def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
     # Make sure we have the right sign type
-    int_sign = SIGNS_TO_INT_SIGN[get_sign(corr)]
+    int_sign = INT_PLUS if corr >= 0 else INT_MINUS
 
     # ax and xb sign need to match correlation sign
     x_approved = set()
