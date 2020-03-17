@@ -501,4 +501,5 @@ if __name__ == '__main__':
 
     # mkdir in case it  doesn't exist
     outpath.parent.mkdir(parents=True, exist_ok=True)
-    dump_it_to_pickle(fname=outpath.as_posix(), pyobj=explanations)
+    dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
+                      pyobj=explanations)
