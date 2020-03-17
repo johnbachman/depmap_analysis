@@ -327,8 +327,8 @@ def expl_ba(s, o, corr, net, signed, **kwargs):
 
 def get_edge_statements(s, o, corr, net, signed, **kwargs):
     if signed:
-        corr_sign = SIGNS_TO_INT_SIGN[get_sign(corr)]
-        return net.edges.get((s, o, corr_sign), None)
+        int_sign = INT_PLUS if corr >= 0 else INT_MINUS
+        return net.edges.get((s, o, int_sign), None)
     else:
         return net.edges.get((s, o))
 
