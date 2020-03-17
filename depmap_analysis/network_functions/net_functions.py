@@ -156,7 +156,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     Parameters
     ----------
     df : str|pd.DataFrame
-        A dataframe, either as a file path to a pickle or a pandas
+        A dataframe, either as a file path to a pickle or csv, or a pandas
         DataFrame object.
     belief_dict : str|dict
         The file path to a pickled dict or a dict object keyed by statement
@@ -179,7 +179,14 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     sed = None
 
     if isinstance(df, str):
-        merged_df = pickle_open(df)
+        if df.endswith('.pkl'):
+            merged_df = pickle_open(df)
+        elif df.endswith('.csv'):
+            logger.info(f'Loading csv file {df}')
+            merged_df = pd.read_csv(df)
+            logger.info('Finished loading csv file')
+        else:
+            raise ValueError('Path to DataFrame must be a .pkl or .csv file')
     else:
         merged_df = df
 
@@ -282,8 +289,8 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     Parameters
     ----------
     df : str|pd.DataFrame
-        A dataframe, either as a file path to a pickle or a pandas
-        DataFrame object.
+        A dataframe, either as a file path to a file (.pkl or .csv) or a
+        pandas DataFrame object.
     belief_dict : str|dict
         The file path to a pickled dict or a dict object keyed by statement
         hash containing the belief score for the corresponding statements.

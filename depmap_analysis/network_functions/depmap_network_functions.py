@@ -4,8 +4,9 @@ import sys
 import math
 import logging
 import itertools as itt
-from math import ceil, log10
 from random import choices
+from math import ceil, log10
+from itertools import islice
 from collections import Mapping, OrderedDict, defaultdict
 import numpy as np
 import pandas as pd
@@ -187,6 +188,29 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             float(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
             if not np.isnan(corr_value_matrix[i, j]))
+
+
+def iter_chunker(n, iterable):
+    """Generator of chunks from a generator
+
+    Parameters
+    ----------
+    n : int
+        Chunk size. Each chunk of the input iterator will be of this size
+        except for the last one that will contain the remainder.
+    iterable : iterable
+        An iterable or a generator
+
+    Returns
+    -------
+    generator
+        A generator yielding chunks from the input iterable or generator
+    """
+    # Adapted from
+    # stackoverflow.com/questions/1915170/
+    # split-a-generator-iterable-every-n-items-in-python-splitevery
+    iterable = iter(iterable)
+    yield from iter(lambda: list(islice(iterable, n)), [])
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
@@ -740,16 +764,19 @@ def _get_partial_gaussian_stats(bin_edges, hist):
 
 
 def raw_depmap_to_corr(depmap_raw_df):
-    """Pre-process and create a correlation
+    """Pre-process and create a correlation matrix
+
+    Any multi indexing is removed. Duplicated columns are also removed.
 
     Parameters
     ----------
     depmap_raw_df : pd.DataFrame
+        The raw data from the DepMap portal as a pd.DataFrame
 
     Returns
     -------
     corr : pd.DataFrame
-        A pd.DataFrame containing the correlation of the
+        A pd.DataFrame containing the pearson correlations of the raw data.
     """
     # Rename
     if len(depmap_raw_df.columns[0].split()) > 1:
@@ -768,7 +795,7 @@ def raw_depmap_to_corr(depmap_raw_df):
     return corr
 
 
-def merge_corr_df(corr_df, other_corr_df):
+def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
     """Merge two correlation matrices containing their combined z-scores
 
     Parameters
@@ -779,6 +806,9 @@ def merge_corr_df(corr_df, other_corr_df):
     other_corr_df : pd.DataFrame
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with corr_df.
+    remove_self_corr : bool
+        If True, remove self correlations from the resulting DataFrame.
+        Default: True
 
     Returns
     -------
@@ -809,6 +839,10 @@ def merge_corr_df(corr_df, other_corr_df):
 
     # Merge
     dep_z = (corr_z + other_z) / 2
+    if remove_self_corr:
+        # Assumes the max correlation ONLY occurs on the diagonal
+        self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
+        dep_z = dep_z[dep_z != self_corr_value]
     return dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
 
 

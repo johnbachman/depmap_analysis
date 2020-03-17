@@ -11,7 +11,8 @@ logger = logging.getLogger('DepMap PreProcessing')
 
 
 def run_corr_merge(crispr_raw=None, rnai_raw=None,
-                   crispr_corr=None, rnai_corr=None, output_dir=None):
+                   crispr_corr=None, rnai_corr=None, output_dir=None,
+                   remove_self_corr=True, random_sampl=0):
     """Return a merged correlation matrix from DepMap data
 
     Start with with either the raw DepMap files or pre-calculated
@@ -35,6 +36,14 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         If used, write the correlation matrices to this directory.
         Otherwise they will be written to the same directory as the raw
         input data.
+    remove_self_corr : bool
+        If True, remove self correlations from the resulting DataFrame.
+        Default: True
+    random_sampl : int
+        If specified, provides the size of the final correlation matrix
+        where the genes are picked at random from the intersection of genes
+        from both the RNAI and CRISPR data sets.
+
 
     Returns
     -------
@@ -77,7 +86,14 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         rnai_corr_df.to_hdf(path.join(in_dir, name), name)
 
     # Merge the correlation matrices
-    return merge_corr_df(crispr_corr_df, rnai_corr_df)
+    z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df, remove_self_corr)
+    if random_sampl and random_sampl < len(z_cm.columns):
+        # Get n random rows
+        z_cm = z_cm.sample(n=random_sampl)
+
+        # Make square
+        z_cm = z_cm[list(z_cm.index.values)]
+    return z_cm
 
 
 if __name__ == '__main__':
@@ -112,6 +128,13 @@ if __name__ == '__main__':
                              'z-score matrix will be written to the crispr '
                              'input directory if this option is not '
                              'provided.')
+    parser.add_argument('--random', '-r', type=int,
+                        help='Optional. If specified, provide the size of '
+                             'the final correlation matrix where the genes '
+                             'are picked at random from the intersection of '
+                             'genes from both the RNAI and CRISPR data sets.')
+    parser.add_argument('--fname', help='A file name for the output '
+                                        'correlations DataFrame.')
 
     args = parser.parse_args()
     options = {
@@ -119,7 +142,8 @@ if __name__ == '__main__':
         'rnai_raw': args.rnai_raw,
         'crispr_corr': args.crispr_corr,
         'rnai_corr': args.rnai_corr,
-        'output_dir': args.output_dir
+        'output_dir': args.output_dir,
+        'random_sampl': args.random
     }
 
     # Run main script
@@ -130,5 +154,5 @@ if __name__ == '__main__':
         args.crispr_corr) if args.crispr_corr else path.dirname(
         args.crispr_raw))
     logger.info(f'Writing combined correlations to {outdir}')
-    fname = 'combined_z_score.h5'
-    z_corr.to_hdf(path.join(outdir, fname), fname)
+    fname = args.fname if args.fname else 'combined_z_score.h5'
+    z_corr.to_hdf(path.join(outdir, fname), 'zsc')
