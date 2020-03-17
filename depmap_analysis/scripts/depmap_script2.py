@@ -201,8 +201,9 @@ def match_correlations(corr_z, sd_range, **kwargs):
 
     with mp.Pool() as pool:
         MAX_SUB = 512
+        n_sub = min(kwargs.get('n-chunks', 256), MAX_SUB)
         # Pick one more so we don't do more than MAX_SUB
-        chunksize = max(estim_pairs // MAX_SUB, 1) + 1
+        chunksize = max(estim_pairs // n_sub, 1) + 1
         chunk_iter = iter_chunker(n=chunksize,
                                   iterable=corr_matrix_to_generator(corr_z))
         for chunk in chunk_iter:
@@ -433,8 +434,15 @@ if __name__ == '__main__':
         help='The output name (could contain a path as well) of the pickle '
              'dump of the explainer object')
 
+    # 5 Pick number of jobs
+    parser.add_argument(
+        '--n-chunks', type=int, default=256,
+        help='Pick the number of slices to split the work into. Does not '
+             'have to be equal to the amount of CPUs.'
+    )
+
     args = parser.parse_args()
-    run_options = {}
+    run_options = {'n-chunks': args.n_chunks}
 
     # Check options
     sd_l, sd_u = args.sd_range if len(args.sd_range) == 2 else\
