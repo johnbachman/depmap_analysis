@@ -141,7 +141,21 @@ class DepMapExplainer:
             self.corr_stats_axb = axb_stats(self.expl_df, z_corr)
         return self.corr_stats_axb
 
-    def plot_corr_stats(self, outdir, z_corr=None):
+    def plot_corr_stats(self, outdir, z_corr=None, show_plot=False):
+        """Plot the results of running explainer.get_corr_stats_axb()
+
+        Parameters
+        ----------
+        outdir : str
+            The output directory to save the plots in.
+        z_corr : pd.DataFrame
+            A pd.DataFrame containing the correlation z scores used to
+            create the statistics in this object
+
+        show_plot : bool
+            If True also show plots
+
+        """
         od = Path(outdir)
         if not od.is_dir():
             od.mkdir(parents=True, exist_ok=True)
@@ -167,7 +181,8 @@ class DepMapExplainer:
                         od.joinpath('%s_%s.png' % (plot_type, k)).as_posix(),
                         format='png'
                     )
-                    plt.show()
+                    if show_plot:
+                        plt.show()
                 else:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
