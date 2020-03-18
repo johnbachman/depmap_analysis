@@ -36,10 +36,10 @@ from itertools import islice
 from datetime import datetime
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 from depmap_analysis.network_functions.net_functions import \
-    SIGNS_TO_INT_SIGN, INT_MINUS, INT_PLUS, ns_id_from_name
+    INT_MINUS, INT_PLUS, ns_id_from_name
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, same_sign, get_sign, iter_chunker
+    corr_matrix_to_generator, iter_chunker
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 
@@ -202,8 +202,10 @@ def match_correlations(corr_z, sd_range, **kwargs):
     with mp.Pool() as pool:
         MAX_SUB = 512
         n_sub = min(kwargs.get('n-chunks', 256), MAX_SUB)
+        chunksize = max(estim_pairs // n_sub, 1)
+
         # Pick one more so we don't do more than MAX_SUB
-        chunksize = max(estim_pairs // n_sub, 1) + 1
+        chunksize += 1 if n_sub == MAX_SUB else 0
         chunk_iter = iter_chunker(n=chunksize,
                                   iterable=corr_matrix_to_generator(corr_z))
         for chunk in chunk_iter:
