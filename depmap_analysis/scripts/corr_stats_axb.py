@@ -175,6 +175,11 @@ def main(expl_df, z_corr, eval_str=False):
     # The union should be all pairs where a-x-b explanations exist
     ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
     assert ab_axb_union == pairs_any_axb
+    # Check for and remove self correlations
+    if not np.isnan(z_corr.loc[z_corr.columns[0], z_corr.columns[0]]):
+        logger.info('Removing self correlations')
+        diag_val = z_corr.loc[z_corr.columns[0], z_corr.columns[0]]
+        z_corr = z_corr[z_corr != diag_val]
 
     # a-x-b AND direct
     """
