@@ -208,8 +208,8 @@ class DepMapExplainer:
         plt.title('A-B corrs %s, indirect paths only' % sd_str)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
-        plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)',
-                    'A-X-B for X in path (DB only)'])
+        plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)', ])
+                    # 'A-X-B for X in path (DB only)'])
         plt.savefig(od.joinpath('%s_axb_hist_comparison.pdf' %
                                 sd_str).as_posix(), format='pdf')
 
