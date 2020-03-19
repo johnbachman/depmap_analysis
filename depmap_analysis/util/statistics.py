@@ -203,12 +203,13 @@ class DepMapExplainer:
         #plt.hist(db_ind['avg_x_corrs'], bins='auto', normed=1, color='g',
         #         alpha=0.3)
 
-        sd_str = '%d_%d' % self.sd_range
+        sd_str = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
+            if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
         plt.title('A-B corrs %s, indirect paths only' % sd_str)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
         plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)',
                     'A-X-B for X in path (DB only)'])
         plt.savefig(od.joinpath('%s_axb_hist_comparison.pdf' %
-                                 sd_str).as_posix(), format='pdf')
+                                sd_str).as_posix(), format='pdf')
 
