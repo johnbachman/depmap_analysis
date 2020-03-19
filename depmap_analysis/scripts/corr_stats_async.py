@@ -6,6 +6,7 @@ from multiprocessing import Pool, cpu_count
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 global_results = []
 global_vars = {}
