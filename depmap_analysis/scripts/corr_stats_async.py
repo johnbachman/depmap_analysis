@@ -21,32 +21,68 @@ def success_callback(res):
     global_results.append(res)
 
 
-def get_corr_stats_mp(df, so_pairs, z_cm):
-    logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
-                f'with about {len(so_pairs)} pairs to check')
-    tstart = time()
-
-    with Pool() as pool:
-        # Set global variables
+class GlobalVars(object):
+    def __init__(self, df, z_cm):
         global_vars['df'] = df
         global_vars['z_cm'] = z_cm
 
+    @staticmethod
+    def assert_vars():
+        df_exists = global_vars.get('df', False) is not False
+        z_cm_exists = global_vars.get('z_cm', False) is not False
+        return df_exists and z_cm_exists
+
+
+def get_corr_stats_mp(so_pairs):
+    logger.info(
+        f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
+        f'with about {len(so_pairs)} pairs to check')
+    tstart = time()
+
+    promises = []
+    with Pool() as pool:
         # Split up so_pairs in equal chunks
-        lst_gen = _list_chunk_gen(lst=so_pairs,
+        lst_gen = _list_chunk_gen(lst=list(so_pairs),
                                   size=len(so_pairs) // cpu_count() + 1)
-        for pairs in lst_gen:
+        for n, pairs in enumerate(lst_gen):
+            # async_res = pool.apply_async(
             pool.apply_async(
                 func=get_corr_stats,
                 args=(pairs, ),
                 callback=success_callback,
             )
+            max_n = n
+            # promises.append(async_res)
         logger.info('Done submitting work to pool of workers')
         pool.close()
+        logger.info('Pool is closed')
         pool.join()
+        logger.info('Pool is joined')
     logger.info(f'Execution time: {time() - tstart} seconds')
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
+    # results = [async_res.get()]
 
-    return global_results
+    # retries = 0
+    # while len(global_results) < max_n:
+    #     sleep(0.5)
+    #     retries += 1
+    #     if retries == retries_await:
+    #         logger.warning('Timed out waiting for results')
+    #         break
+    results = [[], [], [], [], []]
+    for done_res in global_results:
+        # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
+        results[0].extend(done_res['all_axb_corrs'])
+        # Var name: avg_x_corrs; Dict key: axb_avg_corrs
+        results[1].extend(done_res['axb_avg_corrs'])
+        # Var name: top_x_corrs; Dict key: top_axb_corrs
+        results[2].extend(done_res['top_axb_corrs'])
+        # Var name: all_azb_corrs; Dict key: all_azb_corrs
+        results[3].extend(done_res['all_azb_corrs'])
+        # Var name: azb_avg_corrs; Dict key: azb_avg_corrs
+        results[4].extend(done_res['azb_avg_corrs'])
+
+    return results
 
 
 def get_corr_stats(so_pairs):
@@ -84,7 +120,7 @@ def get_corr_stats(so_pairs):
             else:
                 # if warn < 3:
                 #     warn += 1
-                #     logger.warning('%s does not exist in the crispr and/or '
+                #     logger.warning('%s does not exist in the crispr or '
                 #                    'rnai correlation matrices.' % x)
                 # else:
                 #     logger.warning('Muting warnings...')
@@ -109,5 +145,6 @@ def get_corr_stats(so_pairs):
             top_axb_corrs.append((subj, obj, max_magn_avg))
             #ab_to_axb_avg.append((subj, obj, comb_zsc, max_magn_avg))
 
-    return (all_axb_corrs, axb_avg_corrs, top_axb_corrs, all_azb_corrs,
-            azb_avg_corrs)
+    return {'all_axb_corrs': all_axb_corrs, 'axb_avg_corrs': axb_avg_corrs,
+            'top_axb_corrs': top_axb_corrs, 'all_azb_corrs': all_azb_corrs,
+            'azb_avg_corrs': azb_avg_corrs}
