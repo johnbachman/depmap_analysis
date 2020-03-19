@@ -9,8 +9,7 @@ from os import path, environ
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from depmap_analysis.util.io_functions import pickle_open
-
+from .corr_stats_async import get_corr_stats_mp, GlobalVars
 
 logger = logging.getLogger('DepMap Corr Stats')
 
@@ -188,9 +187,15 @@ def main(expl_df, z_corr, eval_str=False):
 
     # a-x-b AND NOT direct
     logger.info("Getting correlations for a-x-b AND NOT direct")
-    all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
-        all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
-        get_corr_stats(df=expl_df, z_sc_cm=z_corr, so_pairs=pairs_axb_only)
+
+    # Set and assert existence of global variables
+    gbv = GlobalVars(df=expl_df, z_cm=z_corr)
+    if gbv.assert_vars():
+        all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
+            all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
+            get_corr_stats_mp(so_pairs=pairs_axb_only)
+    else:
+        raise ValueError('Global variables could not be set')
 
     """
     # a-x-b (with and without direct)
