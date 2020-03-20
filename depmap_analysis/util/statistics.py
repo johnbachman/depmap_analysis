@@ -152,7 +152,6 @@ class DepMapExplainer:
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
             create the statistics in this object
-
         show_plot : bool
             If True also show plots
 
@@ -179,8 +178,8 @@ class DepMapExplainer:
                     plt.xlabel('combined z-score')
                     plt.ylabel('count')
                     plt.savefig(
-                        od.joinpath('%s_%s.png' % (plot_type, k)).as_posix(),
-                        format='png'
+                        od.joinpath('%s_%s.pdf' % (plot_type, k)).as_posix(),
+                        format='pdf'
                     )
                     if show_plot:
                         plt.show()
@@ -188,7 +187,7 @@ class DepMapExplainer:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
 
-    def plot_dists(self, outdir, z_corr=None):
+    def plot_dists(self, outdir, z_corr=None, show_plot=False):
         od = Path(outdir)
         if not od.is_dir():
             od.mkdir(parents=True, exist_ok=True)
@@ -213,4 +212,5 @@ class DepMapExplainer:
                     # 'A-X-B for X in path (DB only)'])
         plt.savefig(od.joinpath('%s_axb_hist_comparison.pdf' %
                                 sd_str).as_posix(), format='pdf')
-
+        if show_plot:
+            plt.show()
