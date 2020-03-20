@@ -151,8 +151,11 @@ class IndraNetwork:
                 ksp_backward : dict(int)
                     Dict keyed by node count with the results of directed path
                     search from target to source
-                ct : dict('target')
+                ct : list[dict('target')]
                     List of dicts keyed by common target name, sorted on
+                    highest lowest belief score
+                sr : list[dict('regulator')]
+                    List of dicts keyed byshared regulator name, sorted on
                     highest lowest belief score
                 cp : dict
                     Dict with result of common parents search together with the
@@ -216,6 +219,8 @@ class IndraNetwork:
             if options['two_way']:
                 ksp_backward = self.find_shortest_paths(**boptions)
         ct = self.find_common_targets(**options)
+        sr = self.find_shared_regulators(**options) if\
+            options.get('shared_regulators', False) else []
         cp = self.get_common_parents(**options)
         if not ksp_forward and not ksp_backward and not ct and \
                 not cp.get('common_parents', []):
@@ -255,6 +260,7 @@ class IndraNetwork:
                                         'backward': ksp_backward,
                                         'path_hashes': all_path_hashes},
                 'common_targets': ct,
+                'shared_regulators': sr,
                 'common_parents': cp,
                 'timeout': self.query_timed_out}
 
@@ -614,8 +620,8 @@ class IndraNetwork:
             return []
 
     def find_common_targets(self, source, target, **options):
-        """Returns a list of statement(?) pairs that explain common targets
-        for source and target"""
+        """Returns a list of statement data that explain common targets for
+        source and target"""
         if source in self.nodes and target in self.nodes:
             source_succ = set(self.nx_dir_graph_repr.succ[source].keys())
             target_succ = set(self.nx_dir_graph_repr.succ[target].keys())
