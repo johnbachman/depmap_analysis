@@ -92,7 +92,8 @@ function submitQuery() {
     k_shortest: kShortestEntry,
     cull_best_node: cullBestNode,
     user_timeout: timeoutEntry,
-    two_way: document.getElementById('two-ways').checked
+    two_way: document.getElementById('two-ways').checked,
+    shared_regulators: document.getElementById('shared-regulators').checked,
   };
 
   // Hide on submit
