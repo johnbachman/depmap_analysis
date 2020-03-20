@@ -159,6 +159,7 @@ function fillResultsTable(data, source, target){
     let pathsKeyedArrayForward = data.result.paths_by_node_count.forward;
     let pathsKeyedArrayBackward = data.result.paths_by_node_count.backward;
     let simpleCommonTargets = data.result.common_targets;
+    let simpleSharedRegulators = data.result.shared_regulators;
     var tableArea = document.getElementById('table-area');
     pathStmtHashes = data.result.paths_by_node_count.path_hashes;
 
@@ -168,9 +169,9 @@ function fillResultsTable(data, source, target){
       let cardHtml = generateCommonParents();
       tableArea.appendChild(cardHtml);
       document.getElementById('subject-placeholder-cp').textContent =
-        `${commonParents.source_id} @${commonParents.source_ns}`;
+        `${commonParents.source_id}@${commonParents.source_ns}`;
       document.getElementById('object-placeholder-cp').textContent =
-        `${commonParents.target_id} @${commonParents.target_ns}`;
+        `${commonParents.target_id}@${commonParents.target_ns}`;
       let cpTableBody = document.getElementById('query-results-cp');
       document.getElementById('npaths-cp').textContent = 'Entities: ' + commonParents.common_parents.length;
       for (let par of commonParents.common_parents) {
@@ -194,12 +195,11 @@ function fillResultsTable(data, source, target){
       let cardHtml = generateCommonTargets();
       tableArea.appendChild(cardHtml);
       let ctTableBody = document.getElementById('query-results-common-targets');
-      document.getElementById('common-targets').textContent = 'Targets: ' +
-        simpleCommonTargets.length;
+      document.getElementById('common-targets').textContent = `Targets: ${simpleCommonTargets.length}`;
       document.getElementById('subject-placeholder-ct').textContent = source;
       document.getElementById('object-placeholder-ct').textContent = target;
-      for (targetDict of simpleCommonTargets) {
-        for (key in targetDict) {
+      for (let targetDict of simpleCommonTargets) {
+        for (let key in targetDict) {
           if (key !== 'lowest_highest_belief') {
             let newRow = document.createElement('tr');
 
@@ -216,6 +216,34 @@ function fillResultsTable(data, source, target){
         }
       }
     }
+
+    // Fill shared regulators
+    if (simpleSharedRegulators && simpleSharedRegulators.length > 0){
+      let cardHtml = generateSharedRegulators();
+      tableArea.appendChild(cardHtml);
+      let srTableBody = document.getElementById('query-results-shared-regulators');
+      document.getElementById('shared-regulators-span').innerText = `Regulators: ${simpleSharedRegulators.length}`;
+      document.getElementById('subject-placeholder-sr').textContent = source;
+      document.getElementById('object-placeholder-sr').textContent = target;
+      for (let regulatorDict of simpleSharedRegulators) {
+        for (let key in regulatorDict) {
+          if (key !== 'lowest_highest_belief') {
+            let newRow = document.createElement('tr');
+
+            let newRegulatorCol = document.createElement('td')
+            newRegulatorCol.textContent = key;
+            newRow.appendChild(newRegulatorCol)
+
+            let newRegulatorPaths = document.createElement('td');
+            newRegulatorPaths.innerHTML = generateTargetLinkout(regulatorDict[key]);
+            newRow.appendChild(newRegulatorPaths)
+
+            srTableBody.appendChild(newRow)
+          }
+        }
+      }
+
+    };
 
     // Fill directed paths tables
     if (pathsKeyedArrayForward && Object.keys(pathsKeyedArrayForward).length > 0) {
@@ -444,6 +472,22 @@ function generateCommonTargets() {
     'badge-pill float-right path-count">Targets: 0</span></h3></div><div id="collapse-common-targets" ' +
     'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
     '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
+    '</table></div></div>';
+
+  return newCard;
+}
+
+function generateSharedRegulators() {
+  let newCard = document.createElement('div');
+  newCard.className = 'card';
+  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
+    'data-toggle="collapse" data-target="#collapse-shared-regulators" aria-expanded="false" ' +
+    'aria-controls="collapse-shared-regulators"> Shared Regulators (<span id="subject-placeholder-sr" ' +
+    'class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-sr" '+
+    'class="placholder object-placeholder">B</span>)</a><span id="shared-regulators-span" class="badge badge-primary ' +
+    'badge-pill float-right path-count">Regulators: 0</span></h3></div><div id="collapse-shared-regulators" ' +
+    'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
+    '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-shared-regulators"></tbody>' +
     '</table></div></div>';
 
   return newCard;
