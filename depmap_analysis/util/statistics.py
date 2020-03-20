@@ -162,14 +162,16 @@ class DepMapExplainer:
         corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
         sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
-        for k, v in corr_stats.items():
-            for plot_type in ['all_azb_corrs', 'azb_avg_corrs', 'all_x_corrs',
-                              'avg_x_corrs', 'top_x_corrs']:
+        for n, (k, v) in enumerate(corr_stats.items()):
+            for m, plot_type in enumerate(['all_azb_corrs', 'azb_avg_corrs',
+                                           'all_x_corrs', 'avg_x_corrs',
+                                           'top_x_corrs']):
                 if len(v[plot_type]) > 0:
                     if isinstance(v[plot_type][0], tuple):
                         data = [t[-1] for t in v[plot_type]]
                     else:
                         data = v[plot_type]
+                    plt.figure(int(f'{n}{m}'))
                     plt.hist(x=data, bins='auto')
                     plt.title('%s %s; %s' %
                               (plot_type.replace('_', ' ').capitalize(),
@@ -192,6 +194,7 @@ class DepMapExplainer:
         if not od.is_dir():
             od.mkdir(parents=True, exist_ok=True)
         corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
+        plt.figure(999)
         all_ind = corr_stats['axb_not_dir']
         #all_res, db_res, sd):
         #all_ind = all_res['axb_not_dir']
