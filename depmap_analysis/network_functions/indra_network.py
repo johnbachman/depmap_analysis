@@ -151,8 +151,11 @@ class IndraNetwork:
                 ksp_backward : dict(int)
                     Dict keyed by node count with the results of directed path
                     search from target to source
-                ct : dict('target')
+                ct : list[dict('target')]
                     List of dicts keyed by common target name, sorted on
+                    highest lowest belief score
+                sr : list[dict('regulator')]
+                    List of dicts keyed byshared regulator name, sorted on
                     highest lowest belief score
                 cp : dict
                     Dict with result of common parents search together with the
@@ -216,6 +219,8 @@ class IndraNetwork:
             if options['two_way']:
                 ksp_backward = self.find_shortest_paths(**boptions)
         ct = self.find_common_targets(**options)
+        sr = self.find_shared_regulators(**options) if\
+            options.get('shared_regulators', False) else []
         cp = self.get_common_parents(**options)
         if not ksp_forward and not ksp_backward and not ct and \
                 not cp.get('common_parents', []):
@@ -255,6 +260,7 @@ class IndraNetwork:
                                         'backward': ksp_backward,
                                         'path_hashes': all_path_hashes},
                 'common_targets': ct,
+                'shared_regulators': sr,
                 'common_parents': cp,
                 'timeout': self.query_timed_out}
 
@@ -557,9 +563,65 @@ class IndraNetwork:
             logger.warning(repr(e))
             return {}
 
-    def find_common_targets(self, source, target, **options):
-        """Returns a list of statement(?) pairs that explain common targets
+    def find_shared_regulators(self, source, target, **options):
+        """Returns a list of statement data that explain shared regulators
         for source and target"""
+        if source in self.nodes and target in self.nodes:
+            source_pred = set(self.nx_dir_graph_repr.pred[source].keys())
+            target_pred = set(self.nx_dir_graph_repr.pred[target].keys())
+            common = source_pred & target_pred
+            if common:
+                try:
+                    return self._loop_shared_regulators(shared_regs=common,
+                                                        source=source,
+                                                        target=target,
+                                                        **options)
+                except NodeNotFound as e:
+                    logger.warning(repr(e))
+                except NetworkXNoPath as e:
+                    logger.warning(repr(e))
+
+        return []
+
+    def _loop_shared_regulators(self, shared_regs, source, target,
+                                **options):
+        """Order shared regulators by lowest highest belief score"""
+        ordered_regulators = []
+        added_regulators = 0
+        for sr in shared_regs:
+            paths1 = self._get_hash_path(path=[sr, source], **options)
+            paths2 = self._get_hash_path(path=[sr, target], **options)
+            if paths1 and paths2 and paths1[0] and paths2[0]:
+                paths1_stmts = []
+                for k, v in paths1[0].items():
+                    if k not in {'subj', 'obj'}:
+                        paths1_stmts.extend(v)
+                paths2_stmts = []
+                for k, v in paths2[0].items():
+                    if k not in {'subj', 'obj'}:
+                        paths2_stmts.extend(v)
+                max_belief1 = max([st['belief'] for st in paths1_stmts])
+                max_belief2 = max([st['belief'] for st in paths2_stmts])
+                ordered_regulators.append({
+                    sr: [paths1, paths2],
+                    'lowest_highest_belief': min(max_belief1, max_belief2)
+                })
+                added_regulators += 1
+                if added_regulators >= self.MAX_PATHS:
+                    if self.verbose:
+                        logger.info('Max number of shared regulators '
+                                    'reached. Breaking loop')
+                    break
+        if ordered_regulators:
+            return sorted(ordered_regulators,
+                          key=lambda m: m['lowest_highest_belief'],
+                          reverse=True)
+        else:
+            return []
+
+    def find_common_targets(self, source, target, **options):
+        """Returns a list of statement data that explain common targets for
+        source and target"""
         if source in self.nodes and target in self.nodes:
             source_succ = set(self.nx_dir_graph_repr.succ[source].keys())
             target_succ = set(self.nx_dir_graph_repr.succ[target].keys())
