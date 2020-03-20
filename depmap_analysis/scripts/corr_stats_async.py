@@ -40,20 +40,17 @@ def get_corr_stats_mp(so_pairs):
         f'with about {len(so_pairs)} pairs to check')
     tstart = time()
 
-    promises = []
     with Pool() as pool:
         # Split up so_pairs in equal chunks
         lst_gen = _list_chunk_gen(lst=list(so_pairs),
                                   size=len(so_pairs) // cpu_count() + 1)
-        for n, pairs in enumerate(lst_gen):
+        for pairs in lst_gen:
             # async_res = pool.apply_async(
             pool.apply_async(
                 func=get_corr_stats,
                 args=(pairs, ),
                 callback=success_callback,
             )
-            max_n = n
-            # promises.append(async_res)
         logger.info('Done submitting work to pool of workers')
         pool.close()
         logger.info('Pool is closed')
@@ -61,15 +58,7 @@ def get_corr_stats_mp(so_pairs):
         logger.info('Pool is joined')
     logger.info(f'Execution time: {time() - tstart} seconds')
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
-    # results = [async_res.get()]
 
-    # retries = 0
-    # while len(global_results) < max_n:
-    #     sleep(0.5)
-    #     retries += 1
-    #     if retries == retries_await:
-    #         logger.warning('Timed out waiting for results')
-    #         break
     results = [[], [], [], [], []]
     for done_res in global_results:
         # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
