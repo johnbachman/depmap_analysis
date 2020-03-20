@@ -589,8 +589,8 @@ class IndraNetwork:
         ordered_regulators = []
         added_regulators = 0
         for sr in shared_regs:
-            paths1 = self._get_hash_path(path=[source, sr], **options)
-            paths2 = self._get_hash_path(path=[target, sr], **options)
+            paths1 = self._get_hash_path(path=[sr, source], **options)
+            paths2 = self._get_hash_path(path=[sr, target], **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 paths1_stmts = []
                 for k, v in paths1[0].items():
@@ -609,8 +609,8 @@ class IndraNetwork:
                 added_regulators += 1
                 if added_regulators >= self.MAX_PATHS:
                     if self.verbose:
-                        logger.info('Max number of common targets reached. '
-                                    'Breaking loop')
+                        logger.info('Max number of shared regulators '
+                                    'reached. Breaking loop')
                     break
         if ordered_regulators:
             return sorted(ordered_regulators,
