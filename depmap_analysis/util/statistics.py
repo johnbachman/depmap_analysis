@@ -5,7 +5,6 @@ from pathlib import Path
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class DepMapExplainer:

@@ -6,7 +6,6 @@ from multiprocessing import Pool, cpu_count
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 global_results = []
 global_vars = {}
@@ -59,6 +58,7 @@ def get_corr_stats_mp(so_pairs):
     logger.info(f'Execution time: {time() - tstart} seconds')
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
+    logger.info('Assembling results')
     results = [[], [], [], [], []]
     for done_res in global_results:
         # Var name: all_x_corrs; Dict key: 'all_axb_corrs'

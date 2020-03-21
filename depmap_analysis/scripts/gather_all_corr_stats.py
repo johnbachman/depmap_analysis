@@ -5,7 +5,6 @@ from pathlib import Path
 from depmap_analysis.util.io_functions import pickle_open
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Corr script looper')
