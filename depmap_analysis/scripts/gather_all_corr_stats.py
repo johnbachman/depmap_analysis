@@ -35,10 +35,10 @@ if __name__ == '__main__':
         base_path.joinpath('output')
     dry = args.dry
 
+    logger.info(f'Loading correlation file {args.z_corr}')
     if not dry:
         z_corr = pd.read_hdf(args.z_corr)
     else:
-        logger.info(f'Loading correlation file {args.z_corr}')
         z_corr = pd.DataFrame()
 
     for explainer_file in base_path.glob('*.pkl'):
