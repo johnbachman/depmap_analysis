@@ -178,6 +178,7 @@ class DepMapExplainer:
                                sd))
                     plt.xlabel('combined z-score')
                     plt.ylabel('count')
+                    # Todo upload to s3 instead of saving on machine
                     plt.savefig(
                         od.joinpath('%s_%s.pdf' % (plot_type, k)).as_posix(),
                         format='pdf'
@@ -212,6 +213,7 @@ class DepMapExplainer:
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
         plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)', ])
                     # 'A-X-B for X in path (DB only)'])
+        # Todo upload to s3 instead of saving on machine
         plt.savefig(od.joinpath('%s_axb_hist_comparison.pdf' %
                                 sd_str).as_posix(), format='pdf')
         if show_plot:
