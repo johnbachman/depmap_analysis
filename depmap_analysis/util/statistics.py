@@ -140,7 +140,8 @@ class DepMapExplainer:
                                  'for the first time.')
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
-            self.corr_stats_axb = axb_stats(self.expl_df, z_corr, max_proc)
+            self.corr_stats_axb = axb_stats(self.expl_df, z_corr=z_corr,
+                                            eval_str=False, max_proc=max_proc)
         return self.corr_stats_axb
 
     def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
