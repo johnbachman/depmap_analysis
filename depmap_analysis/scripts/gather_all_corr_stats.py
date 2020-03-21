@@ -38,7 +38,8 @@ if __name__ == '__main__':
     if not dry:
         z_corr = pd.read_hdf(args.z_corr)
     else:
-        z_corr = pd.DataFrame()
+        if not Path(args.z_corr).is_file():
+            raise FileNotFoundError(f'{args.z_corr} was not found')
 
     for explainer_file in base_path.glob('*.pkl'):
         logger.info(f'Processing {explainer_file}')
@@ -52,4 +53,7 @@ if __name__ == '__main__':
                                       z_corr=z_corr, show_plot=False)
             explainer.plot_dists(outdir=explainer_out,
                                  z_corr=None, show_plot=False)
+        else:
+            if not Path(explainer_file).is_file():
+                raise FileNotFoundError(f'{explainer_file} does not exist')
         logger.info(f'Writing output to {explainer_out.as_posix()}/*.pdf')
