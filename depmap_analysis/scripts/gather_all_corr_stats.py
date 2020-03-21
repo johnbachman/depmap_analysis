@@ -9,15 +9,6 @@ from depmap_analysis.util.io_functions import pickle_open
 logger = logging.getLogger(__name__)
 
 
-def positive_int(num):
-    inum = floor(num)
-    if inum <= 0:
-        raise argparse.ArgumentTypeError(
-            f'{num} is not a valid positive number.'
-        )
-    return inum
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Corr script looper')
     parser.add_argument(
@@ -40,7 +31,7 @@ if __name__ == '__main__':
              'instead of running.'
     )
     parser.add_argument(
-        '--max-proc', type=positive_int, required=False,
+        '--max-proc', type=int,
         help='The maximum number of processes to run in the multiprocessing '
              'in get_corr_stats_mp. The number will automatically be floored '
              'if decimal. Default: multiprocessing.cpu_count()'
@@ -51,6 +42,15 @@ if __name__ == '__main__':
     output_dir = Path(args.outdir) if args.outdir else \
         base_path.joinpath('output')
     dry = args.dry
+
+    if args.max_proc:
+        max_proc = floor(args.max_proc)
+        if max_proc < 1:
+            raise argparse.ArgumentTypeError(
+                f'{max_proc} is not a valid positive integer'
+            )
+    else:
+        max_proc = None
 
     logger.info(f'Loading correlation file {args.z_corr}')
     if not dry:
@@ -71,7 +71,7 @@ if __name__ == '__main__':
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr, show_plot=False,
-                                      max_proc=args.max_proc)
+                                      max_proc=max_proc)
             explainer.plot_dists(outdir=explainer_out,
                                  z_corr=None, show_plot=False)
         else:
