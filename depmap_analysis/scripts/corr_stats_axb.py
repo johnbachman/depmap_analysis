@@ -15,7 +15,7 @@ logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.DEBUG)
 
 
-def main(expl_df, z_corr, eval_str=False):
+def main(expl_df, z_corr, eval_str=False, max_proc=None):
     """Get statistics of the correlations associated with different
     explanation types
 
@@ -28,7 +28,9 @@ def main(expl_df, z_corr, eval_str=False):
         A pd.DataFrame of correlation z scores
     eval_str : bool
         If True, run ast.literal_eval() on the 'expl data' column of expl_df
-
+    max_proc : int > 0
+        The maximum number of processes to run in the multiprocessing in
+        get_corr_stats_mp. Default: multiprocessing.cpu_count()
     Returns
     -------
     dict
@@ -107,10 +109,13 @@ def main(expl_df, z_corr, eval_str=False):
 
     # Set and assert existence of global variables
     gbv = GlobalVars(df=expl_df, z_cm=z_corr)
+    options = {'so_pairs': pairs_axb_only}
+    if max_proc:
+        options['max_proc'] = max_proc
     if gbv.assert_vars():
         all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
             all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
-            get_corr_stats_mp(so_pairs=pairs_axb_only)
+            get_corr_stats_mp(**options)
     else:
         raise ValueError('Global variables could not be set')
 

@@ -33,16 +33,22 @@ class GlobalVars(object):
         return df_exists and z_cm_exists
 
 
-def get_corr_stats_mp(so_pairs):
+def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
     logger.info(
         f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
         f'with about {len(so_pairs)} pairs to check')
     tstart = time()
 
-    with Pool() as pool:
+    max_proc = min(cpu_count(), max_proc)
+    if max_proc < 1:
+        logger.warning('Max processes is set to < 1, resetting to 1')
+        max_proc = 1
+
+    with Pool(max_proc) as pool:
         # Split up so_pairs in equal chunks
+        size = len(so_pairs) // max_proc + 1 if max_proc > 1 else 1
         lst_gen = _list_chunk_gen(lst=list(so_pairs),
-                                  size=len(so_pairs) // cpu_count() + 1)
+                                  size=size)
         for pairs in lst_gen:
             # async_res = pool.apply_async(
             pool.apply_async(

@@ -116,7 +116,7 @@ class DepMapExplainer:
         ].index
         return len(indices)
 
-    def get_corr_stats_axb(self, z_corr=None):
+    def get_corr_stats_axb(self, z_corr=None, max_proc=None):
         """Get statistics of the correlations associated with different
         explanation types
 
@@ -125,7 +125,9 @@ class DepMapExplainer:
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
             create the statistics in this object
-
+        max_proc : int > 0
+            The maximum number of processes to run in the multiprocessing
+            in get_corr_stats_mp. Default: multiprocessing.cpu_count()
         Returns
         -------
         dict
@@ -138,10 +140,11 @@ class DepMapExplainer:
                                  'for the first time.')
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
-            self.corr_stats_axb = axb_stats(self.expl_df, z_corr)
+            self.corr_stats_axb = axb_stats(self.expl_df, z_corr, max_proc)
         return self.corr_stats_axb
 
-    def plot_corr_stats(self, outdir, z_corr=None, show_plot=False):
+    def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
+                        max_proc=None):
         """Plot the results of running explainer.get_corr_stats_axb()
 
         Parameters
@@ -153,12 +156,15 @@ class DepMapExplainer:
             create the statistics in this object
         show_plot : bool
             If True also show plots
-
+        max_proc : int > 0
+            The maximum number of processes to run in the multiprocessing in
+            get_corr_stats_mp. Default: multiprocessing.cpu_count()
         """
         od = Path(outdir)
         if not od.is_dir():
             od.mkdir(parents=True, exist_ok=True)
-        corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
+        corr_stats = self.get_corr_stats_axb(z_corr=z_corr,
+                                             max_proc=max_proc)
         sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
         for n, (k, v) in enumerate(corr_stats.items()):
@@ -189,11 +195,13 @@ class DepMapExplainer:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
 
-    def plot_dists(self, outdir, z_corr=None, show_plot=False):
+    def plot_dists(self, outdir, z_corr=None, show_plot=False,
+                   max_proc=None):
         od = Path(outdir)
         if not od.is_dir():
             od.mkdir(parents=True, exist_ok=True)
-        corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
+        corr_stats = self.get_corr_stats_axb(z_corr=z_corr,
+                                             max_proc=max_proc)
         plt.figure(999)
         all_ind = corr_stats['axb_not_dir']
         #all_res, db_res, sd):

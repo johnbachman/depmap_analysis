@@ -1,11 +1,22 @@
 import logging
 import argparse
 import pandas as pd
+from math import floor
 from pathlib import Path
 from datetime import datetime
 from depmap_analysis.util.io_functions import pickle_open
 
 logger = logging.getLogger(__name__)
+
+
+def positive_int(num):
+    inum = floor(num)
+    if inum <= 0:
+        raise argparse.ArgumentTypeError(
+            f'{num} is not a valid positive number.'
+        )
+    return inum
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Corr script looper')
@@ -28,6 +39,12 @@ if __name__ == '__main__':
         help='If flag is set, only print log messages of what will be done '
              'instead of running.'
     )
+    parser.add_argument(
+        '--max-proc', type=positive_int, required=False,
+        help='The maximum number of processes to run in the multiprocessing '
+             'in get_corr_stats_mp. The number will automatically be floored '
+             'if decimal. Default: multiprocessing.cpu_count()'
+    )
 
     args = parser.parse_args()
     base_path = Path(args.base_path)
@@ -41,6 +58,7 @@ if __name__ == '__main__':
     else:
         if not Path(args.z_corr).is_file():
             raise FileNotFoundError(f'{args.z_corr} was not found')
+        z_corr = pd.DataFrame()
 
     for explainer_file in base_path.glob('*.pkl'):
         print(f'> > > > Processing {explainer_file} '
@@ -52,7 +70,8 @@ if __name__ == '__main__':
             explainer = pickle_open(explainer_file)
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
-                                      z_corr=z_corr, show_plot=False)
+                                      z_corr=z_corr, show_plot=False,
+                                      max_proc=args.max_proc)
             explainer.plot_dists(outdir=explainer_out,
                                  z_corr=None, show_plot=False)
         else:
