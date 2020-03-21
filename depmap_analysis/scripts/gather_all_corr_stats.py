@@ -2,6 +2,7 @@ import logging
 import argparse
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
 from depmap_analysis.util.io_functions import pickle_open
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,8 @@ if __name__ == '__main__':
             raise FileNotFoundError(f'{args.z_corr} was not found')
 
     for explainer_file in base_path.glob('*.pkl'):
-        logger.info(f'Processing {explainer_file}')
+        print(f'> > > > Processing {explainer_file} '
+              f'({datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}) < < < <')
         # Set outdir
         explainer_out = output_dir.joinpath(explainer_file.stem)
         if not dry:
