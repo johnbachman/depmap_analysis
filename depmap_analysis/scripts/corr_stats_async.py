@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 
 global_results = []
 global_vars = {}
-list_of_genes = Array(typecode_or_type=c_wchar_p,
-                      size_or_initializer=30000,  # Enough room for all genes
-                      lock=False)
+list_of_genes = []
 
 
 def _list_chunk_gen(lst, size):
@@ -27,15 +25,19 @@ def success_callback(res):
 
 class GlobalVars(object):
     def __init__(self, df, z_cm):
+        global list_of_genes
         global_vars['df'] = df
         global_vars['z_cm'] = z_cm
-        list_of_genes[:] = np.array(z_cm.columns.values)
+        list_of_genes = Array(c_wchar_p,
+                              np.array(z_cm.columns.values),
+                              lock=False)
 
     @staticmethod
     def assert_vars():
         df_exists = global_vars.get('df', False) is not False
         z_cm_exists = global_vars.get('z_cm', False) is not False
-        return df_exists and z_cm_exists
+        shared_ar_exists = bool(len(list_of_genes[:]))
+        return df_exists and z_cm_exists and shared_ar_exists
 
 
 def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
@@ -87,6 +89,7 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
 
 
 def get_corr_stats(so_pairs):
+    global list_of_genes
     df = global_vars['df']
     z_corr = global_vars['z_cm']
 
