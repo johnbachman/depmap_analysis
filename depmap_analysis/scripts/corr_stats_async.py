@@ -1,7 +1,8 @@
 import numpy as np
+from ctypes import c_wchar_p
 from time import time
 from datetime import datetime
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Array
 
 import logging
 
@@ -9,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 global_results = []
 global_vars = {}
+list_of_genes = Array(typecode_or_type=c_wchar_p,
+                      size_or_initializer=30000,  # Enough room for all genes
+                      lock=False)
 
 
 def _list_chunk_gen(lst, size):
@@ -25,6 +29,7 @@ class GlobalVars(object):
     def __init__(self, df, z_cm):
         global_vars['df'] = df
         global_vars['z_cm'] = z_cm
+        list_of_genes[:] = np.array(z_cm.columns.values)
 
     @staticmethod
     def assert_vars():
@@ -122,8 +127,9 @@ def get_corr_stats(so_pairs):
                 #     logger.warning('Muting warnings...')
                 continue
 
-        # Get the set of possible correlation z scores
-        for z in set(z_corr.columns):
+        # Get a random subset of the possible correlation z scores
+        chunk_size = max(len(list_of_genes[:])//10, 1)
+        for z in np.random.choice(list_of_genes[:], chunk_size, False):
             if z == subj or z == obj:
                 continue
             az_corr = z_corr.loc[z, subj]
