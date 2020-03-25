@@ -28,10 +28,11 @@ def success_callback(res):
 
 
 class GlobalVars(object):
-    def __init__(self, df, z_cm):
+    def __init__(self, df, z_cm, sampl=10):
         global list_of_genes
         global_vars['df'] = df
         global_vars['z_cm'] = z_cm
+        global_vars['subset_size'] = sampl
         list_of_genes = Array(c_wchar_p,
                               np.array(z_cm.columns.values),
                               lock=False)
@@ -40,8 +41,10 @@ class GlobalVars(object):
     def assert_vars():
         df_exists = global_vars.get('df', False) is not False
         z_cm_exists = global_vars.get('z_cm', False) is not False
+        ssize_exists = global_vars.get('subset_size', False) is not False
         shared_ar_exists = bool(len(list_of_genes[:]))
-        return df_exists and z_cm_exists and shared_ar_exists
+        return df_exists and z_cm_exists and \
+            ssize_exists and shared_ar_exists
 
 
 def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
@@ -97,6 +100,8 @@ def get_corr_stats(so_pairs):
     global list_of_genes
     df = global_vars['df']
     z_corr = global_vars['z_cm']
+    subset_size = global_vars['subset_size']
+    chunk_size = max(len(list_of_genes[:]) // subset_size, 1)
 
     all_axb_corrs = []
     top_axb_corrs = []
@@ -136,7 +141,6 @@ def get_corr_stats(so_pairs):
                 continue
 
         # Get a random subset of the possible correlation z scores
-        chunk_size = max(len(list_of_genes[:])//10, 1)
         for z in np.random.choice(list_of_genes[:], chunk_size, False):
             if z == subj or z == obj:
                 continue

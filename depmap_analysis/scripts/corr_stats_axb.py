@@ -108,7 +108,7 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None):
     logger.info("Getting correlations for a-x-b AND NOT direct")
 
     # Set and assert existence of global variables
-    gbv = GlobalVars(df=expl_df, z_cm=z_corr)
+    gbv = GlobalVars(df=expl_df, z_cm=z_corr, sampl=16)
     options = {'so_pairs': pairs_axb_only}
     if max_proc:
         options['max_proc'] = max_proc
