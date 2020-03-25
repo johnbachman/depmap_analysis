@@ -23,7 +23,10 @@ if __name__ == '__main__':
         '--outdir',
         help='Path to an output directory. Will be created if it non '
              'existing. If not provided, outut files will be put in a '
-             'directory called "output" in the "--base-path".'
+             'directory called "output" in the "--base-path". If path '
+             'starts with "s3:" upload to s3 instead and must then have the '
+             'form "s3:<bucket>/<sub_dir>" where <bucket> must be specified '
+             'and <sub_dir> is optional and may contain subdirectories.'
     )
     parser.add_argument(
         '--dry', action='store_true',
@@ -62,9 +65,9 @@ if __name__ == '__main__':
 
     for explainer_file in base_path.glob('*.pkl'):
         print(f'> > > > Processing {explainer_file} '
-              f'({datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}) < < < <')
-        # Set outdir
-        explainer_out = output_dir.joinpath(explainer_file.stem)
+              f'{datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} (UTC) < < '
+              f'< <')
+        explainer_out = output_dir.joinpath(explainer_file.stem).as_posix()
         if not dry:
             # Load pickle
             explainer = pickle_open(explainer_file)
@@ -77,4 +80,4 @@ if __name__ == '__main__':
         else:
             if not Path(explainer_file).is_file():
                 raise FileNotFoundError(f'{explainer_file} does not exist')
-        logger.info(f'Writing output to {explainer_out.as_posix()}/*.pdf')
+        logger.info(f'Writing output to {explainer_out}/*.pdf')
