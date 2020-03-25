@@ -13,8 +13,12 @@ global_vars = {}
 list_of_genes = []
 
 
-def _list_chunk_gen(lst, size):
-    """Given list, generate chunks <= size"""
+def _list_chunk_gen(lst, size, shuffle=False):
+    """Given list, generate chunks <= size
+    If shuffle is True, randomize input list before creating gnereator
+    """
+    if shuffle:
+        np.random.shuffle(lst)
     n = max(1, size)
     return (lst[k:k+n] for k in range(0, len(lst), n))
 
@@ -55,7 +59,8 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
         # Split up so_pairs in equal chunks
         size = len(so_pairs) // max_proc + 1 if max_proc > 1 else 1
         lst_gen = _list_chunk_gen(lst=list(so_pairs),
-                                  size=size)
+                                  size=size,
+                                  shuffle=True)
         for pairs in lst_gen:
             # async_res = pool.apply_async(
             pool.apply_async(
