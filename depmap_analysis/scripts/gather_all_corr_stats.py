@@ -3,6 +3,7 @@ import argparse
 import pandas as pd
 from math import floor
 from pathlib import Path
+from itertools import count
 from datetime import datetime
 from depmap_analysis.util.io_functions import pickle_open
 
@@ -62,7 +63,8 @@ if __name__ == '__main__':
         if not Path(args.z_corr).is_file():
             raise FileNotFoundError(f'{args.z_corr} was not found')
         z_corr = pd.DataFrame()
-
+    # Create a global indexer to separate each figure
+    indexer = count(0)
     for explainer_file in base_path.glob('*.pkl'):
         print(f'> > > > Processing {explainer_file} '
               f'{datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} (UTC) < < '
@@ -74,9 +76,11 @@ if __name__ == '__main__':
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr, show_plot=False,
-                                      max_proc=max_proc)
+                                      max_proc=max_proc,
+                                      index_counter=indexer)
             explainer.plot_dists(outdir=explainer_out,
-                                 z_corr=None, show_plot=False)
+                                 z_corr=None, show_plot=False,
+                                 index_counter=indexer)
         else:
             if not Path(explainer_file).is_file():
                 raise FileNotFoundError(f'{explainer_file} does not exist')

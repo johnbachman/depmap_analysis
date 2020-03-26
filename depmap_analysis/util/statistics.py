@@ -2,6 +2,8 @@ import boto3
 import logging
 import pandas as pd
 import matplotlib.pyplot as plt
+from time import time
+from math import floor
 from io import BytesIO
 from pathlib import Path
 from datetime import datetime
@@ -149,7 +151,7 @@ class DepMapExplainer:
         return self.corr_stats_axb
 
     def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
-                        max_proc=None):
+                        max_proc=None, index_counter=None):
         """Plot the results of running explainer.get_corr_stats_axb()
 
         Parameters
@@ -167,6 +169,10 @@ class DepMapExplainer:
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing in
             get_corr_stats_mp. Default: multiprocessing.cpu_count()
+        index_counter : generator
+            An object which produces a new int by using 'next()' on it. The
+            integers are used to separate the figures so as to not append
+            new plots in the same figure.
         """
         # Local file or s3
         if outdir.startswith('s3:'):
@@ -204,7 +210,9 @@ class DepMapExplainer:
                         data = [t[-1] for t in v[plot_type]]
                     else:
                         data = v[plot_type]
-                    plt.figure(int(f'{n}{m}'))
+                    fig_index = next(index_counter) if index_counter \
+                        else int(f'{n}{m}')
+                    plt.figure(fig_index)
                     plt.hist(x=data, bins='auto')
                     plt.title('%s %s; %s' %
                               (plot_type.replace('_', ' ').capitalize(),
@@ -228,7 +236,7 @@ class DepMapExplainer:
                                    % (k, plot_type, sd))
 
     def plot_dists(self, outdir, z_corr=None, show_plot=False,
-                   max_proc=None):
+                   max_proc=None, index_counter=None):
         # Local file or s3
         if outdir.startswith('s3:'):
             full_path = outdir.replace('s3:', '').split('/')
@@ -249,7 +257,9 @@ class DepMapExplainer:
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(z_corr=z_corr,
                                              max_proc=max_proc)
-        plt.figure(999)
+        fig_index = next(index_counter) if index_counter \
+            else floor(datetime.timestamp(datetime.utcnow()))
+        plt.figure(fig_index)
         all_ind = corr_stats['axb_not_dir']
         #all_res, db_res, sd):
         #all_ind = all_res['axb_not_dir']
