@@ -33,17 +33,49 @@ def success_callback_pairs(res):
 
 
 class GlobalVars(object):
-    def __init__(self, df, z_cm, sampl=10):
-        global list_of_genes
-        global_vars['df'] = df
-        global_vars['z_cm'] = z_cm
-        global_vars['subset_size'] = sampl
-        list_of_genes = Array(c_wchar_p,
-                              np.array(z_cm.columns.values),
-                              lock=False)
+    def __init__(self, df=None, z_cm=None, sampl=10):
+        if df is not None:
+            global_vars['df'] = df
+        if sampl:
+            global_vars['subset_size'] = sampl
+        if z_cm is not None:
+            global list_of_genes
+            global_vars['z_cm'] = z_cm
+            list_of_genes = Array(c_wchar_p,
+                                  np.array(z_cm.columns.values),
+                                  lock=False)
+
+    @staticmethod
+    def update_global_vars(**kwargs):
+        for varkey, obj in kwargs.items():
+            global_vars[varkey] = obj
+            if varkey == 'z_cm':
+                global list_of_genes
+                list_of_genes = Array(c_wchar_p,
+                                      np.array(obj.columns.values),
+                                      lock=False)
+
+    @staticmethod
+    def get_global_var_names():
+        return set(global_vars.keys())
+
+    @staticmethod
+    def assert_global_vars(varnames):
+        """
+
+        varname : set(str)
+            Set of names of variables to checkif they exists
+
+        Returns
+        -------
+        bool
+            True if variables in varnames are initialized
+        """
+        return all([global_vars.get(k, None) is not None for k in varnames])
 
     @staticmethod
     def assert_vars():
+        """Same as assert_global_vars but with the shared array as well"""
         df_exists = global_vars.get('df', False) is not False
         z_cm_exists = global_vars.get('z_cm', False) is not False
         ssize_exists = global_vars.get('subset_size', False) is not False
@@ -156,7 +188,6 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
                                   size=size,
                                   shuffle=True)
         for pairs in lst_gen:
-            # async_res = pool.apply_async(
             pool.apply_async(
                 func=get_corr_stats,
                 args=(pairs, ),
@@ -250,6 +281,8 @@ def get_corr_stats(so_pairs):
             top_axb_corrs.append((subj, obj, max_magn_avg))
             #ab_to_axb_avg.append((subj, obj, comb_zsc, max_magn_avg))
 
-    return {'all_axb_corrs': all_axb_corrs, 'axb_avg_corrs': axb_avg_corrs,
-            'top_axb_corrs': top_axb_corrs, 'all_azb_corrs': all_azb_corrs,
+    return {'all_axb_corrs': all_axb_corrs,
+            'axb_avg_corrs': axb_avg_corrs,
+            'top_axb_corrs': top_axb_corrs,
+            'all_azb_corrs': all_azb_corrs,
             'azb_avg_corrs': azb_avg_corrs}
