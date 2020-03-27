@@ -9,10 +9,10 @@ from os import path, environ
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from .corr_stats_async import get_corr_stats_mp, GlobalVars
+from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
 
 logger = logging.getLogger('DepMap Corr Stats')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def main(expl_df, z_corr, eval_str=False, max_proc=None):
@@ -54,41 +54,51 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None):
     # Get all correlation pairs
     all_ab_corr_pairs = set(map(lambda p: tuple(p),
                                 expl_df[['agA', 'agB']].values))
-    # Pairs where a-x-b AND a-b explanation exists
-    pairs_axb_direct = set()
 
-    # Pairs where a-x-b AND NOT a-b explanation exists
-    pairs_axb_only = set()
+    gbv = GlobalVars(df=expl_df, sampl=16)
+    if len(all_ab_corr_pairs) > 1000:
+        # Do multiprocessing
+        gbv.assert_global_vars({'df'})
+        pairs_axb_only = get_pairs_mp(all_ab_corr_pairs)
+    else:
+        # Pairs where a-x-b AND a-b explanation exists
+        pairs_axb_direct = set()
 
-    # all a-x-b "pathway" explanations, should be union of the above two
-    pairs_any_axb = set()
+        # Pairs where a-x-b AND NOT a-b explanation exists
+        pairs_axb_only = set()
 
-    logger.info("Stratifying correlations by interaction type")
-    for s, o in all_ab_corr_pairs:
-        # Make sure we don't try to explain self-correlations
-        if s == o:
-            continue
-        # Get all interaction types associated with given subject s and
-        # object o
-        int_types = set(expl_df['expl type'][(expl_df['agA'] == s) &
-                                             (expl_df['agB'] == o)].values)
-        # Check intersection of types
-        axb_types = {'a-x-b', 'b-x-a', 'shared target'}.intersection(int_types)
-        if axb_types:
-            pairs_any_axb.add((s, o))
-            if 'direct' in int_types:
-                # Direct and pathway
-                pairs_axb_direct.add((s, o))
+        # all a-x-b "pathway" explanations, should be union of the above two
+        pairs_any_axb = set()
+
+        logger.info("Stratifying correlations by interaction type")
+        for s, o in all_ab_corr_pairs:
+            # Make sure we don't try to explain self-correlations
+            if s == o:
+                continue
+            # Get all interaction types associated with given subject s and
+            # object o
+            int_types = \
+                set(expl_df['expl type'][(expl_df['agA'] == s) &
+                                         (expl_df['agB'] == o)].values)
+            # Check intersection of types
+            axb_types = \
+                {'a-x-b', 'b-x-a', 'shared target'}.intersection(int_types)
+            if axb_types:
+                pairs_any_axb.add((s, o))
+                if 'direct' in int_types:
+                    # Direct and pathway
+                    pairs_axb_direct.add((s, o))
+                else:
+                    # Pathway and NOT direct
+                    pairs_axb_only.add((s, o))
             else:
-                # Pathway and NOT direct
-                pairs_axb_only.add((s, o))
-        else:
-            # Skip direct only
-            continue
+                # Skip direct only
+                continue
 
-    # The union should be all pairs where a-x-b explanations exist
-    ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
-    assert ab_axb_union == pairs_any_axb
+        # The union should be all pairs where a-x-b explanations exist
+        ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
+        assert ab_axb_union == pairs_any_axb
+
     # Check for and remove self correlations
     if not np.isnan(z_corr.loc[z_corr.columns[0], z_corr.columns[0]]):
         logger.info('Removing self correlations')
@@ -106,12 +116,12 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None):
 
     # a-x-b AND NOT direct
     logger.info("Getting correlations for a-x-b AND NOT direct")
-
-    # Set and assert existence of global variables
-    gbv = GlobalVars(df=expl_df, z_cm=z_corr, sampl=16)
     options = {'so_pairs': pairs_axb_only}
     if max_proc:
         options['max_proc'] = max_proc
+
+    # Set and assert existence of global variables
+    gbv.update_global_vars(varkey='z_cm', obj=z_corr)
     if gbv.assert_vars():
         all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
             all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
