@@ -121,7 +121,7 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None):
         options['max_proc'] = max_proc
 
     # Set and assert existence of global variables
-    gbv.update_global_vars(varkey='z_cm', obj=z_corr)
+    gbv.update_global_vars(z_cm=z_corr)
     if gbv.assert_vars():
         all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
             all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
