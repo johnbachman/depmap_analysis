@@ -9,6 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 global_results = []
+global_results_pairs = []
 global_vars = {}
 list_of_genes = []
 
@@ -25,6 +26,10 @@ def _list_chunk_gen(lst, size, shuffle=False):
 
 def success_callback(res):
     global_results.append(res)
+
+
+def success_callback_pairs(res):
+    global_results_pairs.append(res)
 
 
 class GlobalVars(object):
@@ -45,6 +50,92 @@ class GlobalVars(object):
         shared_ar_exists = bool(len(list_of_genes[:]))
         return df_exists and z_cm_exists and \
             ssize_exists and shared_ar_exists
+
+
+# ToDo: make one work submitting function as a wrapper and provide the inner
+#  loop as argument
+def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count()):
+    logger.info("Stratifying correlations by interaction type")
+    logger.info(
+        f'Starting workers for pairs at '
+        f'{datetime.now().strftime("%H:%M:%S")} '
+        f'with about {len(ab_corr_pairs)} pairs to check'
+    )
+    tstart = time()
+    max_proc = min(cpu_count(), max_proc)
+    if max_proc < 1:
+        logger.warning('Max processes is set to < 1, resetting to 1')
+        max_proc = 1
+
+    # Loop workers
+    with Pool(max_proc) as pool:
+        # Split up number of pairs
+        size = len(ab_corr_pairs) // max_proc + 1 if max_proc > 1 else 1
+        lst_gen = _list_chunk_gen(lst=list(ab_corr_pairs),
+                                  size=size,
+                                  shuffle=True)
+        for corr_pairs in lst_gen:
+            pool.apply_async(
+                func=get_pairs,
+                args=(corr_pairs, ),
+                callback=success_callback_pairs
+            )
+        logger.info('Done submitting work to pool of workers')
+        pool.close()
+        logger.info('Pool is closed')
+        pool.join()
+        logger.info('Pool is joined')
+
+    logger.info(f'Execution time: {time() - tstart} seconds')
+    logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
+
+    # Assemble results
+    logger.info('Assembling results')
+    results_pairs = set()
+    for s in global_results_pairs:
+        results_pairs.update(s)
+    return results_pairs
+
+
+def get_pairs(corr_pairs):
+    # Get global args
+    expl_df = global_vars['df']
+
+    # Pairs where a-x-b AND a-b explanation exists
+    pairs_axb_direct = set()
+
+    # Pairs where a-x-b AND NOT a-b explanation exists
+    pairs_axb_only = set()
+
+    # all a-x-b "pathway" explanations, should be union of the above two
+    pairs_any_axb = set()
+
+    for s, o in corr_pairs:
+        # Make sure we don't try to explain self-correlations
+        if s == o:
+            continue
+        # Get all interaction types associated with given subject s and
+        # object o
+        int_types = set(expl_df['expl type'][(expl_df['agA'] == s) &
+                                             (expl_df['agB'] == o)].values)
+        # Check intersection of types
+        axb_types = {'a-x-b', 'b-x-a', 'shared target'}.intersection(int_types)
+        if axb_types:
+            pairs_any_axb.add((s, o))
+            if 'direct' in int_types:
+                # Direct and pathway
+                pairs_axb_direct.add((s, o))
+            else:
+                # Pathway and NOT direct
+                pairs_axb_only.add((s, o))
+        else:
+            # Skip direct only
+            continue
+
+    # The union should be all pairs where a-x-b explanations exist
+    ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
+    assert ab_axb_union == pairs_any_axb
+    return pairs_axb_only
 
 
 def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
