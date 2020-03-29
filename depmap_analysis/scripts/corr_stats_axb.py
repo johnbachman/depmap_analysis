@@ -59,7 +59,7 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None):
     if len(all_ab_corr_pairs) > 1000:
         # Do multiprocessing
         gbv.assert_global_vars({'df'})
-        pairs_axb_only = get_pairs_mp(all_ab_corr_pairs)
+        pairs_axb_only = get_pairs_mp(all_ab_corr_pairs, max_proc=max_proc)
     else:
         # Pairs where a-x-b AND a-b explanation exists
         pairs_axb_direct = set()
