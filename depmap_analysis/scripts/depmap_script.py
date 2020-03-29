@@ -26,6 +26,7 @@ from random import choice as rnd_choice
 import pandas as pd
 from numpy import float64
 from indra.tools import assemble_corpus as ac
+from indra_db.util.dump_sif import load_pickle_from_s3
 
 import depmap_analysis.util.io_functions as io
 import depmap_analysis.network_functions.net_functions as nf
@@ -33,6 +34,8 @@ import depmap_analysis.network_functions.famplex_functions as ff
 from depmap_analysis.network_functions import depmap_network_functions as dnf
 
 logger = logging.getLogger('DepMap Script')
+
+KEY_ERR_TOL = 100
 
 # 1. no geneset -> use corr from full DepMap data, no filtering needed
 # 2. geneset, not strict -> interaction has to contain at least one gene from
@@ -50,11 +53,16 @@ def _dump_nest_dict_to_csv(fname, nested_dict, separator=',', header=None,
             fosro.write(separator.join(header)+'\n')
     with open(fname, 'a') as fo, \
             open(fname.split('.')[0]+'_sr_only.csv', 'a') as fosro:
+        skip = 0
         for ok in nested_dict:
             for ik in nested_dict[ok]:
                 cd = nested_dict[ok][ik]['meta_data']
                 if excl_sr and nested_dict[ok][ik]['sr_only']:
-                    logger.info('Skipping sr only: %s and %s' % (ik, ok))
+                    skip += 1
+                    if skip < 10:
+                        logger.info('Skipping sr only: %s and %s' % (ik, ok))
+                    elif skip == 10:
+                        logger.info('Muting skip messages...')
                     fosro.write('%s,%s,%s,%s\n' %
                         (ok, ik,
                          str(cd['crispr']) if cd and json.dumps(cd.get(
@@ -198,7 +206,7 @@ def _arg_dict(args_struct):
     return args_dict
 
 
-def loop_body(args):
+def loop_body(args, hgnc_name2id=None, fplx_name2id=None):
 
     global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
         directed_im_expl_count, both_im_dir_expl_count, \
@@ -219,7 +227,7 @@ def loop_body(args):
     has_common_parent = False  # Flag common parent
 
     for subj, obj in itt.permutations((id1, id2), r=2):
-        if dnf._entry_exist_dict(nested_dict_statements, subj, obj):
+        if dnf.entry_exist_dict(nested_dict_statements, subj, obj):
 
             # Get the statements
             stmts = nested_dict_statements[subj][obj]
@@ -242,7 +250,8 @@ def loop_body(args):
         if subj in dir_node_set and obj in dir_node_set:
             dir_path_nodes = list(set(nx_dir_graph.succ[subj]) &
                                   set(nx_dir_graph.pred[obj]))
-            if dir_path_nodes:
+            if dir_path_nodes and \
+                    dnf.entry_exist_dict(nested_dict_statements, subj, obj):
                 found = True
                 x_is_intermediary = True
                 if args.verbosity:
@@ -263,7 +272,34 @@ def loop_body(args):
                 explanations_of_pairs.append(stmt_tuple)
 
     # Check common parent
-    if ff.has_common_parent(id1=id1, id2=id2):
+
+    # Get ns:id
+    id1_ns, id1_id = None, None
+    id2_ns, id2_id = None, None
+
+    # HGNC
+    if hgnc_name2id:
+        id1_ns, id1_id = (hgnc_name2id[id1], 'HGNC') if \
+            hgnc_name2id.get(id1) else (None, None)
+        id2_ns, id2_id = (hgnc_name2id[id2], 'HGNC') if \
+            hgnc_name2id.get(id2) else (None, None)
+
+    # Try FPLX if not HGNC
+    if id1_id is None and fplx_name2id:
+        id1_ns, id1_id = (fplx_name2id[id1], 'FPLX') if \
+            fplx_name2id.get(id1) else (None, None)
+    if id2_id is None and fplx_name2id:
+        id2_ns, id2_id = (fplx_name2id[id2], 'FPLX') if \
+            fplx_name2id.get(id2) else (None, None)
+
+    # Last resort: GILDA
+    if id1_id is None:
+        id1_ns, id1_id = nf.ns_id_from_name(id1)
+    if id2_id is None:
+        id2_ns, id2_id = nf.ns_id_from_name(id2)
+
+    if id1_id and id2_id and ff.has_common_parent(ns1=id1_ns, id1=id1_id,
+                                                  ns2=id2_ns, id2=id2_id):
         has_common_parent = True
         found = True
         parents = list(ff.common_parent(id1=id1, id2=id2))
@@ -392,27 +428,27 @@ def loop_body(args):
             # Correlation/meta data
             explained_nested_dict[s][o]['meta_data'] = dataset_dict
             # common_parents
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'common_parents'):
                 explained_nested_dict[s][o]['common_parents'] = []
             # directed
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'directed'):
                 explained_nested_dict[s][o]['directed'] = []
             # undirected
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'undirected'):
                 explained_nested_dict[s][o]['undirected'] = []
             # x_is_intermediary
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'x_is_intermediary'):
                 explained_nested_dict[s][o]['x_is_intermediary'] = []
             # x_is_upstream
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'x_is_upstream'):
                 explained_nested_dict[s][o]['x_is_upstream'] = []
             # x_is_downstream
-            if not dnf._entry_exist_dict(explained_nested_dict[s], o,
+            if not dnf.entry_exist_dict(explained_nested_dict[s], o,
                                          'x_is_downstream'):
                 explained_nested_dict[s][o]['x_is_downstream'] = []
 
@@ -425,8 +461,9 @@ def loop_body(args):
                         '%s.' % (id1, id2))
 
 
-def main(args):
-
+def main(args, hgnc_name2id=None, fplx_name2id=None):
+    if hgnc_name2id or fplx_name2id:
+        logger.info('Using loaded dict(s) for mapping')
     global any_expl, any_expl_not_sr, common_parent, ab_expl_count, \
         directed_im_expl_count, both_im_dir_expl_count, \
         any_axb_non_sr_expl_count, sr_expl_count, \
@@ -474,7 +511,10 @@ def main(args):
     # Get dict of {hash: belief score}
     belief_dict = None  # ToDo use api to query belief scores if not loaded
     if args.belief_score_dict:
-        if args.belief_score_dict.endswith('.json'):
+        if args.belief_score_dict == 's3':
+            belief_key = 'belief_dict.pkl'
+            belief_dict = load_pickle_from_s3(key=belief_key)
+        elif args.belief_score_dict.endswith('.json'):
             belief_dict = io.json_open(args.belief_score_dict)
         elif args.belief_score_dict.endswith('.pkl'):
             belief_dict = io.pickle_open(args.belief_score_dict)
@@ -577,7 +617,11 @@ def main(args):
 
     # Get nested dicts from statements
     if args.light_weight_stmts:
-        hash_df = pd.read_csv(args.light_weight_stmts, delimiter='\t')
+        with open(args.light_weight_stmts, 'r') as csvf:
+            first_line = csvf.readline()
+            delim = '\t' if '\t' in first_line else ','
+
+        hash_df = pd.read_csv(args.light_weight_stmts, delimiter=delim)
         nested_dict_statements = \
             dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
@@ -591,8 +635,7 @@ def main(args):
         if args.nested_dict_out:
             io.dump_it_to_pickle(fname=args.nested_dict_out,
                                  pyobj=nested_dict_statements)
-    assert nested_dict_statements is not None, print(
-        nested_dict_statements.__class__)
+    assert nested_dict_statements is not None
 
     # Get directed simple graph
     if args.directed_graph_in:
@@ -617,14 +660,17 @@ def main(args):
     common_parent = 0  # Count if common parent found per set(A,B)
     part_of_explained = 0  # Count pairs part the "explained set"
     ab_expl_count = 0  # Count A-B/B-A as one per set(A,B)
-    directed_im_expl_count = 0  # Count any A->X->B,B->X->A as one per set(A,B)
-    any_axb_non_sr_expl_count = 0  # Count if shared target found per set(A,B)
+    directed_im_expl_count = 0  # Count any A>X>B,B>X>A as one per set(A,B)
+    any_axb_non_sr_expl_count = 0  # if shared target found per set(A,B)
     sr_expl_count = 0  # Count if shared regulator found per set(A,B)
-    shared_regulator_only_expl_count = 0  # Count if only shared regulator found
+    shared_regulator_only_expl_count = 0  # Count if only shared regulator
     explanations_of_pairs = []  # Saves all non shared regulator explanations
     sr_explanations = []  # Saves all shared regulator explanations
     unexplained = []  # Unexplained correlations
     skipped = 0
+
+    # KeyError count
+    key_errs = 0
 
     # The explained nested dict: (1st key = subj, 2nd key = obj, 3rd key =
     # connection type or correlation).
@@ -648,7 +694,8 @@ def main(args):
     #
     # Used to get: directed graph
     # 1. all nodes of directed graph -> 1st dropdown
-    # 2. dir -> undir graph -> jsons to check all corr neighbors -> 2nd dropdown
+    # 2. dir -> undir graph -> jsons to check all corr neighbors ->
+    #    2nd dropdown
     # 3. jsons to check if connection is direct or intermediary
 
     # Using the following loop structure for counter variables:
@@ -674,17 +721,24 @@ def main(args):
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
-        for outer_id, do in master_corr_dict.items():
-            for inner_id, dataset_dict in do.items():
-                if len(dataset_dict.keys()) == 0:
-                    skipped += 1
-                    if args.verbosity:
-                        logger.info('Skipped outer_id=%s and inner_id=%s' %
-                                    (outer_id, inner_id))
-                    continue
+        try:
+            for outer_id, do in master_corr_dict.items():
+                for inner_id, dataset_dict in do.items():
+                    if len(dataset_dict.keys()) == 0:
+                        skipped += 1
+                        if args.verbosity:
+                            logger.info('Skipped outer_id=%s and inner_id=%s'
+                                        % (outer_id, inner_id))
+                        continue
 
-                id1, id2 = outer_id, inner_id
-                loop_body(args)
+                    id1, id2 = outer_id, inner_id
+                    loop_body(args, hgnc_name2id=hgnc_name2id,
+                              fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     # Loop rnai and/or crispr AND BRCA cell line dependencies
     elif args_dict.get('rnai') or args_dict.get('crispr') and \
@@ -703,56 +757,64 @@ def main(args):
                                                   'gene']
         genes = set(depend_in_breast_genes['Gene/Compound'].values)
 
-        for outer_id, do in master_corr_dict.items():
-            for inner_id, knockout_dict in do.items():
-                if len(knockout_dict.keys()) == 0:
-                    skipped += 1
-                    if args.verbosity:
-                        logger.info('Skipped outer_id=%s and inner_id=%s' %
-                                    (outer_id, inner_id))
-                    continue
+        try:
+            for outer_id, do in master_corr_dict.items():
+                for inner_id, knockout_dict in do.items():
+                    if len(knockout_dict.keys()) == 0:
+                        skipped += 1
+                        if args.verbosity:
+                            logger.info('Skipped outer_id=%s and inner_id=%s'
+                                        % (outer_id, inner_id))
+                        continue
 
-                id1, id2 = outer_id, inner_id
-                dataset_dict = {}
-                gene1_data = []
-                gene2_data = []
+                    id1, id2 = outer_id, inner_id
+                    dataset_dict = {}
+                    gene1_data = []
+                    gene2_data = []
 
-                # Get BRCA dep data
-                if id1 in genes:
-                    for row in depend_in_breast_genes[
-                        depend_in_breast_genes[
-                            'Gene/Compound'] == id1].iterrows():
-                        gene1_data.append((row[1]['Dataset'],
-                                           row[1]['T-Statistic'],
-                                           row[1]['P-Value']))
-                if id2 in genes:
-                    for row in depend_in_breast_genes[
-                        depend_in_breast_genes[
-                            'Gene/Compound'] == id2].iterrows():
-                        gene2_data.append((row[1]['Dataset'],
-                                           row[1]['T-Statistic'],
-                                           row[1]['P-Value']))
+                    # Get BRCA dep data
+                    if id1 in genes:
+                        for row in depend_in_breast_genes[
+                            depend_in_breast_genes[
+                                'Gene/Compound'] == id1].iterrows():
+                            gene1_data.append((row[1]['Dataset'],
+                                               row[1]['T-Statistic'],
+                                               row[1]['P-Value']))
+                    if id2 in genes:
+                        for row in depend_in_breast_genes[
+                            depend_in_breast_genes[
+                                'Gene/Compound'] == id2].iterrows():
+                            gene2_data.append((row[1]['Dataset'],
+                                               row[1]['T-Statistic'],
+                                               row[1]['P-Value']))
 
-                dataset_dict[id1] = gene1_data
-                dataset_dict[id2] = gene2_data
+                    dataset_dict[id1] = gene1_data
+                    dataset_dict[id2] = gene2_data
 
-                dataset_dict['crispr'] = (knockout_dict['crispr'] if
-                                          knockout_dict.get('crispr')
-                                          else None),
-                dataset_dict['rnai'] = (knockout_dict['rnai'] if
-                                        knockout_dict.get('rnai')
-                                        else None)
+                    dataset_dict['crispr'] = (knockout_dict['crispr'] if
+                                              knockout_dict.get('crispr')
+                                              else None),
+                    dataset_dict['rnai'] = (knockout_dict['rnai'] if
+                                            knockout_dict.get('rnai')
+                                            else None)
 
-                if id1 not in genes and id2 not in genes:
-                    dataset_dict = knockout_dict
+                    if id1 not in genes and id2 not in genes:
+                        dataset_dict = knockout_dict
 
-                # Run loop body
-                loop_body(args)
+                    # Run loop body
+                    loop_body(args, hgnc_name2id=hgnc_name2id,
+                              fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     # loop brca dependency ONLY
     elif args.brca_dependencies and not \
             (args_dict.get('rnai') or args_dict.get('crispr')):
-        logger.info('Gene pairs generated from BRCA gene enrichment data only.')
+        logger.info('Gene pairs generated from BRCA gene enrichment data '
+                    'only.')
         brca_data_set = pd.read_csv(args.brca_dependencies, header=0)
         depend_in_breast_genes = brca_data_set.drop(
             axis=1, labels=['Url Label', 'Type'])[brca_data_set['Type'] ==
@@ -762,33 +824,42 @@ def main(args):
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
-        for id1, id2 in itt.combinations(genes, 2):
-            gene1_data = []
-            gene2_data = []
-            # For each non-diagonal pair in file, insert in dataset_dict:
-            # geneA, geneB,
-            # dataset for A, dataset for B,
-            # T-stat for A, T-stat for B,
-            # P-value for A, P-value
-            for row in depend_in_breast_genes[
-                 depend_in_breast_genes['Gene/Compound'] == id1].iterrows():
-                gene1_data.append((row[1]['Dataset'],
-                                   row[1]['T-Statistic'],
-                                   row[1]['P-Value']))
+        try:
+            for id1, id2 in itt.combinations(genes, 2):
+                gene1_data = []
+                gene2_data = []
+                # For each non-diagonal pair in file, insert in dataset_dict:
+                # geneA, geneB,
+                # dataset for A, dataset for B,
+                # T-stat for A, T-stat for B,
+                # P-value for A, P-value
+                for row in depend_in_breast_genes[
+                     depend_in_breast_genes[
+                         'Gene/Compound'] == id1].iterrows():
+                    gene1_data.append((row[1]['Dataset'],
+                                       row[1]['T-Statistic'],
+                                       row[1]['P-Value']))
 
-            for row in depend_in_breast_genes[
-                 depend_in_breast_genes['Gene/Compound'] == id2].iterrows():
-                gene2_data.append((row[1]['Dataset'],
-                                   row[1]['T-Statistic'],
-                                   row[1]['P-Value']))
-            # dataset_dict = {id1:
-            #                 [(dataset1, T-stat1, P-value1),
-            #                  (dataset2, T-stat2, P-value2)],
-            #                 id2:
-            #                  [(..., ...)],
-            #                  ...}
-            dataset_dict = {id1: gene1_data, id2: gene2_data}
-            loop_body(args)
+                for row in depend_in_breast_genes[
+                    depend_in_breast_genes[
+                        'Gene/Compound'] == id2].iterrows():
+                    gene2_data.append((row[1]['Dataset'],
+                                       row[1]['T-Statistic'],
+                                       row[1]['P-Value']))
+                # dataset_dict = {id1:
+                #                 [(dataset1, T-stat1, P-value1),
+                #                  (dataset2, T-stat2, P-value2)],
+                #                 id2:
+                #                  [(..., ...)],
+                #                  ...}
+                dataset_dict = {id1: gene1_data, id2: gene2_data}
+                loop_body(args, hgnc_name2id=hgnc_name2id,
+                          fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     # loop random pairs from data set
     elif args_dict.get('sampling_gene_file'):
@@ -802,10 +873,17 @@ def main(args):
         logger.info('Looking for connections between %i pairs' % (
             npairs if npairs > 0 else args.max_pairs)
         )
-        for _ in range(npairs):
-            id1, id2 = _rnd_pair_gen(rnd_gene_set)
-            assert not isinstance(id1, list)
-            loop_body(args)
+        try:
+            for _ in range(npairs):
+                id1, id2 = _rnd_pair_gen(rnd_gene_set)
+                assert not isinstance(id1, list)
+                loop_body(args, hgnc_name2id=hgnc_name2id,
+                          fplx_name2id=fplx_name2id)
+        except KeyError as err:
+            key_errs += 1
+            if key_errs > KEY_ERR_TOL:
+                raise KeyError('Too many KeyErrors registered. '
+                               'Aborting...\n%s' % repr(err))
 
     long_string = ''
     long_string += '-' * 63 + '\n'
@@ -827,8 +905,8 @@ def main(args):
     long_string += '>    %i correlations have an explanation involving a ' \
                    'common parent' % common_parent + '\n'
     if args.explained_set:
-        long_string += '>    %i gene pairs were considered explained as part ' \
-                       'of the "explained set"' % part_of_explained + '\n'
+        long_string += '>    %i gene pairs were considered explained as ' \
+                       'part of the "explained set"' % part_of_explained + '\n'
     long_string += '>    %i explanations involving direct connection or ' \
                    'complex' % ab_expl_count + '\n'
     long_string += '>    %i correlations have a directed explanation ' \
@@ -885,9 +963,9 @@ def main(args):
         explained_nodes = list(nx_expl_dir_graph.nodes)
         logger.info('Dumping json "explainable_ids.json" for first dropdown.')
         io.dump_it_to_json(args.outbasename + '_explainable_ids.json',
-                        explained_nodes)
+                           explained_nodes)
 
-        # Get undir graph and save each neighbor lookup as json for 2nd dropdown
+        # Get undir graph, save each neighbor lookup as json for 2nd dropdown
         nx_expl_undir_graph = nx_expl_dir_graph.to_undirected()
         dnf.nx_undir_to_neighbor_lookup_json(
             expl_undir_graph=nx_expl_undir_graph, outbasename=args.outbasename)
@@ -1051,6 +1129,12 @@ if __name__ == '__main__':
     parser.add_argument('--sif-df-in',
                         help='Use a sif dump dataframe for generating the '
                              'nested dict and the dir_graph')
+    parser.add_argument('--hgnc-name2id',
+                        help='Pickled dict mapping hgnc names to hgnc ids '
+                             'used in the db dump input.')
+    parser.add_argument('--fplx-name2id',
+                        help='Pickled dict mapping fplx names to fplx ids '
+                             'used in the db dump input.')
     a = parser.parse_args()
 
     ymd_date = datetime.utcnow().strftime('%Y%m%d')
@@ -1062,6 +1146,16 @@ if __name__ == '__main__':
         f.write('Command line option : value\n---------------------------\n')
         for arg in vars(a):
             f.write('{} : {}\n'.format(arg, getattr(a, arg)))
-    done = main(a)
+
+    # Load mappings
+    if a.hgnc_name2id:
+        hgnc_nm2id_map = io.pickle_open(a.hgnc_name2id)
+    else:
+        hgnc_nm2id_map = None
+    if a.fplx_name2id:
+        fplx_nm2id_map = io.pickle_open(a.fplx_name2id)
+    else:
+        fplx_nm2id_map = None
+    done = main(a, hgnc_name2id=hgnc_nm2id_map, fplx_name2id=fplx_nm2id_map)
     if done == 0 or done is None:
         logger.info('Script finished without errors')

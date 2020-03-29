@@ -4,8 +4,9 @@ import sys
 import math
 import logging
 import itertools as itt
-from math import ceil, log10
 from random import choices
+from math import ceil, log10
+from itertools import islice
 from collections import Mapping, OrderedDict, defaultdict
 import numpy as np
 import pandas as pd
@@ -28,9 +29,10 @@ import depmap_analysis.network_functions.famplex_functions as ff
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
+dnf_logger.setLevel(logging.DEBUG)
 
 
-def _entry_exist_dict(nest_dict, outer_key, inner_key):
+def entry_exist_dict(nest_dict, outer_key, inner_key):
     if nest_dict.get(outer_key) and nest_dict.get(outer_key).get(inner_key):
         return True
     else:
@@ -61,17 +63,44 @@ def mean_z_score(mu1, sig1, c1, mu2, sig2, c2):
 
 
 def comb_z_sc_gen(crispr_corr, rnai_corr, stats_dict):
+    """Generate random samples of combined_z_sc from the input matrices
+
+    Parameters
+    crispr_corr : pd.DataFrame
+        Correlation matrix with gene-gene-correlation score
+    rnai_corr : pd.DataFrame
+        Correlation matrix with gene-gene-correlation score
+    stats_dict : dict
+        Nested dictionary containing the mean and standard deviations of the
+        input correlation matrices. Expected structure:
+            {
+                'crispr': {
+                    'mu': <mean>,
+                    'sigma': <standard deviation>
+                },
+                'rnai': {
+                    'mu': <mean>,
+                    'sigma': <standard deviation>
+                }
+            }
+
+    Yields
+    ------
+    float
+        A random sample of the combined z-score from the two correlations
+        matrices
+    """
     cmu = stats_dict['crispr']['mu']
     csig = stats_dict['crispr']['sigma']
     rmu = stats_dict['rnai']['mu']
     rsig = stats_dict['crispr']['sigma']
-    comb_gene_set = tuple(
+    comb_gene_tuples = tuple(
         set(crispr_corr.columns.values).intersection(rnai_corr.columns.values)
     )
     while True:
-        g1, g2 = choices(comb_gene_set, k=2)
+        g1, g2 = choices(comb_gene_tuples, k=2)
         while g1 == g2:
-            g1, g2 = choices(comb_gene_set, k=2)
+            g1, g2 = choices(comb_gene_tuples, k=2)
         cc = crispr_corr.loc[g1, g2]
         rc = rnai_corr.loc[g1, g2]
         yield mean_z_score(mu1=cmu, sig1=csig, c1=cc,
@@ -117,7 +146,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
     if all_pairs == 0:
         dnf_logger.warning('Correlation matrix is empty')
-        sys.exit('Script aborted due to empty correlation matrix')
+        raise ValueError('Script aborted due to empty correlation matrix')
 
     corr_df_sample = pd.DataFrame()
     if max_pairs:
@@ -132,7 +161,8 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             corr_df_sample = corrrelation_df_matrix.sample(
                 n, axis=0).sample(n, axis=1)
 
-            # Increase sample until number of extractable pairs exceed max_pairs
+            # Increase sample until number of extractable pairs exceed
+            # max_pairs
             while corr_df_sample.notna().sum().sum() <= max_pairs:
                 n += 1
                 corr_df_sample = corrrelation_df_matrix.sample(
@@ -148,14 +178,40 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
 
     corr_value_matrix = corr_df_sample.values
     gene_name_array = corr_df_sample.index.values
+    if not isinstance(gene_name_array[0], str):
+        gene_name_array = [n[0] for n in gene_name_array]
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     # Only get HGNC symbols (first in tuple) since we're gonna compare to
     # INDRA statements, which is currently done with HGNC symbols
-    # todo change to output HGNC IDs instead when switching to HGNC id in stmts
-    return ((gene_name_array[i][0], gene_name_array[j][0],
-            str(corr_value_matrix[i, j]))
+    # todo change to output HGNC IDs instead when switching to HGNC id in
+    #  stmts
+    return ((gene_name_array[i], gene_name_array[j],
+            float(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
             if not np.isnan(corr_value_matrix[i, j]))
+
+
+def iter_chunker(n, iterable):
+    """Generator of chunks from a generator
+
+    Parameters
+    ----------
+    n : int
+        Chunk size. Each chunk of the input iterator will be of this size
+        except for the last one that will contain the remainder.
+    iterable : iterable
+        An iterable or a generator
+
+    Returns
+    -------
+    generator
+        A generator yielding chunks from the input iterable or generator
+    """
+    # Adapted from
+    # stackoverflow.com/questions/1915170/
+    # split-a-generator-iterable-every-n-items-in-python-splitevery
+    iterable = iter(iterable)
+    yield from iter(lambda: list(islice(iterable, n)), [])
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
@@ -268,7 +324,7 @@ def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
 
     Paramters
     ---------
-    sif_df_in : pd.DataFrame
+    sif_df_in : pd.DataFrame|str
         A pd.DataFrame with at least the columns 'agA_name', 'agB_name',
         'stmt_type', 'stmt_hash'. Any other columns will be part of the
         list of dictionaries in the innermost entry.
@@ -286,6 +342,8 @@ def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
         sif_df = io.pickle_open(sif_df_in)
     elif isinstance(sif_df_in, pd.DataFrame):
         sif_df = sif_df_in
+    else:
+        raise ValueError('sif_df_in must be of type str or pd.DataFrame')
 
     mandatory_columns = ('agA_name', 'agB_name', 'stmt_type', 'stmt_hash')
     if not set(mandatory_columns).issubset(set(sif_df.columns.values)):
@@ -348,7 +406,17 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
     if not belief_dict:
         dnf_logger.info('No Belief Score dictionary provided')
         dnf_logger.warning('API belief score checkup is not implemented yet')
-        pass  # ToDo connect to API, calculate belief or use stmt belief
+        pass  # ToDo Download from sif dump on s3
+
+    else:
+        if isinstance(next(iter(belief_dict)), str):
+            k_int = False
+        elif isinstance(next(iter(belief_dict)), int):
+            k_int = True
+        else:
+            dnf_logger.warning('Belief dict seems to have keys that are not '
+                               'str or int.')
+            k_int = None
 
     # Flag to check if the statement dict has belief score in it or not
     has_belief = False
@@ -373,15 +441,16 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
                     if not has_belief:
                         for typ, hsh in inner_obj:
                             try:
-                                bs = belief_dict[str(hsh)]
+                                bs = belief_dict[int(hsh)] if k_int else \
+                                    belief_dict[str(hsh)]
                             except KeyError:
-                                bs = 1
+                                bs = 0.1  # Todo get min belief for any stmt
                                 error_count += 1
-                                if error_count < 50:
+                                if error_count < 10:
                                     dnf_logger.warning('No entry found in '
                                                        'belief dict for hash '
                                                        '%s' % str(hsh))
-                                if error_count == 50:
+                                if error_count == 10:
                                     dnf_logger.warning('Muting belief dict '
                                                        'KeyError...')
                             t = (typ, hsh, bs)
@@ -696,16 +765,19 @@ def _get_partial_gaussian_stats(bin_edges, hist):
 
 
 def raw_depmap_to_corr(depmap_raw_df):
-    """Pre-process and create a correlation
+    """Pre-process and create a correlation matrix
+
+    Any multi indexing is removed. Duplicated columns are also removed.
 
     Parameters
     ----------
     depmap_raw_df : pd.DataFrame
+        The raw data from the DepMap portal as a pd.DataFrame
 
     Returns
     -------
     corr : pd.DataFrame
-        A pd.DataFrame containing the correlation of the
+        A pd.DataFrame containing the pearson correlations of the raw data.
     """
     # Rename
     if len(depmap_raw_df.columns[0].split()) > 1:
@@ -724,7 +796,7 @@ def raw_depmap_to_corr(depmap_raw_df):
     return corr
 
 
-def merge_corr_df(corr_df, other_corr_df):
+def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
     """Merge two correlation matrices containing their combined z-scores
 
     Parameters
@@ -732,9 +804,12 @@ def merge_corr_df(corr_df, other_corr_df):
     corr_df : pd.DataFrame
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with other_corr_df.
-    other_corr_df : pd.Dataframe
+    other_corr_df : pd.DataFrame
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with corr_df.
+    remove_self_corr : bool
+        If True, remove self correlations from the resulting DataFrame.
+        Default: True
 
     Returns
     -------
@@ -765,6 +840,10 @@ def merge_corr_df(corr_df, other_corr_df):
 
     # Merge
     dep_z = (corr_z + other_z) / 2
+    if remove_self_corr:
+        # Assumes the max correlation ONLY occurs on the diagonal
+        self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
+        dep_z = dep_z[dep_z != self_corr_value]
     return dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
 
 
@@ -791,7 +870,7 @@ def get_gene_gene_corr_dict(tuple_generator):
             continue
         else:
             corr = float(c)
-            if _entry_exist_dict(corr_nest_dict, gene1, gene2):
+            if entry_exist_dict(corr_nest_dict, gene1, gene2):
                 doublets += 1
             corr_nest_dict[gene1][gene2] = corr
     count += 1
@@ -862,12 +941,12 @@ def merge_correlation_data(correlation_dicts_list, settings):
         for o_gene, d in shortest_dict.items():
             for i_gene, corr in d.items():
                 if o_gene is not i_gene and \
-                        not _entry_exist_dict(merged_corr_dict, o_gene, i_gene):
+                        not entry_exist_dict(merged_corr_dict, o_gene, i_gene):
                     # Check both directions
                     other_corr = None
-                    if _entry_exist_dict(other_dict, o_gene, i_gene):
+                    if entry_exist_dict(other_dict, o_gene, i_gene):
                         other_corr = other_dict[o_gene][i_gene]
-                    elif _entry_exist_dict(other_dict, i_gene, o_gene):
+                    elif entry_exist_dict(other_dict, i_gene, o_gene):
                         other_corr = other_dict[i_gene][o_gene]
 
                     if other_corr and pass_filter(
@@ -889,12 +968,14 @@ def merge_correlation_data(correlation_dicts_list, settings):
                                 0.5 * _z_sc(num=other_corr,
                                             mu=other_sigma_dict['mean'],
                                             sigma=other_sigma_dict['sigma'])
-                        assert merged_corr_dict[o_gene][i_gene].get(set_name)\
-                            is not None
-                        assert merged_corr_dict[o_gene][i_gene].get(other_name)\
-                            is not None
-                        assert merged_corr_dict[o_gene].get(o_gene) is None
-                        assert merged_corr_dict[i_gene].get(i_gene) is None
+                        assert merged_corr_dict[o_gene][i_gene].get(
+                            set_name, None) is not None
+                        assert merged_corr_dict[o_gene][i_gene].get(
+                            other_name, None) is not None
+                        assert merged_corr_dict[o_gene].get(o_gene, None)\
+                            is None
+                        assert merged_corr_dict[i_gene].get(i_gene, None)\
+                            is None
                         npairs += 1
 
                     # Did not pass filter
@@ -1174,7 +1255,7 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
 
     if filtered_correlation_matrix.notna().sum().sum() == 0:
         dnf_logger.warning('Correlation matrix is empty')
-        sys.exit('Script aborted due to empty correlation matrix')
+        raise ValueError('Script aborted due to empty correlation matrix')
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
     all_hgnc_ids = set(t[1] for t in filtered_correlation_matrix.index.values)
@@ -1368,7 +1449,7 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin=None,
         Mean of the correlations of the first dataset
     sigma1: float
         Standard deviation of the correlations of the first dataset
-    corr2: float
+    n2: float
         Correlation from second data set
     mu2: float
         Mean of the correlations of the second dataset
@@ -1399,7 +1480,7 @@ def pass_filter(corr1, mu1, sigma1, corr2, mu2, sigma2, margin=None,
     elif filter_type == 'z_score_product':
         return _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin)
     elif filter_type == 'sign':
-        return _same_sign(corr1, corr2)
+        return same_sign(corr1, corr2)
     # No filter/filter not recognized:
     else:
         return True
@@ -1427,39 +1508,66 @@ def _z_score_product(corr1, mu1, sigma1, corr2, mu2, sigma2, margin):
     return _z_sc(corr1, mu1, sigma1) * _z_sc(corr2, mu2, sigma2) > margin
 
 
-def _same_sign(corr1, corr2):
-    """Return True if corr1 and corr2 have the same sign
+def get_sign(num):
+    """Get the sign of num
+
+    Parameters
+    ----------
+    num : number
+        Any valid number as int, float or str
+
+    Returns
+    -------
+    int
+        -1 or +1
+    """
+    if isinstance(num, str):
+        try:
+            num = float(num)
+        except ValueError as err:
+            dnf_logger.warning('object is not recognized as a number')
+            raise err
+    return math.copysign(1, num)
+
+
+def same_sign(n1, n2):
+    """Return True if n1 and n2 have the same sign
 
     Special cases:
         zeros:
-            1. if corr1 == 0 AND corr2 == 0, return True
-            2. if corr1 == 0 XOR corr2 == 0, return False
+            1. if n1 == 0 AND n2 == 0, return True
+            2. if n1 == 0 XOR n2 == 0, return False
 
+        inf and NaN:
+            if not math.isfinite(n1) OR not math.isfinite(n2), return False
+
+        Can't be interpreted as number, return False
     """
     # Catch non-numeric correlations
     try:
-        if isinstance(corr1, str):
-            corr1 = float(corr1)
-        if isinstance(corr2, str):
-            corr2 = float(corr2)
+        if isinstance(n1, str):
+            n1 = float(n1)
+        if isinstance(n2, str):
+            n2 = float(n2)
     except ValueError:
         dnf_logger.warning('Correlation could not be interpreted as numeric. '
                            'Skipping...')
         return False
 
     # Catch nan and inf
-    if not math.isfinite(corr1) or not math.isfinite(corr2):
+    if not math.isfinite(n1) or not math.isfinite(n2):
         dnf_logger.warning('Correlation is undefined. Skipping...')
         return False
 
     # Both zero
-    if corr1 == 0 and corr2 == 0:
+    if n1 == 0 and n2 == 0:
         return True
-    # XOR: if (corr1==0 or corr2==0) and not (corr1==0 and corr2==0)
-    elif (corr1 == 0) ^ (corr2 == 0):
+
+    # XOR: if (n1==0 or n2==0) and not (n1==0 and n2==0)
+    elif (n1 == 0) ^ (n2 == 0):
         return False
 
-    return math.copysign(1, corr1) == math.copysign(1, corr2)
+    return math.copysign(1, n1) == math.copysign(1, n2)
 
 
 def get_directed(stmts, undirected_types=None):
@@ -1628,8 +1736,12 @@ def nested_hash_dict_from_pd_dataframe(hash_pair_dataframe):
     # Row should be a mini dataframe with keys:
     # agent_1=subj, agent_2=obj, type, hash
     for index, row in hash_pair_dataframe.iterrows():
-        (subj, obj, stmt_type, stmt_hash) = row
-        if _entry_exist_dict(nest_hash_dict, subj, obj):
+        if len(row) == 4:
+            subj, obj, stmt_type, stmt_hash = row
+        else:
+            subj, obj, stmt_type, stmt_hash = row.agA_name, row.agB_name, \
+                                              row.stmt_type, row.stmt_hash
+        if entry_exist_dict(nest_hash_dict, subj, obj):
             # Entry subj-obj already exists and should be a list
             nest_hash_dict[subj][obj].append((stmt_type, stmt_hash))
         else:

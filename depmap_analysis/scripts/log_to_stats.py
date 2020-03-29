@@ -8,6 +8,7 @@ import re
 import logging
 import argparse
 from os import listdir, path
+from datetime import datetime
 
 import pandas as pd
 
@@ -143,7 +144,7 @@ if __name__ == '__main__':
                              'with names matching "ll_(ul)sd" or '
                              '"ll_(ul)SD" in which there should be files '
                              'matching the name "*_script_summary.txt"')
-    parser.add_argument('--tag',
+    parser.add_argument('--tag', default=datetime.now().strftime('%Y%m%d'),
                         help='Append a tag to the output filename of the '
                              'form "filename_tag.csv".')
 
