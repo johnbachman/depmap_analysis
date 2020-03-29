@@ -1,7 +1,13 @@
+import boto3
 import logging
 import pandas as pd
 import matplotlib.pyplot as plt
+from time import time
+from math import floor
+from io import BytesIO
 from pathlib import Path
+from datetime import datetime
+from indra.util.aws import get_s3_client
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 logger = logging.getLogger(__name__)
@@ -116,7 +122,7 @@ class DepMapExplainer:
         ].index
         return len(indices)
 
-    def get_corr_stats_axb(self, z_corr=None):
+    def get_corr_stats_axb(self, z_corr=None, max_proc=None):
         """Get statistics of the correlations associated with different
         explanation types
 
@@ -125,7 +131,9 @@ class DepMapExplainer:
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
             create the statistics in this object
-
+        max_proc : int > 0
+            The maximum number of processes to run in the multiprocessing
+            in get_corr_stats_mp. Default: multiprocessing.cpu_count()
         Returns
         -------
         dict
@@ -138,38 +146,73 @@ class DepMapExplainer:
                                  'for the first time.')
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
-            self.corr_stats_axb = axb_stats(self.expl_df, z_corr)
+            self.corr_stats_axb = axb_stats(self.expl_df, z_corr=z_corr,
+                                            eval_str=False, max_proc=max_proc)
         return self.corr_stats_axb
 
-    def plot_corr_stats(self, outdir, z_corr=None, show_plot=False):
+    def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
+                        max_proc=None, index_counter=None):
         """Plot the results of running explainer.get_corr_stats_axb()
 
         Parameters
         ----------
         outdir : str
-            The output directory to save the plots in.
+            The output directory to save the plots in. If string starts with
+            's3:' upload to s3. outdir must then have the form
+            's3:<bucket>/<sub_dir>' where <bucket> must be specified and
+            <sub_dir> is optional and may contain subdirectories.
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
             create the statistics in this object
-
         show_plot : bool
             If True also show plots
-
+        max_proc : int > 0
+            The maximum number of processes to run in the multiprocessing in
+            get_corr_stats_mp. Default: multiprocessing.cpu_count()
+        index_counter : generator
+            An object which produces a new int by using 'next()' on it. The
+            integers are used to separate the figures so as to not append
+            new plots in the same figure.
         """
-        od = Path(outdir)
-        if not od.is_dir():
-            od.mkdir(parents=True, exist_ok=True)
-        corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
+        # Local file or s3
+        if outdir.startswith('s3:'):
+            full_path = outdir.replace('s3:', '').split('/')
+            bucket = full_path[0]
+            if not _bucket_exists(bucket):
+                raise FileNotFoundError(f'The bucket {bucket} seems to not '
+                                        f'exist on s3.')
+            key_base = '/'.join(full_path[1:]) if len(full_path) > 1 else \
+                'output_data_' + datetime.utcnow().strftime('%Y%m%d%H%M%S')
+            od = None
+        else:
+            bucket = None
+            key_base = None
+            od = Path(outdir)
+            if not od.is_dir():
+                od.mkdir(parents=True, exist_ok=True)
+
+        # Get corr stats
+        corr_stats = self.get_corr_stats_axb(z_corr=z_corr,
+                                             max_proc=max_proc)
         sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
-        for k, v in corr_stats.items():
-            for plot_type in ['all_azb_corrs', 'azb_avg_corrs', 'all_x_corrs',
-                              'avg_x_corrs', 'top_x_corrs']:
+        for n, (k, v) in enumerate(corr_stats.items()):
+            for m, plot_type in enumerate(['all_azb_corrs', 'azb_avg_corrs',
+                                           'all_x_corrs', 'avg_x_corrs',
+                                           'top_x_corrs']):
                 if len(v[plot_type]) > 0:
+                    name = '%s_%s.pdf' % (plot_type, k)
+                    if od is None:
+                        fname = BytesIO()
+                    else:
+                        fname = od.joinpath(name).as_posix()
                     if isinstance(v[plot_type][0], tuple):
                         data = [t[-1] for t in v[plot_type]]
                     else:
                         data = v[plot_type]
+                    fig_index = next(index_counter) if index_counter \
+                        else int(f'{n}{m}')
+                    plt.figure(fig_index)
                     plt.hist(x=data, bins='auto')
                     plt.title('%s %s; %s' %
                               (plot_type.replace('_', ' ').capitalize(),
@@ -177,21 +220,46 @@ class DepMapExplainer:
                                sd))
                     plt.xlabel('combined z-score')
                     plt.ylabel('count')
-                    plt.savefig(
-                        od.joinpath('%s_%s.png' % (plot_type, k)).as_posix(),
-                        format='png'
-                    )
+
+                    # Save to file or ByteIO and S3
+                    plt.savefig(fname, format='pdf')
+                    if od is None:
+                        # Reset pointer
+                        fname.seek(0)
+                        # Upload to s3
+                        _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
+                                      key=key_base + '/' + name)
                     if show_plot:
                         plt.show()
                 else:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
 
-    def plot_dists(self, outdir, z_corr=None):
-        od = Path(outdir)
-        if not od.is_dir():
-            od.mkdir(parents=True, exist_ok=True)
-        corr_stats = self.get_corr_stats_axb(z_corr=z_corr)
+    def plot_dists(self, outdir, z_corr=None, show_plot=False,
+                   max_proc=None, index_counter=None):
+        # Local file or s3
+        if outdir.startswith('s3:'):
+            full_path = outdir.replace('s3:', '').split('/')
+            bucket = full_path[0]
+            if not _bucket_exists(bucket):
+                raise FileNotFoundError(f'The bucket {bucket} seems to not '
+                                        f'exist on s3.')
+            key_base = '/'.join(full_path[1:]) if len(full_path) > 1 else \
+                'output_data_' + datetime.utcnow().strftime('%Y%m%d%H%M%S')
+            od = None
+        else:
+            bucket = None
+            key_base = None
+            od = Path(outdir)
+            if not od.is_dir():
+                od.mkdir(parents=True, exist_ok=True)
+
+        # Get corr stats
+        corr_stats = self.get_corr_stats_axb(z_corr=z_corr,
+                                             max_proc=max_proc)
+        fig_index = next(index_counter) if index_counter \
+            else floor(datetime.timestamp(datetime.utcnow()))
+        plt.figure(fig_index)
         all_ind = corr_stats['axb_not_dir']
         #all_res, db_res, sd):
         #all_ind = all_res['axb_not_dir']
@@ -210,6 +278,38 @@ class DepMapExplainer:
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
         plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)', ])
                     # 'A-X-B for X in path (DB only)'])
-        plt.savefig(od.joinpath('%s_axb_hist_comparison.pdf' %
-                                sd_str).as_posix(), format='pdf')
+        name = '%s_axb_hist_comparison.pdf' % sd_str
 
+        # Save to file or ByteIO and S3
+        if od is None:
+            fname = BytesIO()
+        else:
+            fname = od.joinpath(name).as_posix()
+        plt.savefig(fname, format='pdf')
+        if od is None:
+            # Reset pointer
+            fname.seek(0)
+            # Upload to s3
+            _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
+                          key=key_base + '/' + name)
+
+        # Show plot
+        if show_plot:
+            plt.show()
+
+
+def _upload_to_s3(bytes_io_obj, bucket, key):
+    """
+
+    :param bytes_io_obj: BytesIO
+    :param bucket: str
+    :param key: srt
+    """
+    bytes_io_obj.seek(0)  # Just in case
+    s3 = get_s3_client(unsigned=False)
+    s3.put_object(Body=bytes_io_obj, Bucket=bucket, Key=key)
+
+
+def _bucket_exists(buck):
+    s3 = boto3.resource('s3')
+    return s3.Bucket(buck).creation_date is not None

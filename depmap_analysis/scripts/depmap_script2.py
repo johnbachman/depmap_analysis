@@ -45,6 +45,7 @@ from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 
 
 logger = logging.getLogger('DepMap Script')
+logger.setLevel(logging.DEBUG)
 
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,

@@ -29,6 +29,7 @@ import depmap_analysis.network_functions.famplex_functions as ff
 
 db_prim = dbu.get_primary_db()
 dnf_logger = logging.getLogger('DepMap Functions')
+dnf_logger.setLevel(logging.DEBUG)
 
 
 def entry_exist_dict(nest_dict, outer_key, inner_key):
