@@ -1088,21 +1088,39 @@ class IndraNetwork:
 
 
 def get_top_ranked_name(name, context=None):
+    """get top ranked result from gilda
+
+    Parameters
+    ----------
+    name : str
+        Provide a name to be grounded
+    context : str
+        Optional. Provide context for the name provided
+
+    Returns
+    -------
+    tuple(str)
+        A tuple of ns, id, grounded name
+    """
+    none_triple = (None, )*3
     if not GRND_URI:
         logger.warning('Grounding service URL not set')
-        return None
+        return none_triple
     req_json = {'text': name}
     if context:
         req_json['context'] = context
     res = requests.post(GRND_URI, json=req_json)
     if res.status_code == 200 and res.json():
         top_res = res.json()[0]
-        return top_res['term']['entry_name']
+        topname = top_res['term']['entry_name']
+        topns = top_res['term']['db']
+        topid = top_res['term']['id']
+        return topns, topid, topname
     elif res.status_code != 200:
         logger.warning('Got status code %d from gilda, no result')
     else:
         logger.warning('No result from gilda for %s' % name)
-    return None
+    return none_triple
 
 
 def translate_query(query_json):
