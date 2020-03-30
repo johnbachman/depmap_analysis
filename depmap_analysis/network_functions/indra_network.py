@@ -1087,6 +1087,24 @@ class IndraNetwork:
             return set()
 
 
+def get_top_ranked_name(name, context=None):
+    if not GRND_URI:
+        logger.warning('Grounding service URL not set')
+        return None
+    req_json = {'text': name}
+    if context:
+        req_json['context'] = context
+    res = requests.post(GRND_URI, json=req_json)
+    if res.status_code == 200 and res.json():
+        top_res = res.json()[0]
+        return top_res['term']['entry_name']
+    elif res.status_code != 200:
+        logger.warning('Got status code %d from gilda, no result')
+    else:
+        logger.warning('No result from gilda for %s' % name)
+    return None
+
+
 def translate_query(query_json):
     """Translate query json"""
     options = {k: v for k, v in query_json.items()  # Handled below
