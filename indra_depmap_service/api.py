@@ -16,7 +16,8 @@ from flask import Flask, request, abort, Response, render_template, jsonify,\
 
 from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
-from depmap_analysis.network_functions.indra_network import IndraNetwork
+from depmap_analysis.network_functions.indra_network import IndraNetwork, \
+    NODE_NAME_SPACES
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
@@ -157,13 +158,11 @@ if VERBOSITY > 0 and\
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
-                        'PUBCHEM']
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
     return render_template('query_template.html',
                            stmt_types=stmt_types,
-                           node_name_spaces=node_name_spaces,
+                           node_name_spaces=NODE_NAME_SPACES,
                            has_signed_graph=has_signed_graph)
 
 

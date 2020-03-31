@@ -36,6 +36,7 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 USER_OVERRIDE = False
+NODE_NAME_SPACES = ('CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM')
 
 
 class IndraNetwork:
