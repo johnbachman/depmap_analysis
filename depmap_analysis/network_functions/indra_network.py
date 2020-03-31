@@ -583,6 +583,74 @@ class IndraNetwork:
 
         return []
 
+    def find_direct_shared_regulators_multi(self, list_of_targets, **options):
+        """Returns a list of statement data that connect list_of_targets for
+        upstream regulators
+
+        Parameters
+        ----------
+        list_of_targets : list(str)
+            A list of nodes to look for shared regulators for
+        options : kwargs
+
+
+        Returns
+        -------
+        dict
+            Dictionary containing the results:
+                {'targets': <list of original targets>,
+                 'regulators': <list of shared regulators>,
+                 'stmt_data': <list of statements data for the edges>,
+                 'stmt_hashes': <list of statement hashes>}
+            If there are no results, an empty dictionary is returned.
+        """
+        if not all([n in self.nodes for n in list_of_targets]):
+            not_in_network = [n for n in list_of_targets
+                              if n not in self.nodes]
+            in_network = [n for n in list_of_targets if n in self.nodes]
+            grounded_targets = []
+            for target in not_in_network:
+                _, _, name = get_top_ranked_name(target)
+                if name is None:
+                    # abort if one of the targets is ungroundable
+                    return {}
+                grounded_targets.append(name)
+            assert len(grounded_targets) + len(in_network) == \
+                len(list_of_targets)
+            list_of_targets = in_network + grounded_targets
+
+        first = list_of_targets.pop()
+        upstreams = set(self.nx_dir_graph_repr.pred[first])
+        for target in list_of_targets:
+            upstreams.intersection(set(self.nx_dir_graph_repr.pred[target]))
+
+        if upstreams:
+            return self._loop_direct_regulators_multi(list_of_targets,
+                                                      upstreams, **options)
+        return {}
+
+    def _loop_direct_regulators_multi(self, targets, shared_regs, **options):
+        stmt_data = {}
+        all_hashes = {}
+        for reg in shared_regs:
+            stmt_data[reg] = {}
+            all_hashes[reg] = {}
+            for target in targets:
+                # get hash path for each target-regulator pair
+                hash_path = self._get_hash_path(path=[reg, target], **options)
+                stmt_data[reg][target] = hash_path[0]
+                # The hash path will be a list of len 1 since we only have
+                # one direct edge
+                for key, dl in hash_path[0].items():
+                    if key not in {'subj', 'obj'}:
+                        all_hashes[reg][target] = {
+                            key: [d['stmt_hash'] for d in dl]
+                        }
+        return {'targets': targets,
+                'regulators': list(shared_regs),
+                'stmt_data': stmt_data,
+                'stmt_hashes': all_hashes}
+
     def _loop_shared_regulators(self, shared_regs, source, target,
                                 **options):
         """Order shared regulators by lowest highest belief score"""
