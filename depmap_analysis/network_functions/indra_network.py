@@ -625,7 +625,8 @@ class IndraNetwork:
                 len(list_of_targets)
             list_of_targets = in_network + grounded_targets
 
-        first = list_of_targets.pop()
+        # Get the intersection of all direct upstream target
+        first = list_of_targets[0]
         upstreams = set(self.nx_dir_graph_repr.pred[first])
         for target in list_of_targets[1:]:
             upstreams.intersection_update(
