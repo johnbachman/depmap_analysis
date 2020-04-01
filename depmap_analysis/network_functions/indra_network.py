@@ -36,7 +36,6 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 USER_OVERRIDE = False
-NODE_NAME_SPACES = ('CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH', 'PUBCHEM')
 
 
 class IndraNetwork:
@@ -593,7 +592,11 @@ class IndraNetwork:
         list_of_targets : list(str)
             A list of nodes to look for shared regulators for
         options : kwargs
-
+            Options have to include:
+                *node_filter
+                *bsco
+                *stmt_filter
+                *curated_db_only
 
         Returns
         -------
@@ -601,10 +604,11 @@ class IndraNetwork:
             Dictionary containing the results:
                 {'targets': <list of original targets>,
                  'regulators': <list of shared regulators>,
-                 'stmt_data': <list of statements data for the edges>,
-                 'stmt_hashes': <list of statement hashes>}
+                 'stmt_data': <dict of statements data for the edges>,
+                 'stmt_hashes': <dict of statement hashes>}
             If there are no results, an empty dictionary is returned.
         """
+        # Make sure we have grounded node names
         if not all([n in self.nodes for n in list_of_targets]):
             not_in_network = [n for n in list_of_targets
                               if n not in self.nodes]
@@ -614,6 +618,7 @@ class IndraNetwork:
                 _, _, name = get_top_ranked_name(target)
                 if name is None:
                     # abort if one of the targets is ungroundable
+                    logger.warning('Target %s is ungroundable' % target)
                     return {}
                 grounded_targets.append(name)
             assert len(grounded_targets) + len(in_network) == \
@@ -622,31 +627,43 @@ class IndraNetwork:
 
         first = list_of_targets.pop()
         upstreams = set(self.nx_dir_graph_repr.pred[first])
-        for target in list_of_targets:
-            upstreams.intersection(set(self.nx_dir_graph_repr.pred[target]))
+        for target in list_of_targets[1:]:
+            upstreams.intersection_update(
+                set(self.nx_dir_graph_repr.pred[target]))
 
-        if upstreams:
+        # Filter to allowed ns
+        allowed_ns = options['node_filter']
+        allowed_upstreams = {n for n in upstreams
+                             if self.nodes[n]['ns'].lower() in allowed_ns}
+
+        if allowed_upstreams:
             return self._loop_direct_regulators_multi(list_of_targets,
-                                                      upstreams, **options)
+                                                      allowed_upstreams,
+                                                      **options)
         return {}
 
     def _loop_direct_regulators_multi(self, targets, shared_regs, **options):
         stmt_data = {}
         all_hashes = {}
         for reg in shared_regs:
-            stmt_data[reg] = {}
-            all_hashes[reg] = {}
+            data = {}
+            hashes = {}
             for target in targets:
                 # get hash path for each target-regulator pair
                 hash_path = self._get_hash_path(path=[reg, target], **options)
-                stmt_data[reg][target] = hash_path[0]
-                # The hash path will be a list of len 1 since we only have
-                # one direct edge
-                for key, dl in hash_path[0].items():
-                    if key not in {'subj', 'obj'}:
-                        all_hashes[reg][target] = {
-                            key: [d['stmt_hash'] for d in dl]
-                        }
+                if hash_path and hash_path[0]:
+                    data[target] = hash_path[0]
+                    # The hash path will be a list of len 1 since we only
+                    # have one direct edge
+                    for key, dl in hash_path[0].items():
+                        if key not in {'subj', 'obj'}:
+                            hashes[target] = {
+                                key: [d['stmt_hash'] for d in dl]
+                            }
+            if data:
+                stmt_data[reg] = data
+            if hashes:
+                all_hashes[reg] = hashes
         return {'targets': targets,
                 'regulators': list(shared_regs),
                 'stmt_data': stmt_data,
