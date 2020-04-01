@@ -260,6 +260,9 @@ def multi_regulators():
     allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
     default_ns = list(map(lambda s: s.lower(), NS_LIST))
 
+    if not allowed_ns:
+        allowed_ns = default_ns
+
     if not set(allowed_ns).issubset(set(default_ns)):
         abort(Response('One or more of the provided ns in "allowed_ns" is '
                        'not part of the standard ns. Provided ns list: %s. '
