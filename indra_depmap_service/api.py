@@ -16,8 +16,8 @@ from flask import Flask, request, abort, Response, render_template, jsonify,\
 
 from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
-from depmap_analysis.network_functions.indra_network import IndraNetwork, \
-    NODE_NAME_SPACES
+from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
+from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
 from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
@@ -162,7 +162,7 @@ def get_query_page():
     has_signed_graph = bool(len(indra_network.signed_nodes))
     return render_template('query_template.html',
                            stmt_types=stmt_types,
-                           node_name_spaces=NODE_NAME_SPACES,
+                           node_name_spaces=list(NS_LIST),
                            has_signed_graph=has_signed_graph)
 
 
@@ -232,6 +232,61 @@ def process_query():
         logger.exception(e)
         logger.warning('Unhandled internal error, see above error messages')
         abort(Response('Server error during handling of query', 500))
+
+
+@app.route('/multi_regulators', methods=['POST'])
+def multi_regulators():
+    logger.info('Got request to ')
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+    if not request.json:
+        return abort(415, '')
+    query_json = request.json
+    if query_json.get('help'):
+        return jsonify({
+            'required arguments': ['targets'],
+            'optional arguments': ['allowed_ns', 'belief_cutoff',
+                                   'skip_stmt_types', 'db_only']
+        })
+    if not query_json.get('targets'):
+        abort(Response('Missing required parameter "targets"', 415))
+
+    # Requires the following options:
+    # *node_filter
+    # *bsco
+    # *stmt_filter
+    # *curated_db_only
+    allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
+    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+
+    if not set(allowed_ns).issubset(set(default_ns)):
+        abort(Response('One or more of the provided ns in "allowed_ns" is '
+                       'not part of the standard ns. Provided ns list: %s. '
+                       'Allowed ns list: %s' %
+                       (str(allowed_ns), str(default_ns)), 415))
+
+    options = {
+        'list_of_targets': query_json['targets'],
+        'node_filter': allowed_ns,
+        'bsco': int(query_json.get('belief_cutoff', 0)),
+        'stmt_filter': query_json.get('skip_stmt_types', []),
+        'curated_db_only': bool(query_json.get('db_only', False))
+    }
+
+    try:
+        result = indra_network.find_direct_shared_regulators_multi(**options)
+        return jsonify(result)
+    except Exception as err:
+        logger.warning('Error handling multi regulators query')
+        logger.exception(err)
+        abort(Response('Internal server error handling multi regulators '
+                       'query', 500))
+
+
+# @app.route('/multi_targets', methods=['POST'])
+# def multi_targets():
+#     pass
 
 
 @app.route('/node', methods=['POST'])
