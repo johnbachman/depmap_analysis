@@ -666,7 +666,8 @@ class IndraNetwork:
             if hashes:
                 all_hashes[reg] = hashes
         return {'targets': targets,
-                'regulators': list(shared_regs),
+                'regulators': list(shared_regs) if stmt_data or all_hashes
+                else [],
                 'stmt_data': stmt_data,
                 'stmt_hashes': all_hashes}
 
