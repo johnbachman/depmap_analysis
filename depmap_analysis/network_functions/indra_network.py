@@ -608,6 +608,8 @@ class IndraNetwork:
                  'stmt_hashes': <dict of statement hashes>}
             If there are no results, an empty dictionary is returned.
         """
+        allowed_ns = options['node_filter']
+
         # Make sure we have grounded node names
         if not all([n in self.nodes for n in list_of_targets]):
             not_in_network = [n for n in list_of_targets
@@ -620,10 +622,20 @@ class IndraNetwork:
                     # abort if one of the targets is ungroundable
                     logger.warning('Target %s is ungroundable' % target)
                     return {}
+                if name not in self.nodes:
+                    logger.warning('Target %s (grounded to %s) is not a node '
+                                   'in the graph' % (target, name))
                 grounded_targets.append(name)
             assert len(grounded_targets) + len(in_network) == \
                 len(list_of_targets)
             list_of_targets = in_network + grounded_targets
+
+        # Check if targets' ns are in allowed ns
+        if not all([self.nodes[n]['ns'].lower() in allowed_ns
+                    for n in list_of_targets]):
+            logger.warning('At least one of the targets is not part of the '
+                           'allowed name space')
+            return {}
 
         # Get the intersection of all direct upstream target
         first = list_of_targets[0]
@@ -633,14 +645,14 @@ class IndraNetwork:
                 set(self.nx_dir_graph_repr.pred[target]))
 
         # Filter to allowed ns
-        allowed_ns = options['node_filter']
         allowed_upstreams = {n for n in upstreams
                              if self.nodes[n]['ns'].lower() in allowed_ns}
 
         if allowed_upstreams:
-            return self._loop_direct_regulators_multi(list_of_targets,
-                                                      allowed_upstreams,
-                                                      **options)
+            return self._loop_direct_regulators_multi(
+                targets=list_of_targets,
+                shared_regs=allowed_upstreams,
+                **options)
         return {}
 
     def _loop_direct_regulators_multi(self, targets, shared_regs, **options):
@@ -666,8 +678,7 @@ class IndraNetwork:
             if hashes:
                 all_hashes[reg] = hashes
         return {'targets': targets,
-                'regulators': list(shared_regs) if stmt_data or all_hashes
-                else [],
+                'regulators': list(shared_regs),
                 'stmt_data': stmt_data,
                 'stmt_hashes': all_hashes}
 
