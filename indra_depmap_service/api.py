@@ -234,22 +234,24 @@ def process_query():
         abort(Response('Server error during handling of query', 500))
 
 
-@app.route('/multi_regulators', methods=['POST'])
-def multi_regulators():
-    logger.info('Got request to ')
+@app.route('/multi_interactors', methods=['POST'])
+def multi_interactors():
+    logger.info('Got request for multi interactors')
     logger.info('Incoming Json ----------------------')
     logger.info(str(request.json))
     logger.info('------------------------------------')
     if not request.json:
         return abort(415, '')
     query_json = request.json
-    if query_json.get('help'):
+    if 'help' in query_json:
         return jsonify({
-            'required arguments': ['targets'],
-            'optional arguments': ['allowed_ns', 'belief_cutoff',
-                                   'skip_stmt_types', 'db_only']
+            'required': ['targets XOR regulators'],
+            'optional': ['allowed_ns (all)', 'belief_cutoff (0)',
+                         'skip_stmt_types ([])',
+                         'db_only (False)']
         })
-    if not query_json.get('targets'):
+    if not (bool(query_json.get('targets')) ^
+            bool(query_json.get('regulators'))):
         abort(Response('Missing required parameter "targets"', 415))
 
     # Requires the following options:
@@ -270,20 +272,24 @@ def multi_regulators():
                        (str(allowed_ns), str(default_ns)), 415))
 
     options = {
-        'list_of_targets': query_json['targets'],
         'node_filter': allowed_ns,
         'bsco': int(query_json.get('belief_cutoff', 0)),
         'stmt_filter': query_json.get('skip_stmt_types', []),
         'curated_db_only': bool(query_json.get('db_only', False))
     }
 
+    if query_json.get('targets'):
+        options['list_of_targets'] = query_json['targets']
+    else:
+        options['list_of_regulators'] = query_json['regulators']
+
     try:
-        result = indra_network.find_direct_shared_regulators_multi(**options)
+        result = indra_network.multi_regulators_targets(**options)
         return jsonify(result)
     except Exception as err:
-        logger.warning('Error handling multi regulators query')
+        logger.warning('Error handling multi interactors query')
         logger.exception(err)
-        abort(Response('Internal server error handling multi regulators '
+        abort(Response('Internal server error handling multi interactors '
                        'query', 500))
 
 
