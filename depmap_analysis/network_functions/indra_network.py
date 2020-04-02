@@ -38,6 +38,10 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
 USER_OVERRIDE = False
 
 
+class MissingParametersError(Exception):
+    pass
+
+
 class IndraNetwork:
     """Handle searches and graph output of the INDRA DB network"""
     def __init__(self, indra_dir_graph=nx.DiGraph(),
