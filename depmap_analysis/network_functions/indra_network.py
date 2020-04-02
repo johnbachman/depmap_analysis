@@ -583,16 +583,32 @@ class IndraNetwork:
 
         return []
 
-    def find_direct_shared_regulators_multi(self, list_of_targets, **options):
+    def multi_regulators_targets(self, list_of_regulators=None,
+                                 list_of_targets=None, **options):
+        if not (bool(list_of_regulators) ^ bool(list_of_targets)):
+            logger.warning('Must provide either of targets OR regulators. '
+                           'None or both are not allowed.')
+            return {}
+        if list_of_targets:
+            return self.direct_interactors_multi(
+                list_of_targets=list_of_targets, **options)
+        else:
+            return self.direct_interactors_multi(
+                list_of_regulators=list_of_regulators, **options)
+
+    def direct_interactors_multi(self, list_of_regulators=None,
+                                 list_of_targets=None, **options):
         """Returns a list of statement data that connect list_of_targets for
         upstream regulators
 
         Parameters
         ----------
+        list_of_regulators : list(str)
+            A list of nodes to look for shared targets for
         list_of_targets : list(str)
             A list of nodes to look for shared regulators for
         options : kwargs
-            Options have to include:
+            Options have to include (see self.handle_query for explanations):
                 *node_filter
                 *bsco
                 *stmt_filter
@@ -602,63 +618,88 @@ class IndraNetwork:
         -------
         dict
             Dictionary containing the results:
-                {'targets': <list of original targets>,
-                 'regulators': <list of shared regulators>,
+                {'targets': <list of targets>,
+                 'regulators': <list of regulators>,
                  'stmt_data': <dict of statements data for the edges>,
                  'stmt_hashes': <dict of statement hashes>}
             If there are no results, an empty dictionary is returned.
         """
+        def grounding_filter(intrcts):
+            # Make sure we have grounded node names
+            if not all([n in self.nodes for n in intrcts]):
+                not_in_network = [n for n in intrcts
+                                  if n not in self.nodes]
+                in_network = [n for n in intrcts if n in self.nodes]
+                grounded = []
+                for trgt in not_in_network:
+                    _, _, name = get_top_ranked_name(trgt)
+                    if name is None:
+                        # abort if one of the targets is ungroundable
+                        logger.warning('Target %s is ungroundable' % trgt)
+                        return {}
+                    if name not in self.nodes:
+                        logger.warning(
+                            'Target %s (grounded to %s) is not a node '
+                            'in the graph' % (trgt, name))
+                    grounded.append(name)
+                assert len(grounded) + len(in_network) == \
+                    len(intrcts)
+                return in_network + grounded
+            else:
+                return intrcts
+
         allowed_ns = options['node_filter']
 
-        # Make sure we have grounded node names
-        if not all([n in self.nodes for n in list_of_targets]):
-            not_in_network = [n for n in list_of_targets
-                              if n not in self.nodes]
-            in_network = [n for n in list_of_targets if n in self.nodes]
-            grounded_targets = []
-            for target in not_in_network:
-                _, _, name = get_top_ranked_name(target)
-                if name is None:
-                    # abort if one of the targets is ungroundable
-                    logger.warning('Target %s is ungroundable' % target)
-                    return {}
-                if name not in self.nodes:
-                    logger.warning('Target %s (grounded to %s) is not a node '
-                                   'in the graph' % (target, name))
-                grounded_targets.append(name)
-            assert len(grounded_targets) + len(in_network) == \
-                len(list_of_targets)
-            list_of_targets = in_network + grounded_targets
+        input_interactors = list_of_targets if list_of_targets else \
+            list_of_regulators
 
-        # Check if targets' ns are in allowed ns
+        input_interactors = grounding_filter(input_interactors)
+
+        # Check if input ns are in allowed ns
         if not all([self.nodes[n]['ns'].lower() in allowed_ns
-                    for n in list_of_targets]):
+                    for n in input_interactors]):
             logger.warning('At least one of the targets is not part of the '
                            'allowed name space')
             return {}
 
-        # Get the intersection of all direct upstream target
-        first = list_of_targets[0]
-        upstreams = set(self.nx_dir_graph_repr.pred[first])
-        for target in list_of_targets[1:]:
-            upstreams.intersection_update(
-                set(self.nx_dir_graph_repr.pred[target]))
+        # Get the intersection of all direct interactors
+        first = input_interactors[0]
+        other_interactors = set(self.nx_dir_graph_repr.pred[first]) if \
+            list_of_targets else set(self.nx_dir_graph_repr.succ[first])
+        for interactor in input_interactors[1:]:
+            if list_of_targets:
+                other_interactors.intersection_update(
+                    set(self.nx_dir_graph_repr.pred[interactor])
+                )
+            else:
+                other_interactors.intersection_update(
+                    set(self.nx_dir_graph_repr.succ[interactor])
+                )
 
         # Filter to allowed ns
-        allowed_upstreams = {n for n in upstreams
-                             if self.nodes[n]['ns'].lower() in allowed_ns}
+        allowed_other_interactors = {n for n in other_interactors
+                                     if self.nodes[n]['ns'].lower() in
+                                     allowed_ns}
 
-        if allowed_upstreams:
+        if allowed_other_interactors:
+            # If targets were input interactors
+            if list_of_targets:
+                targets = input_interactors
+                regulators = other_interactors
+            # If regulators were input interactors
+            else:
+                targets = other_interactors
+                regulators = input_interactors
             return self._loop_direct_regulators_multi(
-                targets=list_of_targets,
-                shared_regs=allowed_upstreams,
+                targets=targets,
+                regulators=regulators,
                 **options)
         return {}
 
-    def _loop_direct_regulators_multi(self, targets, shared_regs, **options):
+    def _loop_direct_regulators_multi(self, targets, regulators, **options):
         stmt_data = {}
         all_hashes = {}
-        for reg in shared_regs:
+        for reg in regulators:
             data = {}
             hashes = {}
             for target in targets:
@@ -677,8 +718,8 @@ class IndraNetwork:
                 stmt_data[reg] = data
             if hashes:
                 all_hashes[reg] = hashes
-        return {'targets': targets,
-                'regulators': list(shared_regs),
+        return {'targets': list(targets),
+                'regulators': list(regulators),
                 'stmt_data': stmt_data,
                 'stmt_hashes': all_hashes}
 
