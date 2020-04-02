@@ -275,17 +275,19 @@ class IndraNetwork:
         if options['source'] in options.get('node_blacklist') or\
                 options['target'] in options.get('node_blacklist'):
             logger.warning('Source and/or target is blacklisted!')
+            # Return True so path is returned anyway
             return True
+
         # Check non-resolving query
-        sns, sid = nf.ns_id_from_name(options['source'], gilda_retry=True)
-        tns, tid = nf.ns_id_from_name(options['target'])
-        if (sns and sns.lower() not in options['node_filter']) or \
-                (tns and tns.lower() not in options['node_filter']):
-            if sns.lower() not in options['node_filter']:
-                logger.warning('%s not among accepted nodes' % sns)
-            if tns.lower() not in options['node_filter']:
-                logger.warning('%s not among accepted nodes' % tns)
-            return False
+        # sns, sid = nf.ns_id_from_name(options['source'], gilda_retry=True)
+        # tns, tid = nf.ns_id_from_name(options['target'])
+        # if (sns and sns.lower() not in options['node_filter']) or \
+        #         (tns and tns.lower() not in options['node_filter']):
+        #     if sns.lower() not in options['node_filter']:
+        #         logger.warning('%s not among accepted nodes' % sns)
+        #     if tns.lower() not in options['node_filter']:
+        #         logger.warning('%s not among accepted nodes' % tns)
+        #     return False
 
         return True
 
@@ -530,15 +532,11 @@ class IndraNetwork:
         """Return a list of shortest paths with their support in ascending
         order.
 
-        The paths are ranked by cost minimization (wegthed search) or
+        The paths are ranked by cost minimization (weighted search) or
         number of edges (unweighted search).
 
         If weighted, use
         depmap_analysis.network_functions.net_functions.shortest_simple_paths
-
-        If signed path search, use
-        indra.explanation.model_checker.signed_graph.\
-        SignedGraphModelChecker.find_paths
         """
         try:
             logger.info('Doing simple %spath search' % 'weigthed '
@@ -671,11 +669,11 @@ class IndraNetwork:
         input_interactors = grounding_filter(input_interactors)
 
         # Check if input ns are in allowed ns
-        if not all([self.nodes[n]['ns'].lower() in allowed_ns
-                    for n in input_interactors]):
-            logger.warning('At least one of the targets is not part of the '
-                           'allowed name space')
-            return {}
+        # if not all([self.nodes[n]['ns'].lower() in allowed_ns
+        #             for n in input_interactors]):
+        #     logger.warning('At least one of the targets is not part of the '
+        #                    'allowed name space')
+        #     return {}
 
         # Get the intersection of all direct interactors
         first = input_interactors[0]
@@ -857,7 +855,7 @@ class IndraNetwork:
         while True:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
-                logger.info('Found all %d shortest paths, returning results.'\
+                logger.info('Found all %d shortest paths, returning results.'
                             % self.MAX_PATHS)
                 return result
             if time() - self.query_recieve_time > self.TIMEOUT:
