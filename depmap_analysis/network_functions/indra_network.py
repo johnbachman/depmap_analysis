@@ -410,8 +410,15 @@ class IndraNetwork:
     def find_shortest_path(self, source, target, **options):
         """Returns a list of nodes representing a shortest path"""
         try:
-            return self._loop_paths(nx.shortest_path(
-                self.nx_dir_graph_repr, source, target, options['weight']),
+            return self._loop_paths(
+                source=source,
+                target=target,
+                paths_gen=nx.shortest_path(
+                    G=self.nx_dir_graph_repr,
+                    source=source,
+                    target=target,
+                    weight=options['weight']
+                ),
                 **options)
         except NodeNotFound or NetworkXNoPath as e:
             logger.warning(repr(e))
@@ -435,14 +442,16 @@ class IndraNetwork:
                 if self.verbose > 1:
                     logger.info('Found direct path from %s to %s' %
                                 (source, target))
-                hash_path = self._get_hash_path(path, **options)
+                hash_path = self._get_hash_path(path=path, source=source,
+                                                target=target, **options)
         elif options['sign'] is not None:
             int_sign = SIGNS_TO_INT_SIGN[options['sign']]
             if self.signed_edges.get((source, target, int_sign)):
                 if self.verbose > 1:
                     logger.info('Found direct signed path from %s to %s' %
                                 (source, target))
-                hash_path = self._get_hash_path(path,
+                hash_path = self._get_hash_path(path=path, source=source,
+                                                target=target,
                                                 edge_signs=[int_sign],
                                                 graph_type='signed',
                                                 **options)
@@ -500,7 +509,10 @@ class IndraNetwork:
                 path = [n[0] for n in _path]
                 edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(_path[:-1], _path[1:])]
-            hash_path = self._get_hash_path(path, edge_signs, graph_type,
+            hash_path = self._get_hash_path(path=path, source=source,
+                                            target=target,
+                                            edge_signs=edge_signs,
+                                            graph_type=graph_type,
                                             **options)
             if hash_path and all(hash_path):
                 if self.verbose > 1:
@@ -539,6 +551,8 @@ class IndraNetwork:
                                                  source, target,
                                                  options['weight'],
                                                  **blacklist_options)
+                subj = source
+                obj = target
             else:
                 # Generate signed nodes from query's overall sign
                 (src, src_sign), (trgt, trgt_sign) =\
@@ -554,7 +568,8 @@ class IndraNetwork:
                     self.sign_node_graph_repr, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes)
 
-            return self._loop_paths(paths, **options)
+            return self._loop_paths(source=subj, target=obj, paths_gen=paths,
+                                    **options)
 
         except NodeNotFound as e:
             logger.warning(repr(e))
@@ -696,7 +711,8 @@ class IndraNetwork:
                 **options)
         return {}
 
-    def _loop_direct_regulators_multi(self, targets, regulators, **options):
+    def _loop_direct_regulators_multi(self, targets, regulators,
+                                      ign, **options):
         stmt_data = {}
         all_hashes = {}
         for reg in regulators:
@@ -704,7 +720,9 @@ class IndraNetwork:
             hashes = {}
             for target in targets:
                 # get hash path for each target-regulator pair
-                hash_path = self._get_hash_path(path=[reg, target], **options)
+                ign_node = reg if ign == 'regulators' else target
+                hash_path = self._get_hash_path(path=[reg, target],
+                                                source=ign_node, **options)
                 if hash_path and hash_path[0]:
                     data[target] = hash_path[0]
                     # The hash path will be a list of len 1 since we only
@@ -729,8 +747,10 @@ class IndraNetwork:
         ordered_regulators = []
         added_regulators = 0
         for sr in shared_regs:
-            paths1 = self._get_hash_path(path=[sr, source], **options)
-            paths2 = self._get_hash_path(path=[sr, target], **options)
+            paths1 = self._get_hash_path(target=source, path=[sr, source],
+                                         **options)
+            paths2 = self._get_hash_path(target=target, path=[sr, target],
+                                         **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 paths1_stmts = []
                 for k, v in paths1[0].items():
@@ -784,8 +804,10 @@ class IndraNetwork:
         ordered_commons = []
         added_targets = 0
         for ct in common_targets:
-            paths1 = self._get_hash_path(path=[source, ct], **options)
-            paths2 = self._get_hash_path(path=[target, ct], **options)
+            paths1 = self._get_hash_path(source=source, path=[source, ct],
+                                         **options)
+            paths2 = self._get_hash_path(source=target, path=[target, ct],
+                                         **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 paths1_stmts = []
                 for k, v in paths1[0].items():
@@ -814,7 +836,7 @@ class IndraNetwork:
         else:
             return []
 
-    def _loop_paths(self, paths_gen, **options):
+    def _loop_paths(self, source, target, paths_gen, **options):
         # len(path) = edge count + 1
         sign = options['sign']
         graph_type = 'digraph' if sign is None else 'signed'
@@ -870,7 +892,9 @@ class IndraNetwork:
                 logger.info('Reached StopIteration: all paths found. '
                             'breaking.')
                 break
-            hash_path = self._get_hash_path(path, edge_signs, graph_type,
+            hash_path = self._get_hash_path(source=source, target=target,
+                                            path=path, edge_signs=edge_signs,
+                                            graph_type=graph_type,
                                             **options)
 
             if hash_path and all(hash_path):
@@ -1057,8 +1081,8 @@ class IndraNetwork:
                 stmt_edge = None
             return stmt_edge
 
-    def _get_hash_path(self, path, edge_signs=None, graph_type='digraph',
-                       **options):
+    def _get_hash_path(self, path, source=None, target=None, edge_signs=None,
+                       graph_type='digraph', **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
         the n nodes in path. If simple_graph is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
@@ -1067,10 +1091,13 @@ class IndraNetwork:
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
         for subj, obj, edge_sign in zip(path[:-1], path[1:], es):
-            # Check node filter
-            if self.nodes[subj]['ns'].lower() not in \
-                    options['node_filter'] or self.nodes[obj]['ns'].lower() \
-                    not in options['node_filter']:
+            # Check node filter, but ignore source or target nodes
+            # e.g., check node_filter IFF source != subj AND target != obj
+            if (source != subj and target != subj and
+                self.nodes[subj]['ns'].lower() not in options['node_filter'])\
+                or \
+                (source != obj and target != obj and
+                 self.nodes[obj]['ns'].lower() not in options['node_filter']):
                 if self.verbose:
                     logger.info('Node namespace %s or %s not part of '
                                 'acceptable namespaces %s' %
