@@ -700,15 +700,19 @@ class IndraNetwork:
             # If targets were input interactors
             if list_of_targets:
                 targets = input_interactors
-                regulators = other_interactors
+                regulators = allowed_other_interactors
+                ign_nodes = 'targets'
             # If regulators were input interactors
             else:
-                targets = other_interactors
+                targets = allowed_other_interactors
                 regulators = input_interactors
+                ign_nodes = 'regulators'
             return self._loop_direct_regulators_multi(
                 targets=targets,
                 regulators=regulators,
-                **options)
+                ign=ign_nodes,
+                **options
+            )
         return {}
 
     def _loop_direct_regulators_multi(self, targets, regulators,
