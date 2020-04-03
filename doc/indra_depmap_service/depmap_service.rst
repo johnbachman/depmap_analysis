@@ -124,6 +124,74 @@ By POSTing `"{'help': ''}"` to the endpoint, a small json is returned that
 describes the options available.
 
 
+Path Query Endpoint
+...................
+To perform a path search, enter a source and a target in the appropriate text
+boxes and apply the desired settings. The following settings are available:
+
+- **source** (str): the source node for the path.
+- **target** (str): the target for the path.
+- **stmt_filter** ([str]): a list of valid indra statement types or FamPlex
+  child-parent connections (as 'fplx') *to exclude* in the path.
+- **node_filter** ([str]): A list of node namespaces *to include* in the path
+- **node_blacklist** ([str]): A list of node names to ignore. If a path
+  contains a node in this list, the path will be discarded.
+- **edge_hash_blacklist** ([str/int]): A list of statement hashes (as
+  strings or ints) to ignore. If an edge statement hash is found in this
+  list, it will be discarded from the assembled edge list.
+- **cull_best_node** (int): A positive integer. Every x valid paths, cull the
+  node with the highest (weighted): degree from the network. This increases
+  the variety of paths found and reduces the impact of nodes with extremely
+  high connectivity in the network.
+- **path_length** (int|False): a positive integer stating the number of edges
+  that should be in the returned path. If False, return paths with any number
+  of edges.
+- **sign** (None|str): If 'no_sign' or None, do regular unsigned graph search
+  over the directed graph. If 'plus'/'minus', only paths with overall up/down
+  regulation will be returned.
+- **weighted** (Bool): If True, do a weighted path search. Weights in the
+  network are assigned as -log(belief score).
+- **bsco** (0 <= float <= 1.0): Belief Score Cut-Off, a positive decimal
+  number <1.0 indicating at what belief score an edge statement should be
+  ignored.
+- **curated_db_only** (Bool): Filter results to only allow edges that are
+  sourced from curated databases.
+- **fplx_expand** (Bool): If True, when no path is found in the initial search,
+  look for paths between the parents of the source and target.
+- **k_shortest** (Bool|int): An integer stating the maximum number of directed
+  paths to return in the result. The maximum allowed value is 50. If False,
+  the maximum number of paths returned will be set to the maximum allowed
+  value.
+- **user_timeout** (float): A decimal specifying the number of seconds to use
+  for timeout. If not provided, the default of 30 seconds is used.
+- **two_way** (Bool): If True, search path both ways, i.e. search A->B and
+  B->A.
+
+The json would look like this::
+
+    Method: POST
+    {'source': <str>,
+     'target': <str>,
+     'stmt_filter': [str],
+     'node_blacklist': [str],
+     'edge_hash_blacklist': [str/int],
+     'cull_best_node': [int],
+     'path_length': <int|False>,
+     'sign': <None|str>,
+     'weighted': <Bool>,
+     'bsco': <float>,
+     'curated_db_only': <Bool>,
+     'fplx_expand': <Bool>,
+     'k_shortest': Bool|<int>,
+     'user_timeout' : <float>,
+     'two_way': <Bool>}
+
+
+You can also read about the specific settings in the docstring of the
+``IndraNetwork.handle_query`` method in
+``depmap_analysis/indra_depmap_service/api.py``.
+
+
 Running the Service Locally
 ===========================
 
