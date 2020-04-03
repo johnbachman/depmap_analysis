@@ -54,14 +54,14 @@ To run the service locally, two things are needed:
    `'master' <https://github.com/indralab/depmap_analysis/tree/master>`_
    of the depmap_analysis repository from one of the maintainers.
 2. Download the latest network representations of the indra network
-   (might require AWS S3 login). The files needed are:
+   (might require AWS S3 login):
 
-   * ``indranet_signed_nodes_graph_latest.pkl``
-   * ``indranet_multi_digraph_latest.pkl``
    * ``indranet_dir_graph_latest.pkl``
+   * ``indranet_sign_edge_graph_latest.pkl`` (optional)
+   * ``indranet_sign_node_graph_latest.pkl`` (optional)
 
-Running the Service Locally
-===========================
+   The signed representations of the graph are only needed for signed path
+   search.
 
 Dependecies are Python 3.6+, but otherwise the same as for INDRA and
 INDRA_DB. In the depmap_analysis.indra_depmap_service, run api.py with the
