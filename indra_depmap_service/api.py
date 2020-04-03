@@ -375,7 +375,7 @@ if __name__ == '__main__':
         'a placeholder for a file that should be ignored. The DiGraph file '
         'path is mandatory.'
         'Usage: --cache <DiGraph pickle> [MultiDiGraph pickle|None] '
-        '[SignedGraphModelChecker pickle|None]')
+        '[SignedEdgeGraph pickle|None] [SignedNodeGraph pickle|None]')
     parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
     if API_DEBUG:
