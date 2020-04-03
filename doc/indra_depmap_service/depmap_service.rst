@@ -7,7 +7,8 @@ https://network.indra.bio/
 Available Service Endpoints
 ===========================
 
-There are several endpoints served by the service
+There are several endpoints served by the service, shown in the table below.
+Each endpoint is described further in the sections below.
 
 +----------------------+------------------+------------------------+
 | Endpoint             | Available method | Purpose                |
@@ -33,11 +34,6 @@ There are several endpoints served by the service
 |                      |                  | list of nodes is in the|
 |                      |                  | network                |
 +----------------------+------------------+------------------------+
-
-To perform a path search, enter a source and a target in the appropriate text
-boxes and apply the desired settings. You can read more about the specific
-settings in the docstring of the ``IndraNetwork.handle_query`` method in
-``depmap_analysis/indra_depmap_service/api.py``.
 
 Node Existence Lookup
 .....................
