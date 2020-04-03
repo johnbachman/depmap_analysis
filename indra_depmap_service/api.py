@@ -16,6 +16,7 @@ from flask import Flask, request, abort, Response, render_template, jsonify,\
 
 from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
+from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
 from depmap_analysis.network_functions.indra_network import IndraNetwork
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 
@@ -157,13 +158,11 @@ if VERBOSITY > 0 and\
 @app.route('/query')
 def get_query_page():
     """Loads the query page"""
-    node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
-                        'PUBCHEM']
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
     return render_template('query_template.html',
                            stmt_types=stmt_types,
-                           node_name_spaces=node_name_spaces,
+                           node_name_spaces=list(NS_LIST),
                            has_signed_graph=has_signed_graph)
 
 
@@ -233,6 +232,70 @@ def process_query():
         logger.exception(e)
         logger.warning('Unhandled internal error, see above error messages')
         abort(Response('Server error during handling of query', 500))
+
+
+@app.route('/multi_interactors', methods=['POST'])
+def multi_interactors():
+    logger.info('Got request for multi interactors')
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+    if not request.json:
+        return abort(415, '')
+    query_json = request.json
+    if 'help' in query_json:
+        return jsonify({
+            'required': ['targets XOR regulators'],
+            'optional': ['allowed_ns (all)', 'belief_cutoff (0)',
+                         'skip_stmt_types ([])',
+                         'db_only (False)']
+        })
+    if not (bool(query_json.get('targets')) ^
+            bool(query_json.get('regulators'))):
+        abort(Response('Missing required parameter "targets"', 415))
+
+    # Requires the following options:
+    # *node_filter
+    # *bsco
+    # *stmt_filter
+    # *curated_db_only
+    allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
+    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+
+    if not allowed_ns:
+        allowed_ns = default_ns
+
+    if not set(allowed_ns).issubset(set(default_ns)):
+        abort(Response('One or more of the provided ns in "allowed_ns" is '
+                       'not part of the standard ns. Provided ns list: %s. '
+                       'Allowed ns list: %s' %
+                       (str(allowed_ns), str(default_ns)), 415))
+
+    options = {
+        'node_filter': allowed_ns,
+        'bsco': int(query_json.get('belief_cutoff', 0)),
+        'stmt_filter': query_json.get('skip_stmt_types', []),
+        'curated_db_only': bool(query_json.get('db_only', False))
+    }
+
+    if query_json.get('targets'):
+        options['list_of_targets'] = query_json['targets']
+    else:
+        options['list_of_regulators'] = query_json['regulators']
+
+    try:
+        result = indra_network.multi_regulators_targets(**options)
+        return jsonify(result)
+    except Exception as err:
+        logger.warning('Error handling multi interactors query')
+        logger.exception(err)
+        abort(Response('Internal server error handling multi interactors '
+                       'query', 500))
+
+
+# @app.route('/multi_targets', methods=['POST'])
+# def multi_targets():
+#     pass
 
 
 @app.route('/node', methods=['POST'])

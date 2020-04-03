@@ -483,7 +483,7 @@ function generateSharedRegulators() {
   newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
     'data-toggle="collapse" data-target="#collapse-shared-regulators" aria-expanded="false" ' +
     'aria-controls="collapse-shared-regulators"> Shared Regulators (<span id="subject-placeholder-sr" ' +
-    'class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-sr" '+
+    'class="placholder subject-placeholder">A</span>&larr;Z&rarr;<span id="object-placeholder-sr" '+
     'class="placholder object-placeholder">B</span>)</a><span id="shared-regulators-span" class="badge badge-primary ' +
     'badge-pill float-right path-count">Regulators: 0</span></h3></div><div id="collapse-shared-regulators" ' +
     'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +

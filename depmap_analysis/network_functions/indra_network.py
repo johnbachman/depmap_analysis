@@ -38,6 +38,10 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
 USER_OVERRIDE = False
 
 
+class MissingParametersError(Exception):
+    pass
+
+
 class IndraNetwork:
     """Handle searches and graph output of the INDRA DB network"""
     def __init__(self, indra_dir_graph=nx.DiGraph(),
@@ -275,17 +279,19 @@ class IndraNetwork:
         if options['source'] in options.get('node_blacklist') or\
                 options['target'] in options.get('node_blacklist'):
             logger.warning('Source and/or target is blacklisted!')
+            # Return True so path is returned anyway
             return True
+
         # Check non-resolving query
-        sns, sid = nf.ns_id_from_name(options['source'], gilda_retry=True)
-        tns, tid = nf.ns_id_from_name(options['target'])
-        if (sns and sns.lower() not in options['node_filter']) or \
-                (tns and tns.lower() not in options['node_filter']):
-            if sns.lower() not in options['node_filter']:
-                logger.warning('%s not among accepted nodes' % sns)
-            if tns.lower() not in options['node_filter']:
-                logger.warning('%s not among accepted nodes' % tns)
-            return False
+        # sns, sid = nf.ns_id_from_name(options['source'], gilda_retry=True)
+        # tns, tid = nf.ns_id_from_name(options['target'])
+        # if (sns and sns.lower() not in options['node_filter']) or \
+        #         (tns and tns.lower() not in options['node_filter']):
+        #     if sns.lower() not in options['node_filter']:
+        #         logger.warning('%s not among accepted nodes' % sns)
+        #     if tns.lower() not in options['node_filter']:
+        #         logger.warning('%s not among accepted nodes' % tns)
+        #     return False
 
         return True
 
@@ -410,8 +416,15 @@ class IndraNetwork:
     def find_shortest_path(self, source, target, **options):
         """Returns a list of nodes representing a shortest path"""
         try:
-            return self._loop_paths(nx.shortest_path(
-                self.nx_dir_graph_repr, source, target, options['weight']),
+            return self._loop_paths(
+                source=source,
+                target=target,
+                paths_gen=nx.shortest_path(
+                    G=self.nx_dir_graph_repr,
+                    source=source,
+                    target=target,
+                    weight=options['weight']
+                ),
                 **options)
         except NodeNotFound or NetworkXNoPath as e:
             logger.warning(repr(e))
@@ -435,14 +448,16 @@ class IndraNetwork:
                 if self.verbose > 1:
                     logger.info('Found direct path from %s to %s' %
                                 (source, target))
-                hash_path = self._get_hash_path(path, **options)
+                hash_path = self._get_hash_path(path=path, source=source,
+                                                target=target, **options)
         elif options['sign'] is not None:
             int_sign = SIGNS_TO_INT_SIGN[options['sign']]
             if self.signed_edges.get((source, target, int_sign)):
                 if self.verbose > 1:
                     logger.info('Found direct signed path from %s to %s' %
                                 (source, target))
-                hash_path = self._get_hash_path(path,
+                hash_path = self._get_hash_path(path=path, source=source,
+                                                target=target,
                                                 edge_signs=[int_sign],
                                                 graph_type='signed',
                                                 **options)
@@ -500,7 +515,10 @@ class IndraNetwork:
                 path = [n[0] for n in _path]
                 edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(_path[:-1], _path[1:])]
-            hash_path = self._get_hash_path(path, edge_signs, graph_type,
+            hash_path = self._get_hash_path(path=path, source=source,
+                                            target=target,
+                                            edge_signs=edge_signs,
+                                            graph_type=graph_type,
                                             **options)
             if hash_path and all(hash_path):
                 if self.verbose > 1:
@@ -518,15 +536,11 @@ class IndraNetwork:
         """Return a list of shortest paths with their support in ascending
         order.
 
-        The paths are ranked by cost minimization (wegthed search) or
+        The paths are ranked by cost minimization (weighted search) or
         number of edges (unweighted search).
 
         If weighted, use
         depmap_analysis.network_functions.net_functions.shortest_simple_paths
-
-        If signed path search, use
-        indra.explanation.model_checker.signed_graph.\
-        SignedGraphModelChecker.find_paths
         """
         try:
             logger.info('Doing simple %spath search' % 'weigthed '
@@ -539,6 +553,8 @@ class IndraNetwork:
                                                  source, target,
                                                  options['weight'],
                                                  **blacklist_options)
+                subj = source
+                obj = target
             else:
                 # Generate signed nodes from query's overall sign
                 (src, src_sign), (trgt, trgt_sign) =\
@@ -554,7 +570,8 @@ class IndraNetwork:
                     self.sign_node_graph_repr, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes)
 
-            return self._loop_paths(paths, **options)
+            return self._loop_paths(source=subj, target=obj, paths_gen=paths,
+                                    **options)
 
         except NodeNotFound as e:
             logger.warning(repr(e))
@@ -583,14 +600,163 @@ class IndraNetwork:
 
         return []
 
+    def multi_regulators_targets(self, list_of_regulators=None,
+                                 list_of_targets=None, **options):
+        if not (bool(list_of_regulators) ^ bool(list_of_targets)):
+            logger.warning('Must provide either of targets OR regulators. '
+                           'None or both are not allowed.')
+            return {}
+        if list_of_targets:
+            return self.direct_interactors_multi(
+                list_of_targets=list_of_targets, **options)
+        else:
+            return self.direct_interactors_multi(
+                list_of_regulators=list_of_regulators, **options)
+
+    def direct_interactors_multi(self, list_of_regulators=None,
+                                 list_of_targets=None, **options):
+        """Returns a list of statement data that connect list_of_targets for
+        upstream regulators
+
+        Parameters
+        ----------
+        list_of_regulators : list(str)
+            A list of nodes to look for shared targets for
+        list_of_targets : list(str)
+            A list of nodes to look for shared regulators for
+        options : kwargs
+            Options have to include (see self.handle_query for explanations):
+                *node_filter
+                *bsco
+                *stmt_filter
+                *curated_db_only
+
+        Returns
+        -------
+        dict
+            Dictionary containing the results:
+                {'targets': <list of targets>,
+                 'regulators': <list of regulators>,
+                 'stmt_data': <dict of statements data for the edges>,
+                 'stmt_hashes': <dict of statement hashes>}
+            If there are no results, an empty dictionary is returned.
+        """
+        def grounding_filter(intrcts):
+            # Make sure we have grounded node names
+            if not all([n in self.nodes for n in intrcts]):
+                not_in_network = [n for n in intrcts
+                                  if n not in self.nodes]
+                in_network = [n for n in intrcts if n in self.nodes]
+                grounded = []
+                for trgt in not_in_network:
+                    _, _, name = get_top_ranked_name(trgt)
+                    if name is None:
+                        # abort if one of the targets is ungroundable
+                        logger.warning('Target %s is ungroundable' % trgt)
+                        return {}
+                    if name not in self.nodes:
+                        logger.warning(
+                            'Target %s (grounded to %s) is not a node '
+                            'in the graph' % (trgt, name))
+                    grounded.append(name)
+                assert len(grounded) + len(in_network) == \
+                    len(intrcts)
+                return in_network + grounded
+            else:
+                return intrcts
+
+        allowed_ns = options['node_filter']
+
+        input_interactors = list_of_targets if list_of_targets else \
+            list_of_regulators
+
+        input_interactors = grounding_filter(input_interactors)
+
+        # Check if input ns are in allowed ns
+        # if not all([self.nodes[n]['ns'].lower() in allowed_ns
+        #             for n in input_interactors]):
+        #     logger.warning('At least one of the targets is not part of the '
+        #                    'allowed name space')
+        #     return {}
+
+        # Get the intersection of all direct interactors
+        first = input_interactors[0]
+        other_interactors = set(self.nx_dir_graph_repr.pred[first]) if \
+            list_of_targets else set(self.nx_dir_graph_repr.succ[first])
+        for interactor in input_interactors[1:]:
+            if list_of_targets:
+                other_interactors.intersection_update(
+                    set(self.nx_dir_graph_repr.pred[interactor])
+                )
+            else:
+                other_interactors.intersection_update(
+                    set(self.nx_dir_graph_repr.succ[interactor])
+                )
+
+        # Filter to allowed ns
+        allowed_other_interactors = {n for n in other_interactors
+                                     if self.nodes[n]['ns'].lower() in
+                                     allowed_ns}
+
+        if allowed_other_interactors:
+            # If targets were input interactors
+            if list_of_targets:
+                targets = input_interactors
+                regulators = allowed_other_interactors
+                ign_nodes = 'targets'
+            # If regulators were input interactors
+            else:
+                targets = allowed_other_interactors
+                regulators = input_interactors
+                ign_nodes = 'regulators'
+            return self._loop_direct_regulators_multi(
+                targets=targets,
+                regulators=regulators,
+                ign=ign_nodes,
+                **options
+            )
+        return {}
+
+    def _loop_direct_regulators_multi(self, targets, regulators,
+                                      ign, **options):
+        stmt_data = {}
+        all_hashes = {}
+        for reg in regulators:
+            data = {}
+            hashes = {}
+            for target in targets:
+                # get hash path for each target-regulator pair
+                ign_node = reg if ign == 'regulators' else target
+                hash_path = self._get_hash_path(path=[reg, target],
+                                                source=ign_node, **options)
+                if hash_path and hash_path[0]:
+                    data[target] = hash_path[0]
+                    # The hash path will be a list of len 1 since we only
+                    # have one direct edge
+                    for key, dl in hash_path[0].items():
+                        if key not in {'subj', 'obj'}:
+                            hashes[target] = {
+                                key: [d['stmt_hash'] for d in dl]
+                            }
+            if data:
+                stmt_data[reg] = data
+            if hashes:
+                all_hashes[reg] = hashes
+        return {'targets': list(targets),
+                'regulators': list(regulators),
+                'stmt_data': stmt_data,
+                'stmt_hashes': all_hashes}
+
     def _loop_shared_regulators(self, shared_regs, source, target,
                                 **options):
         """Order shared regulators by lowest highest belief score"""
         ordered_regulators = []
         added_regulators = 0
         for sr in shared_regs:
-            paths1 = self._get_hash_path(path=[sr, source], **options)
-            paths2 = self._get_hash_path(path=[sr, target], **options)
+            paths1 = self._get_hash_path(target=source, path=[sr, source],
+                                         **options)
+            paths2 = self._get_hash_path(target=target, path=[sr, target],
+                                         **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 paths1_stmts = []
                 for k, v in paths1[0].items():
@@ -644,8 +810,10 @@ class IndraNetwork:
         ordered_commons = []
         added_targets = 0
         for ct in common_targets:
-            paths1 = self._get_hash_path(path=[source, ct], **options)
-            paths2 = self._get_hash_path(path=[target, ct], **options)
+            paths1 = self._get_hash_path(source=source, path=[source, ct],
+                                         **options)
+            paths2 = self._get_hash_path(source=target, path=[target, ct],
+                                         **options)
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 paths1_stmts = []
                 for k, v in paths1[0].items():
@@ -674,7 +842,7 @@ class IndraNetwork:
         else:
             return []
 
-    def _loop_paths(self, paths_gen, **options):
+    def _loop_paths(self, source, target, paths_gen, **options):
         # len(path) = edge count + 1
         sign = options['sign']
         graph_type = 'digraph' if sign is None else 'signed'
@@ -691,7 +859,7 @@ class IndraNetwork:
         while True:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
-                logger.info('Found all %d shortest paths, returning results.'\
+                logger.info('Found all %d shortest paths, returning results.'
                             % self.MAX_PATHS)
                 return result
             if time() - self.query_recieve_time > self.TIMEOUT:
@@ -730,7 +898,9 @@ class IndraNetwork:
                 logger.info('Reached StopIteration: all paths found. '
                             'breaking.')
                 break
-            hash_path = self._get_hash_path(path, edge_signs, graph_type,
+            hash_path = self._get_hash_path(source=source, target=target,
+                                            path=path, edge_signs=edge_signs,
+                                            graph_type=graph_type,
                                             **options)
 
             if hash_path and all(hash_path):
@@ -917,8 +1087,8 @@ class IndraNetwork:
                 stmt_edge = None
             return stmt_edge
 
-    def _get_hash_path(self, path, edge_signs=None, graph_type='digraph',
-                       **options):
+    def _get_hash_path(self, path, source=None, target=None, edge_signs=None,
+                       graph_type='digraph', **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
         the n nodes in path. If simple_graph is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
@@ -927,10 +1097,13 @@ class IndraNetwork:
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
         for subj, obj, edge_sign in zip(path[:-1], path[1:], es):
-            # Check node filter
-            if self.nodes[subj]['ns'].lower() not in \
-                    options['node_filter'] or self.nodes[obj]['ns'].lower() \
-                    not in options['node_filter']:
+            # Check node filter, but ignore source or target nodes
+            # e.g., check node_filter IFF source != subj AND target != obj
+            if (source != subj and target != subj and
+                self.nodes[subj]['ns'].lower() not in options['node_filter'])\
+                or \
+                (source != obj and target != obj and
+                 self.nodes[obj]['ns'].lower() not in options['node_filter']):
                 if self.verbose:
                     logger.info('Node namespace %s or %s not part of '
                                 'acceptable namespaces %s' %
@@ -1085,6 +1258,42 @@ class IndraNetwork:
             return self.ehm.get_parents(uri=self.ehm.get_uri(ns, db_id))
         else:
             return set()
+
+
+def get_top_ranked_name(name, context=None):
+    """get top ranked result from gilda
+
+    Parameters
+    ----------
+    name : str
+        Provide a name to be grounded
+    context : str
+        Optional. Provide context for the name provided
+
+    Returns
+    -------
+    tuple(str)
+        A tuple of ns, id, grounded name
+    """
+    none_triple = (None, )*3
+    if not GRND_URI:
+        logger.warning('Grounding service URL not set')
+        return none_triple
+    req_json = {'text': name}
+    if context:
+        req_json['context'] = context
+    res = requests.post(GRND_URI, json=req_json)
+    if res.status_code == 200 and res.json():
+        top_res = res.json()[0]
+        topname = top_res['term']['entry_name']
+        topns = top_res['term']['db']
+        topid = top_res['term']['id']
+        return topns, topid, topname
+    elif res.status_code != 200:
+        logger.warning('Got status code %d from gilda, no result')
+    else:
+        logger.warning('No result from gilda for %s' % name)
+    return none_triple
 
 
 def translate_query(query_json):
