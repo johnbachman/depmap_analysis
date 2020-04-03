@@ -273,7 +273,7 @@ def multi_interactors():
 
     options = {
         'node_filter': allowed_ns,
-        'bsco': int(query_json.get('belief_cutoff', 0)),
+        'bsco': float(query_json.get('belief_cutoff', 0)),
         'stmt_filter': query_json.get('skip_stmt_types', []),
         'curated_db_only': bool(query_json.get('db_only', False))
     }
