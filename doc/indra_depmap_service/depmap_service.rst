@@ -42,7 +42,90 @@ settings in the docstring of the ``IndraNetwork.handle_query`` method in
 Node Existence Lookup
 .....................
 
-The `/node` and `/nodes` endpoint
+The `/node` and `/nodes` endpoints serve the prupose of quickly looking up
+if a particular node exists in the network. To use the `/node` endpoint you
+have to POST a json to https://network.indra.bio/node::
+
+    Method: POST
+    JSON: {'node': '<name of node>'}
+
+The return will be a json of the following format::
+
+    {'node': '<name of node>', 'in_network': True/False}
+
+To check a list of multiple nodes at the same time, the `/nodes` enpoint is
+a better choice. This endpoint expects a list of node names in the incoming
+json::
+
+    Method: POST
+    JSON: {'nodes': ['<name1>', '<name2>', ...]}
+
+The resulting json will be a node name - boolean dictionary for each passed
+node name in the initial json::
+
+    {'<name1>': True/False, '<name2>': True/False, ...}
+
+
+Direct Multi Interactors Lookup
+...............................
+
+the `/multi_interactors` endpoint allows for search of common upstream or
+downstream interactors to the provided list of targets/regulators. If
+regulators/targets are provided, the search will be for common
+targets/regulators. The only required option is to provided a list of
+regulators *or* targets. There are several options that are not required and
+will defulat to different values. The table below describes the available
+options.
+
++----------------+---------+----------+----------------+-------------------+
+| Option         | Default | Required | Allowed values | Action            |
++================+=========+==========+================+===================+
+|  regulators OR |         | Yes      | List of node   | Input for         |
+|  targets       |         |          | names          | search            |
++----------------+---------+----------+----------------+-------------------+
+|  allowed_ns    | any ns  | No       | *see below*    | Skip nodes with   |
+|                |         |          |                | name spaces not in|
+|                |         |          |                | the provided list |
++----------------+---------+----------+----------------+-------------------+
+|  belief_cutoff |    0    | No       | 0 <= n <= 1    | Skip statements   |
+|                |         |          |                | below threshold   |
++----------------+---------+----------+----------------+-------------------+
+| skip_stmt_types|   [ ]   | No       | *see below*    | Skip statements   |
+|                |         |          |                | of provided       |
+|                |         |          |                | types             |
++----------------+---------+----------+----------------+-------------------+
+| db_only        |  False  | No       | True/False     | Only allow        |
+|                |         |          |                | statements from   |
+|                |         |          |                | database sources  |
++----------------+---------+----------+----------------+-------------------+
+
+The POST request to the endpoint should look like this::
+
+    Method: POST
+    JSON: {'regulators' OR 'targets': ['<name1>', '<name2>', ...],
+           'allowed_ns': ['<name space1>', '<name space>', ...],
+           'belief_cutoff': 0 <= float <=1,
+           'skip_stmt_types': ['<statement type>', ...],
+           'db_only': bool}
+
+
+For `allowed_ns`, the following values are allowed:
+
+- HGNC
+- FPLX
+- CHEBI
+- PUBCHEM
+- MIRBASE
+- GO
+- MESH
+- HMDB
+
+For `skip_stmt_types`, valid statement types need to be provided. To see a
+full list of statement types, see
+https://indra.readthedocs.io/en/latest/modules/statements.html#module-indra.statements.statements
+
+By POSTing `"{'help': ''}"` to the endpoint, a small json is returned that
+describes the options available.
 
 
 Running the Service Locally
