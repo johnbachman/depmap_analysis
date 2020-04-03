@@ -293,11 +293,6 @@ def multi_interactors():
                        'query', 500))
 
 
-# @app.route('/multi_targets', methods=['POST'])
-# def multi_targets():
-#     pass
-
-
 @app.route('/node', methods=['POST'])
 def node_check():
     logger.info('Got request for node check')

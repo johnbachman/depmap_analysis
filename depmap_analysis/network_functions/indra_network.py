@@ -672,13 +672,6 @@ class IndraNetwork:
 
         input_interactors = grounding_filter(input_interactors)
 
-        # Check if input ns are in allowed ns
-        # if not all([self.nodes[n]['ns'].lower() in allowed_ns
-        #             for n in input_interactors]):
-        #     logger.warning('At least one of the targets is not part of the '
-        #                    'allowed name space')
-        #     return {}
-
         # Get the intersection of all direct interactors
         first = input_interactors[0]
         other_interactors = set(self.nx_dir_graph_repr.pred[first]) if \
