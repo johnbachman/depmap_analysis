@@ -124,12 +124,13 @@ By POSTing `"{'help': ''}"` to the endpoint, a small json is returned that
 describes the options available.
 
 
-Path Query Endpoint (POST)
-..........................
+Path Query Endpoint
+...................
 *Note:* This section describes the behavior of the POST endpoint
 `/query/submit` handling path queries. For documentation of the web UI
 endpoint `/query`, go to the web ui `documentation <./web_ui_introduction
-.html>`_. The following settings are available:
+.html>`_. The following list describes the available options for the POST
+endpoint:
 
 - **source** (str): the source node for the path.
 - **target** (str): the target for the path.
