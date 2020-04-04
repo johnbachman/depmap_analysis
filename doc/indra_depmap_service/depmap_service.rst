@@ -124,10 +124,12 @@ By POSTing `"{'help': ''}"` to the endpoint, a small json is returned that
 describes the options available.
 
 
-Path Query Endpoint
-...................
-To perform a path search, enter a source and a target in the appropriate text
-boxes and apply the desired settings. The following settings are available:
+Path Query Endpoint (POST)
+..........................
+*Note:* This section describes the behavior of the POST endpoint
+`/query/submit` handling path queries. For documentation of the web UI
+endpoint `/query`, go to the web ui `documentation <./web_ui_introduction
+.html>`_. The following settings are available:
 
 - **source** (str): the source node for the path.
 - **target** (str): the target for the path.
