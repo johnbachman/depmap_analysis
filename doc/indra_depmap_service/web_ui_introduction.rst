@@ -139,8 +139,8 @@ Networkx. *Note:* A weighted search is costly and usually takes longer than
 a normal search. It is common that a very heavy weigthed search times out,
 especially for a *signed* weighted search.
 
-The code implemented for the weighted search is available `here <../.
-./master/depmap_analysis/network_functions/net_functions.py>`_ in the
+The code implemented for the weighted search is available on `github
+<../../master/depmap_analysis/network_functions/net_functions.py>`_ in the
 function `shortest_simple_paths()`.
 
 Databases Only
