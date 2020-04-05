@@ -2,7 +2,7 @@
 Network Search Web UI
 =====================
 This documentation introduces the web user interface for the INDRA Network
-Search.
+Search Service.
 
 .. figure:: ../static/images/indra_network_search_screenshot.png
   :align: center
@@ -131,13 +131,13 @@ fewer paths than for the original search will be retured.
 Weighted Search
 ~~~~~~~~~~~~~~~
 When performing a weighted search, the cost along every path encountered is
-calculated and the paths are returned in ascending order of cost. The cost
-of a path is defined as the sum of the weights of all the edges along the
-paths. The weigthed search uses a slightly modified version of the Djikstra
-weighted search empolyed in Networkx. *Note:* A weighted search is costly
-and usually takes longer than a normal search. It is common that a very
-heavy weigthed search times out, especially for a *signed* weighted
-search.
+calculated as the sum of the weights along the path. The paths are then
+returned in ascending order of cost. The cost of a path is defined as the
+sum of the weights of all the edges along the paths. The weigthed search
+uses a slightly modified version of the Djikstra weighted search empolyed in
+Networkx. *Note:* A weighted search is costly and usually takes longer than
+a normal search. It is common that a very heavy weigthed search times out,
+especially for a *signed* weighted search.
 
 The code implemented for the weighted search is available `here <../.
 ./master/depmap_analysis/network_functions/net_functions.py>`_ in the
