@@ -173,21 +173,50 @@ smaller than or equeal to 120 seconds.
 
 Result Categories
 -----------------
-If there are not results for the specific section, that section card won't
-show up.
+If there are no results for the specific section, that section's card won't
+show up. By default, the result cards are collapsed and only the card header
+is shown with a summary count of the number of results. To expand the card
+body, click on the card header.
 
 Complexes and Families
 ~~~~~~~~~~~~~~~~~~~~~~
+This card shows the results of a search for common complexes and families
+between source and target. For example with `BRCA1` and `BRCA2` as source
+and target, respectively, the BRCA family would show up alongside the FANC
+family.
+
+.. figure:: ../static/images/famplex_search.png
+  :align: center
+  :figwidth: 100 %
+
+  *The result of a search with `BRCA1` and `BRCA2` as source and target,
+  respectively for Complexes and Famlilies.*
+
 
 Common Targets
 ~~~~~~~~~~~~~~
+This card shows the direct downstream targets that are common to both the
+chosen `source` and `target`.
 
 Shared Regulators
 ~~~~~~~~~~~~~~~~~
+Shared regulators are only searched for if the corresponding tick-box is
+checked. The results shown are the direct upstream regulators that are
+common to both `source` and `target`.
 
 N Edge Paths
 ~~~~~~~~~~~~
+These card are shown per path length so that all paths with one edge are
+assembled under one card, all paths with two edges in another card and so
+forth.
 
+Detailed Results
+----------------
+For each result card, the edges displayed link out to an INDRA DataBase query
+in order to further inspect the results. As the network search results are
+filtered in more detail than what is possible using the INDRA DataBase web
+interface, the statements shown can sometimes be slightly different than the
+edge data returned by the network search result.
 
 Download Results
 ----------------
