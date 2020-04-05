@@ -10,6 +10,34 @@ Search.
 
   *The network search interface with no input or results.*
 
+
+The Graphs Used
+---------------
+The multiple graphs used for the network search is assembled from a full
+snapshot of the `INDRA DataBase <https://github.com/indralab/indra_db>`_ and
+is updated regularly. Each statement that includes two or three agents are
+assembled into the support for the edges for the graphs with one edge
+possibly containing multiple statements. There are three graph types used:
+
+1. DiGraph
+2. signed edge DiGraph
+3. signed node DiGraph
+
+The **DiGraph** is used for unsigned causal search and for assembling the
+statement data supporting the results of the search while the **signed node
+graph** is used for signed causal search and the **signed edge graph** is
+used for assembling the statement data supporting the signed node search
+results.
+
+The edges in the signed edge graphs only contain statements that have clear
+up- or downreguations associated with them, which currently is
+`IncreaseAmount` and `Activation` for upregulation, and `DecreaseAmount` and
+`Inhibition` for downregulation.
+
+The code assembling the graphs can be found `here <https://github
+.com/indralab/depmap_analysis/blob/master/depmap_analysis/network_functions
+/net_functions.py>`_ in the function `sif_dump_df_to_nx_digraph()`.
+
 Search Options
 --------------
 
