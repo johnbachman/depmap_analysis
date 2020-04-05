@@ -17,8 +17,8 @@ Source and Target
 ~~~~~~~~~~~~~~~~~
 The source and target are mandatory fields for the search. The source and
 target are the nodes between which to find a path. Source and target does
-not have to be of the allowed name spaces (see below). If no result is found
-initially, greounding is done on the service backend to try to find an
+not have to be of the allowed namespaces (see below). If no result is found
+initially, grounding is done on the service backend to try to find an
 alternative name for the provided node name.
 
 Path Length
@@ -35,60 +35,113 @@ default and the maximum allowed is 50 results.
 Statement Types to *Exclude*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This is a multiselect dropdown which contains multiple statement type names
-to exclude from the results. If an edge of a path only contains statement
+to exclude from the results. If an edge of a path only contain statement
 types that are excluded, the whole path will be skipped from the result.
 
-Node Name Spaces to *Exclude*
+Node Namespaces to *Include*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-abcd
+The namespaces included here are the ones that are allowed on any node
+visited in the path search. The namespace of the source and target are
+excluded from this restriction. A namespace in INDRA is the type of
+identifier used to uniquely identify an entity. For example, a chemical can
+be identified using a `CHEBI` identifier and would then be identified in the
+`CHEBI` namespace.
 
 Node Name Blacklist
 ~~~~~~~~~~~~~~~~~~~
-abcd
+Node names entered here are skipped in the path search. This is a good way
+to avoid nodes of extremely high degree that overwhelmes the results and
+effectively blocks out results including lower degree nodes. *See also Cull
+Highest Degree Node below.*
 
 Edge Hash Blacklist
 ~~~~~~~~~~~~~~~~~~~
-abcd
+To ignore a specific statement supporting an edge, the statement hash for
+that statement can be added here.
 
 Belief Score cut-off
 ~~~~~~~~~~~~~~~~~~~~
-abcd
+This option enables a belief score cut-off so that statements supporting an
+egde has to have a belief score above this threshold. It is set to zero by
+default. Read more about belief scores in the `belief module
+<https://indra.readthedocs.io/en/latest/modules/belief/index.html>`_ of
+INDRA.
 
 Cull Highest Degree Node
 ~~~~~~~~~~~~~~~~~~~~~~~~
-abcd
+Entering an integer N here allows the path search to include the highest
+degree node for the first N returned paths, after which it is added to the
+**Node Name Blacklist**. This is repeated for the second highest degree node
+for the following N paths, then for the third highest degree node and so
+forth. *Note:* This option is currently only applied for unsigned path
+searches.
 
 Signed Search
 ~~~~~~~~~~~~~
-abcd
+To perform a signed search, click on the drop down menu that says "No sign"
+and chose a sign. "+" means that all the returned paths are upregulations,
+and "-" means that all the returned paths are downregulations. For the
+purpose of signed search, only statements that imply a clear up- or
+downregulation are considered. Currently this mean `IncreaseAmount` and
+`Activation` for upregulation, and `DecreaseAmount` and `Inhibition` for
+downregulation.
 
 Include Shared Regulators
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-abcd
+This checkbox adds results from a search of direct common shared regulators
+of source and target. A direct shared regulator is defined as any node that
+is exactly one edge upstream of *both* source and target.
 
 Include Reverse Search
 ~~~~~~~~~~~~~~~~~~~~~~
-abcd
+With this option, the reverse search *from* target *to* source is done as
+well as the original search from source to target. If the timeout is reached
+(see below) before the reverse seach can start, the reverse search will
+not return any paths. If the timeout is reached during the reverse search,
+fewer paths than for the original search will be retured.
 
 Weighted Search
 ~~~~~~~~~~~~~~~
-Uses a modified Djikstra's weighted search algorithm
+When performing a weighted search, the cost along every path encountered is
+calculated and the paths are returned in ascending order of cost. The cost
+of a path is defined as the sum of the weights of all the edges along the
+paths. The weigthed search uses a slightly modified version of the Djikstra
+weighted search empolyed in Networkx. *Note:* A weighted search is costly
+and usually takes longer than a normal search. It is common that a very
+heavy weigthed search times out, especially for a *signed* weighted
+search.
+
+The code implemented for the weighted search is available `here <../.
+./master/depmap_analysis/network_functions/net_functions.py>`_ in the
+function `shortest_simple_paths()`.
 
 Databases Only
-~~~~~~~~~~~~~
-abcd
+~~~~~~~~~~~~~~
+With this option, only statements that contain sources from curated
+databases like PathwayCommons and Signor are allowed to support edges in the
+returned paths.
 
 Include Famplex Families and Complexes in Path Search
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-abcd
+This option allows for edges to be between a gene and its family or
+beteween a gene and a complex formed by its encoded protein. For example: an
+edge between `BRCA1` and its family `BRCA` would be allowed.
 
 Expand search to FamPlex
 ~~~~~~~~~~~~~~~~~~~~~~~~
-abcd
+If a path search returns empty, this option will allow the path search to be
+retried with parents if the source and/or target entities. For example, if a
+search with `BRCA1` as source returns empty, the search would be retried
+with the `BRCA` family as source instead.
 
 Timeout
 ~~~~~~~
-abcd
+Setting a timeout allows to set a larger (or smaller) timeout than the
+default 30 seconds timeout. The time since the path search was started is
+checked after each path has been checked during the search. If the time
+passed is larger than the allowed timeout, the search is interrupted and
+returns as fast as possible. The timeout provided has to be a decimal number
+smaller than or equeal to 120 seconds.
 
 Result Categories
 -----------------
