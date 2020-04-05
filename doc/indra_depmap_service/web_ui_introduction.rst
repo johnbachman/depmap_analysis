@@ -220,5 +220,5 @@ edge data returned by the network search result.
 
 Download Results
 ----------------
-You can download the search result json and the statements from the path
-search (not the other searches) in a json format.
+You can download the search result json and the statement jsons from the *path
+search* by clicking the link provided after the search has resolved.
