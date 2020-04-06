@@ -4,7 +4,7 @@ Network Search Web UI
 This documentation introduces the web user interface for the INDRA Network
 Search Service.
 
-.. figure:: ../static/images/indra_network_search_screenshot.png
+.. figure:: ../_static/images/indra_network_search_screenshot.png
   :align: center
   :figwidth: 100 %
 
@@ -185,7 +185,7 @@ between source and target. For example with `BRCA1` and `BRCA2` as source
 and target, respectively, the BRCA family would show up alongside the FANC
 family.
 
-.. figure:: ../static/images/famplex_search.png
+.. figure:: ../_static/images/famplex_search.png
   :align: center
   :figwidth: 100 %
 
