@@ -139,11 +139,11 @@ function submitQuery() {
 
   });
   console.log(response);
-  // response.then(function(json){
-  //   resetCounters();
-  //   clearAllTables();
-  //   fillResultsTable(json, source, target)
-  // })
+  response.then(function(json){
+    resetCounters();
+    clearAllTables();
+    fillResultsTable(json, source, target)
+  })
 }
 
 function isEmptyResult(resultJson, allowTimeOut=false) {
