@@ -1,10 +1,13 @@
 """Utility functions for the INDRA Causal Network Search API in api.py"""
+import re
 import json
 import pickle
 import logging
 import argparse
+import platform
 import networkx as nx
-from os import path
+from os import path, stat
+from fnvhash import fnv1a_32
 from datetime import datetime
 
 from indra.util.aws import get_s3_client, get_s3_file_tree
@@ -22,6 +25,10 @@ logger = logging.getLogger('INDRA Network Search util')
 API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
+JSON_CACHE = path.join(API_PATH, '_json_res')
+STATIC = path.join(API_PATH, 'static')
+S3_BUCKET = 'depmap-analysis'
+
 
 INDRA_MDG = 'indranet_multi_digraph_latest.pkl'
 INDRA_DG = 'indranet_dir_graph_latest.pkl'
@@ -37,10 +44,103 @@ INDRA_SEG_CACHE = path.join(CACHE, INDRA_SEG)
 
 SIF_BUCKET = 'bigmech'
 NET_BUCKET = 'depmap-analysis'
+DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
+DT_YmdHMS = '%Y%m%d%H%M%S'
+DT_Ymd = '%Y%m%d'
+RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
+RE_YYYYMMDD = r'\d{8}'
 
 
-def _todays_date():
-    return datetime.now().strftime('%Y%m%d')
+def todays_date():
+    return datetime.now().strftime(DT_Ymd)
+
+
+def get_earliest_date(file):
+    """Returns creation or modification timestamp of file"""
+    # https://stackoverflow.com/questions/237079/
+    # how-to-get-file-creation-modification-date-times-in-python
+    if platform.system().lower() == 'windows':
+        return path.getctime(file)
+    else:
+        st = stat(file)
+        try:
+            return st.st_birthtime
+        except AttributeError:
+            return st.st_mtime
+
+
+def get_date_from_str(date_str, dt_format):
+    """Returns a datetime object from a datestring of format FORMAT"""
+    return datetime.strptime(date_str, dt_format)
+
+
+def strip_out_date(keystring, re_format):
+    """Strips out datestring of format re_format from a keystring"""
+    try:
+        return re.search(re_format, keystring).group()
+    except AttributeError:
+        logger.warning('Can\'t parse string %s for date using regex pattern '
+                       '%s' % (keystring, re_format))
+        return None
+
+
+def get_query_resp_fstr(query_hash):
+    qf = path.join(JSON_CACHE, 'query_%s.json' % query_hash)
+    rf = path.join(JSON_CACHE, 'result_%s.json' % query_hash)
+    return qf, rf
+
+
+def list_chunk_gen(lst, size=1000):
+    """Given list, generate chunks <= size"""
+    n = max(1, size)
+    return (lst[k:k+n] for k in range(0, len(lst), n))
+
+
+def sorted_json_string(json_thing):
+    """Produce a string that is unique to a json's contents."""
+    if isinstance(json_thing, str):
+        return json_thing
+    elif isinstance(json_thing, (tuple, list)):
+        return '[%s]' % (','.join(sorted(sorted_json_string(s)
+                                         for s in json_thing)))
+    elif isinstance(json_thing, dict):
+        return '{%s}' % (','.join(sorted(k + sorted_json_string(v)
+                                         for k, v in json_thing.items())))
+    elif isinstance(json_thing, (int, float)):
+        return str(json_thing)
+    else:
+        raise TypeError('Invalid type: %s' % type(json_thing))
+
+
+def get_query_hash(query_json):
+    """Create an FNV-1a 32-bit hash from the query json"""
+    return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
+
+
+def check_existence_and_date(indranet_date,fname, in_name=True):
+    """With in_name True, look for a datestring in the file name, otherwise
+    use the file creation date/last modification date.
+
+    This function should return True if the file exists and is (seemingly)
+    younger than the network that is currently in cache
+    """
+    if not path.isfile(fname):
+        return False
+    else:
+        if in_name:
+            try:
+                # Try YYYYmmdd
+                fdate = get_date_from_str(strip_out_date(fname, RE_YYYYMMDD),
+                                          DT_YmdHMS)
+            except ValueError:
+                # Try YYYY-mm-dd-HH-MM-SS
+                fdate = get_date_from_str(strip_out_date(fname, RE_YmdHMS_),
+                                          DT_YmdHMS)
+        else:
+            fdate = datetime.fromtimestamp(get_earliest_date(fname))
+
+        # If fdate is younger than indranet, we're fine
+        return indranet_date < fdate
 
 
 # Copied from emmaa_service/api.py

@@ -26,23 +26,16 @@ from depmap_analysis.network_functions.indra_network import IndraNetwork,\
 from depmap_analysis.util.io_functions import pickle_open, \
     dump_it_to_pickle, json_open, dump_it_to_json
 
-from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
-    HERE, CACHE, INDRA_DG, INDRA_DG_CACHE, INDRA_SEG, INDRA_SEG_CACHE, \
-    INDRA_SNG_CACHE, TEST_DG_CACHE, dump_query_result_to_s3
+from .util import *
 
 app = Flask(__name__)
 app.register_blueprint(path_temps)
 app.config['SECRET_KEY'] = environ.get('NETWORK_SEARCH_SESSION_KEY', '')
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = environ['SESSION_KEY']
-
-logger = logging.getLogger('INDRA Network Search API')
-
-JSON_CACHE = path.join(HERE, '_json_res')
-STATIC = path.join(HERE, 'static')
-S3_BUCKET = 'depmap-analysis'
 STMT_HASH_CACHE = {}
 
+logger = logging.getLogger('INDRA Network Search API')
 
 FILES = {
     'dir_graph_path': INDRA_DG_CACHE if path.isfile(INDRA_DG_CACHE)
@@ -71,11 +64,6 @@ except KeyError:
 
 MAX_PATHS = 50
 TIMEOUT = 30  # Timeout in seconds
-DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
-DT_YmdHMS = '%Y%m%d%H%M%S'
-DT_Ymd = '%Y%m%d'
-RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
-RE_YYYYMMDD = r'\d{8}'
 EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
                 'common_targets': [],
                 'common_parents': {},
@@ -86,103 +74,11 @@ EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
 indra_network = IndraNetwork()
 
 
-def _todays_date():
-    return datetime.now().strftime(DT_Ymd)
-
-
-def _get_earliest_date(file):
-    """Returns creation or modification timestamp of file"""
-    # https://stackoverflow.com/questions/237079/
-    # how-to-get-file-creation-modification-date-times-in-python
-    if platform.system().lower() == 'windows':
-        return path.getctime(file)
-    else:
-        st = stat(file)
-        try:
-            return st.st_birthtime
-        except AttributeError:
-            return st.st_mtime
-
-
-def get_date_from_str(date_str, dt_format):
-    """Returns a datetime object from a datestring of format FORMAT"""
-    return datetime.strptime(date_str, dt_format)
-
-
-def strip_out_date(keystring, re_format):
-    """Strips out datestring of format re_format from a keystring"""
-    try:
-        return re.search(re_format, keystring).group()
-    except AttributeError:
-        logger.warning('Can\'t parse string %s for date using regex pattern '
-                       '%s' % (keystring, re_format))
-        return None
-
-
 def _is_empty_result(res):
     for k, v in res.items():
         if k is not 'timeout' and EMPTY_RESULT[k] != v:
             return False
     return True
-
-
-def _get_query_resp_fstr(query_hash):
-    qf = path.join(JSON_CACHE, 'query_%s.json' % query_hash)
-    rf = path.join(JSON_CACHE, 'result_%s.json' % query_hash)
-    return qf, rf
-
-
-def _list_chunk_gen(lst, size=1000):
-    """Given list, generate chunks <= size"""
-    n = max(1, size)
-    return (lst[k:k+n] for k in range(0, len(lst), n))
-
-
-def sorted_json_string(json_thing):
-    """Produce a string that is unique to a json's contents."""
-    if isinstance(json_thing, str):
-        return json_thing
-    elif isinstance(json_thing, (tuple, list)):
-        return '[%s]' % (','.join(sorted(sorted_json_string(s)
-                                         for s in json_thing)))
-    elif isinstance(json_thing, dict):
-        return '{%s}' % (','.join(sorted(k + sorted_json_string(v)
-                                         for k, v in json_thing.items())))
-    elif isinstance(json_thing, (int, float)):
-        return str(json_thing)
-    else:
-        raise TypeError('Invalid type: %s' % type(json_thing))
-
-
-def _get_query_hash(query_json):
-    """Create an FNV-1a 32-bit hash from the query json"""
-    return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
-
-
-def _check_existence_and_date(fname, in_name=True):
-    """With in_name True, look for a datestring in the file name, otherwise
-    use the file creation date/last modification date.
-
-    This function should return True if the file exists and is (seemingly)
-    younger than the network that is currently in cache
-    """
-    if not path.isfile(fname):
-        return False
-    else:
-        if in_name:
-            try:
-                # Try YYYYmmdd
-                fdate = get_date_from_str(strip_out_date(fname, RE_YYYYMMDD),
-                                          DT_YmdHMS)
-            except ValueError:
-                # Try YYYY-mm-dd-HH-MM-SS
-                fdate = get_date_from_str(strip_out_date(fname, RE_YmdHMS_),
-                                          DT_YmdHMS)
-        else:
-            fdate = datetime.fromtimestamp(_get_earliest_date(fname))
-
-        # If fdate is younger than indranet, we're fine
-        return INDRANET_DATE < fdate
 
 
 if path.isfile(INDRA_DG_CACHE):
@@ -316,7 +212,7 @@ def process_query():
                 request.json['format'].lower() == 'html':
             ignore_keys = ['format']
             qc = {k: v for k, v in query_json.items() if k not in ignore_keys}
-            qh = _get_query_hash(qc)
+            qh = get_query_hash(qc)
             if _is_empty_result(result):
                 if API_DEBUG:
                     logger.info('API_DEBUG is set to "True" so no network is '
@@ -482,7 +378,7 @@ def stmts_download():
     logger.info('Got %d hashes' % len(stmt_hashes))
 
     stmt_list = []
-    hash_list_iter = _list_chunk_gen(stmt_hashes)
+    hash_list_iter = list_chunk_gen(stmt_hashes, size=1000)
     for hash_list in hash_list_iter:
         res = requests.post(STMTS_FROM_HSH_URL, json={'hashes': hash_list})
         if res.status_code == 200:
