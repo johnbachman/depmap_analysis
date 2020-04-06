@@ -4,9 +4,6 @@ import json
 import pickle
 import logging
 import argparse
-import networkx as nx
-from fnvhash import fnv1a_32
-from os import path, makedirs, environ
 import requests
 import platform
 from sys import argv
@@ -15,7 +12,6 @@ from os import path, makedirs, environ, stat
 from datetime import datetime
 from time import time, gmtime, strftime
 
-from jinja2 import Template
 from indra_db.util.dump_sif import load_db_content, make_dataframe, \
     NS_PRIORITY_LIST as NS_LIST
 from flask import Flask, request, abort, Response, render_template, jsonify,\
@@ -38,7 +34,7 @@ app = Flask(__name__)
 app.register_blueprint(path_temps)
 app.config['SECRET_KEY'] = environ.get('NETWORK_SEARCH_SESSION_KEY', '')
 app.config['DEBUG'] = False
-app.config['SECRET_KEY'] = os.environ['SESSION_KEY']
+app.config['SECRET_KEY'] = environ['SESSION_KEY']
 
 logger = logging.getLogger('INDRA Network Search API')
 
