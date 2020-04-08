@@ -86,13 +86,13 @@ else:
         s3 = get_s3_client(unsigned=True)
         logger.info('Caching network to %s' % CACHE)
         dg_key = 'indra_db_files/' + INDRA_DG
-        dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
+        dg_obj = s3.get_object(Bucket=NET_BUCKET, Key=dg_key)
         dg_net = pickle.loads(dg_obj['Body'].read())
         dump_it_to_pickle(INDRA_DG_CACHE, dg_net)
 
         if FILES['sign_edge_graph_path'] is None:
-            seg_key = 'indra_db_file/' + INDRA_SEG
-            seg_obj = s3.get_object(Bucket=S3_BUCKET, Key=seg_key)
+            seg_key = 'indra_db_files/' + INDRA_SEG
+            seg_obj = s3.get_object(Bucket=NET_BUCKET, Key=seg_key)
             seg_net = pickle.loads(seg_obj['Body'].read())
             dump_it_to_pickle(INDRA_SEG_CACHE, seg_net)
         else:
