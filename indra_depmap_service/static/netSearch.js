@@ -109,14 +109,13 @@ function submitQuery() {
     dataType: 'json',
     contentType: 'application/json',
     data: JSON.stringify(queryDict),
-    complete: function(xhr, statustText) {
+    complete: function(xhr) {
       console.log(xhr);
-      console.log(statustText);
       switch (xhr.status) {
         case 200:
-          if (xhr.responseJSON.redirURL) {
-            window.location.replace(xhr.responseJSON.redirURL)
-          } else return false;
+          if (xhr.responseText) {
+            window.location.replace(xhr.responseText)
+          }
           break;
         case 504:
           // Server timeout
@@ -131,11 +130,6 @@ function submitQuery() {
 
   });
   console.log(response);
-  response.then(function(json){
-    resetCounters();
-    clearAllTables();
-    fillResultsTable(json, source, target)
-  })
 }
 
 function isEmptyResult(resultJson, allowTimeOut=false) {
