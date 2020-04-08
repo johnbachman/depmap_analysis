@@ -191,6 +191,9 @@ def process_query():
     logger.info('Incoming Json ----------------------')
     logger.info(str(request.json))
     logger.info('------------------------------------')
+    # Separate the requests that want JSON vs HTML, HTML is for POST
+    # requests coming from a webpage and they should get back a redirect
+    # with a query hash in the parameters
 
     try:
         # Test api by POSTing {'test': 'api'} to '/query/submit'
@@ -199,41 +202,74 @@ def process_query():
             logger.info('api test successful')
             return Response(json.dumps({'result': 'api test passed'}),
                             mimetype='application/json')
+
+        # Get query json and query hash
         query_json = request.json.copy()
-        result = handle_query(**request.json)
-        logger.info('Query resolved at %s' %
-                    strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
-        if indra_network.verbose > 5:
-            logger.info('Result: %s' % str(result))
-        if request.json.get('format') and \
-                request.json['format'].lower() == 'html':
-            ignore_keys = ['format']
-            qc = {k: v for k, v in query_json.items() if k not in ignore_keys}
-            qh = get_query_hash(qc)
-            if _is_empty_result(result):
+        ignore_keys = ['format']
+        qc = {k: v for k, v in query_json.items() if k not in ignore_keys}
+        qh = get_query_hash(qc)
+
+        cached_files = check_existence_and_date_s3(query_hash=qh)
+        if cached_files.get('result_json_key'):
+            qjs3_key = cached_files['result_json_key']
+            logger.info('Result found on s3: %s' % qjs3_key)
+            result = read_query_json_from_s3(qjs3_key)
+        # Files not cached on s3, run new query
+        else:
+            # Do new query
+            # JS expects the following json for result:
+            # {'results': '<indra_network.handle_query()>'
+            #  'query_hash': '<query hash>'}
+            result = handle_query(**request.json)
+
+            # Empty result
+            if _is_empty_result(result['result']):
                 if API_DEBUG:
                     logger.info('API_DEBUG is set to "True" so no network is '
                                 'loaded, perhaps you meant to turn it off? '
-                                'Run "export API_DEBUG=0" in your terminal to do '
-                                'so and then restart the flask service')
+                                'Run "export API_DEBUG=0" in your terminal '
+                                'to do so and then restart the flask service')
                 else:
                     logger.info('Query returned with no path found')
-                download_link = ''
+                s3_query = ''
+                result['query_hash'] = qh
+                result['path_hashes'] = []
+                query_json_fname = '%s_query.json' % qh
+                s3_query_res = dump_query_result_to_s3(
+                    filename=query_json_fname,
+                    json_obj=query_json
+                )
+
+            # Non empty new result
             else:
                 # Upload to public S3 and get the download link
-                json_fname = '%s_result.json' % qh
-                download_link = dump_query_result_to_s3(json_fname, result)
+                all_path_hashes = \
+                    result['result']['paths_by_node_count'].get(
+                        'path_hashes', [])
+                result['query_hash'] = qh
+                result['path_hashes'] = all_path_hashes
 
-            all_path_hashes = result['paths_by_node_count'].get('path_hashes', [])
-            session['query_hash'] = qh
-            STMT_HASH_CACHE[qh] = all_path_hashes
-            res = {'result': result,
-                   'download_link': download_link,
-                   'query_hash': qh}
-            # Return response with redirect URL
-            return Response(json.dumps({'redirURL': '/query'}),
-                            mimetype='application/json')
+                # Upload the query itself
+                query_json_fname = '%s_query.json' % qh
+                s3_query = dump_query_result_to_s3(
+                    filename=query_json_fname,
+                    json_obj=query_json
+                )
+                # Upload query result
+                res_json_fname = '%s_result.json' % qh
+                s3_query_res = dump_query_result_to_s3(
+                    filename=res_json_fname,
+                    json_obj=result
+                )
+                logger.info('Uploaded query and results to %s and %s' %
+                            (s3_query, s3_query_res))
+        result['redirURL'] = url_for('get_query_page', query=qh)
+        if request.json.get('format') and \
+                request.json['format'].lower() == 'html':
+            logger.info('HTML requested, sending redirect url')
+            return url_for('get_query_page', query=qh)
         else:
+            logger.info('Regular POST detected, sedning json back')
             return Response(json.dumps(result), mimetype='application/json')
 
     except KeyError as e:
