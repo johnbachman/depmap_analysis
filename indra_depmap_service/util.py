@@ -9,6 +9,7 @@ import networkx as nx
 from os import path, stat
 from fnvhash import fnv1a_32
 from datetime import datetime
+from botocore.errorfactory import ClientError
 
 from indra.util.aws import get_s3_client, get_s3_file_tree
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
@@ -143,6 +144,35 @@ def check_existence_and_date(indranet_date,fname, in_name=True):
         return indranet_date < fdate
 
 
+def check_existence_and_date_s3(query_hash, indranet_date=None):
+    s3 = get_s3_client(unsigned=False)
+    key_prefix = 'indra_network_search/%s' % query_hash
+    query_json_key = key_prefix + '_query.json'
+    result_json_key = key_prefix + '_result.json'
+    exits_dict = {}
+    if indranet_date:
+        # Check 'LastModified' key in results
+        # res_query = s3.head_object(Bucket=SIF_BUCKET, Key=query_json_key)
+        # res_results = s3.head_object(Bucket=SIF_BUCKET, Key=result_json_key)
+        pass
+    else:
+        try:
+            query_json = s3.head_object(Bucket=SIF_BUCKET, Key=query_json_key)
+        except ClientError:
+            query_json = ''
+        if query_json:
+            exits_dict['query_json_key'] = query_json_key
+        try:
+            result_json = s3.head_object(Bucket=SIF_BUCKET, Key=result_json_key)
+        except ClientError:
+            result_json = ''
+        if result_json:
+            exits_dict['result_json_key'] = result_json_key
+        return exits_dict
+
+    return {}
+
+
 # Copied from emmaa_service/api.py
 def get_queryable_stmt_types():
     """Return Statement class names that can be used for querying."""
@@ -262,10 +292,27 @@ def _dump_json_to_s3(name, json_obj, public=False, get_url=False):
             'get_object', Params={'Key': key, 'Bucket': SIF_BUCKET})
 
 
+def _read_json_from_s3(s3, key, bucket):
+    try:
+        res = s3.get_object(Key=key, Bucket=bucket)
+        json_obj = json.loads(res['Body'].read().decode())
+    except Exception as err:
+        logger.error('Someting went wrong while loading or reading the json '
+                     'object from s3')
+        raise err
+    return json_obj
+
+
 def dump_query_result_to_s3(filename, json_obj):
     download_link = _dump_json_to_s3(name=filename, json_obj=json_obj,
                                      public=True, get_url=True)
     return download_link.split('?')[0]
+
+
+def read_query_json_from_s3(s3_key):
+    s3 = get_s3_client(unsigned=False)
+    bucket = SIF_BUCKET
+    return _read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
 
 
 def _dump_pickle_to_s3(name, indranet_graph_object):
