@@ -54,7 +54,18 @@ def todays_date():
 
 
 def get_earliest_date(file):
-    """Returns creation or modification timestamp of file"""
+    """Returns creation or modification timestamp of file
+
+    Parameters
+    ----------
+    file : str
+        File path
+
+    Returns
+    -------
+    float
+        Timestamp in seconds with microseconds as a float
+    """
     # https://stackoverflow.com/questions/237079/
     # how-to-get-file-creation-modification-date-times-in-python
     if platform.system().lower() == 'windows':
