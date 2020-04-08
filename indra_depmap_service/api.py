@@ -1,30 +1,18 @@
 """INDRA Causal Network Search API"""
-import re
-import json
-import pickle
-import logging
-import argparse
 import requests
-import platform
 from sys import argv
-from fnvhash import fnv1a_32
-from os import path, makedirs, environ, stat
-from datetime import datetime
+from os import makedirs, environ
 from time import time, gmtime, strftime
 
-from indra_db.util.dump_sif import load_db_content, make_dataframe, \
-    NS_PRIORITY_LIST as NS_LIST
+from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
 from flask import Flask, request, abort, Response, render_template, jsonify,\
-    session
+    session, redirect, url_for
 
 from indra.config import CONFIG_DICT
-from indra.util.aws import get_s3_client
 from indralab_web_templates.path_templates import path_temps
 
 from depmap_analysis.network_functions.indra_network import IndraNetwork,\
     EMPTY_RESULT
-from depmap_analysis.util.io_functions import pickle_open, \
-    dump_it_to_pickle, json_open, dump_it_to_json
 
 from .util import *
 
