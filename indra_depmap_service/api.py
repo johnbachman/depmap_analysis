@@ -146,27 +146,37 @@ def get_query_page():
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
 
-    qh = session.get('query_hash')
-    rf = path.join(JSON_CACHE, 'result_%s.json' % qh) if qh else False
-    qf = path.join(JSON_CACHE, 'query_%s.json' % qh) if qh else False
-    if all([qh, rf, qf, path.isfile(rf)]):
-        search_results = json_open(rf)
-        query = json_open(qf)
-        source = query['source']
-        target = query['target']
+    # Get query hash from parameters or session
+    qh = request.args.get('query') or session.get('query_hash') or ''
+    if qh:
+        # Get query hash
+        logger.info('Got query hash %s' % str(qh))
+        old_results = check_existence_and_date_s3(qh)
+
+        # Get result json
+        res_json_key = old_results.get('result_json_key')
+        results_json = read_query_json_from_s3(res_json_key) if res_json_key\
+            else {}
+
+        # Get query json
+        query_json_key = old_results.get('query_json_key')
+        query_json = read_query_json_from_s3(query_json_key) if \
+            query_json_key else {}
+
+        source = query_json.get('source', '')
+        target = query_json.get('target', '')
     else:
-        search_results = {'result': EMPTY_RESULT}
-        query = {}
+        results_json = {'result': EMPTY_RESULT}
+        query_json = {}
         source = ''
         target = ''
-    node_name_spaces = ['CHEBI', 'FPLX', 'GO', 'HGNC', 'HMDB', 'MESH',
-                        'PUBCHEM']
     return render_template('query_template.html',
+                           query_hash=qh,
                            stmt_types=stmt_types,
-                           node_name_spaces=list(node_name_spaces),
+                           node_name_spaces=list(NS_LIST),
                            has_signed_graph=has_signed_graph,
-                           search_results=json.dumps(search_results),
-                           old_query=json.dumps(query),
+                           old_result=json.dumps(results_json),
+                           old_query=json.dumps(query_json),
                            source=source,
                            target=target)
 
