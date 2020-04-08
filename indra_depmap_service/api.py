@@ -139,9 +139,6 @@ def get_query_page():
     logger.info('Got query')
     logger.info('Incoming Args -----------')
     logger.info(repr(request.args))
-    logger.info('Incoming Json ----------------------')
-    logger.info(str(request.json))
-    logger.info('------------------------------------')
 
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
@@ -185,9 +182,7 @@ def get_query_page():
 def process_query():
     """Processing queries to the indra network"""
     # Print inputs.
-    logger.info('Got query')
-    logger.info('Incoming Args -----------')
-    logger.info(repr(request.args))
+    logger.info('Got network search query')
     logger.info('Incoming Json ----------------------')
     logger.info(str(request.json))
     logger.info('------------------------------------')
