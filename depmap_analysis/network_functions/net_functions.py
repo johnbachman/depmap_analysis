@@ -93,7 +93,6 @@ def _curated_func(ev_dict):
         (False if all(s.lower() in READERS for s in ev_dict) else True)
 
 
-
 def _weight_from_belief(belief):
     """Map belief score 'belief' to weight. If the calculation goes below
     precision, return longfloat precision insted to avoid making the
