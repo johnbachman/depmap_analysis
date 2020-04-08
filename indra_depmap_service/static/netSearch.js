@@ -182,7 +182,7 @@ function fillOldQuery(oldQueryJson) {
     document.getElementById('node-blacklist').value = oldQueryJson.node_blacklist.join(', ')
   }
   if (oldQueryJson.path_length) document.getElementById('path-length').value = parseInt(oldQueryJson.path_length);
-  // if (oldQueryJson.sign) document.getElementById('sign-dd').value = oldQueryJson.sign;
+  if (oldQueryJson.sign) document.getElementById('sign-dd').value = oldQueryJson.sign;
   if (oldQueryJson.bsco) document.getElementById('belief-cutoff').value = parseInRange(oldQueryJson.bsco, 0, 1, false);
   if (oldQueryJson.k_shortest) document.getElementById('k-shortest').value = parseInt(oldQueryJson.k_shortest);
   if (oldQueryJson.cull_best_node) {
@@ -192,6 +192,7 @@ function fillOldQuery(oldQueryJson) {
     document.getElementById('user_timeout').value = parseInRange(oldQueryJson.user_timeout, 0, 999, false)
   }
   // Checkboxes
+  if (oldQueryJson.shared_regulators) document.getElementById('shared-regulators').checked = oldQueryJson.shared_regulators;
   if (oldQueryJson.weighted) document.getElementById('weighted-search').checked = oldQueryJson.weighted;
   // if (oldQueryJson.direct_only) document.getElementById('direct-only').checked = oldQueryJson.direct_only;
   if (oldQueryJson.curated_db_only) document.getElementById('curated-db-only').checked = oldQueryJson.curated_db_only;
