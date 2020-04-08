@@ -27,8 +27,13 @@ API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
 JSON_CACHE = path.join(API_PATH, '_json_res')
-STATIC = path.join(API_PATH, 'static')
-S3_BUCKET = 'depmap-analysis'
+SIF_BUCKET = 'bigmech'
+NET_BUCKET = 'depmap-analysis'
+DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
+DT_YmdHMS = '%Y%m%d%H%M%S'
+DT_Ymd = '%Y%m%d'
+RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
+RE_YYYYMMDD = r'\d{8}'
 
 
 INDRA_MDG = 'indranet_multi_digraph_latest.pkl'
@@ -42,14 +47,6 @@ TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
 INDRA_SNG_CACHE = path.join(CACHE, INDRA_SNG)
 INDRA_SEG_CACHE = path.join(CACHE, INDRA_SEG)
-
-SIF_BUCKET = 'bigmech'
-NET_BUCKET = 'depmap-analysis'
-DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
-DT_YmdHMS = '%Y%m%d%H%M%S'
-DT_Ymd = '%Y%m%d'
-RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
-RE_YYYYMMDD = r'\d{8}'
 
 
 def todays_date():
@@ -118,7 +115,7 @@ def get_query_hash(query_json):
     return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
 
 
-def check_existence_and_date(indranet_date,fname, in_name=True):
+def check_existence_and_date(indranet_date, fname, in_name=True):
     """With in_name True, look for a datestring in the file name, otherwise
     use the file creation date/last modification date.
 
