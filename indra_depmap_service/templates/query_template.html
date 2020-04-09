@@ -44,9 +44,9 @@
       resetCounters();
       clearAllTables();
       let oldResults = {{ old_result|safe }};
-      if (oldResults) {
-        console.log('old_result');
-        console.log(old_result);
+      if (!($.isEmptyObject(oldResults))) {
+        console.log('oldResults');
+        console.log(oldResults);
         fillResultsTable(oldResults, "{{ source }}", "{{ target }}")
       }
     });
