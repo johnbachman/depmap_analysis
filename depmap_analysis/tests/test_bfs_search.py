@@ -39,3 +39,6 @@ def test_bfs_search():
                                       reverse=True)]) == 9
 
     # Test node blacklist
+    assert len([p for p in bfs_search(dg, 'D1', depth_limit=5, reverse=True,
+                                      node_blacklist={'Z1'})]) == 8
+
