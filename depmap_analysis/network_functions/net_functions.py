@@ -621,7 +621,7 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
     """
     # todo 1. terminate path on chemical namespace
     queue = deque([(source,)])
-    visited = {source} & set(node_blacklist) if node_blacklist else {source}
+    visited = ({source}).union(node_blacklist) if node_blacklist else {source}
     yn = 0
     while queue:
         cur_path = queue.popleft()
