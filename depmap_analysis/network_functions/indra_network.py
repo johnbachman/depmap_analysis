@@ -582,26 +582,6 @@ class IndraNetwork:
             logger.warning(repr(e))
             return {}
 
-    def find_shared_regulators(self, source, target, **options):
-        """Returns a list of statement data that explain shared regulators
-        for source and target"""
-        if source in self.nodes and target in self.nodes:
-            source_pred = set(self.nx_dir_graph_repr.pred[source].keys())
-            target_pred = set(self.nx_dir_graph_repr.pred[target].keys())
-            common = source_pred & target_pred
-            if common:
-                try:
-                    return self._loop_shared_regulators(shared_regs=common,
-                                                        source=source,
-                                                        target=target,
-                                                        **options)
-                except NodeNotFound as e:
-                    logger.warning(repr(e))
-                except NetworkXNoPath as e:
-                    logger.warning(repr(e))
-
-        return []
-
     def multi_regulators_targets(self, list_of_regulators=None,
                                  list_of_targets=None, **options):
         if not (bool(list_of_regulators) ^ bool(list_of_targets)):
@@ -741,6 +721,26 @@ class IndraNetwork:
                 'regulators': list(regulators),
                 'stmt_data': stmt_data,
                 'stmt_hashes': all_hashes}
+
+    def find_shared_regulators(self, source, target, **options):
+        """Returns a list of statement data that explain shared regulators
+        for source and target"""
+        if source in self.nodes and target in self.nodes:
+            source_pred = set(self.nx_dir_graph_repr.pred[source].keys())
+            target_pred = set(self.nx_dir_graph_repr.pred[target].keys())
+            common = source_pred & target_pred
+            if common:
+                try:
+                    return self._loop_shared_regulators(shared_regs=common,
+                                                        source=source,
+                                                        target=target,
+                                                        **options)
+                except NodeNotFound as e:
+                    logger.warning(repr(e))
+                except NetworkXNoPath as e:
+                    logger.warning(repr(e))
+
+        return []
 
     def _loop_shared_regulators(self, shared_regs, source, target,
                                 **options):
