@@ -354,6 +354,50 @@ def multi_interactors():
                        'query', 500))
 
 
+@app.route('/bfs_search')
+def breadth_search():
+    logger.info('Got request for multi interactors')
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+    if not request.json:
+        return abort(415, '')
+    query_json = request.json
+
+    allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
+    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+
+    if not allowed_ns:
+        allowed_ns = default_ns
+
+    if not set(allowed_ns).issubset(set(default_ns)):
+        abort(Response('One or more of the provided ns in "allowed_ns" is '
+                       'not part of the standard ns. Provided ns list: %s. '
+                       'Allowed ns list: %s' %
+                       (str(allowed_ns), str(default_ns)), 415))
+
+    options = {
+        'source': query_json['source'],
+        'reverse': query_json.get('reverse', False),
+        'depth_limit': int(query_json.get('depth_limit', 2)),
+        'path_limit': int(query_json.get('depth_limit', 100)),
+        'allowed_ns': allowed_ns,
+        'node_filter': allowed_ns,
+        'node_blacklist': query_json.get('node_blacklist', []),
+        'bsco': float(query_json.get('belief_cutoff', 0)),
+        'stmt_filter': query_json.get('skip_stmt_types', []),
+        'curated_db_only': bool(query_json.get('db_only', False))
+    }
+    try:
+        results = indra_network.open_bfs_search(**options)
+        return jsonify(results)
+    except Exception as err:
+        logger.warning('Exception handling open bfs search')
+        logger.exception(err)
+        abort(Response('Internal server error handling multi interactors '
+                       'query', 500))
+
+
 @app.route('/node', methods=['POST'])
 def node_check():
     logger.info('Got request for node check')
