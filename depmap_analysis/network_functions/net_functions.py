@@ -591,12 +591,12 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
-def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100):
-    """
+def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
+               allowed_ns=None, node_blacklist=None):
+    """Do breadth first search from a given node and yield paths
 
     Parameters
     ----------
-
     g : nx.Digraph
         An nx.DiGraph to search in.
     source : node
@@ -608,6 +608,11 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100):
         Stop when all paths with this many edges have been found. Default: 2.
     path_limit : int
         The maximum number of paths to return. Default: 100.
+    allowed_ns : list[str]
+        The allowed namespaces (node attribute 'ns') for the nodes in the
+        path
+    node_blacklist : set[node]
+        A set of nodes to ignore. Default: None.
 
     Yields
     ------
@@ -618,7 +623,7 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100):
     #      2. check neighb ns (to avoid checking source)
     #      3. terminate path on chemical namespace
     queue = deque([(source,)])
-    visited = {source}
+    visited = {source} & set(node_blacklist) if node_blacklist else {source}
     yn = 0
     while queue:
         cur_path = queue.popleft()
@@ -628,10 +633,20 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100):
         else:
             neighbors = g.successors(last_node)
         for neighb in neighbors:
+            # Check cycles
             if neighb in visited:
                 continue
+
+            # Check namespace
+            if allowed_ns and len(allowed_ns) > 0:
+                if g.nodes[neighb]['ns'].lower() not in allowed_ns:
+                    continue
+
+            # Add to visited nodes and create new path
             visited.add(neighb)
             new_path = cur_path + (neighb,)
+
+            # Check yield and break conditions
             if len(new_path) > depth_limit + 1:
                 continue
             else:
