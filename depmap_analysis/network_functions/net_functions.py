@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import networkx.algorithms.simple_paths as simple_paths
+from collections import deque
 from requests.exceptions import ConnectionError
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
@@ -585,4 +586,62 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
             listA.append(path)
             prev_path = path
         else:
+            break
+
+
+# Implementation inspired by networkx's
+# networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
+def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100):
+    """
+
+    Parameters
+    ----------
+
+    g : nx.Digraph
+        An nx.DiGraph to search in.
+    source : node
+        Node in the graph to start from.
+    reverse : bool
+        If True go upstream from source, otherwise go downstream. Default:
+        False.
+    depth_limit : int
+        Stop when all paths with this many edges have been found. Default: 2.
+    path_limit : int
+        The maximum number of paths to return. Default: 100.
+
+    Yields
+    ------
+    path : tuple(node)
+        Paths in the bfs search starting from `source`.
+    """
+    # todo 1. allow blacklisted nodes
+    #      2. check neighb ns (to avoid checking source)
+    #      3. terminate path on chemical namespace
+    queue = deque([(source,)])
+    visited = {source}
+    yn = 0
+    while queue:
+        cur_path = queue.popleft()
+        last_node = cur_path[-1]
+        if reverse:
+            neighbors = g.predecessors(last_node)
+        else:
+            neighbors = g.successors(last_node)
+        for neighb in neighbors:
+            if neighb in visited:
+                continue
+            visited.add(neighb)
+            new_path = cur_path + (neighb,)
+            if len(new_path) > depth_limit + 1:
+                continue
+            else:
+                yield new_path
+                yn += 1
+                # Check max paths reached
+                if yn >= path_limit:
+                    break
+            queue.append(new_path)
+
+        # Check again to catch the inner break
+        if yn >= path_limit:
             break
