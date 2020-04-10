@@ -34,9 +34,10 @@ up- or downreguations associated with them, which currently is
 `IncreaseAmount` and `Activation` for upregulation, and `DecreaseAmount` and
 `Inhibition` for downregulation.
 
-The code assembling the graphs can be found `here <https://github
-.com/indralab/depmap_analysis/blob/master/depmap_analysis/network_functions
-/net_functions.py>`_ in the function `sif_dump_df_to_nx_digraph()`.
+The code assembling the graphs can be found in `net_functions.py
+<https://github.com/indralab/depmap_analysis/blob/master/depmap_analysis
+/network_functions/net_functions.py>`_ in the function
+`sif_dump_df_to_digraph()`.
 
 Search Options
 --------------
