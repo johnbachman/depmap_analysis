@@ -619,9 +619,7 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
     path : tuple(node)
         Paths in the bfs search starting from `source`.
     """
-    # todo 1. allow blacklisted nodes
-    #      2. check neighb ns (to avoid checking source)
-    #      3. terminate path on chemical namespace
+    # todo 1. terminate path on chemical namespace
     queue = deque([(source,)])
     visited = {source} & set(node_blacklist) if node_blacklist else {source}
     yn = 0
