@@ -121,8 +121,32 @@ def sorted_json_string(json_thing):
         raise TypeError('Invalid type: %s' % type(json_thing))
 
 
-def get_query_hash(query_json):
-    """Create an FNV-1a 32-bit hash from the query json"""
+def get_query_hash(query_json, ignore_keys=None):
+    """Create an FNV-1a 32-bit hash from the query json
+
+    Parameters
+    ----------
+    query_json : dict
+        A json compatible query dict
+    ignore_keys : set|list
+        A list or set of keys to ignore in the query_json. By default,
+        no keys are ignored. Default: None.
+
+    Returns
+    -------
+    int
+        An FNV-1a 32-bit hash of the query json ignoring the keys in
+        ignore_keys
+    """
+    if ignore_keys:
+        if set(ignore_keys).difference(query_json.keys()):
+            missing = set(ignore_keys).difference(query_json.keys())
+            logger.warning(
+                'Ignore key(s) "%s" are not in the provided query_json and '
+                'will be skipped...' %
+                str('", "'.join(missing)))
+        query_json = {k: v for k, v in query_json.items()
+                      if k not in ignore_keys}
     return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
 
 
