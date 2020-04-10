@@ -582,6 +582,20 @@ class IndraNetwork:
             logger.warning(repr(e))
             return {}
 
+    def open_bfs_search(self, source, **options):
+        graph = self.sign_edge_graph_repr if options.get('signed') else \
+            self.nx_dir_graph_repr
+        results = []
+        for path in nf.bfs_search(g=graph, source=source, **options):
+            hash_path = self._get_hash_path(path=path, source=source,
+                                            **options)
+            if hash_path and all(hash_path):
+                results.append({
+                    'path': path,
+                    'stmts': hash_path
+                })
+        return results
+
     def multi_regulators_targets(self, list_of_regulators=None,
                                  list_of_targets=None, **options):
         if not (bool(list_of_regulators) ^ bool(list_of_targets)):
