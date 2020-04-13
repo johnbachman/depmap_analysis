@@ -354,7 +354,7 @@ def multi_interactors():
                        'query', 500))
 
 
-@app.route('/bfs_search')
+@app.route('/bfs_search', methods=['POST'])
 def breadth_search():
     logger.info('Got request for breadth first search')
     logger.info('Incoming Json ----------------------')
