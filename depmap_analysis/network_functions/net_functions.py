@@ -676,10 +676,10 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
                     if cur_path[-1] in skip_nodes:
                         break
                 # Check max paths reached
-                if yn and yn >= path_limit:
+                if path_limit and yn >= path_limit:
                     break
             queue.append(new_path)
 
         # Check again to catch the inner break
-        if yn and yn >= path_limit:
+        if path_limit and yn >= path_limit:
             break
