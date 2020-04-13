@@ -356,7 +356,7 @@ def multi_interactors():
 
 @app.route('/bfs_search')
 def breadth_search():
-    logger.info('Got request for multi interactors')
+    logger.info('Got request for breadth first search')
     logger.info('Incoming Json ----------------------')
     logger.info(str(request.json))
     logger.info('------------------------------------')
@@ -364,6 +364,7 @@ def breadth_search():
         return abort(415, '')
     query_json = request.json
 
+    # Make lowercase
     allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
     default_ns = list(map(lambda s: s.lower(), NS_LIST))
 
@@ -376,12 +377,14 @@ def breadth_search():
                        'Allowed ns list: %s' %
                        (str(allowed_ns), str(default_ns)), 415))
 
+    if not query_json.get('source'):
+        abort(Response('Missing required parameter "source"', 415))
+
     options = {
         'source': query_json['source'],
         'reverse': query_json.get('reverse', False),
         'depth_limit': int(query_json.get('depth_limit', 2)),
         'path_limit': int(query_json.get('depth_limit', 100)),
-        'allowed_ns': allowed_ns,
         'node_filter': allowed_ns,
         'node_blacklist': query_json.get('node_blacklist', []),
         'bsco': float(query_json.get('belief_cutoff', 0)),

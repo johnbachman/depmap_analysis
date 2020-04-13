@@ -592,7 +592,7 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
 def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
-               allowed_ns=None, node_blacklist=None):
+               node_filter=None, node_blacklist=None, **kwargs):
     """Do breadth first search from a given node and yield paths
 
     Parameters
@@ -608,7 +608,7 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
         Stop when all paths with this many edges have been found. Default: 2.
     path_limit : int
         The maximum number of paths to return. Default: 100.
-    allowed_ns : list[str]
+    node_filter : list[str]
         The allowed namespaces (node attribute 'ns') for the nodes in the
         path
     node_blacklist : set[node]
@@ -620,6 +620,7 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
         Paths in the bfs search starting from `source`.
     """
     # todo 1. terminate path on chemical namespace
+    #      2. Allow for signed graph
     queue = deque([(source,)])
     visited = ({source}).union(node_blacklist) if node_blacklist else {source}
     yn = 0
@@ -636,8 +637,8 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
                 continue
 
             # Check namespace
-            if allowed_ns and len(allowed_ns) > 0:
-                if g.nodes[neighb]['ns'].lower() not in allowed_ns:
+            if node_filter and len(node_filter) > 0:
+                if g.nodes[neighb]['ns'].lower() not in node_filter:
                     continue
 
             # Add to visited nodes and create new path
