@@ -591,7 +591,7 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
-def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
+def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
                node_filter=None, node_blacklist=None, terminal_ns=None,
                **kwargs):
     """Do breadth first search from a given node and yield paths
@@ -664,6 +664,8 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
             else:
                 # Yield newest path and recieve new ignore values
                 ign_vals = yield new_path
+                if yn is not None:
+                    yn += 1
 
                 # If new ignore nodes are recieved, update set and break the
                 # for loop of neighbors if the last node is in the updated
@@ -673,12 +675,11 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
                     skip_nodes.update(ign_nodes)
                     if cur_path[-1] in skip_nodes:
                         break
-                yn += 1
                 # Check max paths reached
-                if yn >= path_limit:
+                if yn and yn >= path_limit:
                     break
             queue.append(new_path)
 
         # Check again to catch the inner break
-        if yn >= path_limit:
+        if yn and yn >= path_limit:
             break
