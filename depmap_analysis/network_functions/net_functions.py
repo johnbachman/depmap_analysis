@@ -592,7 +592,8 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
 def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
-               node_filter=None, node_blacklist=None, **kwargs):
+               node_filter=None, node_blacklist=None, terminal_ns=None,
+               **kwargs):
     """Do breadth first search from a given node and yield paths
 
     Parameters
@@ -613,20 +614,32 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
         path
     node_blacklist : set[node]
         A set of nodes to ignore. Default: None.
+    terminal_ns : list[str]
+        Force a path to terminate when any of the namespaces in this list
+        are encountered.
 
     Yields
     ------
     path : tuple(node)
         Paths in the bfs search starting from `source`.
     """
-    # todo 1. terminate path on chemical namespace
-    #      2. Allow for signed graph
+    # todo 1. Allow for signed graph
+    skip_nodes = set()  # Set of nodes that have yielded too many paths
     queue = deque([(source,)])
     visited = ({source}).union(node_blacklist) if node_blacklist else {source}
     yn = 0
     while queue:
         cur_path = queue.popleft()
         last_node = cur_path[-1]
+
+        # if last node is in terminal_ns, continue to next path
+        if g.nodes[last_node]['ns'].lower() in terminal_ns:
+            continue
+
+        # Skip if last node has been added to skip_nodes set
+        if last_node in skip_nodes:
+            continue
+
         if reverse:
             neighbors = g.predecessors(last_node)
         else:
@@ -649,7 +662,17 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=100,
             if len(new_path) > depth_limit + 1:
                 continue
             else:
-                yield new_path
+                # Yield newest path and recieve new ignore values
+                ign_vals = yield new_path
+
+                # If new ignore nodes are recieved, update set and break the
+                # for loop of neighbors if the last node is in the updated
+                # set of skip nodes
+                if ign_vals is not None:
+                    ign_nodes, ign_edges = ign_vals
+                    skip_nodes.update(ign_nodes)
+                    if cur_path[-1] in skip_nodes:
+                        break
                 yn += 1
                 # Check max paths reached
                 if yn >= path_limit:
