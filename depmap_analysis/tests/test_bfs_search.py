@@ -49,7 +49,19 @@ def test_bfs_search():
     # Terminate on 'b'
     expected_paths = {('D1', 'C1'), ('D1', 'C1', 'B1'), ('D1', 'C1', 'B2'),
                       ('D1', 'C1', 'B3')}
-    paths = set([p for p in bfs_search(g=dg, source='D1', depth_limit=5,
-                                       reverse=True, terminal_ns=['b'],
-                                       node_filter=['a', 'b', 'c', 'd', 'z'])])
-    assert paths == expected_paths
+    paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
+                                   reverse=True, terminal_ns=['b'],
+                                   node_filter=['a', 'b', 'c', 'd', 'z'])]
+    assert len(paths) == 4
+    assert set(paths) == expected_paths
+    # Terminate on 'a'
+    expected_paths = {('D1', 'C1'), ('D1', 'C1', 'B1'), ('D1', 'C1', 'B2'),
+                      ('D1', 'C1', 'B3'), ('D1', 'C1', 'B1', 'A1'),
+                      ('D1', 'C1', 'B1', 'A2'), ('D1', 'C1', 'B2', 'A3'),
+                      ('D1', 'C1', 'B2', 'A4')}
+    paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
+                                   reverse=True, terminal_ns=['a'],
+                                   node_filter=['a', 'b', 'c', 'd', 'z'])]
+    assert len(paths) == len(expected_paths)
+    assert set(paths) == expected_paths
+
