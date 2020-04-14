@@ -370,7 +370,7 @@ def breadth_search():
     query_json = request.json
 
     # Make lowercase
-    allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
+    allowed_ns = [ns.lower() for ns in query_json.get('node_filter', [])]
     default_ns = list(map(lambda s: s.lower(), NS_LIST))
 
     if not allowed_ns:
