@@ -592,7 +592,8 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
 def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
-               node_filter=None, node_blacklist=None, terminal_ns=None):
+               max_per_node=None, node_filter=None, node_blacklist=None,
+               terminal_ns=None):
     """Do breadth first search from a given node and yield paths
 
     Parameters
@@ -607,7 +608,11 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
     depth_limit : int
         Stop when all paths with this many edges have been found. Default: 2.
     path_limit : int
-        The maximum number of paths to return. Default: 100.
+        The maximum number of paths to return. Default: no limit.
+    max_per_node : int
+        The maximum number of paths to yield per parent node. If 1 is
+        chosen, the search only goes down to the leaf node of its first
+        encountered branch. Default: None
     node_filter : list[str]
         The allowed namespaces (node attribute 'ns') for the nodes in the
         path
@@ -623,26 +628,23 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
         Paths in the bfs search starting from `source`.
     """
     # todo 1. Allow for signed graph
-    skip_nodes = set()  # Set of nodes that have yielded too many paths
     queue = deque([(source,)])
     visited = ({source}).union(node_blacklist) if node_blacklist else {source}
-    yn = 0
+    yielded_paths = 0
     while queue:
         cur_path = queue.popleft()
         last_node = cur_path[-1]
 
         # if last node is in terminal_ns, continue to next path
-        if g.nodes[last_node]['ns'].lower() in terminal_ns:
-            continue
-
-        # Skip if last node has been added to skip_nodes set
-        if last_node in skip_nodes:
+        if terminal_ns and g.nodes[last_node]['ns'].lower() in terminal_ns:
             continue
 
         if reverse:
             neighbors = g.predecessors(last_node)
         else:
             neighbors = g.successors(last_node)
+
+        yielded_neighbors = 0
         for neighb in neighbors:
             # Check cycles
             if neighb in visited:
@@ -663,22 +665,28 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
             else:
                 # Yield newest path and recieve new ignore values
                 ign_vals = yield new_path
-                if yn is not None:
-                    yn += 1
+                yielded_paths += 1
+                yielded_neighbors += 1
 
-                # If new ignore nodes are recieved, update set and break the
-                # for loop of neighbors if the last node is in the updated
-                # set of skip nodes
+                # If new ignore nodes are recieved, update set
                 if ign_vals is not None:
                     ign_nodes, ign_edges = ign_vals
-                    skip_nodes.update(ign_nodes)
-                    if cur_path[-1] in skip_nodes:
-                        break
-                # Check max paths reached
-                if path_limit and yn >= path_limit:
+                    visited.update(ign_nodes)
+
+                # Check max paths reached, no need to add to queue
+                if path_limit and yielded_paths >= path_limit:
                     break
+
+            # Append yielded path
             queue.append(new_path)
 
-        # Check again to catch the inner break
-        if path_limit and yn >= path_limit:
+            # Check if we've visited enough neighbors
+            # Todo: add all neighbors to 'visited' and add all skipped
+            #  paths to queue? Currently only yielded paths are
+            #  investigated deeper
+            if max_per_node and yielded_neighbors >= max_per_node:
+                break
+
+        # Check path limit again to catch the inner break for path_limit
+        if path_limit and yielded_paths >= path_limit:
             break
