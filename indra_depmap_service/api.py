@@ -377,7 +377,7 @@ def breadth_search():
         allowed_ns = default_ns
 
     if not set(allowed_ns).issubset(set(default_ns)):
-        abort(Response('One or more of the provided ns in "allowed_ns" is '
+        abort(Response('One or more of the provided ns in "node_filter" is '
                        'not part of the standard ns. Provided ns list: %s. '
                        'Allowed ns list: %s' %
                        (str(allowed_ns), str(default_ns)), 415))
