@@ -592,8 +592,7 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
 def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
-               node_filter=None, node_blacklist=None, terminal_ns=None,
-               **kwargs):
+               node_filter=None, node_blacklist=None, terminal_ns=None):
     """Do breadth first search from a given node and yield paths
 
     Parameters
