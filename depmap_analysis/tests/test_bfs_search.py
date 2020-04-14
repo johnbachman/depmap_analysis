@@ -43,7 +43,15 @@ def test_bfs_search():
                                       node_blacklist={'Z1'})]) == 8
 
     # Test max per node option
-
+    # Should get 4 paths with max_per_node=1
+    expected_paths = {('D1', 'C1'), ('D1', 'C1', 'B1'),
+                      ('D1', 'C1', 'B1', 'A1'),
+                      ('D1', 'C1', 'B1', 'A1', 'Z1')}
+    paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
+                                   reverse=True, max_per_node=1,
+                                   node_filter=['a', 'b', 'c', 'd', 'z'])]
+    assert len(paths) == 4
+    assert set(paths) == expected_paths
 
     # Test terminal NS
     # Terminate on 'b'
