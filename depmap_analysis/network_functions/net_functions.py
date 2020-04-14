@@ -592,7 +592,7 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
 def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
-               max_per_node=None, node_filter=None, node_blacklist=None,
+               max_per_node=5, node_filter=None, node_blacklist=None,
                terminal_ns=None):
     """Do breadth first search from a given node and yield paths
 
@@ -612,7 +612,7 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
     max_per_node : int
         The maximum number of paths to yield per parent node. If 1 is
         chosen, the search only goes down to the leaf node of its first
-        encountered branch. Default: None
+        encountered branch. Default: 5
     node_filter : list[str]
         The allowed namespaces (node attribute 'ns') for the nodes in the
         path
