@@ -42,3 +42,14 @@ def test_bfs_search():
     assert len([p for p in bfs_search(dg, 'D1', depth_limit=5, reverse=True,
                                       node_blacklist={'Z1'})]) == 8
 
+    # Test max per node option
+
+
+    # Test terminal NS
+    # Terminate on 'b'
+    expected_paths = {('D1', 'C1'), ('D1', 'C1', 'B1'), ('D1', 'C1', 'B2'),
+                      ('D1', 'C1', 'B3')}
+    paths = set([p for p in bfs_search(g=dg, source='D1', depth_limit=5,
+                                       reverse=True, terminal_ns=['b'],
+                                       node_filter=['a', 'b', 'c', 'd', 'z'])])
+    assert paths == expected_paths
