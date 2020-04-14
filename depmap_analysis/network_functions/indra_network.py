@@ -585,15 +585,52 @@ class IndraNetwork:
     def open_bfs_search(self, source, **options):
         graph = self.sign_edge_graph_repr if options.get('signed') else \
             self.nx_dir_graph_repr
+        bfs_gen = nf.bfs_search(g=graph, source=source, **options)
+        return self._loop_bfs_paths(bfs_gen, source, **options)
+
+    def _loop_bfs_paths(self, bfs_path_gen, source, **options):
+        max_per_node = options.get('max_per_node', 5)
+        send_vals = None
+        old_par_node = ''
         results = []
-        for path in nf.bfs_search(g=graph, source=source, **options):
+        p = 0
+        max_results = options.get('max_results', 50)
+        # Loop paths
+        while True:
+            try:
+                path = bfs_path_gen.send(send_vals)
+            except StopIteration:
+                logger.info('All BFS paths found, breaking')
+                break
+
             hash_path = self._get_hash_path(path=path, source=source,
                                             **options)
+            # Assemble results
             if hash_path and all(hash_path):
                 results.append({
                     'path': path,
                     'stmts': hash_path
                 })
+
+                if len(results) >= max_results:
+                    logger.info('Max bfs paths found, returning')
+                    return results
+
+                # Only do these if hash paths are added
+                # Check max paths per leaf parent node
+                if max_per_node and path[-2] != source:
+                    new_par_node = path[-2]
+                    if new_par_node == old_par_node:
+                        p += 1
+                    else:
+                        p += 0
+                    old_par_node = new_par_node
+
+                    # Skip will be after next iteration, so check one less
+                    if p+1 == max_per_node:
+                        send_vals = ({new_par_node}, set())
+                        p = 0
+
         return results
 
     def multi_regulators_targets(self, list_of_regulators=None,
