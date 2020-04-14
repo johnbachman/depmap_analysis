@@ -1,3 +1,4 @@
+import inspect
 import logging
 from itertools import product
 from collections import defaultdict
@@ -11,6 +12,9 @@ from indra.assemblers.indranet.net import default_sign_dict
 from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
+
+bfs_signature = inspect.signature(nf.bfs_search)
+bfs_kwargs = bfs_signature.parameters.keys()
 
 logger = logging.getLogger('indra network')
 
@@ -612,22 +616,22 @@ class IndraNetwork:
         """
         graph = self.sign_edge_graph_repr if options.get('signed') else \
             self.nx_dir_graph_repr
-        bfs_gen = nf.bfs_search(g=graph, source=source, **options)
+
+        bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
+        bfs_gen = nf.bfs_search(g=graph, source=source, **bfs_options)
         return self._loop_bfs_paths(bfs_gen, source, **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source, **options):
-        max_per_node = options.get('max_per_node', 5)
-        send_vals = None
-        old_par_node = ''
         results = []
         p = 0
         max_results = options.get('max_results', 50)
         # Loop paths
         while True:
             try:
-                path = bfs_path_gen.send(send_vals)
+                path = next(bfs_path_gen)
             except StopIteration:
-                logger.info('All BFS paths found, breaking')
+                logger.info('Reached StopIteration, all BFS paths found, '
+                            'breaking')
                 break
 
             hash_path = self._get_hash_path(path=path, source=source,
@@ -642,21 +646,6 @@ class IndraNetwork:
                 if len(results) >= max_results:
                     logger.info('Max bfs paths found, returning')
                     return results
-
-                # Only do these if hash paths are added
-                # Check max paths per leaf parent node
-                if max_per_node and path[-2] != source:
-                    new_par_node = path[-2]
-                    if new_par_node == old_par_node:
-                        p += 1
-                    else:
-                        p += 0
-                    old_par_node = new_par_node
-
-                    # Skip will be after next iteration, so check one less
-                    if p+1 == max_per_node:
-                        send_vals = ({new_par_node}, set())
-                        p = 0
 
         return results
 

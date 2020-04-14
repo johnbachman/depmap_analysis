@@ -380,16 +380,20 @@ def breadth_search():
     if not query_json.get('source'):
         abort(Response('Missing required parameter "source"', 415))
 
+    # If reversed, search upstream instead of downstream from source
     options = {
         'source': query_json['source'],
         'reverse': query_json.get('reverse', False),
         'depth_limit': int(query_json.get('depth_limit', 2)),
-        'path_limit': int(query_json.get('depth_limit', 100)),
+        'path_limit': int(query_json.get('path_limit', 100)),
         'node_filter': allowed_ns,
         'node_blacklist': query_json.get('node_blacklist', []),
         'bsco': float(query_json.get('belief_cutoff', 0)),
         'stmt_filter': query_json.get('skip_stmt_types', []),
-        'curated_db_only': bool(query_json.get('db_only', False))
+        'curated_db_only': bool(query_json.get('db_only', False)),
+        'terminal_ns': query_json.get('terminal_ns',  ['chebi', 'pubchem']),
+        'max_results': query_json.get('max_results', 50),
+        'max_per_node': query_json.get('max_per_node', 5)
     }
     try:
         results = indra_network.open_bfs_search(**options)
