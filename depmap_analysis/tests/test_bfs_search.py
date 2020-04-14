@@ -29,10 +29,10 @@ def test_bfs_search():
     # Test ns allowance list
     ans = ['c', 'b']
     assert len([p for p in bfs_search(dg, 'C1', depth_limit=2, reverse=True,
-                                      allowed_ns=ans)]) == 3
+                                      node_filter=ans)]) == 3
     assert all(len(p) < 3 for p in
                bfs_search(dg, 'C1', depth_limit=2, reverse=True,
-                          allowed_ns=ans))
+                          node_filter=ans))
 
     # Test longer paths
     assert len([p for p in bfs_search(dg, 'D1', depth_limit=5,
