@@ -633,7 +633,8 @@ class IndraNetwork:
                 logger.info('Reached StopIteration, all BFS paths found, '
                             'breaking')
                 break
-
+            # Reverse path if reverse search
+            path = path[::-1] if options.get('reverse') else path
             hash_path = self._get_hash_path(path=path, source=source,
                                             **options)
             # Assemble results
