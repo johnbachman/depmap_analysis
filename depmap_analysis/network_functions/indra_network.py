@@ -623,7 +623,6 @@ class IndraNetwork:
 
     def _loop_bfs_paths(self, bfs_path_gen, source, **options):
         results = []
-        p = 0
         max_results = options.get('max_results', 50)
         # Loop paths
         while True:
