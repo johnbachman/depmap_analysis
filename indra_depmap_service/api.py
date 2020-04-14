@@ -139,6 +139,11 @@ def handle_query(**json_query):
     return res
 
 
+@app.route('/health')
+def health():
+    return jsonify({'status': 'pass'})
+
+
 @app.route('/')
 @app.route('/query')
 def get_query_page():
