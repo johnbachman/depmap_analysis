@@ -583,6 +583,33 @@ class IndraNetwork:
             return {}
 
     def open_bfs_search(self, source, **options):
+        """Return paths and their data starting from source
+
+        source : str
+            Node to start search from.
+        options : kwargs
+            For a full list of options see from
+            depmap_analysis.network_functions.net_functions::bfs_search
+            Notable options:
+                - reverse: bool
+                    If True, perform upstream search instead of downstream
+                    search. Default: False.
+                -depth_limit : int
+                    Stop when all paths with this many edges have been
+                    found. Default: 2.
+                -max_results : int
+                    The maximum number of results to return. Default: 50.
+                -terminal_ns : list[str]
+                    Force a path to terminate when any of the namespaces in
+                    this list are encountered. Default: ['chebi', 'pubchem'].
+
+        Returns
+        -------
+        list
+            List of dicts with results. Each dict has the format:
+                {'path': <tuple of nodes>,
+                 'stmts': <data supporting the paths>}
+        """
         graph = self.sign_edge_graph_repr if options.get('signed') else \
             self.nx_dir_graph_repr
         bfs_gen = nf.bfs_search(g=graph, source=source, **options)
