@@ -12,7 +12,7 @@ from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
 
 from depmap_analysis.network_functions.indra_network import IndraNetwork,\
-    EMPTY_RESULT
+    EMPTY_RESULT, SIGNS_TO_INT_SIGN
 
 from .util import *
 
@@ -385,6 +385,8 @@ def breadth_search():
     if not query_json.get('source'):
         abort(Response('Missing required parameter "source"', 415))
 
+    sign = SIGNS_TO_INT_SIGN[query_json.get('sign')]
+
     # If reversed, search upstream instead of downstream from source
     options = {
         'source': query_json['source'],
@@ -398,7 +400,8 @@ def breadth_search():
         'curated_db_only': bool(query_json.get('db_only', False)),
         'terminal_ns': query_json.get('terminal_ns',  ['chebi', 'pubchem']),
         'max_results': query_json.get('max_results', 50),
-        'max_per_node': query_json.get('max_per_node', 5)
+        'max_per_node': query_json.get('max_per_node', 5),
+        'sign': sign
     }
     try:
         results = indra_network.open_bfs_search(**options)
