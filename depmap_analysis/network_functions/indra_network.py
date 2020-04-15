@@ -607,6 +607,10 @@ class IndraNetwork:
                 -terminal_ns : list[str]
                     Force a path to terminate when any of the namespaces in
                     this list are encountered. Default: ['chebi', 'pubchem'].
+                -sign : int
+                    If sign is present as a kwarg, it specifies the sign of
+                    leaf node in the path, i.e. wether the leaf node is up-
+                    or downregulated.
 
         Returns
         -------
@@ -615,8 +619,29 @@ class IndraNetwork:
                 {'path': <tuple of nodes>,
                  'stmts': <data supporting the paths>}
         """
-        graph = self.sign_edge_graph_repr if options.get('signed') else \
-            self.nx_dir_graph_repr
+        # Signed search
+        if options.get('sign') is not None:
+            graph = self.sign_node_graph_repr
+            signed_node_blacklist = []
+            for node in options.get('node_blacklist', []):
+                signed_node_blacklist.extend([(node, INT_MINUS),
+                                              (node, INT_PLUS)])
+            options['node_blacklist'] = signed_node_blacklist
+
+            # Assign the correct sign to source:
+            # If search is downstream, source is the first node and the
+            # search must always start with + as node sign. The leaf node
+            # sign (i.e. the end of the path) in this case will then be
+            # determined by the requested sign.
+            # If reversed search, the source is the last node and can have
+            # + or - as node sign depending on the requested sign.
+            source = (source, INT_PLUS) if not options.get('reverse', False)\
+                else ((source, INT_MINUS) if options['sign'] == INT_MINUS
+                      else (source, INT_PLUS))
+            options['g_nodes'] = self.nodes
+        # Normal search
+        else:
+            graph = self.nx_dir_graph_repr
 
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         bfs_gen = nf.bfs_search(g=graph, source=source, **bfs_options)
@@ -625,6 +650,7 @@ class IndraNetwork:
     def _loop_bfs_paths(self, bfs_path_gen, source, **options):
         results = []
         max_results = options.get('max_results', 50)
+
         # Loop paths
         while True:
             try:
@@ -633,10 +659,24 @@ class IndraNetwork:
                 logger.info('Reached StopIteration, all BFS paths found, '
                             'breaking')
                 break
+
             # Reverse path if reverse search
             path = path[::-1] if options.get('reverse') else path
+
+            # Handle signed path
+            if options.get('sign') is not None:
+                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                              for s, t in zip(path[:-1], path[1:])]
+                path = [n[0] for n in path]
+                graph_type = 'signed'
+            else:
+                edge_signs = None
+                graph_type = 'digraph'
             hash_path = self._get_hash_path(path=path, source=source,
+                                            edge_signs=edge_signs,
+                                            graph_type=graph_type,
                                             **options)
+
             # Assemble results
             if hash_path and all(hash_path):
                 results.append({
