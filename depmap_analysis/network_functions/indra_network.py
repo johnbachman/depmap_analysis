@@ -12,6 +12,8 @@ from indra.assemblers.indranet.net import default_sign_dict
 from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
+from depmap_analysis.network_functions.net_functions import \
+    SIGNS_TO_INT_SIGN, INT_PLUS, INT_MINUS, SIGN_TO_STANDARD, REVERSE_SIGN
 
 bfs_signature = inspect.signature(nf.bfs_search)
 bfs_kwargs = bfs_signature.parameters.keys()
@@ -30,16 +32,6 @@ TIMEOUT = 30  # Timeout in seconds
 MIN_TIMEOUT = 2
 MAX_TIMEOUT = 120
 MAX_SIGNED_PATH_LEN = 7
-INT_PLUS = 0
-INT_MINUS = 1
-SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
-                    '-': '-', 'minus': '-', INT_MINUS: '-'}
-SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
-                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS,
-                     None: None}
-REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
-                '+': '-', '-': '+',
-                'plus': 'minus', 'minus': 'plus'}
 EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
                 'common_targets': [],
                 'common_parents': {},

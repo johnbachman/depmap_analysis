@@ -20,6 +20,16 @@ logger = logging.getLogger(__name__)
 
 np.seterr(all='raise')
 NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
+INT_PLUS = 0
+INT_MINUS = 1
+SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
+                    '-': '-', 'minus': '-', INT_MINUS: '-'}
+SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
+                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS,
+                     None: None}
+REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
+                '+': '-', '-': '+',
+                'plus': 'minus', 'minus': 'plus'}
 
 
 GRND_URI = None

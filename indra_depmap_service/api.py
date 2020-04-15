@@ -11,8 +11,9 @@ from flask import Flask, request, abort, Response, render_template, jsonify,\
 from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
 
-from depmap_analysis.network_functions.indra_network import IndraNetwork,\
-    EMPTY_RESULT, SIGNS_TO_INT_SIGN
+from depmap_analysis.network_functions.indra_network import IndraNetwork, \
+    EMPTY_RESULT
+from depmap_analysis.network_functions.net_functions import SIGNS_TO_INT_SIGN
 
 from .util import *
 
