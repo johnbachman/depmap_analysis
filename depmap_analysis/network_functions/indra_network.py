@@ -648,7 +648,7 @@ class IndraNetwork:
         return self._loop_bfs_paths(bfs_gen, source, **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source, **options):
-        results = []
+        result = defaultdict(list)
         max_results = options.get('max_results', 50)
 
         # Loop paths
@@ -679,16 +679,19 @@ class IndraNetwork:
 
             # Assemble results
             if hash_path and all(hash_path):
-                results.append({
+                result[len(path)].append({
                     'path': path,
-                    'stmts': hash_path
+                    'stmts': hash_path,
+                    'sort_key': str(self._get_sort_key(path, hash_path,
+                                                       edge_signs)),
+                    'cost': str(self._get_cost(path, edge_signs))
                 })
 
-                if len(results) >= max_results:
+                if len(result) >= max_results:
                     logger.info('Max bfs paths found, returning')
-                    return results
+                    return result
 
-        return results
+        return result
 
     def multi_regulators_targets(self, list_of_regulators=None,
                                  list_of_targets=None, **options):
