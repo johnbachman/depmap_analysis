@@ -6,7 +6,7 @@ from time import time, gmtime, strftime
 
 from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
 from flask import Flask, request, abort, Response, render_template, jsonify,\
-    session, redirect, url_for
+    session, url_for
 
 from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
