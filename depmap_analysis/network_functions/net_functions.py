@@ -591,17 +591,21 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
 
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
-def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
-               max_per_node=5, node_filter=None, node_blacklist=None,
-               terminal_ns=None):
+def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
+               path_limit=None, max_per_node=5, node_filter=None,
+               node_blacklist=None, terminal_ns=None, sign=None):
     """Do breadth first search from a given node and yield paths
 
     Parameters
     ----------
     g : nx.Digraph
-        An nx.DiGraph to search in.
+        An nx.DiGraph to search in. Can also be a signed node graph.
     source : node
         Node in the graph to start from.
+    g_nodes : nx.Graph.nodes
+        The nodes property to look up nodes from. Set this if the node
+        attribute 'ns' needs to be looked up from anther graph objcet than
+        the one provided as `g`. Default: g.nodes
     reverse : bool
         If True go upstream from source, otherwise go downstream. Default:
         False.
@@ -621,22 +625,34 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
     terminal_ns : list[str]
         Force a path to terminate when any of the namespaces in this list
         are encountered.
+    sign : int
+        If set, defines the search to be a signed search. Default: None.
 
     Yields
     ------
     path : tuple(node)
         Paths in the bfs search starting from `source`.
     """
-    # todo 1. Allow for signed graph
+    # todo 1. Allow for signed graph:
+    #  -Node lookups needs to be on the name part of signed nodes
+    #  -If downstream/successor seach, leaf node must have the right sign to
+    #   be yielded
+    g_nodes = g.nodes if g_nodes is None else g_nodes
+    if not isinstance(g_nodes, nx.classes.reportviews.NodeView):
+        raise ValueError('Provided object for nodes is not a valid NodeView '
+                         'object')
     queue = deque([(source,)])
     visited = ({source}).union(node_blacklist) if node_blacklist else {source}
     yielded_paths = 0
     while queue:
         cur_path = queue.popleft()
         last_node = cur_path[-1]
+        node_name = last_node[0] if isinstance(last_node, tuple) else \
+            last_node
 
         # if last node is in terminal_ns, continue to next path
-        if terminal_ns and g.nodes[last_node]['ns'].lower() in terminal_ns:
+        if terminal_ns and g_nodes[node_name]['ns'].lower() in terminal_ns:
+            # Check correct leaf sign for signed search
             continue
 
         if reverse:
@@ -646,13 +662,14 @@ def bfs_search(g, source, reverse=False, depth_limit=2, path_limit=None,
 
         yielded_neighbors = 0
         for neighb in neighbors:
+            neig_name = neighb[0] if isinstance(neighb, tuple) else neighb
             # Check cycles
             if neighb in visited:
                 continue
 
             # Check namespace
             if node_filter and len(node_filter) > 0:
-                if g.nodes[neighb]['ns'].lower() not in node_filter:
+                if g_nodes[neig_name]['ns'].lower() not in node_filter:
                     continue
 
             # Add to visited nodes and create new path
