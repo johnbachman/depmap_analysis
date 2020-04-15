@@ -1277,11 +1277,11 @@ class IndraNetwork:
 
     def _aggregated_path_belief(self, path, edge_signs):
         if edge_signs:
-            edge_list = zip(path[:-1], path[1:], edge_signs)
+            belief_list = [self.signed_edges[e]['belief'] for e in
+                           zip(path[:-1], path[1:], edge_signs)]
         else:
-            edge_list = zip(path[:-1], path[1:])
-        belief_list = [self.dir_edges[e]['belief']
-                       for e in edge_list]
+            belief_list = [self.dir_edges[e]['belief'] for e in
+                           zip(path[:-1], path[1:])]
         return nf.ag_belief_score(belief_list)
 
     def _get_sort_key(self, path, hash_path, edge_signs=None, method=None):
