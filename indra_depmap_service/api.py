@@ -386,6 +386,11 @@ def breadth_search():
     if not query_json.get('source'):
         abort(Response('Missing required parameter "source"', 415))
 
+    if len(indra_network.signed_edges) < 1 and query_json.get('sign') is not\
+            None:
+        abort(Response('Signed graph not available. Remove "sign" from '
+                       'options to perform search', 415))
+
     sign = SIGNS_TO_INT_SIGN[query_json.get('sign')]
 
     # If reversed, search upstream instead of downstream from source
