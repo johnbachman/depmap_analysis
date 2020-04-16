@@ -673,8 +673,15 @@ def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
         yielded_neighbors = 0
         for neighb in neighbors:
             neig_name = neighb[0] if isinstance(neighb, tuple) else neighb
+
             # Check cycles
-            if neighb in visited:
+            if sign is not None:
+                # Avoid signed paths ending up on the opposite sign of the
+                # same node
+                if (neig_name, INT_MINUS) in cur_path or \
+                        (neig_name, INT_PLUS) in cur_path:
+                    continue
+            elif neighb in visited:
                 continue
 
             # Check namespace
