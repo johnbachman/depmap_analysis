@@ -49,6 +49,7 @@ def pinger(domain, timeout=1):
 def gilda_pinger():
     """Return True if the gilda service is available"""
     try:
+        logger.info('Trying to reach GILDA service again...')
         return requests.post(GRND_URI, json={'text': 'erk'}).status_code == 200
     except ConnectionError:
         return False
@@ -423,8 +424,6 @@ def ag_belief_score(belief_list):
 def ns_id_from_name(name, gilda_retry=False):
     """Query the groudning service for the most likely ns:id pair for name"""
     global GILDA_TIMEOUT
-    if gilda_retry:
-        logger.info('Trying to reach GILDA service again...')
     if gilda_retry and GILDA_TIMEOUT and gilda_pinger():
         logger.info('GILDA is responding again!')
         GILDA_TIMEOUT = False
