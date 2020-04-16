@@ -1463,6 +1463,34 @@ def get_top_ranked_name(name, context=None):
     return none_triple
 
 
+def _open_ended_common_search(G, node_set_queue, allowed_ns=None,
+                              max_depth=4):
+    # Search common upstreams of all nodes in initial_nodes
+
+    # Get first node and its upstream nodes as a set
+    first_node = node_set_queue[-1][0]
+    upstreams = set(G.pred[first_node])
+
+    # Get the intersection of all upstreams
+    for node in node_set_queue[-1][1:]:
+        upstreams.intersection_update(set(G.pred[node]))
+
+    # Filter out the upstream set to allowed_ns if present
+    if allowed_ns:
+        upstreams = {n for n in upstreams if G.nodes[n]['ns'].lower() in
+                     allowed_ns}
+
+    if upstreams:
+        node_set_queue.append(list(upstreams))
+
+    if not upstreams or len(node_set_queue) >= max_depth:
+        return node_set_queue
+
+    else:
+        return _open_ended_common_search(G, node_set_queue, allowed_ns,
+                                         max_depth)
+
+
 def translate_query(query_json):
     """Translate query json"""
     options = {k: v for k, v in query_json.items()  # Handled below
