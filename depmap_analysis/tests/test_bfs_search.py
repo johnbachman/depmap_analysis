@@ -2,7 +2,7 @@ import networkx as nx
 from depmap_analysis.network_functions.net_functions import bfs_search
 
 
-def test_bfs_search():
+def test_bfs():
     dg = nx.DiGraph()
     edges = [('Z1', 'A1'), ('A1', 'B1'), ('A2', 'B1'), ('A3', 'B2'),
              ('A4', 'B2'), ('B1', 'C1'), ('B2', 'C1'), ('B3', 'C1'),
