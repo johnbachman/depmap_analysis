@@ -239,11 +239,12 @@ class IndraNetwork:
             cp = EMPTY_RESULT['common_parents']
             sr = EMPTY_RESULT['shared_regulators']
 
-        if not ksp_forward and not ksp_backward and not ct and \
+        if not ksp_forward and not ksp_backward and not ct and not sr and\
                 not cp.get('common_parents', []):
             ckwargs = options.copy()
             bckwargs = boptions.copy()
-            if kwargs['fplx_expand']:
+            if kwargs['fplx_expand'] and options.get('source') and \
+                    options.get('target'):
 
                 logger.info('No directed path found, looking for paths '
                             'connected by common parents of source and/or '
@@ -311,17 +312,25 @@ class IndraNetwork:
     def grounding_fallback(self, **ckwargs):
         """Retry search with alternative names found by grounding service"""
         logger.info('Expanding search using grounding service')
-        org_source = ckwargs['source']
-        org_target = ckwargs['target']
+        org_source = ckwargs.get('source')
+        org_target = ckwargs.get('target')
 
-        # ToDo establish grounding priority when scores are equal between
-        #  groundings
+        # ToDo:
+        #  -establish grounding priority when scores are equal between
+        #   groundings
+        #  -Add ignore list for new ns added for UP:PRO
 
         # Get groundings
-        src_groundings = requests.post(GRND_URI,
-                                       json={'text': org_source}).json()
-        trgt_groundings = requests.post(GRND_URI,
-                                        json={'text': org_target}).json()
+        if org_source:
+            src_groundings = requests.post(GRND_URI,
+                                           json={'text': org_source}).json()
+        else:
+            src_groundings = {}
+        if org_target:
+            trgt_groundings = requests.post(GRND_URI,
+                                            json={'text': org_target}).json()
+        else:
+            trgt_groundings = {}
 
         # Loop combinations of source and target groundings, break if
         # anything found
