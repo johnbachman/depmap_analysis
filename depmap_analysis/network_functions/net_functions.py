@@ -698,9 +698,36 @@ def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
                 continue
             else:
                 # Yield newest path and recieve new ignore values
-                ign_vals = yield new_path
-                yielded_paths += 1
-                yielded_neighbors += 1
+
+                # Signed search yield
+                if sign is not None:
+                    if reverse:
+                        # Upstream signed search should not end in negative
+                        # node
+                        if new_path[-1][1] == INT_MINUS:
+                            ign_vals = None
+                            pass
+                        else:
+                            ign_vals = yield new_path
+                            yielded_paths += 1
+                            yielded_neighbors += 1
+
+                    else:
+                        # Downstream signed search has to end on node with
+                        # requested sign
+                        if new_path[-1][1] != sign:
+                            ign_vals = None
+                            pass
+                        else:
+                            ign_vals = yield new_path
+                            yielded_paths += 1
+                            yielded_neighbors += 1
+
+                # Unsigned search
+                else:
+                    ign_vals = yield new_path
+                    yielded_paths += 1
+                    yielded_neighbors += 1
 
                 # If new ignore nodes are recieved, update set
                 if ign_vals is not None:
