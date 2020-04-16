@@ -32,11 +32,13 @@ TIMEOUT = 30  # Timeout in seconds
 MIN_TIMEOUT = 2
 MAX_TIMEOUT = 120
 MAX_SIGNED_PATH_LEN = 7
-EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
+EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {},
+                                        'path_hashes': []},
                 'common_targets': [],
+                'shared_regulators': [],
                 'common_parents': {},
                 'timeout': False}
-MANDATORY = ['source', 'target', 'stmt_filter', 'node_filter',
+MANDATORY = ['stmt_filter', 'node_filter',
              'path_length', 'weighted', 'bsco', 'fplx_expand',
              'k_shortest', 'curated_db_only', 'two_way']
 USER_OVERRIDE = False
