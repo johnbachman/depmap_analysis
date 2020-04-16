@@ -1,5 +1,9 @@
 import networkx as nx
-from depmap_analysis.network_functions.net_functions import bfs_search
+from indra.explanation.model_checker import signed_edges_to_signed_nodes
+from depmap_analysis.network_functions.net_functions import bfs_search, \
+    INT_PLUS, INT_MINUS
+
+all_ns = ['a', 'b', 'c', 'd', 'z']
 
 
 def test_bfs():
@@ -49,7 +53,7 @@ def test_bfs():
                       ('D1', 'C1', 'B1', 'A1', 'Z1')}
     paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
                                    reverse=True, max_per_node=1,
-                                   node_filter=['a', 'b', 'c', 'd', 'z'])]
+                                   node_filter=all_ns)]
     assert len(paths) == 4
     assert set(paths) == expected_paths
 
@@ -59,7 +63,7 @@ def test_bfs():
                       ('D1', 'C1', 'B3')}
     paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
                                    reverse=True, terminal_ns=['b'],
-                                   node_filter=['a', 'b', 'c', 'd', 'z'])]
+                                   node_filter=all_ns)]
     assert len(paths) == 4
     assert set(paths) == expected_paths
     # Terminate on 'a'
@@ -69,7 +73,60 @@ def test_bfs():
                       ('D1', 'C1', 'B2', 'A4')}
     paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
                                    reverse=True, terminal_ns=['a'],
-                                   node_filter=['a', 'b', 'c', 'd', 'z'])]
+                                   node_filter=all_ns)]
     assert len(paths) == len(expected_paths)
     assert set(paths) == expected_paths
 
+
+def test_signed_bfs():
+    dg = nx.DiGraph()
+    edges = [
+        ('Z1', 'A1'),
+        ('A1', 'B1'),
+        ('A2', 'B1'),
+        ('A3', 'B2'),
+        ('A4', 'B2'),
+        ('B1', 'C1'),
+        ('B2', 'C1'),
+        ('B3', 'C1'),
+        ('C1', 'D1')
+    ]
+    dg.add_edges_from(edges)
+    nodes1, nodes2 = list(zip(*edges))
+    nodes = set(nodes1).union(nodes2)
+    for node in nodes:
+        ns = node[0]
+        _id = node[1]
+        dg.nodes[node]['ns'] = ns
+        dg.nodes[node]['id'] = _id
+
+    seg = nx.MultiDiGraph()
+    signed_edges = [
+        ('Z1', 'A1', INT_PLUS),  # 1
+        ('Z1', 'A1', INT_MINUS),  # 2
+        ('A1', 'B1', INT_PLUS),  # 3
+        ('A2', 'B1', INT_MINUS),  # 4
+        ('B1', 'C1', INT_PLUS),  # 5
+        ('A3', 'B2', INT_PLUS),  # 6
+        ('A4', 'B2', INT_MINUS),  # 7
+        ('B2', 'C1', INT_PLUS),  # 8
+        ('B2', 'C1', INT_MINUS),  # 9
+        ('B3', 'C1', INT_MINUS),  # 10
+        ('C1', 'D1', INT_PLUS),  # 11
+        ('C1', 'D1', INT_MINUS),  # 12
+    ]
+
+    seg.add_edges_from(signed_edges)
+    # ATTN!! seg.edges yields u, v, index while seg.edges() yields u, v
+    for u, v, sign in seg.edges:
+        seg.edges[(u,v,sign)]['sign'] = sign
+
+    sng = signed_edges_to_signed_nodes(graph=seg, prune_nodes=True,
+                                       copy_edge_data=False)
+
+    # D1 being upregulated: 12 paths
+    paths = [p for p in bfs_search(
+        g=sng, source=('D1', INT_PLUS), g_nodes=dg.nodes, reverse=True,
+        depth_limit=5, node_filter=all_ns, sign=INT_PLUS)
+    ]
+    assert len(paths) == 12, len(paths)
