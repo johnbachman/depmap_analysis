@@ -184,11 +184,17 @@ class IndraNetwork:
             # todo Add detailed test with info of netork stats like number
             #  of nodes, edges, last updated, available network types
             return EMPTY_RESULT
+        if not (kwargs.get('source', False) or kwargs.get('target', False)):
+            raise KeyError('At least one of "source" or "target" has to be '
+                           'provided')
         if not all([key in kwargs for key in self.MANDATORY]):
             miss = [key in kwargs for key in self.MANDATORY].index(False)
             raise KeyError('Missing mandatory parameter "%s"' %
                            self.MANDATORY[miss])
         options = translate_query(kwargs)
+
+        # If open ended search, skip common parents, common targets,
+        # common regulators (for now).
 
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
@@ -211,8 +217,8 @@ class IndraNetwork:
 
         ksp_backward = {}
         boptions = options.copy()
-        boptions['source'] = options['target']
-        boptions['target'] = options['source']
+        boptions['source'] = options.get('target')
+        boptions['target'] = options.get('source')
 
         # Special case: 1 or 2 unweighted, unsigned edges only
         if not options['weight'] and options['path_length'] in [1, 2]:
@@ -223,10 +229,16 @@ class IndraNetwork:
             ksp_forward = self.find_shortest_paths(**options)
             if options['two_way']:
                 ksp_backward = self.find_shortest_paths(**boptions)
-        ct = self.find_common_targets(**options)
-        sr = self.find_shared_regulators(**options) if\
-            options.get('shared_regulators', False) else []
-        cp = self.get_common_parents(**options)
+        if options.get('source') and options.get('target'):
+            ct = self.find_common_targets(**options)
+            sr = self.find_shared_regulators(**options) if\
+                options.get('shared_regulators', False) else []
+            cp = self.get_common_parents(**options)
+        else:
+            ct = EMPTY_RESULT['common_targets']
+            cp = EMPTY_RESULT['common_parents']
+            sr = EMPTY_RESULT['shared_regulators']
+
         if not ksp_forward and not ksp_backward and not ct and \
                 not cp.get('common_parents', []):
             ckwargs = options.copy()
