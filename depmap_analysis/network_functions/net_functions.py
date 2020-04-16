@@ -643,14 +643,10 @@ def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
     path : tuple(node)
         Paths in the bfs search starting from `source`.
     """
-    # todo 1. Allow for signed graph:
-    #  -Node lookups needs to be on the name part of signed nodes
-    #  -If downstream/successor seach, leaf node must have the right sign to
-    #   be yielded
     g_nodes = g.nodes if g_nodes is None else g_nodes
     if not isinstance(g_nodes, nx.classes.reportviews.NodeView):
-        raise ValueError('Provided object for nodes is not a valid NodeView '
-                         'object')
+        raise ValueError('Provided object for g_nodes is not a valid '
+                         'NodeView object')
     queue = deque([(source,)])
     visited = ({source}).union(node_blacklist) if node_blacklist else {source}
     yielded_paths = 0
