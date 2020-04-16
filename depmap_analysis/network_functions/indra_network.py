@@ -1063,6 +1063,7 @@ class IndraNetwork:
                 logger.info('Reached StopIteration: all paths found. '
                             'breaking.')
                 break
+            # Todo: skip to correct length here already
             hash_path = self._get_hash_path(source=source, target=target,
                                             path=path, edge_signs=edge_signs,
                                             graph_type=graph_type,
@@ -1075,7 +1076,8 @@ class IndraNetwork:
                 pd = {'stmts': hash_path,
                       'path': path,
                       'cost': str(self._get_cost(path, edge_signs)),
-                      'sort_key': str(self._get_sort_key(path, hash_path))}
+                      'sort_key': str(self._get_sort_key(path, hash_path,
+                                                         edge_signs))}
                 if not path_len or (path_len and path_len == len(path)):
                     result[len(path)].append(pd)
                     prev_path = pd
