@@ -289,8 +289,8 @@ class IndraNetwork:
             logger.info('Query handling test passed')
             return False
         # Check if source or target is in blacklist
-        if options['source'] in options.get('node_blacklist') or\
-                options['target'] in options.get('node_blacklist'):
+        if options.get('source') in options.get('node_blacklist') or\
+                options.get('target') in options.get('node_blacklist'):
             logger.warning('Source and/or target is blacklisted!')
             # Return True so path is returned anyway
             return True
@@ -545,7 +545,7 @@ class IndraNetwork:
                 added_paths += 1
         return res
 
-    def find_shortest_paths(self, source, target, **options):
+    def find_shortest_paths(self, source=None, target=None, **options):
         """Return a list of shortest paths with their support in ascending
         order.
 
@@ -554,12 +554,31 @@ class IndraNetwork:
 
         If weighted, use
         depmap_analysis.network_functions.net_functions.shortest_simple_paths
+
+        If open ended, i.e. only source or target is provided, use
+        self.open_bfs
         """
         try:
-            logger.info('Doing simple %spath search' % 'weigthed '
-                        if options['weight'] else '')
             blacklist_options =\
                 {'ignore_nodes': options.get('node_blacklist', None)}
+            if bool(source) ^ bool(target):
+                logger.info('Doing open ended %sbreadth first search' %
+                            'signed ' if options.get('sign') is not None
+                            else '')
+                if source:
+                    # Open downstream search
+                    start_node = source
+                    reverse = False
+                else:
+                    # Open upstream search
+                    start_node = target
+                    reverse = True
+
+                return self.open_bfs(source=start_node, reverse=reverse,
+                                     **options)
+            else:
+                logger.info('Doing simple %spath search' % 'weigthed '
+                            if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
                 paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
@@ -593,26 +612,36 @@ class IndraNetwork:
             logger.warning(repr(e))
             return {}
 
-    def open_bfs(self, source, **options):
+    def open_bfs(self, source, reverse=False, depth_limit=2,
+                 path_limit=None, terminal_ns=None, max_per_node=5,
+                 **options):
         """Return paths and their data starting from source
 
+        'depth_limit': int(query_json.get('depth_limit', 2)),
+        'path_limit': int(query_json.get('path_limit', 100)),
+        'terminal_ns': query_json.get('terminal_ns',  ['chebi', 'pubchem']),
+        'max_per_node': query_json.get('max_per_node', 5),
+
         source : str
-            Node to start search from.
+            Node to start search from
+        reverse : bool
+            If True, let source be the start of an upstream search.
+            Default: False
+        depth_limit : int
+            The maximum allowed depth (number of edges). Default: 2
+        path_limit : int
+            The maximum number of paths the generator should yield. Note
+            that this different from max_results which determines how many
+            paths to return from the path generator. Default: None (no limit).
+        terminal_ns : list[str]
+            Force a path to terminate when any of the namespaces in this
+            list are encountered. Default: ['chebi', 'pubchem'].
         options : kwargs
-            For a full list of options see from
+            For a full list of options see
             depmap_analysis.network_functions.net_functions::bfs_search
             Notable options:
-                - reverse: bool
-                    If True, perform upstream search instead of downstream
-                    search. Default: False.
-                -depth_limit : int
-                    Stop when all paths with this many edges have been
-                    found. Default: 2.
                 -max_results : int
                     The maximum number of results to return. Default: 50.
-                -terminal_ns : list[str]
-                    Force a path to terminate when any of the namespaces in
-                    this list are encountered. Default: ['chebi', 'pubchem'].
                 -sign : int
                     If sign is present as a kwarg, it specifies the sign of
                     leaf node in the path, i.e. wether the leaf node is up-
@@ -641,21 +670,33 @@ class IndraNetwork:
             # determined by the requested sign.
             # If reversed search, the source is the last node and can have
             # + or - as node sign depending on the requested sign.
-            source = (source, INT_PLUS) if not options.get('reverse', False)\
+            start_node = (source, INT_PLUS) if not reverse \
                 else ((source, INT_MINUS) if options['sign'] == INT_MINUS
                       else (source, INT_PLUS))
             options['g_nodes'] = self.nodes
         # Normal search
         else:
             graph = self.nx_dir_graph_repr
+            start_node = source
 
+        # Set default terminal_ns
+        if terminal_ns is None:
+            terminal_ns = ['chebi', 'pubchem']
+
+        # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        bfs_gen = nf.bfs_search(g=graph, source=source, **bfs_options)
-        return self._loop_bfs_paths(bfs_gen, source, **options)
+        bfs_gen = nf.bfs_search(g=graph, source=start_node, reverse=reverse,
+                                depth_limit=depth_limit,
+                                path_limit=path_limit,
+                                max_per_node=max_per_node,
+                                terminal_ns=terminal_ns,
+                                **bfs_options)
+        return self._loop_bfs_paths(bfs_gen, source, reverse=reverse,
+                                    **options)
 
-    def _loop_bfs_paths(self, bfs_path_gen, source, **options):
+    def _loop_bfs_paths(self, bfs_path_gen, source, reverse, **options):
         result = defaultdict(list)
-        max_results = options.get('max_results', 50)
+        max_results = options.get('max_results', self.MAX_PATHS)
 
         # Loop paths
         while True:
@@ -667,7 +708,7 @@ class IndraNetwork:
                 break
 
             # Reverse path if reverse search
-            path = path[::-1] if options.get('reverse') else path
+            path = path[::-1] if reverse else path
 
             # Handle signed path
             if options.get('sign') is not None:
