@@ -583,6 +583,9 @@ class IndraNetwork:
                     start_node = target
                     reverse = True
 
+                if not self.nodes.get(start_node):
+                    raise NodeNotFound('Node %s not in graph' % start_node)
+
                 return self.open_bfs(source=start_node, reverse=reverse,
                                      **options)
             else:
@@ -614,11 +617,11 @@ class IndraNetwork:
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
 
-        except NodeNotFound as e:
-            logger.warning(repr(e))
+        except NodeNotFound as err1:
+            logger.warning(repr(err1))
             return {}
-        except NetworkXNoPath as e:
-            logger.warning(repr(e))
+        except NetworkXNoPath as err2:
+            logger.warning(repr(err2))
             return {}
 
     def open_bfs(self, source, reverse=False, depth_limit=2,
