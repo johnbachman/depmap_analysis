@@ -405,7 +405,7 @@ def breadth_search():
         'sign': sign
     }
     try:
-        results = indra_network.open_bfs_search(**options)
+        results = indra_network.open_bfs(**options)
         return jsonify(results)
     except Exception as err:
         logger.warning('Exception handling open bfs search')

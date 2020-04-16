@@ -579,7 +579,7 @@ class IndraNetwork:
             logger.warning(repr(e))
             return {}
 
-    def open_bfs_search(self, source, **options):
+    def open_bfs(self, source, **options):
         """Return paths and their data starting from source
 
         source : str
