@@ -386,7 +386,8 @@ function fillResultsTable(data, source, target){
 
   // If we have hashes, show download link
   if (pathStmtHashes.length > 0) {
-    document.getElementById('download-link').hidden = false;
+    document.getElementById('download-link').href = `/stmts_download/stmts.json?query=${data.query_hash}`;
+    document.getElementById('download-p').hidden = false;
   }
 }
 

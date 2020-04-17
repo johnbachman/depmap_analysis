@@ -392,8 +392,14 @@ def stmts_download():
     logger.info(str(request.json))
     logger.info('------------------------------------')
 
-    query_hash = session.get('query_hash', '')
-    stmt_hashes = STMT_HASH_CACHE.pop(query_hash, [])
+    query_hash = request.args.get('query', '')
+    cached_files = check_existence_and_date_s3(query_hash=query_hash)
+    if cached_files.get('result_json_key'):
+        results_json = read_query_json_from_s3(
+            s3_key=cached_files['result_json_key'])
+        stmt_hashes = results_json.get('path_hashes', [])
+    else:
+        stmt_hashes = []
 
     if not STMTS_FROM_HSH_URL:
         logger.error('No URL for statement download set')
@@ -401,7 +407,8 @@ def stmts_download():
 
     if not stmt_hashes:
         logger.info('No hashes provided, returning')
-        return jsonify([])
+        return jsonify({'result': 'no statement hashes found for query "%s"'
+                                  % query_hash})
 
     logger.info('Got %d hashes' % len(stmt_hashes))
 
