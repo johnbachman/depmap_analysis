@@ -43,6 +43,13 @@ API_DEBUG = int(environ.get('API_DEBUG', 0))
 if API_DEBUG:
     logger.info('API_DEBUG set to %d' % API_DEBUG)
 
+if not STMTS_FROM_HSH_URL:
+    if API_DEBUG:
+        logger.error('No URL for statement download set')
+    else:
+        raise ValueError('No URL for statement download set. Set it '
+                         '"INDRA_DB_HASHES_URL" ')
+
 GRND_URI = None
 try:
     GRND_URI = CONFIG_DICT['GILDA_URL']
