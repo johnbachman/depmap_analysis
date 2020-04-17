@@ -1,38 +1,29 @@
 """INDRA Causal Network Search API"""
-import os
-import json
-import pickle
-import logging
-import argparse
 import requests
 from sys import argv
-from fnvhash import fnv1a_32
-from os import path, makedirs
+from os import makedirs, environ
 from time import time, gmtime, strftime
 
-from jinja2 import Template
+from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
 from flask import Flask, request, abort, Response, render_template, jsonify,\
-    session
+    session, redirect, url_for
 
 from indra.config import CONFIG_DICT
-from indra.util.aws import get_s3_client
-from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
-from depmap_analysis.network_functions.indra_network import IndraNetwork
-from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
+from indralab_web_templates.path_templates import path_temps
 
-from .util import load_indra_graph, get_queryable_stmt_types, API_PATH as \
-    HERE, CACHE, INDRA_DG, INDRA_DG_CACHE, INDRA_SEG, INDRA_SEG_CACHE, \
-    INDRA_SNG_CACHE, TEST_DG_CACHE, dump_query_result_to_s3
+from depmap_analysis.network_functions.indra_network import IndraNetwork,\
+    EMPTY_RESULT
+
+from .util import *
 
 app = Flask(__name__)
+app.register_blueprint(path_temps)
+app.config['SECRET_KEY'] = environ.get('NETWORK_SEARCH_SESSION_KEY', '')
 app.config['DEBUG'] = False
-app.config['SECRET_KEY'] = os.environ['SESSION_KEY']
-
-logger = logging.getLogger('INDRA Network Search API')
-
-S3_BUCKET = 'depmap-analysis'
+app.config['SECRET_KEY'] = environ['SESSION_KEY']
 STMT_HASH_CACHE = {}
 
+logger = logging.getLogger('INDRA Network Search API')
 
 FILES = {
     'dir_graph_path': INDRA_DG_CACHE if path.isfile(INDRA_DG_CACHE)
@@ -46,11 +37,18 @@ FILES = {
     else None
 }
 
-STMTS_FROM_HSH_URL = os.environ.get('INDRA_DB_HASHES_URL')
-VERBOSITY = int(os.environ.get('VERBOSITY', 0))
-API_DEBUG = int(os.environ.get('API_DEBUG', 0))
+STMTS_FROM_HSH_URL = environ.get('INDRA_DB_HASHES_URL')
+VERBOSITY = int(environ.get('VERBOSITY', 0))
+API_DEBUG = int(environ.get('API_DEBUG', 0))
 if API_DEBUG:
     logger.info('API_DEBUG set to %d' % API_DEBUG)
+
+if not STMTS_FROM_HSH_URL:
+    if API_DEBUG:
+        logger.error('No URL for statement download set')
+    else:
+        raise ValueError('No URL for statement download set. Set it '
+                         '"INDRA_DB_HASHES_URL" ')
 
 GRND_URI = None
 try:
@@ -67,15 +65,6 @@ EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
                 'timeout': False}
 
 
-# Create a template object from the template file, load once
-def _load_template(fname):
-    template_path = path.join(HERE, fname)
-    with open(template_path, 'rt') as f:
-        template_str = f.read()
-        template = Template(template_str)
-    return template
-
-
 # Load network
 indra_network = IndraNetwork()
 
@@ -87,34 +76,9 @@ def _is_empty_result(res):
     return True
 
 
-def _list_chunk_gen(lst, size=1000):
-    """Given list, generate chunks <= size"""
-    n = max(1, size)
-    return (lst[k:k+n] for k in range(0, len(lst), n))
-
-
-def sorted_json_string(json_thing):
-    """Produce a string that is unique to a json's contents."""
-    if isinstance(json_thing, str):
-        return json_thing
-    elif isinstance(json_thing, (tuple, list)):
-        return '[%s]' % (','.join(sorted(sorted_json_string(s)
-                                         for s in json_thing)))
-    elif isinstance(json_thing, dict):
-        return '{%s}' % (','.join(sorted(k + sorted_json_string(v)
-                                         for k, v in json_thing.items())))
-    elif isinstance(json_thing, (int, float)):
-        return str(json_thing)
-    else:
-        raise TypeError('Invalid type: %s' % type(json_thing))
-
-
-def _get_query_hash(query_json):
-    """Create an FNV-1a 32-bit hash from the query json and model_id."""
-    return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
-
-
 if path.isfile(INDRA_DG_CACHE):
+    INDRANET_DATE = datetime.utcfromtimestamp(get_earliest_date(
+        INDRA_DG_CACHE))
     if API_DEBUG:
         logger.info('Debugging API, no network will be loaded...')
     elif argv[0].split('/')[-1].lower() != 'api.py':
@@ -128,13 +92,13 @@ else:
         s3 = get_s3_client(unsigned=True)
         logger.info('Caching network to %s' % CACHE)
         dg_key = 'indra_db_files/' + INDRA_DG
-        dg_obj = s3.get_object(Bucket=S3_BUCKET, Key=dg_key)
+        dg_obj = s3.get_object(Bucket=NET_BUCKET, Key=dg_key)
         dg_net = pickle.loads(dg_obj['Body'].read())
         dump_it_to_pickle(INDRA_DG_CACHE, dg_net)
 
         if FILES['sign_edge_graph_path'] is None:
-            seg_key = 'indra_db_file/' + INDRA_SEG
-            seg_obj = s3.get_object(Bucket=S3_BUCKET, Key=seg_key)
+            seg_key = 'indra_db_files/' + INDRA_SEG
+            seg_obj = s3.get_object(Bucket=NET_BUCKET, Key=seg_key)
             seg_net = pickle.loads(seg_obj['Body'].read())
             dump_it_to_pickle(INDRA_SEG_CACHE, seg_net)
         else:
@@ -154,28 +118,84 @@ if VERBOSITY > 0 and\
     indra_network.verbose = VERBOSITY
 
 
+def handle_query(**json_query):
+    """Handle queries to the indra network"""
+    result = indra_network.handle_query(**json_query.copy())
+    logger.info('Query resolved at %s' %
+                strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
+    if _is_empty_result(result):
+        if API_DEBUG:
+            logger.info('API_DEBUG is set to "True" so no network is '
+                        'loaded, perhaps you meant to turn it off? '
+                        'Run "export API_DEBUG=0" in your terminal to do '
+                        'so and then restart the flask service')
+        if result['timeout']:
+            logger.info('Query timed out with no path found')
+        else:
+            logger.info('Query returned with no path found')
+    res = {'result': result}
+    if indra_network.verbose > 5:
+        logger.info('Result: %s' % str(res))
+    return res
+
+
 @app.route('/')
 @app.route('/query')
 def get_query_page():
-    """Loads the query page"""
+    """Loads or responds to queries submitted on the query page"""
+    logger.info('Got query')
+    logger.info('Incoming Args -----------')
+    logger.info(repr(request.args))
+
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
+
+    # Get query hash from parameters or session
+    qh = request.args.get('query') or session.get('query_hash') or ''
+    if qh:
+        # Get query hash
+        logger.info('Got query hash %s' % str(qh))
+        old_results = check_existence_and_date_s3(qh)
+
+        # Get result json
+        res_json_key = old_results.get('result_json_key')
+        results_json = read_query_json_from_s3(res_json_key) if res_json_key\
+            else {}
+
+        # Get query json
+        query_json_key = old_results.get('query_json_key')
+        query_json = read_query_json_from_s3(query_json_key) if \
+            query_json_key else {}
+
+        source = query_json.get('source', '')
+        target = query_json.get('target', '')
+    else:
+        results_json = {'result': EMPTY_RESULT}
+        query_json = {}
+        source = ''
+        target = ''
     return render_template('query_template.html',
+                           query_hash=qh,
                            stmt_types=stmt_types,
                            node_name_spaces=list(NS_LIST),
-                           has_signed_graph=has_signed_graph)
+                           has_signed_graph=has_signed_graph,
+                           old_result=json.dumps(results_json),
+                           old_query=json.dumps(query_json),
+                           source=source,
+                           target=target)
 
 
 @app.route('/query/submit', methods=['POST'])
 def process_query():
     """Processing queries to the indra network"""
     # Print inputs.
-    logger.info('Got query')
-    logger.info('Incoming Args -----------')
-    logger.info(repr(request.args))
+    logger.info('Got network search query')
     logger.info('Incoming Json ----------------------')
     logger.info(str(request.json))
     logger.info('------------------------------------')
+    # Separate the requests that want JSON vs HTML, HTML is for POST
+    # requests coming from a webpage and they should get back a redirect
+    # with a query hash in the parameters
 
     try:
         # Test api by POSTing {'test': 'api'} to '/query/submit'
@@ -184,34 +204,75 @@ def process_query():
             logger.info('api test successful')
             return Response(json.dumps({'result': 'api test passed'}),
                             mimetype='application/json')
-        query_json = request.json.copy()
-        result = indra_network.handle_query(**query_json)
-        logger.info('Query resolved at %s' %
-                    strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
-        qh = _get_query_hash(query_json)
-        if _is_empty_result(result):
-            if API_DEBUG:
-                logger.info('API_DEBUG is set to "True" so no network is '
-                            'loaded, perhaps you meant to turn it off? '
-                            'Run "export API_DEBUG=0" in your terminal to do '
-                            'so and then restart the flask service')
-            else:
-                logger.info('Query returned with no path found')
-            download_link = ''
-        else:
-            # Upload to public S3 and get the download link
-            json_fname = '%s_result.json' % qh
-            download_link = dump_query_result_to_s3(json_fname, result)
 
-        all_path_hashes = result['paths_by_node_count'].get('path_hashes', [])
-        session['query_hash'] = qh
-        STMT_HASH_CACHE[qh] = all_path_hashes
-        res = {'result': result,
-               'download_link': download_link,
-               'query_hash': qh}
-        if indra_network.verbose > 5:
-            logger.info('Result: %s' % str(res))
-        return Response(json.dumps(res), mimetype='application/json')
+        # Get query json and query hash
+        query_json = request.json.copy()
+        ignore_keys = ['format']
+        qc = {k: v for k, v in query_json.items() if k not in ignore_keys}
+        qh = get_query_hash(qc)
+
+        cached_files = check_existence_and_date_s3(query_hash=qh)
+        if cached_files.get('result_json_key'):
+            qjs3_key = cached_files['result_json_key']
+            logger.info('Result found on s3: %s' % qjs3_key)
+            result = read_query_json_from_s3(qjs3_key)
+        # Files not cached on s3, run new query
+        else:
+            # Do new query
+            # JS expects the following json for result:
+            # {'results': '<indra_network.handle_query()>'
+            #  'query_hash': '<query hash>'}
+            result = handle_query(**request.json)
+
+            # Empty result
+            if _is_empty_result(result['result']):
+                if API_DEBUG:
+                    logger.info('API_DEBUG is set to "True" so no network is '
+                                'loaded, perhaps you meant to turn it off? '
+                                'Run "export API_DEBUG=0" in your terminal '
+                                'to do so and then restart the flask service')
+                else:
+                    logger.info('Query returned with no path found')
+                s3_query = ''
+                result['query_hash'] = qh
+                result['path_hashes'] = []
+                query_json_fname = '%s_query.json' % qh
+                s3_query_res = dump_query_result_to_s3(
+                    filename=query_json_fname,
+                    json_obj=query_json
+                )
+
+            # Non empty new result
+            else:
+                # Upload to public S3 and get the download link
+                all_path_hashes = \
+                    result['result']['paths_by_node_count'].get(
+                        'path_hashes', [])
+                result['query_hash'] = qh
+                result['path_hashes'] = all_path_hashes
+
+                # Upload the query itself
+                query_json_fname = '%s_query.json' % qh
+                s3_query = dump_query_result_to_s3(
+                    filename=query_json_fname,
+                    json_obj=query_json
+                )
+                # Upload query result
+                res_json_fname = '%s_result.json' % qh
+                s3_query_res = dump_query_result_to_s3(
+                    filename=res_json_fname,
+                    json_obj=result
+                )
+                logger.info('Uploaded query and results to %s and %s' %
+                            (s3_query, s3_query_res))
+        result['redirURL'] = url_for('get_query_page', query=qh)
+        if request.json.get('format') and \
+                request.json['format'].lower() == 'html':
+            logger.info('HTML requested, sending redirect url')
+            return url_for('get_query_page', query=qh)
+        else:
+            logger.info('Regular POST detected, sedning json back')
+            return Response(json.dumps(result), mimetype='application/json')
 
     except KeyError as e:
         # return 400 badly formatted
@@ -338,8 +399,14 @@ def stmts_download():
     logger.info(str(request.json))
     logger.info('------------------------------------')
 
-    query_hash = session.get('query_hash', '')
-    stmt_hashes = STMT_HASH_CACHE.pop(query_hash, [])
+    query_hash = request.args.get('query', '')
+    cached_files = check_existence_and_date_s3(query_hash=query_hash)
+    if cached_files.get('result_json_key'):
+        results_json = read_query_json_from_s3(
+            s3_key=cached_files['result_json_key'])
+        stmt_hashes = results_json.get('path_hashes', [])
+    else:
+        stmt_hashes = []
 
     if not STMTS_FROM_HSH_URL:
         logger.error('No URL for statement download set')
@@ -347,12 +414,13 @@ def stmts_download():
 
     if not stmt_hashes:
         logger.info('No hashes provided, returning')
-        return jsonify([])
+        return jsonify({'result': 'no statement hashes found for query "%s"'
+                                  % query_hash})
 
     logger.info('Got %d hashes' % len(stmt_hashes))
 
     stmt_list = []
-    hash_list_iter = _list_chunk_gen(stmt_hashes)
+    hash_list_iter = list_chunk_gen(stmt_hashes, size=1000)
     for hash_list in hash_list_iter:
         res = requests.post(STMTS_FROM_HSH_URL, json={'hashes': hash_list})
         if res.status_code == 200:

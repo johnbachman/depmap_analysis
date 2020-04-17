@@ -1,11 +1,15 @@
 """Utility functions for the INDRA Causal Network Search API in api.py"""
+import re
 import json
 import pickle
 import logging
 import argparse
+import platform
 import networkx as nx
-from os import path
+from os import path, stat
+from fnvhash import fnv1a_32
 from datetime import datetime
+from botocore.errorfactory import ClientError
 
 from indra.util.aws import get_s3_client, get_s3_file_tree
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
@@ -22,6 +26,15 @@ logger = logging.getLogger('INDRA Network Search util')
 API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
+JSON_CACHE = path.join(API_PATH, '_json_res')
+SIF_BUCKET = 'bigmech'
+NET_BUCKET = 'depmap-analysis'
+DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
+DT_YmdHMS = '%Y%m%d%H%M%S'
+DT_Ymd = '%Y%m%d'
+RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
+RE_YYYYMMDD = r'\d{8}'
+
 
 INDRA_MDG = 'indranet_multi_digraph_latest.pkl'
 INDRA_DG = 'indranet_dir_graph_latest.pkl'
@@ -35,12 +48,161 @@ INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
 INDRA_SNG_CACHE = path.join(CACHE, INDRA_SNG)
 INDRA_SEG_CACHE = path.join(CACHE, INDRA_SEG)
 
-SIF_BUCKET = 'bigmech'
-NET_BUCKET = 'depmap-analysis'
+
+def todays_date():
+    return datetime.now().strftime(DT_Ymd)
 
 
-def _todays_date():
-    return datetime.now().strftime('%Y%m%d')
+def get_earliest_date(file):
+    """Returns creation or modification timestamp of file
+
+    Parameters
+    ----------
+    file : str
+        File path
+
+    Returns
+    -------
+    float
+        Timestamp in seconds with microseconds as a float
+    """
+    # https://stackoverflow.com/questions/237079/
+    # how-to-get-file-creation-modification-date-times-in-python
+    if platform.system().lower() == 'windows':
+        return path.getctime(file)
+    else:
+        st = stat(file)
+        try:
+            return st.st_birthtime
+        except AttributeError:
+            return st.st_mtime
+
+
+def get_date_from_str(date_str, dt_format):
+    """Returns a datetime object from a datestring of format FORMAT"""
+    return datetime.strptime(date_str, dt_format)
+
+
+def strip_out_date(keystring, re_format):
+    """Strips out datestring of format re_format from a keystring"""
+    try:
+        return re.search(re_format, keystring).group()
+    except AttributeError:
+        logger.warning('Can\'t parse string %s for date using regex pattern '
+                       '%s' % (keystring, re_format))
+        return None
+
+
+def get_query_resp_fstr(query_hash):
+    qf = path.join(JSON_CACHE, 'query_%s.json' % query_hash)
+    rf = path.join(JSON_CACHE, 'result_%s.json' % query_hash)
+    return qf, rf
+
+
+def list_chunk_gen(lst, size=1000):
+    """Given list, generate chunks <= size"""
+    n = max(1, size)
+    return (lst[k:k+n] for k in range(0, len(lst), n))
+
+
+def sorted_json_string(json_thing):
+    """Produce a string that is unique to a json's contents."""
+    if isinstance(json_thing, str):
+        return json_thing
+    elif isinstance(json_thing, (tuple, list)):
+        return '[%s]' % (','.join(sorted(sorted_json_string(s)
+                                         for s in json_thing)))
+    elif isinstance(json_thing, dict):
+        return '{%s}' % (','.join(sorted(k + sorted_json_string(v)
+                                         for k, v in json_thing.items())))
+    elif isinstance(json_thing, (int, float)):
+        return str(json_thing)
+    else:
+        raise TypeError('Invalid type: %s' % type(json_thing))
+
+
+def get_query_hash(query_json, ignore_keys=None):
+    """Create an FNV-1a 32-bit hash from the query json
+
+    Parameters
+    ----------
+    query_json : dict
+        A json compatible query dict
+    ignore_keys : set|list
+        A list or set of keys to ignore in the query_json. By default,
+        no keys are ignored. Default: None.
+
+    Returns
+    -------
+    int
+        An FNV-1a 32-bit hash of the query json ignoring the keys in
+        ignore_keys
+    """
+    if ignore_keys:
+        if set(ignore_keys).difference(query_json.keys()):
+            missing = set(ignore_keys).difference(query_json.keys())
+            logger.warning(
+                'Ignore key(s) "%s" are not in the provided query_json and '
+                'will be skipped...' %
+                str('", "'.join(missing)))
+        query_json = {k: v for k, v in query_json.items()
+                      if k not in ignore_keys}
+    return fnv1a_32(sorted_json_string(query_json).encode('utf-8'))
+
+
+def check_existence_and_date(indranet_date, fname, in_name=True):
+    """With in_name True, look for a datestring in the file name, otherwise
+    use the file creation date/last modification date.
+
+    This function should return True if the file exists and is (seemingly)
+    younger than the network that is currently in cache
+    """
+    if not path.isfile(fname):
+        return False
+    else:
+        if in_name:
+            try:
+                # Try YYYYmmdd
+                fdate = get_date_from_str(strip_out_date(fname, RE_YYYYMMDD),
+                                          DT_YmdHMS)
+            except ValueError:
+                # Try YYYY-mm-dd-HH-MM-SS
+                fdate = get_date_from_str(strip_out_date(fname, RE_YmdHMS_),
+                                          DT_YmdHMS)
+        else:
+            fdate = datetime.fromtimestamp(get_earliest_date(fname))
+
+        # If fdate is younger than indranet, we're fine
+        return indranet_date < fdate
+
+
+def check_existence_and_date_s3(query_hash, indranet_date=None):
+    s3 = get_s3_client(unsigned=False)
+    key_prefix = 'indra_network_search/%s' % query_hash
+    query_json_key = key_prefix + '_query.json'
+    result_json_key = key_prefix + '_result.json'
+    exits_dict = {}
+    if indranet_date:
+        # Check 'LastModified' key in results
+        # res_query = s3.head_object(Bucket=SIF_BUCKET, Key=query_json_key)
+        # res_results = s3.head_object(Bucket=SIF_BUCKET, Key=result_json_key)
+        pass
+    else:
+        try:
+            query_json = s3.head_object(Bucket=SIF_BUCKET, Key=query_json_key)
+        except ClientError:
+            query_json = ''
+        if query_json:
+            exits_dict['query_json_key'] = query_json_key
+        try:
+            result_json = s3.head_object(Bucket=SIF_BUCKET, Key=result_json_key)
+        except ClientError:
+            result_json = ''
+        if result_json:
+            exits_dict['result_json_key'] = result_json_key
+        return exits_dict
+
+    return {}
 
 
 # Copied from emmaa_service/api.py
@@ -162,10 +324,27 @@ def _dump_json_to_s3(name, json_obj, public=False, get_url=False):
             'get_object', Params={'Key': key, 'Bucket': SIF_BUCKET})
 
 
+def _read_json_from_s3(s3, key, bucket):
+    try:
+        res = s3.get_object(Key=key, Bucket=bucket)
+        json_obj = json.loads(res['Body'].read().decode())
+    except Exception as err:
+        logger.error('Someting went wrong while loading or reading the json '
+                     'object from s3')
+        raise err
+    return json_obj
+
+
 def dump_query_result_to_s3(filename, json_obj):
     download_link = _dump_json_to_s3(name=filename, json_obj=json_obj,
                                      public=True, get_url=True)
     return download_link.split('?')[0]
+
+
+def read_query_json_from_s3(s3_key):
+    s3 = get_s3_client(unsigned=False)
+    bucket = SIF_BUCKET
+    return _read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
 
 
 def _dump_pickle_to_s3(name, indranet_graph_object):

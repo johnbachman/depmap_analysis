@@ -1,5 +1,6 @@
 const SUBMIT_URL = './query/submit';
 const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=html&';
+const S3_QUERY_CAHCE = 'https://bigmech.s3.amazonaws.com/indra_network_search/';
 const MAX_K_PATHS = 50;
 let pathStmtHashes = [];
 
@@ -24,10 +25,6 @@ for (let n of nodeOptions) {
     disabled: false
   })
 }
-$(document).ready(function() {
-  const stmtFilter = new Choices('#stmt-filter', {choices: stmtItems});
-  const nodeFilter = new Choices('#node-filter', {choices: nodeItems});
-});
 
 function submitQuery() {
   let beliefEntry = parseInRange(document.getElementById('belief-cutoff').value,
@@ -42,7 +39,7 @@ function submitQuery() {
                                   document.getElementById('user_timeout').min,
                                   document.getElementById('user_timeout').max,
                                   false);
-  var nodeFilterList = [];
+  let nodeFilterList = [];
   for (c of document.getElementById('node-filter').children) {
     nodeFilterList.push(c.value)
   }
@@ -50,31 +47,31 @@ function submitQuery() {
     alert('Must select at least one node namespace to include in path');
     return;
   }
-  var stmtFilterList = [];
+  let stmtFilterList = [];
   for (c of document.getElementById('stmt-filter').children) {
     stmtFilterList.push(c.value)
   }
   if (!document.getElementById('fplx-edges').checked) {
     stmtFilterList.push('fplx')
   }
-  var nodeBlackList = [];
+  let nodeBlackList = [];
   for (nn of document.getElementById('node-blacklist').value.split(',')) {
     // Strip leading and trailing whitespace and push to array
     if (nn.replace(/\s/g, '')) nodeBlackList.push(nn.replace(/\s/g, ''));
-  };
-  var edgeHashBlacklist = [];
+  }
+  let edgeHashBlacklist = [];
   for (eh of document.getElementById('edge-hash-blacklist').value.split(',')) {
     // Strip whitespace
     if (eh.replace(/\s/g, '')) edgeHashBlacklist.push(eh.replace(/\s/g, ''))
-  };
+  }
   let cullBestNode = parseInt(document.getElementById('cull-best-node').value) || 0;
   if (cullBestNode && cullBestNode < 1) {
     alert('Culling best node every # paths must be positive integer');
     return;
   }
-  var statusBox = document.getElementById('query-status');
-  var source = document.getElementById('source').value;
-  var target = document.getElementById('target').value;
+  let statusBox = document.getElementById('query-status');
+  let source = document.getElementById('source').value;
+  let target = document.getElementById('target').value;
   let queryDict = {
     source: source,
     target: target,
@@ -94,6 +91,7 @@ function submitQuery() {
     user_timeout: timeoutEntry,
     two_way: document.getElementById('two-ways').checked,
     shared_regulators: document.getElementById('shared-regulators').checked,
+    format: 'html'
   };
 
   // Hide on submit
@@ -112,11 +110,13 @@ function submitQuery() {
     dataType: 'json',
     contentType: 'application/json',
     data: JSON.stringify(queryDict),
-    complete: function(xhr, statustText) {
+    complete: function(xhr) {
       console.log(xhr);
-      console.log(statustText);
       switch (xhr.status) {
         case 200:
+          if (xhr.responseText) {
+            window.location.replace(xhr.responseText)
+          }
           break;
         case 504:
           // Server timeout
@@ -131,17 +131,95 @@ function submitQuery() {
 
   });
   console.log(response);
-  response.then(function(json){
-    resetCounters();
-    clearAllTables();
-    fillResultsTable(json, source, target)
-  })
+}
+
+function isEmptyResult(resultJson, allowTimeOut=false) {
+  /* Check if the resulting json from the query is empty
+  EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
+                         'common_targets': [],
+                         'common_parents': {},
+                         'timeout': false};
+  With 'allowTimeOut' set to true, only the result itself is considered,
+  regardless of time out status. If 'allowTimeOut' is false, the empty result
+  has to be from a non-timed out query to be considered empty.
+  */
+  if (allowTimeOut) {
+  return $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
+    $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
+    $.isEmptyObject(resultJson.common_targets) &&
+    $.isEmptyObject(resultJson.common_parents)
+  } else {
+  return $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
+    $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
+    $.isEmptyObject(resultJson.common_targets) &&
+    $.isEmptyObject(resultJson.common_parents) &&
+    !(resultJson.timeout)
+  }
+}
+
+function fillOldQuery(oldQueryJson) {
+  // Input boxes: mandatory
+  document.getElementById('source').value = oldQueryJson.source;
+  document.getElementById('target').value = oldQueryJson.target;
+  // Input boxes: optional
+  if (!($.isEmptyObject(oldQueryJson.edge_hash_blacklist))) {
+    document.getElementById('edge-hash-blacklist').value = oldQueryJson.edge_hash_blacklist.join(', ')
+  }
+  if (!($.isEmptyObject(oldQueryJson.node_blacklist))) {
+    document.getElementById('node-blacklist').value = oldQueryJson.node_blacklist.join(', ')
+  }
+  if (oldQueryJson.path_length) document.getElementById('path-length').value = parseInt(oldQueryJson.path_length);
+  if (oldQueryJson.sign) document.getElementById('sign-dd').value = oldQueryJson.sign;
+  if (oldQueryJson.bsco) document.getElementById('belief-cutoff').value = parseInRange(oldQueryJson.bsco, 0, 1, false);
+  if (oldQueryJson.k_shortest) document.getElementById('k-shortest').value = parseInt(oldQueryJson.k_shortest);
+  if (oldQueryJson.cull_best_node) {
+    document.getElementById('cull-best-node').value = parseInt(oldQueryJson.cull_best_node)
+  }
+  if (oldQueryJson.user_timeout) {
+    document.getElementById('user_timeout').value = parseInRange(oldQueryJson.user_timeout, 0, 999, false)
+  }
+  // Checkboxes
+  if (oldQueryJson.shared_regulators) document.getElementById('shared-regulators').checked = oldQueryJson.shared_regulators;
+  if (oldQueryJson.weighted) document.getElementById('weighted-search').checked = oldQueryJson.weighted;
+  // if (oldQueryJson.direct_only) document.getElementById('direct-only').checked = oldQueryJson.direct_only;
+  if (oldQueryJson.curated_db_only) document.getElementById('curated-db-only').checked = oldQueryJson.curated_db_only;
+  if (oldQueryJson.fplx_expand) document.getElementById('fplx-expand').checked = oldQueryJson.fplx_expand;
+  if (oldQueryJson.two_way) document.getElementById('two-ways').checked = oldQueryJson.two_way;
+  if (!($.isEmptyObject(oldQueryJson.stmt_filter))) {
+    document.getElementById('fplx-edges').checked = !oldQueryJson.stmt_filter.includes('fplx')
+  }
+
+  let stmtItems = [];
+  let selStmts = oldQueryJson.stmt_filter;
+  for (s of stmtOptions) {
+    let sel = selStmts.includes(s.toLowerCase());
+    stmtItems.push({
+      value: s.toLowerCase(),
+      label: s,
+      selected: sel,
+      disabled: false
+    })
+  }
+
+  let nodeItems = [];
+  let selNodes = oldQueryJson.node_filter;
+  for (let n of nodeOptions) {
+    let sel = selNodes.includes(n.toLowerCase());
+    nodeItems.push({
+      value: n.toLowerCase(),
+      label: n,
+      selected: sel,
+      disabled: false
+    })
+  }
+  return [stmtItems, nodeItems]
 }
 
 function fillResultsTable(data, source, target){
   console.log(data);
   const statusBox = document.getElementById('query-status');
-  let downloadURL = data.download_link;
+  if (isEmptyResult(data.result, false) && !source && !target) return false;
+  let downloadURL = `${S3_QUERY_CAHCE}${data.query_hash}_result.json`;
   let downloadLink = '';
   if (downloadURL) {
     downloadLink = ` Click <a href="${downloadURL}" download>here</a> to download the results as a json`
@@ -160,7 +238,7 @@ function fillResultsTable(data, source, target){
     let pathsKeyedArrayBackward = data.result.paths_by_node_count.backward;
     let simpleCommonTargets = data.result.common_targets;
     let simpleSharedRegulators = data.result.shared_regulators;
-    var tableArea = document.getElementById('table-area');
+    let tableArea = document.getElementById('table-area');
     pathStmtHashes = data.result.paths_by_node_count.path_hashes;
 
     // Fill common parents table
@@ -274,7 +352,7 @@ function fillResultsTable(data, source, target){
       }
     }
     if (pathsKeyedArrayBackward && Object.keys(pathsKeyedArrayBackward).length > 0) {
-      var tableArea = document.getElementById('table-area');
+      let tableArea = document.getElementById('table-area');
       for (len in pathsKeyedArrayBackward) {
         let cardHtml = generateCardTable(len-1, 'b');
         tableArea.appendChild(cardHtml);
@@ -308,7 +386,8 @@ function fillResultsTable(data, source, target){
 
   // If we have hashes, show download link
   if (pathStmtHashes.length > 0) {
-    document.getElementById('download-link').hidden = false;
+    document.getElementById('download-link').href = `/stmts_download/stmts.json?query=${data.query_hash}`;
+    document.getElementById('download-p').hidden = false;
   }
 }
 
@@ -425,7 +504,7 @@ function generateTargetLinkout(pathPair) {
 }
 
 function generateCardTable(len, dir) {
-  var intermArrows = '';
+  let intermArrows = '';
   if (len > 1) {
     for (let i = 1; i < len; i++) {
       intermArrows += 'X' + i + '&rarr;'
