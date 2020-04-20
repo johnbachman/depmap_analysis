@@ -34,6 +34,10 @@ Each endpoint is described further in the sections below.
 |                      |                  | list of nodes is in the|
 |                      |                  | network                |
 +----------------------+------------------+------------------------+
+| `/bfs_search`        | POST             | Handles breadth first  |
+|                      |                  | queries from a source  |
+|                      |                  | or target node.        |
++----------------------+------------------+------------------------+
 
 Node Existence Lookup
 .....................
@@ -80,7 +84,7 @@ options.
 |  targets       |         |          | names          | search            |
 +----------------+---------+----------+----------------+-------------------+
 |  allowed_ns    | any ns  | No       | *see below*    | Skip nodes with   |
-|                |         |          |                | name spaces not in|
+|                |         |          |                | namespaces not in |
 |                |         |          |                | the provided list |
 +----------------+---------+----------+----------------+-------------------+
 |  belief_cutoff |    0    | No       | 0 <= n <= 1    | Skip statements   |
@@ -122,6 +126,99 @@ https://indra.readthedocs.io/en/latest/modules/statements.html#module-indra.stat
 
 By POSTing `"{'help': ''}"` to the endpoint, a small json is returned that
 describes the options available.
+
+Breadth First Search Endpoint
+.............................
+For doing breadth first searches the `/bfs_search` endpoint can be used. The
+only required option is to provide a node name to start the search with.
+Other options are the following:
+
++----------------+-----------+---------+----------------+-------------------+
+| Option         | Default   |Required | Allowed values | Action            |
++================+===========+=========+================+===================+
+|  source        |           |Yes      | Any node name  | Input for search  |
++----------------+-----------+---------+----------------+-------------------+
+|  reverse       | False     |No       | True/False     | Reverse the search|
+|                |           |         |                | to search upstream|
+|                |           |         |                | instead of        |
+|                |           |         |                | downstream        |
++----------------+-----------+---------+----------------+-------------------+
+|  allowed_ns    | any ns    |No       | *see below*    | Skip nodes with   |
+|                |           |         |                | namespaces not in |
+|                |           |         |                | the provided list |
++----------------+-----------+---------+----------------+-------------------+
+|  belief_cutoff |    0      |No       | 0 <= float <= 1| Skip statements   |
+|                |           |         |                | below threshold   |
++----------------+-----------+---------+----------------+-------------------+
+| skip_stmt_types|   [ ]     |No       | *see below*    | Skip statements   |
+|                |           |         |                | of provided       |
+|                |           |         |                | types             |
++----------------+-----------+---------+----------------+-------------------+
+| depth_limit    |  2        |No       | 1 < int        | Only allow        |
+|                |           |         |                | paths up to the   |
+|                |           |         |                | provided length   |
++----------------+-----------+---------+----------------+-------------------+
+| path_limit     | 100       |No       | 0 < int        | The maximum number|
+|                |           |         |                | of paths to yield |
+|                |           |         |                | from the generator|
++----------------+-----------+---------+----------------+-------------------+
+| max_results    |  50       |No       | int            | The maximum number|
+|                |           |         |                | of results to     |
+|                |           |         |                | return            |
++----------------+-----------+---------+----------------+-------------------+
+| node_blacklist |  []       |No       | str            | Node names to skip|
+|                |           |         |                | in the search     |
++----------------+-----------+---------+----------------+-------------------+
+| terminal_ns    | ['CHEBI', |No       | *see below*    | Node namespaces to|
+|                | 'PUBCHEM']|         |                | end paths on      |
++----------------+-----------+---------+----------------+-------------------+
+| max_per_node   |  5        |No       | True/False     | Maximum number of |
+|                |           |         |                | paths from the    |
+|                |           |         |                | same leaf parent  |
+|                |           |         |                | node to yield     |
++----------------+-----------+---------+----------------+-------------------+
+| sign           |  None     |No       | '+'/'-'        | Perform a signed  |
+|                |           |         |                | search.           |
+|                |           |         |                | *See below*       |
++----------------+-----------+---------+----------------+-------------------+
+
+
+`'allowed_ns'` specifies which namespace a node in the resulting paths are
+allowed to have. The following values are allowed:
+
+- HGNC
+- FPLX
+- CHEBI
+- PUBCHEM
+- MIRBASE
+- GO
+- MESH
+- HMDB
+
+`'terminal_ns'` indicates a namespace that when encountered will not yield
+further paths from it. For example, if one is only interested in paths with
+a terminal node that is a chemical, 'PUBCHEM' and 'CHEBI' would be specified
+here for example.
+
+Signed Breadth First Search
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+By providing a sign with the keyword `'sign'`, the search is done over a
+signed directed graph instead of a standard directed graph. The sign
+determines if the result of the path is an up- or downregulation. To search
+e.g. upregulations of the gene `'ACE2'`, the following JSON would have to be
+sent::
+
+    {'source': 'ACE2',
+     'reverse': True,  # If reverse is True, search is upstream from 'source'
+     'sign': '+'}
+
+To search for any gene or gene family or protein complex that is upstream
+of `'ACE2'`, the following JSON should be used::
+
+    {'source': 'ACE2',
+     'reverse': True,
+     'allowed_ns': ['FPLX', 'HNGC'],
+     'terminal_ns': []}  # 'terminal_ns' defaults to ['CHEBI', 'PUBCHEM']
 
 
 Path Query Endpoint
