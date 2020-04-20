@@ -506,7 +506,7 @@ class IndraNetwork:
                        'ign_hashes': options.get('edge_hash_blacklist', [])}
         if options['sign'] is not None:
             sign_source, signed_target =\
-                path_sign_to_signed_nodes(source, target, options['sign'])
+                nf.path_sign_to_signed_nodes(source, target, options['sign'])
             sign_interm = set(self.sign_node_graph_repr.succ[sign_source]) & \
                 set(self.sign_node_graph_repr.pred[signed_target])
             paths_gen = _paths_genr(sign_source, signed_target, sign_interm,
@@ -535,7 +535,7 @@ class IndraNetwork:
                 edge_signs = None
             else:
                 path = [n[0] for n in _path]
-                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(_path[:-1], _path[1:])]
             hash_path = self._get_hash_path(path=path, source=source,
                                             target=target,
@@ -602,7 +602,9 @@ class IndraNetwork:
             else:
                 # Generate signed nodes from query's overall sign
                 (src, src_sign), (trgt, trgt_sign) =\
-                    path_sign_to_signed_nodes(source, target, options['sign'])
+                    nf.path_sign_to_signed_nodes(
+                        source, target, options['sign']
+                    )
                 # Get signed nodes for source and target
                 subj = (src, SIGNS_TO_INT_SIGN[src_sign])
                 obj = (trgt, SIGNS_TO_INT_SIGN[trgt_sign])
@@ -724,7 +726,7 @@ class IndraNetwork:
 
             # Handle signed path
             if options.get('sign') is not None:
-                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(path[:-1], path[1:])]
                 path = [n[0] for n in path]
                 graph_type = 'signed'
@@ -1051,7 +1053,7 @@ class IndraNetwork:
                 if sign is not None:
                     signed_path_nodes = next(paths_gen)
                     path = [n[0] for n in signed_path_nodes]
-                    edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                    edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
                                   for s, t in zip(signed_path_nodes[:-1],
                                                   signed_path_nodes[1:])]
                 else:
@@ -1514,63 +1516,6 @@ def translate_query(query_json):
         if k == "cull_best_node":
             options[k] = int(v) if v >= 1 else float('NaN')
     return options
-
-
-def path_sign_to_signed_nodes(source, target, edge_sign):
-    """Translates a signed edge or path to valid signed nodes
-
-    Pairs with a negative source node are filtered out.
-
-    Paramters
-    ---------
-    source : str|int
-        The source node
-    target : str|int
-        The target node
-    edge_sign : Union(0, 1, '+', '-', 'plus', 'minus')
-        The sign of the edge
-
-    Returns
-    -------
-    sign_tuple : (a, sign), (b, sign)
-        Tuple of tuples of the valid combination of signed nodes
-    """
-    # + path -> (a+, b+)
-    # - path -> (a+, b-)
-    # (a-, b-) and (a-, b+) are also technically valid but not in this context
-    if SIGN_TO_STANDARD.get(edge_sign):
-        if SIGN_TO_STANDARD[edge_sign] == '+':
-            return (source, edge_sign), (target, edge_sign)
-        elif SIGN_TO_STANDARD[edge_sign] == '-':
-            return (source, REVERSE_SIGN[edge_sign]), (target, edge_sign)
-    else:
-        logger.warning('Invalid sign %s when translating signed edge to '
-                       'signed nodes' % edge_sign)
-        return ()
-
-
-def signed_nodes_to_signed_edge(source, target):
-    """Create the triple (node, node, sign) from a signed node pair
-
-    Assuming source, target forms an edge of signed nodes:
-    edge = (a, sign), (b, sign), return the corresponding signed edge triple
-    """
-    # + edge/path -> (a+, b+) and (a-, b-)
-    # - edge/path -> (a-, b+) and (a+, b-)
-    source_name, source_sign = source
-    target_name, target_sign = target
-    if source_sign == target_sign:
-        plus = source_sign if SIGN_TO_STANDARD[source_sign] == '+' else \
-            REVERSE_SIGN[source_sign]
-        return source_name, target_name, plus
-    elif source_sign == REVERSE_SIGN[target_sign]:
-        minus = source_sign if SIGN_TO_STANDARD[source_sign] == '-' else\
-            REVERSE_SIGN[source_sign]
-        return source_name, target_name, minus
-    else:
-        logger.warning('Error translating signed nodes to signed edge using '
-                       '(%s, %s)' % (source, target))
-        return None, None, None
 
 
 def list_all_hashes(ksp_results):
