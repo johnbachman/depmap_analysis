@@ -703,6 +703,15 @@ class IndraNetwork:
         if terminal_ns is None:
             terminal_ns = ['chebi', 'pubchem']
 
+        # Limit search scope
+        #  -Ensure finite search: e.g. Can't have unlimited depth together
+        #   with no path limit and no max results limit
+        if depth_limit is None and path_limit is None and options.get(
+                'max_results', 0) > 10000:
+            raise ValueError('Limitless search deteced: depth_limit is '
+                             'None, path_limit is None and max_results > '
+                             '10000, aborting')
+
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         bfs_gen = nf.bfs_search(g=graph, source=start_node, reverse=reverse,
