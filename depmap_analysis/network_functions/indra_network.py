@@ -687,7 +687,13 @@ class IndraNetwork:
             start_node = (source, INT_PLUS) if not reverse \
                 else ((source, INT_MINUS) if options['sign'] == INT_MINUS
                       else (source, INT_PLUS))
+
+            # Nodes are used to check namespaces
             options['g_nodes'] = self.nodes
+
+            # Edges are used to get belief scores in the neighbor lookup
+            options['g_edges'] = self.signed_edges
+
         # Normal search
         else:
             graph = self.nx_dir_graph_repr
