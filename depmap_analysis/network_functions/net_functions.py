@@ -656,6 +656,37 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
             break
 
 
+def get_sorted_neighbors(G, node, reverse, g_edges):
+    # better sorted key
+    """Sort by aggregated belief per edge"""
+    neighbors = G.predecessors(node) if reverse else G.successors(node)
+    # Check signed node
+    if isinstance(node, tuple):
+        if reverse:
+            return sorted(
+                neighbors,
+                key=lambda n:
+                    g_edges[signed_nodes_to_signed_edge(n, node)]['belief'],
+                reverse=True
+            )
+        else:
+            return sorted(
+                neighbors,
+                key=lambda n:
+                    g_edges[signed_nodes_to_signed_edge(node, n)]['belief'],
+                reverse=True)
+
+    else:
+        if reverse:
+            return sorted(neighbors,
+                          key=lambda n: g_edges[(n, node)]['belief'],
+                          reverse=True)
+        else:
+            return sorted(neighbors,
+                          key=lambda n: g_edges[(node, n)]['belief'],
+                          reverse=True)
+
+
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
 def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
