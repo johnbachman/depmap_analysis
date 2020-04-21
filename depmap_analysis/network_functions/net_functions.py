@@ -9,6 +9,8 @@ import networkx as nx
 import networkx.algorithms.simple_paths as simple_paths
 from collections import deque
 from requests.exceptions import ConnectionError
+from networkx.classes.reportviews import OutMultiEdgeView, OutEdgeView, \
+    NodeView
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
@@ -689,7 +691,8 @@ def get_sorted_neighbors(G, node, reverse, g_edges):
 
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
-def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
+def bfs_search(g, source, g_nodes=None, g_edges=None, reverse=False,
+               depth_limit=2,
                path_limit=None, max_per_node=5, node_filter=None,
                node_blacklist=None, terminal_ns=None, sign=None):
     """Do breadth first search from a given node and yield paths
@@ -700,10 +703,14 @@ def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
         An nx.DiGraph to search in. Can also be a signed node graph.
     source : node
         Node in the graph to start from.
-    g_nodes : nx.Graph.nodes
+    g_nodes : nx.classes.reportviews.nodesNodeView
         The nodes property to look up nodes from. Set this if the node
-        attribute 'ns' needs to be looked up from anther graph objcet than
+        attribute 'ns' needs to be looked up from another graph object than
         the one provided as `g`. Default: g.nodes
+    g_edges : nx.classes.reportviews.OutMultiEdgeView|OutEdgeView
+        The edges property to look up edges and their data from. Set this if
+        the edge beliefs needs to be looked up from another grapth object
+        than `g`. Default: d.edges
     reverse : bool
         If True go upstream from source, otherwise go downstream. Default:
         False.
@@ -732,9 +739,14 @@ def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
         Paths in the bfs search starting from `source`.
     """
     g_nodes = g.nodes if g_nodes is None else g_nodes
-    if not isinstance(g_nodes, nx.classes.reportviews.NodeView):
+    g_edges = g.edges if g_edges is None else g_edges
+    if not isinstance(g_nodes, NodeView):
         raise ValueError('Provided object for g_nodes is not a valid '
                          'NodeView object')
+    if not isinstance(g_edges, (OutEdgeView, OutMultiEdgeView)):
+        raise ValueError('Provided object for g_edges is not a valid '
+                         'OutEdgeView or OutMultiEdgeView object')
+
     queue = deque([(source,)])
     visited = ({source}).union(node_blacklist) if node_blacklist else {source}
     yielded_paths = 0
@@ -749,13 +761,13 @@ def bfs_search(g, source, g_nodes=None, reverse=False, depth_limit=2,
             # Check correct leaf sign for signed search
             continue
 
-        if reverse:
-            neighbors = g.predecessors(last_node)
-        else:
-            neighbors = g.successors(last_node)
+        sorted_neighbors = get_sorted_neighbors(G=g, node=last_node,
+                                                reverse=reverse,
+                                                g_edges=g_edges)
 
         yielded_neighbors = 0
-        for neighb in neighbors:
+        # for neighb in neighbors:
+        for neighb in sorted_neighbors:
             neig_name = neighb[0] if isinstance(neighb, tuple) else neighb
 
             # Check cycles
