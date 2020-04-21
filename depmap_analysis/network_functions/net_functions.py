@@ -511,7 +511,6 @@ def signed_nodes_to_signed_edge(source, target):
         return None, None, None
 
 
-
 # Copy from networkx.algorithms.simple_paths
 # Added ignore_nodes and ignore_edges arguments
 def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
