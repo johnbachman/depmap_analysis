@@ -191,13 +191,15 @@ def check_existence_and_date_s3(query_hash, indranet_date=None):
         pass
     else:
         try:
-            query_json = s3.head_object(Bucket=SIF_BUCKET, Key=query_json_key)
+            query_json = s3.head_object(Bucket=SIF_BUCKET,
+                                        Key=query_json_key)
         except ClientError:
             query_json = ''
         if query_json:
             exits_dict['query_json_key'] = query_json_key
         try:
-            result_json = s3.head_object(Bucket=SIF_BUCKET, Key=result_json_key)
+            result_json = s3.head_object(Bucket=SIF_BUCKET,
+                                         Key=result_json_key)
         except ClientError:
             result_json = ''
         if result_json:
@@ -205,6 +207,10 @@ def check_existence_and_date_s3(query_hash, indranet_date=None):
         return exits_dict
 
     return {}
+
+
+def _todays_date():
+    return datetime.now().strftime('%Y%m%d')
 
 
 # Copied from emmaa_service/api.py
@@ -281,10 +287,9 @@ def _get_latest_files_s3():
     keys = [key for key in tree.gets('key') if key[0].endswith('.pkl')]
     # Sort newest first
     keys.sort(key=lambda t: t[1], reverse=True)
-    # Find newest set of files' directory
-    latest_dir = keys[0][0].split('/')[-2]
+
     # Get keys of those pickles
-    keys_in_latest_dir = [k[0] for k in keys if latest_dir in k[0] and
+    keys_in_latest_dir = [k[0] for k in keys if
                           any(nfl in k[0] for nfl in necc_files)]
     # Map key to resource
     necc_keys = {}
@@ -296,8 +301,8 @@ def _get_latest_files_s3():
                               bucket=SIF_BUCKET)
     sev = _load_pickle_from_s3(s3, key=necc_keys['src_counts'],
                                bucket=SIF_BUCKET)
-    bd = _load_pickle_from_s3(s3, key=necc_keys['belief'],
-                              bucket=SIF_BUCKET)
+    bd = _read_json_from_s3(s3, key=necc_keys['belief'],
+                            bucket=SIF_BUCKET)
     return df, sev, bd
 
 
