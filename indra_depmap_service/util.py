@@ -399,9 +399,13 @@ def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Dump new networks')
-    parser.add_argument('--mdg', help='Dump a new MultiDiGraph')
-    parser.add_argument('--dg', help='Dump a new DiGraph')
-    parser.add_argument('--sg', help='Dump new signed edge and node graphs')
-    parser.add_argument('--s3', help='Also upload the new graphs to s3')
+    parser.add_argument('--mdg', help='Dump a new MultiDiGraph',
+                        action='store_true', default=False)
+    parser.add_argument('--dg', help='Dump a new DiGraph',
+                        action='store_true', default=False)
+    parser.add_argument('--sg', help='Dump new signed edge and node graphs',
+                        action='store_true', default=False)
+    parser.add_argument('--s3', help='Also upload the new graphs to s3',
+                        action='store_true', default=False)
     args = parser.parse_args()
     dump_new_nets(mdg=args.mdg, dg=args.dg, sg=args.sg, dump_to_s3=args.s3)
