@@ -272,8 +272,8 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
         indra_signed_node_graph
 
 
-def _get_latest_files():
-    necc_files = ['belief_dict', 'db_dump_df', 'strat_ev']
+def _get_latest_files_s3():
+    necc_files = ['belief', 'sif', 'src_counts']
     s3 = get_s3_client(unsigned=False)
     tree = get_s3_file_tree(s3, bucket=SIF_BUCKET, prefix=DUMPS_PREFIX,
                             with_dt=True)
@@ -292,11 +292,11 @@ def _get_latest_files():
         for k in keys_in_latest_dir:
             if n in k:
                 necc_keys[n] = k
-    df = _load_pickle_from_s3(s3, key=necc_keys['db_dump_df'],
+    df = _load_pickle_from_s3(s3, key=necc_keys['sif'],
                               bucket=SIF_BUCKET)
-    sev = _load_pickle_from_s3(s3, key=necc_keys['strat_ev'],
+    sev = _load_pickle_from_s3(s3, key=necc_keys['src_counts'],
                                bucket=SIF_BUCKET)
-    bd = _load_pickle_from_s3(s3, key=necc_keys['belief_dict'],
+    bd = _load_pickle_from_s3(s3, key=necc_keys['belief'],
                               bucket=SIF_BUCKET)
     return df, sev, bd
 
@@ -370,7 +370,7 @@ def _dump_pickle_to_s3(name, indranet_graph_object):
 
 def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
     """Main script function for dumping new networks from latest db dumps"""
-    df, sev, bd = _get_latest_files()
+    df, sev, bd = _get_latest_files_s3()
     options = {'df': df,
                'belief_dict': bd,
                'strat_ev_dict': sev,
