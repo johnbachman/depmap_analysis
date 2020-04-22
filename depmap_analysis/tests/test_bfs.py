@@ -1,4 +1,5 @@
 import networkx as nx
+from random import random
 from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.network_functions.net_functions import bfs_search, \
     INT_PLUS, INT_MINUS
@@ -12,6 +13,10 @@ def test_bfs():
              ('A4', 'B2'), ('B1', 'C1'), ('B2', 'C1'), ('B3', 'C1'),
              ('C1', 'D1')]
     dg.add_edges_from(edges)
+
+    # Add belief
+    for e in dg.edges:
+        dg.edges[e]['belief'] = random()
 
     nodes1, nodes2 = list(zip(*edges))
     nodes = set(nodes1).union(nodes2)
@@ -54,7 +59,7 @@ def test_bfs():
     paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
                                    reverse=True, max_per_node=1,
                                    node_filter=all_ns)]
-    assert len(paths) == 4
+    assert len(paths) == 6
     assert set(paths) == expected_paths
 
     # Test terminal NS
@@ -120,6 +125,7 @@ def test_signed_bfs():
     # ATTN!! seg.edges yields u, v, index while seg.edges() yields u, v
     for u, v, sign in seg.edges:
         seg.edges[(u,v,sign)]['sign'] = sign
+        seg.edges[(u,v,sign)]['belief'] = random()
 
     sng = signed_edges_to_signed_nodes(graph=seg, prune_nodes=True,
                                        copy_edge_data=False)
