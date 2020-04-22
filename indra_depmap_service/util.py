@@ -28,13 +28,13 @@ CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
 JSON_CACHE = path.join(API_PATH, '_json_res')
 SIF_BUCKET = 'bigmech'
+DUMPS_PREFIX = 'indra-db/dumps'
 NET_BUCKET = 'depmap-analysis'
 DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
 DT_YmdHMS = '%Y%m%d%H%M%S'
 DT_Ymd = '%Y%m%d'
 RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
 RE_YYYYMMDD = r'\d{8}'
-
 
 INDRA_MDG = 'indranet_multi_digraph_latest.pkl'
 INDRA_DG = 'indranet_dir_graph_latest.pkl'
@@ -275,7 +275,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
 def _get_latest_files():
     necc_files = ['belief_dict', 'db_dump_df', 'strat_ev']
     s3 = get_s3_client(unsigned=False)
-    tree = get_s3_file_tree(s3, bucket=SIF_BUCKET, prefix='indra_db_sif_dump',
+    tree = get_s3_file_tree(s3, bucket=SIF_BUCKET, prefix=DUMPS_PREFIX,
                             with_dt=True)
     # Find all pickles
     keys = [key for key in tree.gets('key') if key[0].endswith('.pkl')]
@@ -363,7 +363,7 @@ def read_query_json_from_s3(s3_key):
 
 def _dump_pickle_to_s3(name, indranet_graph_object):
     s3 = get_s3_client(unsigned=False)
-    key = 'indra_db_files/' + name
+    key = 'indra_db_files/temp/' + name
     s3.put_object(Bucket=NET_BUCKET, Key=key,
                   Body=pickle.dumps(obj=indranet_graph_object))
 
