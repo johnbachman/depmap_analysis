@@ -45,13 +45,6 @@ READERS.update(['medscan', 'rlimsp'])
 
 INT_PLUS = 0
 INT_MINUS = 1
-SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
-                    '-': '-', 'minus': '-', INT_MINUS: '-'}
-SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
-                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS}
-REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
-                '+': '-', '-': '+',
-                'plus': 'minus', 'minus': 'plus'}
 
 
 def _get_smallest_belief_prior():
@@ -317,7 +310,8 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         raise ValueError('Graph type %s not supported. Can only chose between'
                          ' %s' % (graph_type, graph_options))
 
-    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity)
+    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict,
+                                verbosity=verbosity)
 
     # Map ns:id to node name
     logger.info('Creating dictionary with mapping from (ns,id) to node name')
