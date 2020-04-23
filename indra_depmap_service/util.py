@@ -296,7 +296,9 @@ def _get_latest_files_s3():
     for n in necc_files:
         for k in keys_in_latest_dir:
             if n in k:
+                # Save and continue to next file in necc_files
                 necc_keys[n] = k
+                break
     df = _load_pickle_from_s3(s3, key=necc_keys['sif'],
                               bucket=SIF_BUCKET)
     sev = _load_pickle_from_s3(s3, key=necc_keys['src_counts'],
