@@ -38,18 +38,19 @@ for node in nodes:
 
 def test_bfs():
     # Test basic part of algorithm
-    assert len([p for p in
-                bfs_search(dg, 'C1', depth_limit=1, reverse=True)]) == 3
-    assert len([p for p in
-                bfs_search(dg, 'C1', depth_limit=2, reverse=True)]) == 7
-    assert len([p for p in
-                bfs_search(dg, 'C1', depth_limit=2, reverse=True,
-                           path_limit=4)]) == 4
+    paths = [p for p in bfs_search(dg, 'C1', depth_limit=1, reverse=True)]
+    assert len(paths) == 3, len(paths)
+    paths = [p for p in bfs_search(dg, 'C1', depth_limit=2, reverse=True)]
+    assert len(paths) == 7, len(paths)
+    paths = [p for p in bfs_search(dg, 'C1', depth_limit=2, reverse=True,
+                                   path_limit=4)]
+    assert len(paths) == 4, len(paths)
 
     # Test ns allowance list
     ans = ['c', 'b']
-    assert len([p for p in bfs_search(dg, 'C1', depth_limit=2, reverse=True,
-                                      node_filter=ans)]) == 3
+    assert len([p for p in
+                bfs_search(dg, 'C1', depth_limit=2, reverse=True,
+                           node_filter=ans)]) == 3
     assert all(len(p) < 3 for p in
                bfs_search(dg, 'C1', depth_limit=2, reverse=True,
                           node_filter=ans))
@@ -70,8 +71,8 @@ def test_bfs():
     paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
                                    reverse=True, max_per_node=1,
                                    node_filter=all_ns)]
-    assert len(paths) == 6
-    assert set(paths) == expected_paths
+    assert len(paths) == 4, len(paths)
+    assert set(paths) == expected_paths, 'sets of paths not equal'
 
     # Test terminal NS
     # Terminate on 'b'
@@ -80,8 +81,8 @@ def test_bfs():
     paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
                                    reverse=True, terminal_ns=['b'],
                                    node_filter=all_ns)]
-    assert len(paths) == 4
-    assert set(paths) == expected_paths
+    assert len(paths) == 4, len(paths)
+    assert set(paths) == expected_paths, 'sets of paths not equal'
     # Terminate on 'a'
     expected_paths = {('D1', 'C1'), ('D1', 'C1', 'B1'), ('D1', 'C1', 'B2'),
                       ('D1', 'C1', 'B3'), ('D1', 'C1', 'B1', 'A1'),
@@ -90,8 +91,8 @@ def test_bfs():
     paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
                                    reverse=True, terminal_ns=['a'],
                                    node_filter=all_ns)]
-    assert len(paths) == len(expected_paths)
-    assert set(paths) == expected_paths
+    assert len(paths) == len(expected_paths), len(paths)
+    assert set(paths) == expected_paths, 'sets of paths not equal'
 
 
 def test_signed_bfs():
@@ -114,15 +115,15 @@ def test_signed_bfs():
     seg.add_edges_from(signed_edges)
     # ATTN!! seg.edges yields u, v, index while seg.edges() yields u, v
     for u, v, sign in seg.edges:
-        seg.edges[(u,v,sign)]['sign'] = sign
-        seg.edges[(u,v,sign)]['belief'] = random()
+        seg.edges[(u, v, sign)]['sign'] = sign
+        seg.edges[(u, v, sign)]['belief'] = edge_beliefs[(u, v)]
 
     sng = signed_edges_to_signed_nodes(graph=seg, prune_nodes=True,
                                        copy_edge_data=False)
 
     # D1 being upregulated: 12 paths
     paths = [p for p in bfs_search(
-        g=sng, source=('D1', INT_PLUS), g_nodes=dg.nodes, reverse=True,
-        depth_limit=5, node_filter=all_ns, sign=INT_PLUS)
+        g=sng, source=('D1', INT_PLUS), g_nodes=dg.nodes, g_edges=seg.edges,
+        reverse=True, depth_limit=5, node_filter=all_ns, sign=INT_PLUS)
     ]
-    assert len(paths) == 12, len(paths)
+    assert len(paths) == 13, len(paths)
