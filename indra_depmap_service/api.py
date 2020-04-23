@@ -6,13 +6,14 @@ from time import time, gmtime, strftime
 
 from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
 from flask import Flask, request, abort, Response, render_template, jsonify,\
-    session, redirect, url_for
+    session, url_for
 
 from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
 
-from depmap_analysis.network_functions.indra_network import IndraNetwork,\
+from depmap_analysis.network_functions.indra_network import IndraNetwork, \
     EMPTY_RESULT
+from depmap_analysis.network_functions.net_functions import SIGNS_TO_INT_SIGN
 
 from .util import *
 
@@ -137,6 +138,11 @@ def handle_query(**json_query):
     if indra_network.verbose > 5:
         logger.info('Result: %s' % str(res))
     return res
+
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'pass'})
 
 
 @app.route('/')
@@ -352,6 +358,68 @@ def multi_interactors():
         logger.exception(err)
         abort(Response('Internal server error handling multi interactors '
                        'query', 500))
+
+
+@app.route('/bfs_search', methods=['POST'])
+def breadth_search():
+    logger.info('Got request for breadth first search')
+    logger.info('Incoming Json ----------------------')
+    logger.info(str(request.json))
+    logger.info('------------------------------------')
+    if not request.json:
+        return abort(415, '')
+    query_json = request.json
+
+    # Make lowercase
+    allowed_ns = [ns.lower() for ns in query_json.get('node_filter', [])]
+    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+
+    if not allowed_ns:
+        allowed_ns = default_ns
+
+    if not set(allowed_ns).issubset(set(default_ns)):
+        abort(Response('One or more of the provided ns in "node_filter" is '
+                       'not part of the standard ns. Provided ns list: %s. '
+                       'Allowed ns list: %s' %
+                       (str(allowed_ns), str(default_ns)), 415))
+
+    if not query_json.get('source'):
+        abort(Response('Missing required parameter "source"', 415))
+
+    if len(indra_network.signed_edges) < 1 and query_json.get('sign') is not\
+            None:
+        abort(Response('Signed graph not available. Remove "sign" from '
+                       'options to perform search', 415))
+
+    sign = SIGNS_TO_INT_SIGN[query_json.get('sign')]
+
+    # If reversed, search upstream instead of downstream from source
+    options = {
+        'source': query_json['source'],
+        'reverse': query_json.get('reverse', False),
+        'depth_limit': int(query_json.get('depth_limit', 2)),
+        'path_limit': int(query_json['path_limit']) if query_json.get(
+            'path_limit') else None,
+        'node_filter': allowed_ns,
+        'node_blacklist': query_json.get('node_blacklist', []),
+        'bsco': float(query_json.get('belief_cutoff', 0)),
+        'stmt_filter': query_json.get('skip_stmt_types', []),
+        'curated_db_only': bool(query_json.get('db_only', False)),
+        'terminal_ns': query_json.get('terminal_ns',  ['chebi', 'pubchem']),
+        'max_results': int(query_json.get('max_results', 50)) if isinstance(
+            query_json.get('max_results'), (str, int)) else None,
+        'max_per_node': int(query_json.get('max_per_node', 5)) if isinstance(
+            query_json.get('max_per_node'), (str, int)) else None,
+        'sign': sign
+    }
+    try:
+        results = indra_network.open_bfs(**options)
+        return jsonify(results)
+    except Exception as err:
+        logger.warning('Exception handling open bfs search')
+        logger.exception(err)
+        abort(Response('Internal server error handling multi interactors '
+                       'query: %s' % str(err), 500))
 
 
 @app.route('/node', methods=['POST'])

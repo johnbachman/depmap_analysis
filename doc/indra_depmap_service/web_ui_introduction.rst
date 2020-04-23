@@ -44,11 +44,13 @@ Search Options
 
 Source and Target
 ~~~~~~~~~~~~~~~~~
-The source and target are mandatory fields for the search. The source and
-target are the nodes between which to find a path. Source and target does
+At least one of source and target is mandatory for the search. The source
+and target are the nodes between which to find a path. Source and target does
 not have to be of the allowed namespaces (see below). If no result is found
 initially, grounding is done on the service backend to try to find an
-alternative name for the provided node name.
+alternative name for the provided node name. If only one of source or target
+is provided, an open ended breadth first search is done instead if a path
+search.
 
 Path Length
 ~~~~~~~~~~~

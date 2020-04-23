@@ -7,7 +7,10 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import networkx.algorithms.simple_paths as simple_paths
+from collections import deque
 from requests.exceptions import ConnectionError
+from networkx.classes.reportviews import OutMultiEdgeView, OutEdgeView, \
+    NodeView
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
@@ -19,6 +22,16 @@ logger = logging.getLogger(__name__)
 
 np.seterr(all='raise')
 NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
+INT_PLUS = 0
+INT_MINUS = 1
+SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
+                    '-': '-', 'minus': '-', INT_MINUS: '-'}
+SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
+                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS,
+                     None: None}
+REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
+                '+': '-', '-': '+',
+                'plus': 'minus', 'minus': 'plus'}
 
 
 GRND_URI = None
@@ -38,6 +51,7 @@ def pinger(domain, timeout=1):
 def gilda_pinger():
     """Return True if the gilda service is available"""
     try:
+        logger.info('Trying to reach GILDA service again...')
         return requests.post(GRND_URI, json={'text': 'erk'}).status_code == 200
     except ConnectionError:
         return False
@@ -412,8 +426,6 @@ def ag_belief_score(belief_list):
 def ns_id_from_name(name, gilda_retry=False):
     """Query the groudning service for the most likely ns:id pair for name"""
     global GILDA_TIMEOUT
-    if gilda_retry:
-        logger.info('Trying to reach GILDA service again...')
     if gilda_retry and GILDA_TIMEOUT and gilda_pinger():
         logger.info('GILDA is responding again!')
         GILDA_TIMEOUT = False
@@ -440,6 +452,63 @@ def ns_id_from_name(name, gilda_retry=False):
             logger.warning('Indra Grounding service not available. Add '
                            'GILDA_URL to `indra/config.ini`')
     return None, None
+
+
+def path_sign_to_signed_nodes(source, target, edge_sign):
+    """Translates a signed edge or path to valid signed nodes
+
+    Pairs with a negative source node are filtered out.
+
+    Paramters
+    ---------
+    source : str|int
+        The source node
+    target : str|int
+        The target node
+    edge_sign : Union(0, 1, '+', '-', 'plus', 'minus')
+        The sign of the edge
+
+    Returns
+    -------
+    sign_tuple : (a, sign), (b, sign)
+        Tuple of tuples of the valid combination of signed nodes
+    """
+    # + path -> (a+, b+)
+    # - path -> (a+, b-)
+    # (a-, b-) and (a-, b+) are also technically valid but not in this context
+    if SIGN_TO_STANDARD.get(edge_sign):
+        if SIGN_TO_STANDARD[edge_sign] == '+':
+            return (source, edge_sign), (target, edge_sign)
+        elif SIGN_TO_STANDARD[edge_sign] == '-':
+            return (source, REVERSE_SIGN[edge_sign]), (target, edge_sign)
+    else:
+        logger.warning('Invalid sign %s when translating signed edge to '
+                       'signed nodes' % edge_sign)
+        return ()
+
+
+def signed_nodes_to_signed_edge(source, target):
+    """Create the triple (node, node, sign) from a signed node pair
+
+    Assuming source, target forms an edge of signed nodes:
+    edge = (a, sign), (b, sign), return the corresponding signed edge triple
+    """
+    # + edge/path -> (a+, b+) and (a-, b-)
+    # - edge/path -> (a-, b+) and (a+, b-)
+    source_name, source_sign = source
+    target_name, target_sign = target
+    if source_sign == target_sign:
+        plus = source_sign if SIGN_TO_STANDARD[source_sign] == '+' else \
+            REVERSE_SIGN[source_sign]
+        return source_name, target_name, plus
+    elif source_sign == REVERSE_SIGN[target_sign]:
+        minus = source_sign if SIGN_TO_STANDARD[source_sign] == '-' else\
+            REVERSE_SIGN[source_sign]
+        return source_name, target_name, minus
+    else:
+        logger.warning('Error translating signed nodes to signed edge using '
+                       '(%s, %s)' % (source, target))
+        return None, None, None
 
 
 # Copy from networkx.algorithms.simple_paths
@@ -585,4 +654,195 @@ def shortest_simple_paths(G, source, target, weight=None, ignore_nodes=None,
             listA.append(path)
             prev_path = path
         else:
+            break
+
+
+def get_sorted_neighbors(G, node, reverse, g_edges):
+    # better sorted key
+    """Sort by aggregated belief per edge"""
+    neighbors = G.predecessors(node) if reverse else G.successors(node)
+    # Check signed node
+    if isinstance(node, tuple):
+        if reverse:
+            return sorted(
+                neighbors,
+                key=lambda n:
+                    g_edges[signed_nodes_to_signed_edge(n, node)]['belief'],
+                reverse=True
+            )
+        else:
+            return sorted(
+                neighbors,
+                key=lambda n:
+                    g_edges[signed_nodes_to_signed_edge(node, n)]['belief'],
+                reverse=True)
+
+    else:
+        if reverse:
+            return sorted(neighbors,
+                          key=lambda n: g_edges[(n, node)]['belief'],
+                          reverse=True)
+        else:
+            return sorted(neighbors,
+                          key=lambda n: g_edges[(node, n)]['belief'],
+                          reverse=True)
+
+
+# Implementation inspired by networkx's
+# networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
+def bfs_search(g, source, g_nodes=None, g_edges=None, reverse=False,
+               depth_limit=2, path_limit=None, max_per_node=5,
+               node_filter=None, node_blacklist=None, terminal_ns=None,
+               sign=None):
+    """Do breadth first search from a given node and yield paths
+
+    Parameters
+    ----------
+    g : nx.Digraph
+        An nx.DiGraph to search in. Can also be a signed node graph.
+    source : node
+        Node in the graph to start from.
+    g_nodes : nx.classes.reportviews.nodesNodeView
+        The nodes property to look up nodes from. Set this if the node
+        attribute 'ns' needs to be looked up from another graph object than
+        the one provided as `g`. Default: g.nodes
+    g_edges : nx.classes.reportviews.OutMultiEdgeView|OutEdgeView
+        The edges property to look up edges and their data from. Set this if
+        the edge beliefs needs to be looked up from another grapth object
+        than `g`. Default: d.edges
+    reverse : bool
+        If True go upstream from source, otherwise go downstream. Default:
+        False.
+    depth_limit : int
+        Stop when all paths with this many edges have been found. Default: 2.
+    path_limit : int
+        The maximum number of paths to return. Default: no limit.
+    max_per_node : int
+        The maximum number of paths to yield per parent node. If 1 is
+        chosen, the search only goes down to the leaf node of its first
+        encountered branch. Default: 5
+    node_filter : list[str]
+        The allowed namespaces (node attribute 'ns') for the nodes in the
+        path
+    node_blacklist : set[node]
+        A set of nodes to ignore. Default: None.
+    terminal_ns : list[str]
+        Force a path to terminate when any of the namespaces in this list
+        are encountered.
+    sign : int
+        If set, defines the search to be a signed search. Default: None.
+
+    Yields
+    ------
+    path : tuple(node)
+        Paths in the bfs search starting from `source`.
+    """
+    g_nodes = g.nodes if g_nodes is None else g_nodes
+    g_edges = g.edges if g_edges is None else g_edges
+    if not isinstance(g_nodes, NodeView):
+        raise ValueError('Provided object for g_nodes is not a valid '
+                         'NodeView object')
+    if not isinstance(g_edges, (OutEdgeView, OutMultiEdgeView)):
+        raise ValueError('Provided object for g_edges is not a valid '
+                         'OutEdgeView or OutMultiEdgeView object')
+
+    queue = deque([(source,)])
+    visited = ({source}).union(node_blacklist) if node_blacklist else {source}
+    yielded_paths = 0
+    while queue:
+        cur_path = queue.popleft()
+        last_node = cur_path[-1]
+        node_name = last_node[0] if isinstance(last_node, tuple) else \
+            last_node
+
+        # if last node is in terminal_ns, continue to next path
+        if terminal_ns and g_nodes[node_name]['ns'].lower() in terminal_ns:
+            # Check correct leaf sign for signed search
+            continue
+
+        sorted_neighbors = get_sorted_neighbors(G=g, node=last_node,
+                                                reverse=reverse,
+                                                g_edges=g_edges)
+
+        yielded_neighbors = 0
+        # for neighb in neighbors:
+        for neighb in sorted_neighbors:
+            neig_name = neighb[0] if isinstance(neighb, tuple) else neighb
+
+            # Check cycles
+            if sign is not None:
+                # Avoid signed paths ending up on the opposite sign of the
+                # same node
+                if (neig_name, INT_MINUS) in cur_path or \
+                        (neig_name, INT_PLUS) in cur_path:
+                    continue
+            elif neighb in visited:
+                continue
+
+            # Check namespace
+            if node_filter and len(node_filter) > 0:
+                if g_nodes[neig_name]['ns'].lower() not in node_filter:
+                    continue
+
+            # Add to visited nodes and create new path
+            visited.add(neighb)
+            new_path = cur_path + (neighb,)
+
+            # Check yield and break conditions
+            if len(new_path) > depth_limit + 1:
+                continue
+            else:
+                # Yield newest path and recieve new ignore values
+
+                # Signed search yield
+                if sign is not None:
+                    if reverse:
+                        # Upstream signed search should not end in negative
+                        # node
+                        if new_path[-1][1] == INT_MINUS:
+                            ign_vals = None
+                            pass
+                        else:
+                            ign_vals = yield new_path
+                            yielded_paths += 1
+                            yielded_neighbors += 1
+
+                    else:
+                        # Downstream signed search has to end on node with
+                        # requested sign
+                        if new_path[-1][1] != sign:
+                            ign_vals = None
+                            pass
+                        else:
+                            ign_vals = yield new_path
+                            yielded_paths += 1
+                            yielded_neighbors += 1
+
+                # Unsigned search
+                else:
+                    ign_vals = yield new_path
+                    yielded_paths += 1
+                    yielded_neighbors += 1
+
+                # If new ignore nodes are recieved, update set
+                if ign_vals is not None:
+                    ign_nodes, ign_edges = ign_vals
+                    visited.update(ign_nodes)
+
+                # Check max paths reached, no need to add to queue
+                if path_limit and yielded_paths >= path_limit:
+                    break
+
+            # Append yielded path
+            queue.append(new_path)
+
+            # Check if we've visited enough neighbors
+            # Todo: add all neighbors to 'visited' and add all skipped
+            #  paths to queue? Currently only yielded paths are
+            #  investigated deeper
+            if max_per_node and yielded_neighbors >= max_per_node:
+                break
+
+        # Check path limit again to catch the inner break for path_limit
+        if path_limit and yielded_paths >= path_limit:
             break

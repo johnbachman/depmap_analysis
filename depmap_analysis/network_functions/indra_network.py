@@ -1,3 +1,4 @@
+import inspect
 import logging
 from itertools import product
 from collections import defaultdict
@@ -11,6 +12,11 @@ from indra.assemblers.indranet.net import default_sign_dict
 from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
+from depmap_analysis.network_functions.net_functions import \
+    SIGNS_TO_INT_SIGN, INT_PLUS, INT_MINUS, SIGN_TO_STANDARD, REVERSE_SIGN
+
+bfs_signature = inspect.signature(nf.bfs_search)
+bfs_kwargs = bfs_signature.parameters.keys()
 
 logger = logging.getLogger('indra network')
 
@@ -26,20 +32,13 @@ TIMEOUT = 30  # Timeout in seconds
 MIN_TIMEOUT = 2
 MAX_TIMEOUT = 120
 MAX_SIGNED_PATH_LEN = 7
-INT_PLUS = 0
-INT_MINUS = 1
-SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
-                    '-': '-', 'minus': '-', INT_MINUS: '-'}
-SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
-                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS}
-REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
-                '+': '-', '-': '+',
-                'plus': 'minus', 'minus': 'plus'}
-EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {}},
+EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {},
+                                        'path_hashes': []},
                 'common_targets': [],
+                'shared_regulators': [],
                 'common_parents': {},
                 'timeout': False}
-MANDATORY = ['source', 'target', 'stmt_filter', 'node_filter',
+MANDATORY = ['stmt_filter', 'node_filter',
              'path_length', 'weighted', 'bsco', 'fplx_expand',
              'k_shortest', 'curated_db_only', 'two_way']
 USER_OVERRIDE = False
@@ -185,11 +184,17 @@ class IndraNetwork:
             # todo Add detailed test with info of netork stats like number
             #  of nodes, edges, last updated, available network types
             return EMPTY_RESULT
+        if not (kwargs.get('source', False) or kwargs.get('target', False)):
+            raise KeyError('At least one of "source" or "target" has to be '
+                           'provided')
         if not all([key in kwargs for key in self.MANDATORY]):
             miss = [key in kwargs for key in self.MANDATORY].index(False)
             raise KeyError('Missing mandatory parameter "%s"' %
                            self.MANDATORY[miss])
         options = translate_query(kwargs)
+
+        # If open ended search, skip common parents, common targets,
+        # common regulators (for now).
 
         k_shortest = kwargs.pop('k_shortest', None)
         self.MAX_PATHS = k_shortest if k_shortest else MAX_PATHS
@@ -212,8 +217,8 @@ class IndraNetwork:
 
         ksp_backward = {}
         boptions = options.copy()
-        boptions['source'] = options['target']
-        boptions['target'] = options['source']
+        boptions['source'] = options.get('target')
+        boptions['target'] = options.get('source')
 
         # Special case: 1 or 2 unweighted, unsigned edges only
         if not options['weight'] and options['path_length'] in [1, 2]:
@@ -224,15 +229,22 @@ class IndraNetwork:
             ksp_forward = self.find_shortest_paths(**options)
             if options['two_way']:
                 ksp_backward = self.find_shortest_paths(**boptions)
-        ct = self.find_common_targets(**options)
-        sr = self.find_shared_regulators(**options) if\
-            options.get('shared_regulators', False) else []
-        cp = self.get_common_parents(**options)
-        if not ksp_forward and not ksp_backward and not ct and \
+        if options.get('source') and options.get('target'):
+            ct = self.find_common_targets(**options)
+            sr = self.find_shared_regulators(**options) if\
+                options.get('shared_regulators', False) else []
+            cp = self.get_common_parents(**options)
+        else:
+            ct = EMPTY_RESULT['common_targets']
+            cp = EMPTY_RESULT['common_parents']
+            sr = EMPTY_RESULT['shared_regulators']
+
+        if not ksp_forward and not ksp_backward and not ct and not sr and\
                 not cp.get('common_parents', []):
             ckwargs = options.copy()
             bckwargs = boptions.copy()
-            if kwargs['fplx_expand']:
+            if kwargs['fplx_expand'] and options.get('source') and \
+                    options.get('target'):
 
                 logger.info('No directed path found, looking for paths '
                             'connected by common parents of source and/or '
@@ -278,8 +290,8 @@ class IndraNetwork:
             logger.info('Query handling test passed')
             return False
         # Check if source or target is in blacklist
-        if options['source'] in options.get('node_blacklist') or\
-                options['target'] in options.get('node_blacklist'):
+        if options.get('source') in options.get('node_blacklist') or\
+                options.get('target') in options.get('node_blacklist'):
             logger.warning('Source and/or target is blacklisted!')
             # Return True so path is returned anyway
             return True
@@ -300,17 +312,25 @@ class IndraNetwork:
     def grounding_fallback(self, **ckwargs):
         """Retry search with alternative names found by grounding service"""
         logger.info('Expanding search using grounding service')
-        org_source = ckwargs['source']
-        org_target = ckwargs['target']
+        org_source = ckwargs.get('source')
+        org_target = ckwargs.get('target')
 
-        # ToDo establish grounding priority when scores are equal between
-        #  groundings
+        # ToDo:
+        #  -establish grounding priority when scores are equal between
+        #   groundings
+        #  -Add ignore list for new ns added for UP:PRO
 
         # Get groundings
-        src_groundings = requests.post(GRND_URI,
-                                       json={'text': org_source}).json()
-        trgt_groundings = requests.post(GRND_URI,
-                                        json={'text': org_target}).json()
+        if org_source:
+            src_groundings = requests.post(GRND_URI,
+                                           json={'text': org_source}).json()
+        else:
+            src_groundings = {}
+        if org_target:
+            trgt_groundings = requests.post(GRND_URI,
+                                            json={'text': org_target}).json()
+        else:
+            trgt_groundings = {}
 
         # Loop combinations of source and target groundings, break if
         # anything found
@@ -486,7 +506,7 @@ class IndraNetwork:
                        'ign_hashes': options.get('edge_hash_blacklist', [])}
         if options['sign'] is not None:
             sign_source, signed_target =\
-                path_sign_to_signed_nodes(source, target, options['sign'])
+                nf.path_sign_to_signed_nodes(source, target, options['sign'])
             sign_interm = set(self.sign_node_graph_repr.succ[sign_source]) & \
                 set(self.sign_node_graph_repr.pred[signed_target])
             paths_gen = _paths_genr(sign_source, signed_target, sign_interm,
@@ -515,7 +535,7 @@ class IndraNetwork:
                 edge_signs = None
             else:
                 path = [n[0] for n in _path]
-                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(_path[:-1], _path[1:])]
             hash_path = self._get_hash_path(path=path, source=source,
                                             target=target,
@@ -534,7 +554,7 @@ class IndraNetwork:
                 added_paths += 1
         return res
 
-    def find_shortest_paths(self, source, target, **options):
+    def find_shortest_paths(self, source=None, target=None, **options):
         """Return a list of shortest paths with their support in ascending
         order.
 
@@ -543,12 +563,34 @@ class IndraNetwork:
 
         If weighted, use
         depmap_analysis.network_functions.net_functions.shortest_simple_paths
+
+        If open ended, i.e. only source or target is provided, use
+        self.open_bfs
         """
         try:
-            logger.info('Doing simple %spath search' % 'weigthed '
-                        if options['weight'] else '')
             blacklist_options =\
                 {'ignore_nodes': options.get('node_blacklist', None)}
+            if bool(source) ^ bool(target):
+                logger.info('Doing open ended %sbreadth first search' %
+                            'signed ' if options.get('sign') is not None
+                            else '')
+                if source:
+                    # Open downstream search
+                    start_node = source
+                    reverse = False
+                else:
+                    # Open upstream search
+                    start_node = target
+                    reverse = True
+
+                if not self.nodes.get(start_node):
+                    raise NodeNotFound('Node %s not in graph' % start_node)
+
+                return self.open_bfs(source=start_node, reverse=reverse,
+                                     **options)
+            else:
+                logger.info('Doing simple %spath search' % 'weigthed '
+                            if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
                 paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
@@ -560,7 +602,9 @@ class IndraNetwork:
             else:
                 # Generate signed nodes from query's overall sign
                 (src, src_sign), (trgt, trgt_sign) =\
-                    path_sign_to_signed_nodes(source, target, options['sign'])
+                    nf.path_sign_to_signed_nodes(
+                        source, target, options['sign']
+                    )
                 # Get signed nodes for source and target
                 subj = (src, SIGNS_TO_INT_SIGN[src_sign])
                 obj = (trgt, SIGNS_TO_INT_SIGN[trgt_sign])
@@ -575,32 +619,158 @@ class IndraNetwork:
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
 
-        except NodeNotFound as e:
-            logger.warning(repr(e))
+        except NodeNotFound as err1:
+            logger.warning(repr(err1))
             return {}
-        except NetworkXNoPath as e:
-            logger.warning(repr(e))
+        except NetworkXNoPath as err2:
+            logger.warning(repr(err2))
             return {}
 
-    def find_shared_regulators(self, source, target, **options):
-        """Returns a list of statement data that explain shared regulators
-        for source and target"""
-        if source in self.nodes and target in self.nodes:
-            source_pred = set(self.nx_dir_graph_repr.pred[source].keys())
-            target_pred = set(self.nx_dir_graph_repr.pred[target].keys())
-            common = source_pred & target_pred
-            if common:
-                try:
-                    return self._loop_shared_regulators(shared_regs=common,
-                                                        source=source,
-                                                        target=target,
-                                                        **options)
-                except NodeNotFound as e:
-                    logger.warning(repr(e))
-                except NetworkXNoPath as e:
-                    logger.warning(repr(e))
+    def open_bfs(self, source, reverse=False, depth_limit=2,
+                 path_limit=None, terminal_ns=None, max_per_node=5,
+                 **options):
+        """Return paths and their data starting from source
 
-        return []
+        Parameters
+        ----------
+        source : str
+            Node to start search from
+        reverse : bool
+            If True, let source be the start of an upstream search.
+            Default: False
+        depth_limit : int
+            The maximum allowed depth (number of edges). Default: 2
+        path_limit : int
+            The maximum number of paths the generator should yield. Note
+            that this different from max_results which determines how many
+            paths to return from the path generator. Default: None (no limit).
+        terminal_ns : list[str]
+            Force a path to terminate when any of the namespaces in this
+            list are encountered. Default: ['chebi', 'pubchem'].
+        max_per_node : int
+            The maximum number of times a node can be a parent to leaf
+            nodes. Default: 5
+        options : kwargs
+            For a full list of options see
+            depmap_analysis.network_functions.net_functions::bfs_search
+            Notable options:
+                -max_results : int
+                    The maximum number of results to return. Default: 50.
+                -sign : int
+                    If sign is present as a kwarg, it specifies the sign of
+                    leaf node in the path, i.e. wether the leaf node is up-
+                    or downregulated.
+
+        Returns
+        -------
+        list
+            List of dicts with results. Each dict has the format:
+                {'path': <tuple of nodes>,
+                 'stmts': <data supporting the paths>}
+        """
+        # Signed search
+        if options.get('sign') is not None:
+            graph = self.sign_node_graph_repr
+            signed_node_blacklist = []
+            for node in options.get('node_blacklist', []):
+                signed_node_blacklist.extend([(node, INT_MINUS),
+                                              (node, INT_PLUS)])
+            options['node_blacklist'] = signed_node_blacklist
+
+            # Assign the correct sign to source:
+            # If search is downstream, source is the first node and the
+            # search must always start with + as node sign. The leaf node
+            # sign (i.e. the end of the path) in this case will then be
+            # determined by the requested sign.
+            # If reversed search, the source is the last node and can have
+            # + or - as node sign depending on the requested sign.
+            start_node = (source, INT_PLUS) if not reverse \
+                else ((source, INT_MINUS) if options['sign'] == INT_MINUS
+                      else (source, INT_PLUS))
+
+            # Nodes are used to check namespaces
+            options['g_nodes'] = self.nodes
+
+            # Edges are used to get belief scores in the neighbor lookup
+            options['g_edges'] = self.signed_edges
+
+        # Normal search
+        else:
+            graph = self.nx_dir_graph_repr
+            start_node = source
+
+        # Set default terminal_ns
+        if terminal_ns is None:
+            terminal_ns = ['chebi', 'pubchem']
+
+        # Limit search scope
+        #  -Ensure finite search: e.g. Can't have unlimited depth together
+        #   with no path limit and no max results limit
+        if depth_limit is None and path_limit is None and options.get(
+                'max_results', 0) > 10000:
+            raise ValueError('Limitless search deteced: depth_limit is '
+                             'None, path_limit is None and max_results > '
+                             '10000, aborting')
+
+        # Get the bfs options from options
+        bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
+        bfs_gen = nf.bfs_search(g=graph, source=start_node, reverse=reverse,
+                                depth_limit=depth_limit,
+                                path_limit=path_limit,
+                                max_per_node=max_per_node,
+                                terminal_ns=terminal_ns,
+                                **bfs_options)
+        return self._loop_bfs_paths(bfs_gen, source, reverse=reverse,
+                                    **options)
+
+    def _loop_bfs_paths(self, bfs_path_gen, source, reverse, **options):
+        result = defaultdict(list)
+        max_results = int(options['max_results']) \
+            if options.get('max_results') is not None else self.MAX_PATHS
+        added_paths = 0
+
+        # Loop paths
+        while True:
+            try:
+                path = next(bfs_path_gen)
+            except StopIteration:
+                logger.info('Reached StopIteration, all BFS paths found, '
+                            'breaking')
+                break
+
+            # Reverse path if reverse search
+            path = path[::-1] if reverse else path
+
+            # Handle signed path
+            if options.get('sign') is not None:
+                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
+                              for s, t in zip(path[:-1], path[1:])]
+                path = [n[0] for n in path]
+                graph_type = 'signed'
+            else:
+                edge_signs = None
+                graph_type = 'digraph'
+            hash_path = self._get_hash_path(path=path, source=source,
+                                            edge_signs=edge_signs,
+                                            graph_type=graph_type,
+                                            **options)
+
+            # Assemble results
+            if hash_path and all(hash_path):
+                result[len(path)].append({
+                    'path': path,
+                    'stmts': hash_path,
+                    'sort_key': str(self._get_sort_key(path, hash_path,
+                                                       edge_signs)),
+                    'cost': str(self._get_cost(path, edge_signs))
+                })
+                added_paths += 1
+
+                if added_paths >= max_results:
+                    logger.info('Max bfs paths found, returning')
+                    return result
+
+        return result
 
     def multi_regulators_targets(self, list_of_regulators=None,
                                  list_of_targets=None, **options):
@@ -742,6 +912,26 @@ class IndraNetwork:
                 'stmt_data': stmt_data,
                 'stmt_hashes': all_hashes}
 
+    def find_shared_regulators(self, source, target, **options):
+        """Returns a list of statement data that explain shared regulators
+        for source and target"""
+        if source in self.nodes and target in self.nodes:
+            source_pred = set(self.nx_dir_graph_repr.pred[source].keys())
+            target_pred = set(self.nx_dir_graph_repr.pred[target].keys())
+            common = source_pred & target_pred
+            if common:
+                try:
+                    return self._loop_shared_regulators(shared_regs=common,
+                                                        source=source,
+                                                        target=target,
+                                                        **options)
+                except NodeNotFound as e:
+                    logger.warning(repr(e))
+                except NetworkXNoPath as e:
+                    logger.warning(repr(e))
+
+        return []
+
     def _loop_shared_regulators(self, shared_regs, source, target,
                                 **options):
         """Order shared regulators by lowest highest belief score"""
@@ -881,7 +1071,7 @@ class IndraNetwork:
                 if sign is not None:
                     signed_path_nodes = next(paths_gen)
                     path = [n[0] for n in signed_path_nodes]
-                    edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
+                    edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
                                   for s, t in zip(signed_path_nodes[:-1],
                                                   signed_path_nodes[1:])]
                 else:
@@ -893,6 +1083,7 @@ class IndraNetwork:
                 logger.info('Reached StopIteration: all paths found. '
                             'breaking.')
                 break
+            # Todo: skip to correct length here already
             hash_path = self._get_hash_path(source=source, target=target,
                                             path=path, edge_signs=edge_signs,
                                             graph_type=graph_type,
@@ -905,7 +1096,8 @@ class IndraNetwork:
                 pd = {'stmts': hash_path,
                       'path': path,
                       'cost': str(self._get_cost(path, edge_signs)),
-                      'sort_key': str(self._get_sort_key(path, hash_path))}
+                      'sort_key': str(self._get_sort_key(path, hash_path,
+                                                         edge_signs))}
                 if not path_len or (path_len and path_len == len(path)):
                     result[len(path)].append(pd)
                     prev_path = pd
@@ -1209,11 +1401,11 @@ class IndraNetwork:
 
     def _aggregated_path_belief(self, path, edge_signs):
         if edge_signs:
-            edge_list = zip(path[:-1], path[1:], edge_signs)
+            belief_list = [self.signed_edges[e]['belief'] for e in
+                           zip(path[:-1], path[1:], edge_signs)]
         else:
-            edge_list = zip(path[:-1], path[1:])
-        belief_list = [self.dir_edges[e]['belief']
-                       for e in edge_list]
+            belief_list = [self.dir_edges[e]['belief'] for e in
+                           zip(path[:-1], path[1:])]
         return nf.ag_belief_score(belief_list)
 
     def _get_sort_key(self, path, hash_path, edge_signs=None, method=None):
@@ -1291,6 +1483,34 @@ def get_top_ranked_name(name, context=None):
     return none_triple
 
 
+def _open_ended_common_search(G, node_set_queue, allowed_ns=None,
+                              max_depth=4):
+    # Search common upstreams of all nodes in initial_nodes
+
+    # Get first node and its upstream nodes as a set
+    first_node = node_set_queue[-1][0]
+    upstreams = set(G.pred[first_node])
+
+    # Get the intersection of all upstreams
+    for node in node_set_queue[-1][1:]:
+        upstreams.intersection_update(set(G.pred[node]))
+
+    # Filter out the upstream set to allowed_ns if present
+    if allowed_ns:
+        upstreams = {n for n in upstreams if G.nodes[n]['ns'].lower() in
+                     allowed_ns}
+
+    if upstreams:
+        node_set_queue.append(list(upstreams))
+
+    if not upstreams or len(node_set_queue) >= max_depth:
+        return node_set_queue
+
+    else:
+        return _open_ended_common_search(G, node_set_queue, allowed_ns,
+                                         max_depth)
+
+
 def translate_query(query_json):
     """Translate query json"""
     options = {k: v for k, v in query_json.items()  # Handled below
@@ -1314,63 +1534,6 @@ def translate_query(query_json):
         if k == "cull_best_node":
             options[k] = int(v) if v >= 1 else float('NaN')
     return options
-
-
-def path_sign_to_signed_nodes(source, target, edge_sign):
-    """Translates a signed edge or path to valid signed nodes
-
-    Pairs with a negative source node are filtered out.
-
-    Paramters
-    ---------
-    source : str|int
-        The source node
-    target : str|int
-        The target node
-    edge_sign : Union(0, 1, '+', '-', 'plus', 'minus')
-        The sign of the edge
-
-    Returns
-    -------
-    sign_tuple : (a, sign), (b, sign)
-        Tuple of tuples of the valid combination of signed nodes
-    """
-    # + path -> (a+, b+)
-    # - path -> (a+, b-)
-    # (a-, b-) and (a-, b+) are also technically valid but not in this context
-    if SIGN_TO_STANDARD.get(edge_sign):
-        if SIGN_TO_STANDARD[edge_sign] == '+':
-            return (source, edge_sign), (target, edge_sign)
-        elif SIGN_TO_STANDARD[edge_sign] == '-':
-            return (source, REVERSE_SIGN[edge_sign]), (target, edge_sign)
-    else:
-        logger.warning('Invalid sign %s when translating signed edge to '
-                       'signed nodes' % edge_sign)
-        return ()
-
-
-def signed_nodes_to_signed_edge(source, target):
-    """Create the triple (node, node, sign) from a signed node pair
-
-    Assuming source, target forms an edge of signed nodes:
-    edge = (a, sign), (b, sign), return the corresponding signed edge triple
-    """
-    # + edge/path -> (a+, b+) and (a-, b-)
-    # - edge/path -> (a-, b+) and (a+, b-)
-    source_name, source_sign = source
-    target_name, target_sign = target
-    if source_sign == target_sign:
-        plus = source_sign if SIGN_TO_STANDARD[source_sign] == '+' else \
-            REVERSE_SIGN[source_sign]
-        return source_name, target_name, plus
-    elif source_sign == REVERSE_SIGN[target_sign]:
-        minus = source_sign if SIGN_TO_STANDARD[source_sign] == '-' else\
-            REVERSE_SIGN[source_sign]
-        return source_name, target_name, minus
-    else:
-        logger.warning('Error translating signed nodes to signed edge using '
-                       '(%s, %s)' % (source, target))
-        return None, None, None
 
 
 def list_all_hashes(ksp_results):
