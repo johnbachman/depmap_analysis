@@ -691,9 +691,9 @@ def get_sorted_neighbors(G, node, reverse, g_edges):
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
 def bfs_search(g, source, g_nodes=None, g_edges=None, reverse=False,
-               depth_limit=2,
-               path_limit=None, max_per_node=5, node_filter=None,
-               node_blacklist=None, terminal_ns=None, sign=None):
+               depth_limit=2, path_limit=None, max_per_node=5,
+               node_filter=None, node_blacklist=None, terminal_ns=None,
+               sign=None):
     """Do breadth first search from a given node and yield paths
 
     Parameters
