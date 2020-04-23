@@ -1,31 +1,42 @@
 import networkx as nx
-from random import random
 from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from depmap_analysis.network_functions.net_functions import bfs_search, \
     INT_PLUS, INT_MINUS
 
+# Set up
+dg = nx.DiGraph()
 all_ns = ['a', 'b', 'c', 'd', 'z']
+edges = [('Z1', 'A1'), ('A1', 'B1'), ('A2', 'B1'), ('A3', 'B2'),
+         ('A4', 'B2'), ('B1', 'C1'), ('B2', 'C1'), ('B3', 'C1'),
+         ('C1', 'D1')]
+
+# Ensures alphabetical order
+edge_beliefs = {('Z1', 'A1'): 1-0.2,
+                ('A1', 'B1'): 1-0.2,
+                ('A2', 'B1'): 1-0.3,
+                ('A3', 'B2'): 1-0.5,
+                ('A4', 'B2'): 1-0.6,
+                ('B1', 'C1'): 1-0.2,
+                ('B2', 'C1'): 1-0.3,
+                ('B3', 'C1'): 1-0.4,
+                ('C1', 'D1'): 1-0.2}
+dg.add_edges_from(edges)
+
+# Add belief
+for e in dg.edges:
+    dg.edges[e]['belief'] = edge_beliefs[e]
+
+# Add namespaces
+nodes1, nodes2 = list(zip(*edges))
+nodes = set(nodes1).union(nodes2)
+for node in nodes:
+    ns = node[0]
+    _id = node[1]
+    dg.nodes[node]['ns'] = ns
+    dg.nodes[node]['id'] = _id
 
 
 def test_bfs():
-    dg = nx.DiGraph()
-    edges = [('Z1', 'A1'), ('A1', 'B1'), ('A2', 'B1'), ('A3', 'B2'),
-             ('A4', 'B2'), ('B1', 'C1'), ('B2', 'C1'), ('B3', 'C1'),
-             ('C1', 'D1')]
-    dg.add_edges_from(edges)
-
-    # Add belief
-    for e in dg.edges:
-        dg.edges[e]['belief'] = random()
-
-    nodes1, nodes2 = list(zip(*edges))
-    nodes = set(nodes1).union(nodes2)
-    for node in nodes:
-        ns = node[0]
-        _id = node[1]
-        dg.nodes[node]['ns'] = ns
-        dg.nodes[node]['id'] = _id
-
     # Test basic part of algorithm
     assert len([p for p in
                 bfs_search(dg, 'C1', depth_limit=1, reverse=True)]) == 3
@@ -84,27 +95,6 @@ def test_bfs():
 
 
 def test_signed_bfs():
-    dg = nx.DiGraph()
-    edges = [
-        ('Z1', 'A1'),
-        ('A1', 'B1'),
-        ('A2', 'B1'),
-        ('A3', 'B2'),
-        ('A4', 'B2'),
-        ('B1', 'C1'),
-        ('B2', 'C1'),
-        ('B3', 'C1'),
-        ('C1', 'D1')
-    ]
-    dg.add_edges_from(edges)
-    nodes1, nodes2 = list(zip(*edges))
-    nodes = set(nodes1).union(nodes2)
-    for node in nodes:
-        ns = node[0]
-        _id = node[1]
-        dg.nodes[node]['ns'] = ns
-        dg.nodes[node]['id'] = _id
-
     seg = nx.MultiDiGraph()
     signed_edges = [
         ('Z1', 'A1', INT_PLUS),  # 1
