@@ -214,7 +214,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     hashes = []
     beliefs = []
     for k, v in belief_dict.items():
-        hashes.append(k)
+        hashes.append(int(k))
         beliefs.append(v)
 
     merged_df = merged_df.merge(
@@ -234,7 +234,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     hashes = []
     strat_dicts = []
     for k, v in sed.items():
-        hashes.append(k)
+        hashes.append(int(k))
         strat_dicts.append(v)
 
     merged_df = merged_df.merge(
