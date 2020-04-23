@@ -30,6 +30,7 @@ JSON_CACHE = path.join(API_PATH, '_json_res')
 SIF_BUCKET = 'bigmech'
 DUMPS_PREFIX = 'indra-db/dumps'
 NET_BUCKET = 'depmap-analysis'
+NEW_NETS_PREFIX = 'indra_db_files/new'
 DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
 DT_YmdHMS = '%Y%m%d%H%M%S'
 DT_Ymd = '%Y%m%d'
@@ -368,9 +369,9 @@ def read_query_json_from_s3(s3_key):
     return _read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
 
 
-def _dump_pickle_to_s3(name, indranet_graph_object):
+def _dump_pickle_to_s3(name, indranet_graph_object, prefix=''):
     s3 = get_s3_client(unsigned=False)
-    key = 'indra_db_files/temp/' + name
+    key = prefix + name
     s3.put_object(Bucket=NET_BUCKET, Key=key,
                   Body=pickle.dumps(obj=indranet_graph_object))
 
@@ -388,20 +389,20 @@ def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
         dump_it_to_pickle(INDRA_MDG_CACHE, network)
         if dump_to_s3:
-            _dump_pickle_to_s3(INDRA_MDG, network)
+            _dump_pickle_to_s3(INDRA_MDG, network, prefix=NEW_NETS_PREFIX)
     if dg:
         network = nf.sif_dump_df_to_digraph(**options)
         dump_it_to_pickle(INDRA_DG_CACHE, network)
         if dump_to_s3:
-            _dump_pickle_to_s3(INDRA_DG, network)
+            _dump_pickle_to_s3(INDRA_DG, network, prefix=NEW_NETS_PREFIX)
     if sg:
         network, isng = nf.sif_dump_df_to_digraph(graph_type='signed',
                                                   **options)
         dump_it_to_pickle(INDRA_SEG_CACHE, network)
         dump_it_to_pickle(INDRA_SNG_CACHE, isng)
         if dump_to_s3:
-            _dump_pickle_to_s3(INDRA_SEG, network)
-            _dump_pickle_to_s3(INDRA_SNG, network)
+            _dump_pickle_to_s3(INDRA_SEG, network, prefix=NEW_NETS_PREFIX)
+            _dump_pickle_to_s3(INDRA_SNG, network, prefix=NEW_NETS_PREFIX)
 
 
 if __name__ == '__main__':
