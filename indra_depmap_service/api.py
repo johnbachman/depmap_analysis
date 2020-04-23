@@ -398,7 +398,8 @@ def breadth_search():
         'source': query_json['source'],
         'reverse': query_json.get('reverse', False),
         'depth_limit': int(query_json.get('depth_limit', 2)),
-        'path_limit': int(query_json.get('path_limit', 100)),
+        'path_limit': int(query_json['path_limit']) if query_json.get(
+            'path_limit') else None,
         'node_filter': allowed_ns,
         'node_blacklist': query_json.get('node_blacklist', []),
         'bsco': float(query_json.get('belief_cutoff', 0)),
