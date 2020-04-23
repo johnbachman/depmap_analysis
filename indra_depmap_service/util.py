@@ -402,7 +402,7 @@ def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
         dump_it_to_pickle(INDRA_SNG_CACHE, isng)
         if dump_to_s3:
             _dump_pickle_to_s3(INDRA_SEG, network, prefix=NEW_NETS_PREFIX)
-            _dump_pickle_to_s3(INDRA_SNG, network, prefix=NEW_NETS_PREFIX)
+            _dump_pickle_to_s3(INDRA_SNG, isng, prefix=NEW_NETS_PREFIX)
 
 
 if __name__ == '__main__':
