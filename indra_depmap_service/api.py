@@ -406,8 +406,8 @@ def breadth_search():
         'stmt_filter': query_json.get('skip_stmt_types', []),
         'curated_db_only': bool(query_json.get('db_only', False)),
         'terminal_ns': query_json.get('terminal_ns',  ['chebi', 'pubchem']),
-        'max_results': query_json.get('max_results', 50),
-        'max_per_node': query_json.get('max_per_node', 5),
+        'max_results': int(query_json.get('max_results', 50)),
+        'max_per_node': int(query_json.get('max_per_node', 5)),
         'sign': sign
     }
     try:
