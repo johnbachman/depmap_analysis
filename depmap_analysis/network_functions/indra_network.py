@@ -725,7 +725,9 @@ class IndraNetwork:
 
     def _loop_bfs_paths(self, bfs_path_gen, source, reverse, **options):
         result = defaultdict(list)
-        max_results = options.get('max_results', self.MAX_PATHS)
+        max_results = int(options['max_results']) \
+            if options.get('max_results') is not None else self.MAX_PATHS
+        added_paths = 0
 
         # Loop paths
         while True:
@@ -762,8 +764,9 @@ class IndraNetwork:
                                                        edge_signs)),
                     'cost': str(self._get_cost(path, edge_signs))
                 })
+                added_paths += 1
 
-                if len(result) >= max_results:
+                if added_paths >= max_results:
                     logger.info('Max bfs paths found, returning')
                     return result
 
