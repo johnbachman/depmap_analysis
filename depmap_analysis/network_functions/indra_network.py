@@ -660,13 +660,6 @@ class IndraNetwork:
                     If sign is present as a kwarg, it specifies the sign of
                     leaf node in the path, i.e. wether the leaf node is up-
                     or downregulated.
-                -depth_limit : int
-                    The maximum number of edges allowed in returned paths
-                -path_limit : int
-                    The maximum number of paths to yield
-                -terminal_ns : list[str]
-                    Do not yield further paths from nodes found with any of
-                    the provided namespaces. Default: ['CHEBI', 'PUBCHEM']
 
         Returns
         -------
