@@ -631,11 +631,8 @@ class IndraNetwork:
                  **options):
         """Return paths and their data starting from source
 
-        'depth_limit': int(query_json.get('depth_limit', 2)),
-        'path_limit': int(query_json.get('path_limit', 100)),
-        'terminal_ns': query_json.get('terminal_ns',  ['chebi', 'pubchem']),
-        'max_per_node': query_json.get('max_per_node', 5),
-
+        Parameters
+        ----------
         source : str
             Node to start search from
         reverse : bool
@@ -650,6 +647,9 @@ class IndraNetwork:
         terminal_ns : list[str]
             Force a path to terminate when any of the namespaces in this
             list are encountered. Default: ['chebi', 'pubchem'].
+        max_per_node : int
+            The maximum number of times a node can be a parent to leaf
+            nodes. Default: 5
         options : kwargs
             For a full list of options see
             depmap_analysis.network_functions.net_functions::bfs_search
@@ -660,6 +660,13 @@ class IndraNetwork:
                     If sign is present as a kwarg, it specifies the sign of
                     leaf node in the path, i.e. wether the leaf node is up-
                     or downregulated.
+                -depth_limit : int
+                    The maximum number of edges allowed in returned paths
+                -path_limit : int
+                    The maximum number of paths to yield
+                -terminal_ns : list[str]
+                    Do not yield further paths from nodes found with any of
+                    the provided namespaces. Default: ['CHEBI', 'PUBCHEM']
 
         Returns
         -------
