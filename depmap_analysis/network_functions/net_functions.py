@@ -17,6 +17,9 @@ from indra.assemblers.english import EnglishAssembler
 from indra.statements import Agent, get_statement_by_name
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
+from indra.assemblers.pybel import PybelAssembler
+from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
+from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from indra_reading.readers import get_reader_classes
 
 from indra.explanation.model_checker.model_checker import \
@@ -305,10 +308,11 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     -------
     indranet_graph : IndraNet(graph_type)
         The type is determined by the graph_type argument"""
-    graph_options = ['digraph', 'multidigraph', 'signed']
-    if graph_type not in graph_options:
+    graph_options = ('digraph', 'multidigraph', 'signed', 'pybel')
+    if graph_type.lower() not in graph_options:
         raise ValueError('Graph type %s not supported. Can only chose between'
                          ' %s' % (graph_type, graph_options))
+    graph_type = graph_type.lower()
 
     sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict,
                                 verbosity=verbosity)
@@ -339,6 +343,9 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         return signed_edge_graph, signed_node_graph
+
+    elif graph_type == 'pybel':
+        return sif_df_to_pybel_sg(sif_df)
 
     # Add hierarchy relations to graph (not applicable for signed graphs)
     if include_entity_hierarchies and graph_type in ('multidigraph',
@@ -416,6 +423,51 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         indranet_graph.graph['node_by_uri'] = node_by_uri
     indranet_graph.graph['node_by_ns_id'] = ns_id_to_nodename
     return indranet_graph
+
+
+def sif_df_to_pybel_sg(sif_df):
+    """Create a signed pybel graph from
+
+    Parameters
+    ----------
+    sif_df : pd.DataFrame
+
+    Returns
+    -------
+    tuple(nx.DiGraph, nx.MultiDiGraph)
+    """
+    def stmt_mapper(row):
+        # At minimum we have agents, evidence count, stmt_hash, stmt_type
+        # With merged data we also have, English, source counts, beliefs
+
+        # if row.has_state:
+        #     # todo for future implementation of bound condition, mods,
+        #     #  mutations etc
+        #     pass
+        # else:
+        agA = Agent(name=row.agA_name, db_refs={row.agA_ns: row.agA_id})
+        agB = Agent(name=row.agB_name, db_refs={row.agB_ns: row.agB_id})
+        StCl = get_statement_by_name(row.stmt_type)
+
+        if row.stmt_type.lower() == 'complex':
+            return StCl(members=[agA, agB])
+        else:
+            return StCl(agA, agB)
+
+    # Fill stmt column
+    sif_df['stmt'] = sif_df.apply(func=stmt_mapper, axis=1)
+
+    # Assemble Pybel model
+    pb = PybelAssembler(stmts=list(sif_df['stmt'].values))
+    pb_model = pb.make_model()
+
+    # Get a signed edge graph
+    pb_signed_edge_graph = belgraph_to_signed_graph(pb_model)
+
+    # Get the signed node graph
+    pb_signed_node_graph = signed_edges_to_signed_nodes(pb_signed_edge_graph)
+
+    return pb_signed_edge_graph, pb_signed_node_graph
 
 
 def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
