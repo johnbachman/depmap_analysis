@@ -421,8 +421,8 @@ def breadth_search():
     except Exception as err:
         logger.warning('Exception handling open bfs search')
         logger.exception(err)
-        abort(Response('Internal server error handling multi interactors '
-                       'query: %s' % str(err), 500))
+        abort(Response('Internal server error handling breadth first '
+                       'search.', 500))
 
 
 @app.route('/node', methods=['POST'])
