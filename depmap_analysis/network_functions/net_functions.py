@@ -298,7 +298,8 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         Return type for the returned graph. Currently supports:
             - 'digraph': IndraNet(nx.DiGraph) (Default)
             - 'multidigraph': IndraNet(nx.MultiDiGraph)
-            - 'signed': SignedGraphModelChecker(ModelChecker)
+            - 'signed': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
+            - 'pybel': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
     include_entity_hierarchies : bool
         Default: True
     verbosity: int
