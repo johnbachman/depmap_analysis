@@ -455,6 +455,10 @@ def sif_df_to_pybel_sg(sif_df):
         else:
             return StCl(agA, agB)
 
+    # FixMe Filter out Conversions for now until extra state information has
+    #  been added
+    sif_df = sif_df[sif_df['stmt_type'] != 'Conversion']
+
     # Fill stmt column
     sif_df['stmt'] = sif_df.apply(func=stmt_mapper, axis=1)
 
