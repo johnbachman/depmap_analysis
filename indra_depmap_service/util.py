@@ -41,6 +41,8 @@ INDRA_MDG = 'indranet_multi_digraph_latest.pkl'
 INDRA_DG = 'indranet_dir_graph_latest.pkl'
 INDRA_SNG = 'indranet_sign_node_graph_latest.pkl'
 INDRA_SEG = 'indranet_sign_edge_graph_latest.pkl'
+INDRA_PBSNG = 'indranet_sign_node_pybel_latest.pkl'
+INDRA_PBSEG = 'indranet_sign_edge_pybel_latest.pkl'
 
 TEST_MDG_CACHE = path.join(CACHE, 'test_mdg_network.pkl')
 INDRA_MDG_CACHE = path.join(CACHE, INDRA_MDG)
@@ -48,6 +50,8 @@ TEST_DG_CACHE = path.join(CACHE, 'test_dir_network.pkl')
 INDRA_DG_CACHE = path.join(CACHE, INDRA_DG)
 INDRA_SNG_CACHE = path.join(CACHE, INDRA_SNG)
 INDRA_SEG_CACHE = path.join(CACHE, INDRA_SEG)
+INDRA_PBSNG_CACHE = path.join(CACHE, INDRA_PBSNG)
+INDRA_PBSEG_CACHE = path.join(CACHE, INDRA_PBSEG)
 
 
 def todays_date():
@@ -376,7 +380,8 @@ def _dump_pickle_to_s3(name, indranet_graph_object, prefix=''):
                   Body=pickle.dumps(obj=indranet_graph_object))
 
 
-def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
+def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
+                  verbosity=0):
     """Main script function for dumping new networks from latest db dumps"""
     df, sev, bd = _get_latest_files_s3()
     options = {'df': df,
@@ -404,6 +409,15 @@ def dump_new_nets(mdg=None, dg=None, sg=None, dump_to_s3=False, verbosity=0):
             _dump_pickle_to_s3(INDRA_SEG, network, prefix=NEW_NETS_PREFIX)
             _dump_pickle_to_s3(INDRA_SNG, isng, prefix=NEW_NETS_PREFIX)
 
+    if spbg:
+        pb_seg, pb_sng = nf.sif_dump_df_to_digraph(graph_type='pybel',
+                                                   **options)
+        dump_it_to_pickle(INDRA_PBSNG_CACHE, pb_sng)
+        dump_it_to_pickle(INDRA_PBSEG_CACHE, pb_seg)
+        if dump_to_s3:
+            _dump_pickle_to_s3(INDRA_SNG, pb_sng, prefix=NEW_NETS_PREFIX)
+            _dump_pickle_to_s3(INDRA_SEG, pb_seg, prefix=NEW_NETS_PREFIX)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Dump new networks')
@@ -413,7 +427,11 @@ if __name__ == '__main__':
                         action='store_true', default=False)
     parser.add_argument('--sg', help='Dump new signed edge and node graphs',
                         action='store_true', default=False)
+    parser.add_argument('--pb', help='Dump new PyBel signed edge and node '
+                                     'graphs',
+                        action='store_true', default=False)
     parser.add_argument('--s3', help='Also upload the new graphs to s3',
                         action='store_true', default=False)
     args = parser.parse_args()
-    dump_new_nets(mdg=args.mdg, dg=args.dg, sg=args.sg, dump_to_s3=args.s3)
+    dump_new_nets(mdg=args.mdg, dg=args.dg, sg=args.sg, spbg=args.pb,
+                  dump_to_s3=args.s3)
