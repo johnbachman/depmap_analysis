@@ -245,7 +245,8 @@ def process_query():
                 query_json_fname = '%s_query.json' % qh
                 s3_query_res = dump_query_result_to_s3(
                     filename=query_json_fname,
-                    json_obj=query_json
+                    json_obj=query_json,
+                    get_url=False
                 )
 
             # Non empty new result
@@ -261,13 +262,15 @@ def process_query():
                 query_json_fname = '%s_query.json' % qh
                 s3_query = dump_query_result_to_s3(
                     filename=query_json_fname,
-                    json_obj=query_json
+                    json_obj=query_json,
+                    get_url=True
                 )
                 # Upload query result
                 res_json_fname = '%s_result.json' % qh
                 s3_query_res = dump_query_result_to_s3(
                     filename=res_json_fname,
-                    json_obj=result
+                    json_obj=result,
+                    get_url=True
                 )
                 logger.info('Uploaded query and results to %s and %s' %
                             (s3_query, s3_query_res))
