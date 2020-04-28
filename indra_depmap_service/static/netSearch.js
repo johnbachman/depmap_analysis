@@ -218,15 +218,19 @@ function fillOldQuery(oldQueryJson) {
 function fillResultsTable(data, source, target){
   console.log(data);
   const statusBox = document.getElementById('query-status');
-  if (isEmptyResult(data.result, false) && !source && !target) return false;
+  if (isEmptyResult(data.result, false) && !source && !target) {
+    console.log('Empty result!')
+    return false;
+  }
+
   let downloadURL = `${S3_QUERY_CAHCE}${data.query_hash}_result.json`;
   let downloadLink = '';
   if (downloadURL) {
     downloadLink = ` Click <a href="${downloadURL}" download>here</a> to download the results as a json`
   }
-  if (data.result.common_targets.length > 0 ||
-      Object.keys(data.result.common_parents).length > 0 ||
-      Object.keys(data.result.paths_by_node_count).length > 0) {
+  if ((data.result.common_targets && data.result.common_targets.length > 0) ||
+      (data.result.common_parents && Object.keys(data.result.common_parents).length > 0) ||
+      (data.result.paths_by_node_count && Object.keys(data.result.paths_by_node_count).length > 0)) {
     if (data.result.timeout) statusBox.innerHTML = 'Query timed out with' +
       ' results!' + downloadLink;
     else statusBox.innerHTML = 'Query resolved!' + downloadLink;
@@ -242,7 +246,8 @@ function fillResultsTable(data, source, target){
     pathStmtHashes = data.result.paths_by_node_count.path_hashes;
 
     // Fill common parents table
-    if (data.result.common_parents.common_parents &&
+    if (data.result.common_parents &&
+        data.result.common_parents.common_parents &&
         data.result.common_parents.common_parents.length > 0) {
       let cardHtml = generateCommonParents();
       tableArea.appendChild(cardHtml);
