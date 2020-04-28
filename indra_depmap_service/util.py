@@ -348,7 +348,9 @@ def dump_result_json_to_s3(query_hash, json_obj, get_url=False):
 def dump_query_result_to_s3(filename, json_obj, get_url=False):
     download_link = _dump_json_to_s3(name=filename, json_obj=json_obj,
                                      public=True, get_url=get_url)
-    return download_link.split('?')[0]
+    if get_url:
+        return download_link.split('?')[0]
+    return None
 
 
 def read_query_json_from_s3(s3_key):
