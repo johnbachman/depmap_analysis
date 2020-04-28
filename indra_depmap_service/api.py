@@ -353,14 +353,29 @@ def multi_interactors():
     else:
         options['list_of_regulators'] = query_json['regulators']
 
-    try:
-        result = indra_network.multi_regulators_targets(**options)
-        return jsonify(result)
-    except Exception as err:
-        logger.warning('Error handling multi interactors query')
-        logger.exception(err)
-        abort(Response('Internal server error handling multi interactors '
-                       'query', 500))
+    query_hash = get_query_hash(options)
+
+    # Check if query exists
+    s3_keys = check_existence_and_date_s3(query_hash=query_hash)
+    if s3_keys.get('result_json_key'):
+        result = read_query_json_from_s3(s3_keys['result_json_key'])
+    else:
+        try:
+            result = indra_network.multi_regulators_targets(**options)
+            result['query_hash'] = query_hash
+            result['ui_link'] = url_for('get_query_page', query=query_hash)
+            # Upload the query
+            dump_query_json_to_s3(query_hash=query_hash, json_obj=options,
+                                  get_url=False)
+            # Upload the result
+            dump_result_json_to_s3(query_hash=query_hash, json_obj=result,
+                                   get_url=False)
+        except Exception as err:
+            logger.warning('Error handling multi interactors query')
+            logger.exception(err)
+            abort(Response('Internal server error handling multi interactors '
+                           'query', 500))
+    return jsonify(result)
 
 
 @app.route('/bfs_search', methods=['POST'])
