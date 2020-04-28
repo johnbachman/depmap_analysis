@@ -43,9 +43,9 @@ VERBOSITY = int(environ.get('VERBOSITY', 0))
 API_DEBUG = int(environ.get('API_DEBUG', 0))
 if API_DEBUG:
     logger.info('API_DEBUG set to %d' % API_DEBUG)
-    SERVICE_BASE_URL = 'https://network.indra.bio'
-else:
     SERVICE_BASE_URL = 'http://localhost:5000'
+else:
+    SERVICE_BASE_URL = 'https://network.indra.bio'
 
 if not STMTS_FROM_HSH_URL:
     if API_DEBUG:
