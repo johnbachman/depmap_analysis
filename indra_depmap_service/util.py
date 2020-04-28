@@ -335,6 +335,16 @@ def _read_json_from_s3(s3, key, bucket):
     return json_obj
 
 
+def dump_query_json_to_s3(query_hash, json_obj, get_url=False):
+    filename = '%s_query.json' % query_hash
+    return dump_query_result_to_s3(filename, json_obj, get_url)
+
+
+def dump_result_json_to_s3(query_hash, json_obj, get_url=False):
+    filename = '%s_result.json' % query_hash
+    return dump_query_result_to_s3(filename, json_obj, get_url)
+
+
 def dump_query_result_to_s3(filename, json_obj, get_url=False):
     download_link = _dump_json_to_s3(name=filename, json_obj=json_obj,
                                      public=True, get_url=get_url)
