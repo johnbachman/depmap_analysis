@@ -884,33 +884,37 @@ class IndraNetwork:
 
     def _loop_direct_regulators_multi(self, targets, regulators,
                                       ign, **options):
-        stmt_data = {}
-        all_hashes = {}
+        result = defaultdict(list)
+        all_hashes = []
         for reg in regulators:
             data = {}
-            hashes = {}
+            hashes = []
             for target in targets:
                 # get hash path for each target-regulator pair
                 ign_node = reg if ign == 'regulators' else target
                 hash_path = self._get_hash_path(path=[reg, target],
                                                 source=ign_node, **options)
                 if hash_path and hash_path[0]:
+                    result['2'].append({
+                        'path': [reg, target],
+                        'stmts': hash_path,
+                        'sort_key': str(self._get_sort_key([reg, target],
+                                                           hash_path,
+                                                           None)),
+                        'cost': str(self._get_cost([reg, target]))
+                    })
                     data[target] = hash_path[0]
                     # The hash path will be a list of len 1 since we only
                     # have one direct edge
                     for key, dl in hash_path[0].items():
                         if key not in {'subj', 'obj'}:
-                            hashes[target] = {
-                                key: [d['stmt_hash'] for d in dl]
-                            }
-            if data:
-                stmt_data[reg] = data
+                            hashes.extend([d['stmt_hash'] for d in dl])
             if hashes:
-                all_hashes[reg] = hashes
-        return {'targets': list(targets),
-                'regulators': list(regulators),
-                'stmt_data': stmt_data,
-                'stmt_hashes': all_hashes}
+                all_hashes.extend(hashes)
+        return {'result': {'paths_by_node_count': {'forward': result},
+                           'path_hashes': all_hashes},
+                'targets': list(targets),
+                'regulators': list(regulators)}
 
     def find_shared_regulators(self, source, target, **options):
         """Returns a list of statement data that explain shared regulators
