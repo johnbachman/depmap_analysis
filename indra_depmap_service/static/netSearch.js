@@ -144,12 +144,14 @@ function isEmptyResult(resultJson, allowTimeOut=false) {
   has to be from a non-timed out query to be considered empty.
   */
   if (allowTimeOut) {
-  return $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
+  return $.isEmptyObject(resultJson.paths_by_node_count) &&
+    $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
     $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
     $.isEmptyObject(resultJson.common_targets) &&
     $.isEmptyObject(resultJson.common_parents)
   } else {
-  return $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
+  return $.isEmptyObject(resultJson.paths_by_node_count) &&
+    $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
     $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
     $.isEmptyObject(resultJson.common_targets) &&
     $.isEmptyObject(resultJson.common_parents) &&
