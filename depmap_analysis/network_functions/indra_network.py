@@ -911,10 +911,17 @@ class IndraNetwork:
                             hashes.extend([d['stmt_hash'] for d in dl])
             if hashes:
                 all_hashes.extend(hashes)
-        return {'result': {'paths_by_node_count': {'forward': result},
-                           'path_hashes': all_hashes},
-                'targets': list(targets),
-                'regulators': list(regulators)}
+
+        return {
+            'result': {
+                'paths_by_node_count': {
+                    'forward': result,
+                    'path_hashes': all_hashes
+                },
+            },
+            'targets': list(targets),
+            'regulators': list(regulators)
+        }
 
     def find_shared_regulators(self, source, target, **options):
         """Returns a list of statement data that explain shared regulators
