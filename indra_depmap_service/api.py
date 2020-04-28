@@ -43,6 +43,9 @@ VERBOSITY = int(environ.get('VERBOSITY', 0))
 API_DEBUG = int(environ.get('API_DEBUG', 0))
 if API_DEBUG:
     logger.info('API_DEBUG set to %d' % API_DEBUG)
+    SERVICE_BASE_URL = 'https://network.indra.bio'
+else:
+    SERVICE_BASE_URL = 'http://localhost:5000'
 
 if not STMTS_FROM_HSH_URL:
     if API_DEBUG:
@@ -363,7 +366,8 @@ def multi_interactors():
         try:
             result = indra_network.multi_regulators_targets(**options)
             result['query_hash'] = query_hash
-            result['ui_link'] = url_for('get_query_page', query=query_hash)
+            result['ui_link'] = \
+                SERVICE_BASE_URL + url_for('get_query_page', query=query_hash)
             # Upload the query
             dump_query_json_to_s3(query_hash=query_hash, json_obj=options,
                                   get_url=False)
