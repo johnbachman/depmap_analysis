@@ -117,6 +117,8 @@ def sorted_json_string(json_thing):
                                          for k, v in json_thing.items())))
     elif isinstance(json_thing, (int, float)):
         return str(json_thing)
+    elif json_thing is None:
+        return json.dumps(json_thing)
     else:
         raise TypeError('Invalid type: %s' % type(json_thing))
 
