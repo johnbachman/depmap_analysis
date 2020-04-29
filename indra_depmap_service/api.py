@@ -4,7 +4,7 @@ from sys import argv
 from os import makedirs, environ
 from time import time, gmtime, strftime
 
-from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
+from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST_
 from flask import Flask, request, abort, Response, render_template, jsonify,\
     session, url_for
 
@@ -186,7 +186,7 @@ def get_query_page():
     return render_template('query_template.html',
                            query_hash=qh,
                            stmt_types=stmt_types,
-                           node_name_spaces=list(NS_LIST),
+                           node_name_spaces=list(NS_LIST_),
                            has_signed_graph=has_signed_graph,
                            old_result=json.dumps(results_json),
                            old_query=json.dumps(query_json),
@@ -333,7 +333,7 @@ def multi_interactors():
     # *stmt_filter
     # *curated_db_only
     allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
-    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+    default_ns = list(map(lambda s: s.lower(), NS_LIST_))
 
     if not allowed_ns:
         allowed_ns = default_ns
@@ -394,7 +394,7 @@ def breadth_search():
 
     # Make lowercase
     allowed_ns = [ns.lower() for ns in query_json.get('node_filter', [])]
-    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+    default_ns = list(map(lambda s: s.lower(), NS_LIST_))
 
     if not allowed_ns:
         allowed_ns = default_ns
