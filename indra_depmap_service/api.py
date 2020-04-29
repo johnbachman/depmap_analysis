@@ -12,7 +12,7 @@ from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
 
 from depmap_analysis.network_functions.indra_network import IndraNetwork, \
-    EMPTY_RESULT
+    EMPTY_RESULT, list_all_hashes
 from depmap_analysis.network_functions.net_functions import SIGNS_TO_INT_SIGN
 
 from .util import *
@@ -434,14 +434,52 @@ def breadth_search():
             query_json.get('max_per_node'), (str, int)) else None,
         'sign': sign
     }
-    try:
-        results = indra_network.open_bfs(**options)
-        return jsonify(results)
-    except Exception as err:
-        logger.warning('Exception handling open bfs search')
-        logger.exception(err)
-        abort(Response('Internal server error handling breadth first '
-                       'search.', 500))
+
+    # Get query hash
+    query_hash = get_query_hash(options)
+
+    # Check if result exists
+    s3_keys = check_existence_and_date_s3(query_hash=query_hash)
+    if s3_keys.get('result_json_key'):
+        results = read_query_json_from_s3(s3_keys['result_json_key'])
+    else:
+        try:
+            # Get results
+            bfs_result = indra_network.open_bfs(**options)
+            all_hashes = list_all_hashes(bfs_result)
+
+            # Create UI friendly json
+            results = {
+                'result': {
+                    'paths_by_node_count': {
+                        'forward': bfs_result,
+                        'path_hashes': all_hashes
+                    },
+                },
+                'query_hash': query_hash,
+                'ui_link': SERVICE_BASE_URL + url_for('get_query_page',
+                                                      query=query_hash)
+            }
+
+            # Put 'source' as 'target'
+            if options.get('reverse'):
+                source = options.pop('source')
+                options['target'] = source
+            # Upload the query
+            dump_query_json_to_s3(query_hash=query_hash, json_obj=options,
+                                  get_url=False)
+
+            # Upload the resuls
+            dump_result_json_to_s3(query_hash=query_hash, json_obj=results,
+                                   get_url=False)
+
+        except Exception as err:
+            logger.warning('Exception handling open bfs search')
+            logger.exception(err)
+            abort(Response('Internal server error handling breadth first '
+                           'search.', 500))
+
+    return jsonify(results)
 
 
 @app.route('/node', methods=['POST'])
