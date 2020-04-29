@@ -417,7 +417,7 @@ def breadth_search():
 
     # If reversed, search upstream instead of downstream from source
     options = {
-        'source': query_json['source'],
+        'start_node': query_json['source'],
         'reverse': query_json.get('reverse', False),
         'depth_limit': int(query_json.get('depth_limit', 2)),
         'path_limit': int(query_json['path_limit']) if query_json.get(
@@ -434,6 +434,11 @@ def breadth_search():
             query_json.get('max_per_node'), (str, int)) else None,
         'sign': sign
     }
+
+    if options['reverse']:
+        options['target'] = options['start_node']
+    else:
+        options['source'] = options['start_node']
 
     # Get query hash
     query_hash = get_query_hash(options)
@@ -461,10 +466,6 @@ def breadth_search():
                                                       query=query_hash)
             }
 
-            # Put 'source' as 'target'
-            if options.get('reverse'):
-                source = options.pop('source')
-                options['target'] = source
             # Upload the query
             dump_query_json_to_s3(query_hash=query_hash, json_obj=options,
                                   get_url=False)

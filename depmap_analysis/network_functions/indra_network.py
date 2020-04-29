@@ -586,7 +586,7 @@ class IndraNetwork:
                 if not self.nodes.get(start_node):
                     raise NodeNotFound('Node %s not in graph' % start_node)
 
-                return self.open_bfs(source=start_node, reverse=reverse,
+                return self.open_bfs(start_node=start_node, reverse=reverse,
                                      **options)
             else:
                 logger.info('Doing simple %spath search' % 'weigthed '
@@ -626,14 +626,14 @@ class IndraNetwork:
             logger.warning(repr(err2))
             return {}
 
-    def open_bfs(self, source, reverse=False, depth_limit=2,
+    def open_bfs(self, start_node, reverse=False, depth_limit=2,
                  path_limit=None, terminal_ns=None, max_per_node=5,
                  **options):
         """Return paths and their data starting from source
 
         Parameters
         ----------
-        source : str
+        start_node : str
             Node to start search from
         reverse : bool
             If True, let source be the start of an upstream search.
@@ -684,9 +684,9 @@ class IndraNetwork:
             # determined by the requested sign.
             # If reversed search, the source is the last node and can have
             # + or - as node sign depending on the requested sign.
-            start_node = (source, INT_PLUS) if not reverse \
-                else ((source, INT_MINUS) if options['sign'] == INT_MINUS
-                      else (source, INT_PLUS))
+            starting_node = (start_node, INT_PLUS) if not reverse \
+                else ((start_node, INT_MINUS) if options['sign'] == INT_MINUS
+                      else (start_node, INT_PLUS))
 
             # Nodes are used to check namespaces
             options['g_nodes'] = self.nodes
@@ -697,7 +697,7 @@ class IndraNetwork:
         # Normal search
         else:
             graph = self.nx_dir_graph_repr
-            start_node = source
+            starting_node = start_node
 
         # Set default terminal_ns
         if terminal_ns is None:
@@ -714,13 +714,13 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        bfs_gen = nf.bfs_search(g=graph, source=start_node, reverse=reverse,
+        bfs_gen = nf.bfs_search(g=graph, source=starting_node, reverse=reverse,
                                 depth_limit=depth_limit,
                                 path_limit=path_limit,
                                 max_per_node=max_per_node,
                                 terminal_ns=terminal_ns,
                                 **bfs_options)
-        return self._loop_bfs_paths(bfs_gen, source, reverse=reverse,
+        return self._loop_bfs_paths(bfs_gen, start_node, reverse=reverse,
                                     **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source, reverse, **options):
