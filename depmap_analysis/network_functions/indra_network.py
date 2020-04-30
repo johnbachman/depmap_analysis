@@ -714,20 +714,22 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        bfs_gen = nf.bfs_search(g=graph, source=starting_node, reverse=reverse,
-                                depth_limit=depth_limit,
+        bfs_gen = nf.bfs_search(g=graph, source_node=starting_node,
+                                reverse=reverse, depth_limit=depth_limit,
                                 path_limit=path_limit,
                                 max_per_node=max_per_node,
                                 terminal_ns=terminal_ns,
                                 **bfs_options)
-        return self._loop_bfs_paths(bfs_gen, start_node, reverse=reverse,
-                                    **options)
+        return self._loop_bfs_paths(bfs_gen, source_node=start_node,
+                                    reverse=reverse, **options)
 
-    def _loop_bfs_paths(self, bfs_path_gen, source, reverse, **options):
+    def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
         max_results = int(options['max_results']) \
             if options.get('max_results') is not None else self.MAX_PATHS
         added_paths = 0
+        _ = options.pop('source', None)
+        _ = options.pop('target', None)
 
         # Loop paths
         while True:
@@ -750,7 +752,7 @@ class IndraNetwork:
             else:
                 edge_signs = None
                 graph_type = 'digraph'
-            hash_path = self._get_hash_path(path=path, source=source,
+            hash_path = self._get_hash_path(path=path, source=source_node,
                                             edge_signs=edge_signs,
                                             graph_type=graph_type,
                                             **options)
