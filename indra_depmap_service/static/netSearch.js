@@ -1,5 +1,5 @@
 const SUBMIT_URL = './query/submit';
-const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/statements/from_agents?format=html&';
+const INDRA_DB_URL_AGENTS = 'https://db.indra.bio/latest/statements/from_agents?format=html&';
 const S3_QUERY_CAHCE = 'https://bigmech.s3.amazonaws.com/indra_network_search/';
 const MAX_K_PATHS = 50;
 let pathStmtHashes = [];
