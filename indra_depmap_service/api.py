@@ -4,7 +4,7 @@ from sys import argv
 from os import makedirs, environ
 from time import time, gmtime, strftime
 
-from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST
+from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST_
 from flask import Flask, request, abort, Response, render_template, jsonify,\
     session, url_for
 
@@ -12,7 +12,7 @@ from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
 
 from depmap_analysis.network_functions.indra_network import IndraNetwork, \
-    EMPTY_RESULT
+    EMPTY_RESULT, list_all_hashes
 from depmap_analysis.network_functions.net_functions import SIGNS_TO_INT_SIGN
 
 from .util import *
@@ -43,6 +43,9 @@ VERBOSITY = int(environ.get('VERBOSITY', 0))
 API_DEBUG = int(environ.get('API_DEBUG', 0))
 if API_DEBUG:
     logger.info('API_DEBUG set to %d' % API_DEBUG)
+    SERVICE_BASE_URL = 'http://localhost:5000'
+else:
+    SERVICE_BASE_URL = 'https://network.indra.bio'
 
 if not STMTS_FROM_HSH_URL:
     if API_DEBUG:
@@ -183,7 +186,7 @@ def get_query_page():
     return render_template('query_template.html',
                            query_hash=qh,
                            stmt_types=stmt_types,
-                           node_name_spaces=list(NS_LIST),
+                           node_name_spaces=list(NS_LIST_),
                            has_signed_graph=has_signed_graph,
                            old_result=json.dumps(results_json),
                            old_query=json.dumps(query_json),
@@ -245,7 +248,8 @@ def process_query():
                 query_json_fname = '%s_query.json' % qh
                 s3_query_res = dump_query_result_to_s3(
                     filename=query_json_fname,
-                    json_obj=query_json
+                    json_obj=query_json,
+                    get_url=False
                 )
 
             # Non empty new result
@@ -261,13 +265,15 @@ def process_query():
                 query_json_fname = '%s_query.json' % qh
                 s3_query = dump_query_result_to_s3(
                     filename=query_json_fname,
-                    json_obj=query_json
+                    json_obj=query_json,
+                    get_url=True
                 )
                 # Upload query result
                 res_json_fname = '%s_result.json' % qh
                 s3_query_res = dump_query_result_to_s3(
                     filename=res_json_fname,
-                    json_obj=result
+                    json_obj=result,
+                    get_url=True
                 )
                 logger.info('Uploaded query and results to %s and %s' %
                             (s3_query, s3_query_res))
@@ -327,7 +333,7 @@ def multi_interactors():
     # *stmt_filter
     # *curated_db_only
     allowed_ns = [ns.lower() for ns in query_json.get('allowed_ns', [])]
-    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+    default_ns = list(map(lambda s: s.lower(), NS_LIST_))
 
     if not allowed_ns:
         allowed_ns = default_ns
@@ -350,14 +356,30 @@ def multi_interactors():
     else:
         options['list_of_regulators'] = query_json['regulators']
 
-    try:
-        result = indra_network.multi_regulators_targets(**options)
-        return jsonify(result)
-    except Exception as err:
-        logger.warning('Error handling multi interactors query')
-        logger.exception(err)
-        abort(Response('Internal server error handling multi interactors '
-                       'query', 500))
+    query_hash = get_query_hash(options)
+
+    # Check if query exists
+    s3_keys = check_existence_and_date_s3(query_hash=query_hash)
+    if s3_keys.get('result_json_key'):
+        result = read_query_json_from_s3(s3_keys['result_json_key'])
+    else:
+        try:
+            result = indra_network.multi_regulators_targets(**options)
+            result['query_hash'] = query_hash
+            result['ui_link'] = \
+                SERVICE_BASE_URL + url_for('get_query_page', query=query_hash)
+            # Upload the query
+            dump_query_json_to_s3(query_hash=query_hash, json_obj=options,
+                                  get_url=False)
+            # Upload the result
+            dump_result_json_to_s3(query_hash=query_hash, json_obj=result,
+                                   get_url=False)
+        except Exception as err:
+            logger.warning('Error handling multi interactors query')
+            logger.exception(err)
+            abort(Response('Internal server error handling multi interactors '
+                           'query', 500))
+    return jsonify(result)
 
 
 @app.route('/bfs_search', methods=['POST'])
@@ -372,7 +394,7 @@ def breadth_search():
 
     # Make lowercase
     allowed_ns = [ns.lower() for ns in query_json.get('node_filter', [])]
-    default_ns = list(map(lambda s: s.lower(), NS_LIST))
+    default_ns = list(map(lambda s: s.lower(), NS_LIST_))
 
     if not allowed_ns:
         allowed_ns = default_ns
@@ -395,7 +417,7 @@ def breadth_search():
 
     # If reversed, search upstream instead of downstream from source
     options = {
-        'source': query_json['source'],
+        'start_node': query_json['source'],
         'reverse': query_json.get('reverse', False),
         'depth_limit': int(query_json.get('depth_limit', 2)),
         'path_limit': int(query_json['path_limit']) if query_json.get(
@@ -412,14 +434,53 @@ def breadth_search():
             query_json.get('max_per_node'), (str, int)) else None,
         'sign': sign
     }
-    try:
-        results = indra_network.open_bfs(**options)
-        return jsonify(results)
-    except Exception as err:
-        logger.warning('Exception handling open bfs search')
-        logger.exception(err)
-        abort(Response('Internal server error handling multi interactors '
-                       'query: %s' % str(err), 500))
+
+    if options['reverse']:
+        options['target'] = options['start_node']
+    else:
+        options['source'] = options['start_node']
+
+    # Get query hash
+    query_hash = get_query_hash(options)
+
+    # Check if result exists
+    s3_keys = check_existence_and_date_s3(query_hash=query_hash)
+    if s3_keys.get('result_json_key'):
+        results = read_query_json_from_s3(s3_keys['result_json_key'])
+    else:
+        try:
+            # Get results
+            bfs_result = indra_network.open_bfs(**options)
+            all_hashes = list_all_hashes(bfs_result)
+
+            # Create UI friendly json
+            results = {
+                'result': {
+                    'paths_by_node_count': {
+                        'forward': bfs_result,
+                        'path_hashes': all_hashes
+                    },
+                },
+                'query_hash': query_hash,
+                'ui_link': SERVICE_BASE_URL + url_for('get_query_page',
+                                                      query=query_hash)
+            }
+
+            # Upload the query
+            dump_query_json_to_s3(query_hash=query_hash, json_obj=options,
+                                  get_url=False)
+
+            # Upload the resuls
+            dump_result_json_to_s3(query_hash=query_hash, json_obj=results,
+                                   get_url=False)
+
+        except Exception as err:
+            logger.warning('Exception handling open bfs search')
+            logger.exception(err)
+            abort(Response('Internal server error handling breadth first '
+                           'search.', 500))
+
+    return jsonify(results)
 
 
 @app.route('/node', methods=['POST'])

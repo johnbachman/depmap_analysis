@@ -68,7 +68,7 @@ def test_bfs():
     expected_paths = {('D1', 'C1'), ('D1', 'C1', 'B1'),
                       ('D1', 'C1', 'B1', 'A1'),
                       ('D1', 'C1', 'B1', 'A1', 'Z1')}
-    paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
+    paths = [p for p in bfs_search(dg, 'D1', depth_limit=5,
                                    reverse=True, max_per_node=1,
                                    node_filter=all_ns)]
     assert len(paths) == 4, len(paths)
@@ -78,7 +78,7 @@ def test_bfs():
     # Terminate on 'b'
     expected_paths = {('D1', 'C1'), ('D1', 'C1', 'B1'), ('D1', 'C1', 'B2'),
                       ('D1', 'C1', 'B3')}
-    paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
+    paths = [p for p in bfs_search(dg, 'D1', depth_limit=5,
                                    reverse=True, terminal_ns=['b'],
                                    node_filter=all_ns)]
     assert len(paths) == 4, len(paths)
@@ -88,7 +88,7 @@ def test_bfs():
                       ('D1', 'C1', 'B3'), ('D1', 'C1', 'B1', 'A1'),
                       ('D1', 'C1', 'B1', 'A2'), ('D1', 'C1', 'B2', 'A3'),
                       ('D1', 'C1', 'B2', 'A4')}
-    paths = [p for p in bfs_search(g=dg, source='D1', depth_limit=5,
+    paths = [p for p in bfs_search(dg, 'D1', depth_limit=5,
                                    reverse=True, terminal_ns=['a'],
                                    node_filter=all_ns)]
     assert len(paths) == len(expected_paths), len(paths)
@@ -123,7 +123,8 @@ def test_signed_bfs():
 
     # D1 being upregulated: 12 paths
     paths = [p for p in bfs_search(
-        g=sng, source=('D1', INT_PLUS), g_nodes=dg.nodes, g_edges=seg.edges,
-        reverse=True, depth_limit=5, node_filter=all_ns, sign=INT_PLUS)
+        g=sng, source_node=('D1', INT_PLUS), g_nodes=dg.nodes,
+        g_edges=seg.edges, reverse=True, depth_limit=5, node_filter=all_ns,
+        sign=INT_PLUS)
     ]
     assert len(paths) == 13, len(paths)

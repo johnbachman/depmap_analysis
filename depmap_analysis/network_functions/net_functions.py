@@ -690,17 +690,17 @@ def get_sorted_neighbors(G, node, reverse, g_edges):
 
 # Implementation inspired by networkx's
 # networkx.algorithms.traversal.breadth_first_search::generic_bfs_edges
-def bfs_search(g, source, g_nodes=None, g_edges=None, reverse=False,
+def bfs_search(g, source_node, g_nodes=None, g_edges=None, reverse=False,
                depth_limit=2, path_limit=None, max_per_node=5,
                node_filter=None, node_blacklist=None, terminal_ns=None,
-               sign=None):
+               sign=None, **kwargs):
     """Do breadth first search from a given node and yield paths
 
     Parameters
     ----------
     g : nx.Digraph
         An nx.DiGraph to search in. Can also be a signed node graph.
-    source : node
+    source_node : node
         Node in the graph to start from.
     g_nodes : nx.classes.reportviews.nodesNodeView
         The nodes property to look up nodes from. Set this if the node
@@ -746,8 +746,9 @@ def bfs_search(g, source, g_nodes=None, g_edges=None, reverse=False,
         raise ValueError('Provided object for g_edges is not a valid '
                          'OutEdgeView or OutMultiEdgeView object')
 
-    queue = deque([(source,)])
-    visited = ({source}).union(node_blacklist) if node_blacklist else {source}
+    queue = deque([(source_node,)])
+    visited = ({source_node}).union(node_blacklist) \
+        if node_blacklist else {source_node}
     yielded_paths = 0
     while queue:
         cur_path = queue.popleft()
