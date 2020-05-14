@@ -1,3 +1,4 @@
+import json
 import logging
 from decimal import Decimal
 from collections import defaultdict
@@ -14,13 +15,13 @@ from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
 from indra.belief import load_default_probs
 from indra.assemblers.english import EnglishAssembler
-from indra.statements import Agent, get_statement_by_name
+from indra.statements import Agent, get_statement_by_name, stmts_from_json
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
-from indra.explanation.model_checker import signed_edges_to_signed_nodes
 from indra_reading.readers import get_reader_classes
+from indra_db.util.constructors import get_ro, get_db
 
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
@@ -299,7 +300,6 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
             - 'digraph': IndraNet(nx.DiGraph) (Default)
             - 'multidigraph': IndraNet(nx.MultiDiGraph)
             - 'signed': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
-            - 'pybel': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
     include_entity_hierarchies : bool
         Default: True
     verbosity: int
@@ -344,9 +344,6 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         return signed_edge_graph, signed_node_graph
-
-    elif graph_type == 'pybel':
-        return sif_df_to_pybel_sg(sif_df)
 
     # Add hierarchy relations to graph (not applicable for signed graphs)
     if include_entity_hierarchies and graph_type in ('multidigraph',
@@ -426,52 +423,71 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     return indranet_graph
 
 
-def sif_df_to_pybel_sg(sif_df):
-    """Create a signed pybel graph from
+def db_dump_to_pybel_sg(db_label='primary', read_only=False, force=False):
+    """Create a signed pybel graph from an evidenceless dump from the db
 
     Parameters
     ----------
-    sif_df : pd.DataFrame
+    db_label : str
+        Optional. The db label to use. Default: 'primary'.
+    read_only : bool
+        Optional. If True, use the read only database. Default: False.
+    force : bool
+        Optional. If True, skip initial warning of high RAM usage requiring
+        user input.
 
     Returns
     -------
     tuple(nx.DiGraph, nx.MultiDiGraph)
     """
-    def stmt_mapper(row):
-        # At minimum we have agents, evidence count, stmt_hash, stmt_type
-        # With merged data we also have, English, source counts, beliefs
+    # Warn user about high RAM usage
+    if not force:
+        cont = input('WARNING: this operation requires about 100 G of '
+                     'available memory. Continue? [y/n]')
+        while cont.lower() not in {'n', 'y'}:
+            cont = input('Continue? [y/n]')
 
-        # if row.has_state:
-        #     # todo for future implementation of bound condition, mods,
-        #     #  mutations etc
-        #     pass
-        # else:
-        agA = Agent(name=row.agA_name, db_refs={row.agA_ns: row.agA_id})
-        agB = Agent(name=row.agB_name, db_refs={row.agB_ns: row.agB_id})
-        StCl = get_statement_by_name(row.stmt_type)
+        if cont.lower() == 'n':
+            return
 
-        if row.stmt_type.lower() == 'complex':
-            return StCl(members=[agA, agB])
-        else:
-            return StCl(agA, agB)
+    # Get db
+    db = get_ro(db_label) if read_only else get_db(db_label)
 
-    # FixMe Filter out Conversions for now until extra state information has
-    #  been added
-    sif_df = sif_df[sif_df['stmt_type'] != 'Conversion']
+    # Query
+    logger.info('Querying database for all statements as bytes json')
+    query_res = db.filter_query(db.FastRaw)
+    stmts_list = stmts_from_json([json.loads(jo[0]) for jo in query_res.all()])
 
-    # Fill stmt column
-    sif_df['stmt'] = sif_df.apply(func=stmt_mapper, axis=1)
+    # Filter bad statements
+    logger.info('Fltering out statements with bad position attribute')
+    filtered_stmts = []
+    for st in stmts_list:
+        try:
+            pos = getattr(st, 'position')
+            try:
+                if pos and str(int(float(pos))) != pos:
+                    continue
+                else:
+                    filtered_stmts.append(st)
+            except ValueError:
+                continue
+        except AttributeError:
+            filtered_stmts.append(st)
 
     # Assemble Pybel model
-    pb = PybelAssembler(stmts=list(sif_df['stmt'].values))
+    logger.info('Assembling PyBEL model')
+    pb = PybelAssembler(stmts=filtered_stmts)
     pb_model = pb.make_model()
 
     # Get a signed edge graph
+    logger.info('Getting a PyBEL signed edge graph')
     pb_signed_edge_graph = belgraph_to_signed_graph(pb_model)
 
     # Get the signed node graph
+    logger.info('Getting a signed node graph from signed edge graph')
     pb_signed_node_graph = signed_edges_to_signed_nodes(pb_signed_edge_graph)
 
+    logger.info('Done assembling signed edge and signed node PyBEL graphs')
     return pb_signed_edge_graph, pb_signed_node_graph
 
 
