@@ -38,7 +38,7 @@ INT_MINUS = 1
 SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
                     '-': '-', 'minus': '-', INT_MINUS: '-'}
 SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
-                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS,
+                     '-': INT_MINUS, 'minus': INT_MINUS, INT_MINUS: INT_MINUS,
                      None: None}
 REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
@@ -46,9 +46,6 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
 
 READERS = set([rc.name.lower() for rc in get_reader_classes()])
 READERS.update(['medscan', 'rlimsp'])
-
-INT_PLUS = 0
-INT_MINUS = 1
 
 
 def _get_smallest_belief_prior():
