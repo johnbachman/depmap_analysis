@@ -456,7 +456,9 @@ def db_dump_to_pybel_sg(db_label='primary', read_only=False, force=False):
     # Query
     logger.info('Querying database for all statements as bytes json')
     query_res = db.filter_query(db.FastRaw)
-    stmts_list = stmts_from_json([json.loads(jo[0]) for jo in query_res.all()])
+    stmts_list = stmts_from_json([
+        json.loads(jo[0]) for jo in query_res.all()
+    ])
 
     # Filter bad statements
     logger.info('Fltering out statements with bad position attribute')
@@ -465,12 +467,14 @@ def db_dump_to_pybel_sg(db_label='primary', read_only=False, force=False):
         try:
             pos = getattr(st, 'position')
             try:
-                if pos and str(int(float(pos))) != pos:
+                if pos is not None and str(int(float(pos))) != pos:
                     continue
                 else:
                     filtered_stmts.append(st)
+            # Pos is not convertible to float
             except ValueError:
                 continue
+        # Not a statement with a position attribute
         except AttributeError:
             filtered_stmts.append(st)
 
