@@ -9,7 +9,8 @@ import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
 from indra.config import CONFIG_DICT
 from indra.assemblers.indranet.net import default_sign_dict
-from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes
+from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes,\
+    signed_nodes_to_signed_edge, path_sign_to_signed_nodes
 from indra.explanation.pathfinding import shortest_simple_paths
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
@@ -507,7 +508,7 @@ class IndraNetwork:
                        'ign_hashes': options.get('edge_hash_blacklist', [])}
         if options['sign'] is not None:
             sign_source, signed_target =\
-                nf.path_sign_to_signed_nodes(source, target, options['sign'])
+                path_sign_to_signed_nodes(source, target, options['sign'])
             sign_interm = set(self.sign_node_graph_repr.succ[sign_source]) & \
                 set(self.sign_node_graph_repr.pred[signed_target])
             paths_gen = _paths_genr(sign_source, signed_target, sign_interm,
@@ -536,7 +537,7 @@ class IndraNetwork:
                 edge_signs = None
             else:
                 path = [n[0] for n in _path]
-                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
+                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(_path[:-1], _path[1:])]
             hash_path = self._get_hash_path(path=path, source=source,
                                             target=target,
@@ -602,8 +603,8 @@ class IndraNetwork:
                 obj = target
             else:
                 # Generate signed nodes from query's overall sign
-                (src, src_sign), (trgt, trgt_sign) =\
-                    nf.path_sign_to_signed_nodes(
+                (src, src_sign), (trgt, trgt_sign) = \
+                    path_sign_to_signed_nodes(
                         source, target, options['sign']
                     )
                 # Get signed nodes for source and target
@@ -746,7 +747,7 @@ class IndraNetwork:
 
             # Handle signed path
             if options.get('sign') is not None:
-                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
+                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(path[:-1], path[1:])]
                 path = [n[0] for n in path]
                 graph_type = 'signed'
@@ -1085,7 +1086,7 @@ class IndraNetwork:
                 if sign is not None:
                     signed_path_nodes = next(paths_gen)
                     path = [n[0] for n in signed_path_nodes]
-                    edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
+                    edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                                   for s, t in zip(signed_path_nodes[:-1],
                                                   signed_path_nodes[1:])]
                 else:
