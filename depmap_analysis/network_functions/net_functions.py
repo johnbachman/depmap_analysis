@@ -534,6 +534,8 @@ def bfs_search(g, source_node, g_nodes=None, g_edges=None, reverse=False,
     path : tuple(node)
         Paths in the bfs search starting from `source`.
     """
+    int_plus = 0
+    int_minus = 1
     g_nodes = g.nodes if g_nodes is None else g_nodes
     g_edges = g.edges if g_edges is None else g_edges
     if not isinstance(g_nodes, NodeView):
@@ -571,8 +573,8 @@ def bfs_search(g, source_node, g_nodes=None, g_edges=None, reverse=False,
             if sign is not None:
                 # Avoid signed paths ending up on the opposite sign of the
                 # same node
-                if (neig_name, INT_MINUS) in cur_path or \
-                        (neig_name, INT_PLUS) in cur_path:
+                if (neig_name, int_minus) in cur_path or \
+                        (neig_name, int_plus) in cur_path:
                     continue
             elif neighb in visited:
                 continue
@@ -597,7 +599,7 @@ def bfs_search(g, source_node, g_nodes=None, g_edges=None, reverse=False,
                     if reverse:
                         # Upstream signed search should not end in negative
                         # node
-                        if new_path[-1][1] == INT_MINUS:
+                        if new_path[-1][1] == int_minus:
                             ign_vals = None
                             pass
                         else:
