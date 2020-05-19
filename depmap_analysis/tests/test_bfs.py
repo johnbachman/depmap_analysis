@@ -1,7 +1,7 @@
 import networkx as nx
 from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes
-from depmap_analysis.network_functions.net_functions import bfs_search, \
-    INT_PLUS, INT_MINUS
+from depmap_analysis.network_functions.net_functions import INT_PLUS, INT_MINUS
+from indra.explanation.pathfinding import bfs_search
 
 # Set up
 dg = nx.DiGraph()

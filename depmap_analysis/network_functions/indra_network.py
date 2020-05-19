@@ -11,14 +11,13 @@ from indra.config import CONFIG_DICT
 from indra.assemblers.indranet.net import default_sign_dict
 from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes,\
     signed_nodes_to_signed_edge, path_sign_to_signed_nodes
-from indra.explanation.pathfinding import shortest_simple_paths
+from indra.explanation.pathfinding import shortest_simple_paths, bfs_search
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.net_functions import \
     SIGNS_TO_INT_SIGN, INT_PLUS, INT_MINUS, SIGN_TO_STANDARD, REVERSE_SIGN
 
-bfs_signature = inspect.signature(nf.bfs_search)
-bfs_kwargs = bfs_signature.parameters.keys()
+bfs_kwargs = inspect.signature(bfs_search).parameters.keys()
 
 logger = logging.getLogger('indra network')
 
@@ -716,12 +715,10 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        bfs_gen = nf.bfs_search(g=graph, source_node=starting_node,
-                                reverse=reverse, depth_limit=depth_limit,
-                                path_limit=path_limit,
-                                max_per_node=max_per_node,
-                                terminal_ns=terminal_ns,
-                                **bfs_options)
+        bfs_gen = bfs_search(g=graph, source_node=starting_node,
+                             reverse=reverse, depth_limit=depth_limit,
+                             path_limit=path_limit, max_per_node=max_per_node,
+                             terminal_ns=terminal_ns, **bfs_options)
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
 
