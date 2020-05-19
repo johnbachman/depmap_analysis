@@ -1,5 +1,5 @@
 import networkx as nx
-from indra.explanation.model_checker import signed_edges_to_signed_nodes
+from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes
 from depmap_analysis.network_functions.net_functions import bfs_search, \
     INT_PLUS, INT_MINUS
 

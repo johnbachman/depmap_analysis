@@ -13,7 +13,7 @@ from networkx.classes.reportviews import OutMultiEdgeView, OutEdgeView, \
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
-from indra.explanation.model_checker import signed_edges_to_signed_nodes
+from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
