@@ -1,20 +1,16 @@
 import logging
 from decimal import Decimal
+import subprocess
 
 import requests
-import subprocess
 import numpy as np
 import pandas as pd
-import networkx as nx
-from collections import deque
 from requests.exceptions import ConnectionError
-from networkx.classes.reportviews import OutMultiEdgeView, OutEdgeView, \
-    NodeView
+
 from indra.config import CONFIG_DICT
 from indra.preassembler import hierarchy_manager as hm
 from indra.assemblers.indranet import IndraNet
-from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes, \
-    signed_nodes_to_signed_edge
+from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
