@@ -10,6 +10,7 @@ from networkx import NodeNotFound, NetworkXNoPath
 from indra.config import CONFIG_DICT
 from indra.assemblers.indranet.net import default_sign_dict
 from indra.explanation.model_checker import signed_edges_to_signed_nodes
+from indra.explanation.pathfinding import shortest_simple_paths
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.net_functions import \
@@ -562,7 +563,7 @@ class IndraNetwork:
         number of edges (unweighted search).
 
         If weighted, use
-        depmap_analysis.network_functions.net_functions.shortest_simple_paths
+        indra.explanation.pathfinding.shortest_simple_paths
 
         If open ended, i.e. only source or target is provided, use
         self.open_bfs
@@ -593,7 +594,7 @@ class IndraNetwork:
                             if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
-                paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
+                paths = shortest_simple_paths(self.nx_dir_graph_repr,
                                                  source, target,
                                                  options['weight'],
                                                  **blacklist_options)
@@ -612,7 +613,7 @@ class IndraNetwork:
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
-                paths = nf.shortest_simple_paths(
+                paths = shortest_simple_paths(
                     self.sign_node_graph_repr, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes)
 
