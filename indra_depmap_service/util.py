@@ -5,21 +5,20 @@ import pickle
 import logging
 import argparse
 import platform
-import networkx as nx
 from os import path, stat
-from fnvhash import fnv1a_32
 from datetime import datetime
+
+import networkx as nx
+from fnvhash import fnv1a_32
 from botocore.errorfactory import ClientError
 
 from indra.util.aws import get_s3_client, get_s3_file_tree
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.statements import get_all_descendants, Activation, Inhibition, \
-    IncreaseAmount, DecreaseAmount, AddModification, RemoveModification,\
+    IncreaseAmount, DecreaseAmount, AddModification, RemoveModification, \
     Complex
-
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
-
 
 logger = logging.getLogger('INDRA Network Search util')
 

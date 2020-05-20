@@ -2,8 +2,6 @@ import json
 import logging
 from decimal import Decimal
 from collections import defaultdict
-
-import requests
 import subprocess
 
 import requests
@@ -22,7 +20,6 @@ from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
 from indra_reading.readers import get_reader_classes
 from indra_db.util.constructors import get_ro, get_db
-
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.io_functions import pickle_open
