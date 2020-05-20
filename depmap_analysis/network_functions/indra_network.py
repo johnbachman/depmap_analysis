@@ -10,9 +10,10 @@ from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
 from indra.assemblers.indranet.net import default_sign_dict
-from indra.explanation.pathfinding_util import signed_edges_to_signed_nodes, \
+from indra.explanation.pathfinding.util import signed_edges_to_signed_nodes, \
     signed_nodes_to_signed_edge, path_sign_to_signed_nodes
-from indra.explanation.pathfinding import shortest_simple_paths, bfs_search
+from indra.explanation.pathfinding.pathfinding import shortest_simple_paths,\
+    bfs_search
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.net_functions import \
