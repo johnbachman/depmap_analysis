@@ -1,4 +1,3 @@
-import json
 import logging
 from decimal import Decimal
 from collections import defaultdict
@@ -19,9 +18,9 @@ from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
 from indra_reading.readers import get_reader_classes
-from indra_db.util.constructors import get_ro, get_db
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
+from depmap_analysis.util.aws import get_latest_pa_stmt_dump
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
@@ -417,42 +416,24 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     return indranet_graph
 
 
-def db_dump_to_pybel_sg(db_label='primary', read_only=False, force=False):
+def db_dump_to_pybel_sg(stmts_list=None):
     """Create a signed pybel graph from an evidenceless dump from the db
 
     Parameters
     ----------
-    db_label : str
-        Optional. The db label to use. Default: 'primary'.
-    read_only : bool
-        Optional. If True, use the read only database. Default: False.
-    force : bool
-        Optional. If True, skip initial warning of high RAM usage requiring
-        user input.
+    stmts_list : list[indrs.statements.Statement]
+        Provide a list of statements if they are already loaded. By default
+        the latest available pa statements dump is downloaded from s3.
+        Default: None.
 
     Returns
     -------
     tuple(nx.DiGraph, nx.MultiDiGraph)
     """
-    # Warn user about high RAM usage
-    if not force:
-        cont = input('WARNING: this operation requires about 100 G of '
-                     'available memory. Continue? [y/n]')
-        while cont.lower() not in {'n', 'y'}:
-            cont = input('Continue? [y/n]')
-
-        if cont.lower() == 'n':
-            return
-
-    # Get db
-    db = get_ro(db_label) if read_only else get_db(db_label)
-
-    # Query
-    logger.info('Querying database for all statements as bytes json')
-    query_res = db.filter_query(db.FastRaw)
-    stmts_list = stmts_from_json([
-        json.loads(jo[0]) for jo in query_res.all()
-    ])
+    # Get statement dump:
+    # Look for latest file on S3 and pickle.loads it
+    if stmts_list is None:
+        stmts_list = get_latest_pa_stmt_dump()
 
     # Filter bad statements
     logger.info('Fltering out statements with bad position attribute')
