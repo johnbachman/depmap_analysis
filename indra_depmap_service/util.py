@@ -10,8 +10,8 @@ from datetime import datetime
 import networkx as nx
 from fnvhash import fnv1a_32
 
-from depmap_analysis.util.aws import _get_latest_files_s3, _dump_json_to_s3, \
-    _read_json_from_s3, _dump_pickle_to_s3
+from depmap_analysis.util.aws import get_latest_sif_s3, dump_json_to_s3, \
+    read_json_from_s3, dump_pickle_to_s3
 from indra.util.aws import get_s3_client
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.statements import get_all_descendants, Activation, Inhibition, \
@@ -262,8 +262,8 @@ def dump_result_json_to_s3(query_hash, json_obj, get_url=False):
 
 
 def dump_query_result_to_s3(filename, json_obj, get_url=False):
-    download_link = _dump_json_to_s3(name=filename, json_obj=json_obj,
-                                     public=True, get_url=get_url)
+    download_link = dump_json_to_s3(name=filename, json_obj=json_obj,
+                                    public=True, get_url=get_url)
     if get_url:
         return download_link.split('?')[0]
     return None
@@ -272,13 +272,13 @@ def dump_query_result_to_s3(filename, json_obj, get_url=False):
 def read_query_json_from_s3(s3_key):
     s3 = get_s3_client(unsigned=False)
     bucket = DUMPS_BUCKET
-    return _read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
+    return read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
 
 
 def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
                   verbosity=0):
     """Main script function for dumping new networks from latest db dumps"""
-    df, sev, bd = _get_latest_files_s3()
+    df, sev, bd = get_latest_sif_s3()
     options = {'df': df,
                'belief_dict': bd,
                'strat_ev_dict': sev,
@@ -289,20 +289,20 @@ def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
         dump_it_to_pickle(INDRA_MDG_CACHE, network)
         if dump_to_s3:
-            _dump_pickle_to_s3(INDRA_MDG, network, prefix=NEW_NETS_PREFIX)
+            dump_pickle_to_s3(INDRA_MDG, network, prefix=NEW_NETS_PREFIX)
     if dg:
         network = nf.sif_dump_df_to_digraph(**options)
         dump_it_to_pickle(INDRA_DG_CACHE, network)
         if dump_to_s3:
-            _dump_pickle_to_s3(INDRA_DG, network, prefix=NEW_NETS_PREFIX)
+            dump_pickle_to_s3(INDRA_DG, network, prefix=NEW_NETS_PREFIX)
     if sg:
         network, isng = nf.sif_dump_df_to_digraph(graph_type='signed',
                                                   **options)
         dump_it_to_pickle(INDRA_SEG_CACHE, network)
         dump_it_to_pickle(INDRA_SNG_CACHE, isng)
         if dump_to_s3:
-            _dump_pickle_to_s3(INDRA_SEG, network, prefix=NEW_NETS_PREFIX)
-            _dump_pickle_to_s3(INDRA_SNG, isng, prefix=NEW_NETS_PREFIX)
+            dump_pickle_to_s3(INDRA_SEG, network, prefix=NEW_NETS_PREFIX)
+            dump_pickle_to_s3(INDRA_SNG, isng, prefix=NEW_NETS_PREFIX)
 
     if spbg:
         pb_seg, pb_sng = nf.sif_dump_df_to_digraph(graph_type='pybel',
@@ -310,8 +310,8 @@ def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
         dump_it_to_pickle(INDRA_PBSNG_CACHE, pb_sng)
         dump_it_to_pickle(INDRA_PBSEG_CACHE, pb_seg)
         if dump_to_s3:
-            _dump_pickle_to_s3(INDRA_SNG, pb_sng, prefix=NEW_NETS_PREFIX)
-            _dump_pickle_to_s3(INDRA_SEG, pb_seg, prefix=NEW_NETS_PREFIX)
+            dump_pickle_to_s3(INDRA_SNG, pb_sng, prefix=NEW_NETS_PREFIX)
+            dump_pickle_to_s3(INDRA_SEG, pb_seg, prefix=NEW_NETS_PREFIX)
 
 
 if __name__ == '__main__':

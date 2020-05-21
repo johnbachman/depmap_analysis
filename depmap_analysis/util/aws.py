@@ -8,7 +8,7 @@ from indra_depmap_service.util import DUMPS_BUCKET, DUMPS_PREFIX, logger, \
     NET_BUCKET
 
 
-def _get_latest_files_s3():
+def get_latest_sif_s3():
     necc_files = ['belief', 'sif', 'src_counts']
     s3 = get_s3_client(unsigned=False)
     tree = get_s3_file_tree(s3, bucket=DUMPS_BUCKET, prefix=DUMPS_PREFIX,
@@ -28,15 +28,16 @@ def _get_latest_files_s3():
                 # Save and continue to next file in necc_files
                 necc_keys[n] = k
                 break
-    df = _load_pickle_from_s3(s3, key=necc_keys['sif'],
+    df = load_pickle_from_s3(s3, key=necc_keys['sif'],
+                             bucket=DUMPS_BUCKET)
+    sev = load_pickle_from_s3(s3, key=necc_keys['src_counts'],
                               bucket=DUMPS_BUCKET)
-    sev = _load_pickle_from_s3(s3, key=necc_keys['src_counts'],
-                               bucket=DUMPS_BUCKET)
-    bd = _read_json_from_s3(s3, key=necc_keys['belief'],
-                            bucket=DUMPS_BUCKET)
+    bd = read_json_from_s3(s3, key=necc_keys['belief'],
+                           bucket=DUMPS_BUCKET)
     return df, sev, bd
 
-def _load_pickle_from_s3(s3, key, bucket):
+
+def load_pickle_from_s3(s3, key, bucket):
     try:
         res = s3.get_object(Key=key, Bucket=bucket)
         pyobj = pickle.loads(res['Body'].read())
@@ -46,7 +47,8 @@ def _load_pickle_from_s3(s3, key, bucket):
         raise err
     return pyobj
 
-def _dump_json_to_s3(name, json_obj, public=False, get_url=False):
+
+def dump_json_to_s3(name, json_obj, public=False, get_url=False):
     """Set public=True for public read access"""
     s3 = get_s3_client(unsigned=False)
     key = 'indra_network_search/' + name
@@ -60,7 +62,7 @@ def _dump_json_to_s3(name, json_obj, public=False, get_url=False):
             'get_object', Params={'Key': key, 'Bucket': DUMPS_BUCKET})
 
 
-def _read_json_from_s3(s3, key, bucket):
+def read_json_from_s3(s3, key, bucket):
     try:
         res = s3.get_object(Key=key, Bucket=bucket)
         json_obj = json.loads(res['Body'].read().decode())
@@ -69,6 +71,7 @@ def _read_json_from_s3(s3, key, bucket):
                      'object from s3')
         raise err
     return json_obj
+
 
 def check_existence_and_date_s3(query_hash, indranet_date=None):
     s3 = get_s3_client(unsigned=False)
@@ -100,7 +103,8 @@ def check_existence_and_date_s3(query_hash, indranet_date=None):
 
     return {}
 
-def _dump_pickle_to_s3(name, indranet_graph_object, prefix=''):
+
+def dump_pickle_to_s3(name, indranet_graph_object, prefix=''):
     s3 = get_s3_client(unsigned=False)
     key = prefix + name
     s3.put_object(Bucket=NET_BUCKET, Key=key,
