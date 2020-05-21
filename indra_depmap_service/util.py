@@ -10,15 +10,14 @@ from datetime import datetime
 import networkx as nx
 from fnvhash import fnv1a_32
 
-from depmap_analysis.util.aws import get_latest_sif_s3, dump_json_to_s3, \
-    read_json_from_s3, dump_pickle_to_s3
-from indra.util.aws import get_s3_client
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.statements import get_all_descendants, Activation, Inhibition, \
     IncreaseAmount, DecreaseAmount, AddModification, RemoveModification, \
     Complex
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
+from depmap_analysis.util.aws import get_latest_sif_s3, dump_json_to_s3, \
+    dump_pickle_to_s3, NEW_NETS_PREFIX
 
 logger = logging.getLogger('INDRA Network Search util')
 
@@ -26,10 +25,6 @@ API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
 JSON_CACHE = path.join(API_PATH, '_json_res')
-DUMPS_BUCKET = 'bigmech'
-DUMPS_PREFIX = 'indra-db/dumps'
-NET_BUCKET = 'depmap-analysis'
-NEW_NETS_PREFIX = 'indra_db_files/new'
 DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
 DT_YmdHMS = '%Y%m%d%H%M%S'
 DT_Ymd = '%Y%m%d'
@@ -267,12 +262,6 @@ def dump_query_result_to_s3(filename, json_obj, get_url=False):
     if get_url:
         return download_link.split('?')[0]
     return None
-
-
-def read_query_json_from_s3(s3_key):
-    s3 = get_s3_client(unsigned=False)
-    bucket = DUMPS_BUCKET
-    return read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
 
 
 def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,

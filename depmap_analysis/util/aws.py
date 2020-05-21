@@ -5,10 +5,14 @@ from operator import itemgetter
 from botocore.exceptions import ClientError
 
 from indra.util.aws import get_s3_file_tree, get_s3_client
-from indra_depmap_service.util import DUMPS_BUCKET, DUMPS_PREFIX, \
-    NET_BUCKET
 
 logger = logging.getLogger(__name__)
+
+DUMPS_BUCKET = 'bigmech'
+DUMPS_PREFIX = 'indra-db/dumps'
+NET_BUCKET = 'depmap-analysis'
+NETS_PREFIX = 'indra_db_files'
+NEW_NETS_PREFIX = NETS_PREFIX + '/new'
 
 
 def get_latest_sif_s3():
@@ -38,6 +42,12 @@ def get_latest_sif_s3():
     bd = read_json_from_s3(s3, key=necc_keys['belief'],
                            bucket=DUMPS_BUCKET)
     return df, sev, bd
+
+
+def load_pickled_net_from_s3(name):
+    s3_cli = get_s3_client(False)
+    key = NETS_PREFIX + '/' + name
+    return load_pickle_from_s3(s3_cli, key=key, bucket=NET_BUCKET)
 
 
 def load_pickle_from_s3(s3, key, bucket):
@@ -112,3 +122,24 @@ def dump_pickle_to_s3(name, indranet_graph_object, prefix=''):
     key = prefix + name
     s3.put_object(Bucket=NET_BUCKET, Key=key,
                   Body=pickle.dumps(obj=indranet_graph_object))
+
+
+def read_query_json_from_s3(s3_key):
+    s3 = get_s3_client(unsigned=False)
+    bucket = DUMPS_BUCKET
+    return read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
+
+
+def get_latest_pa_stmt_dump():
+    s3_cli = get_s3_client(False)
+    # Get file key
+    dump_name = 'full_pa_stmts.pkl'
+    file_tree = get_s3_file_tree(s3=s3_cli,
+                                 bucket=DUMPS_BUCKET,
+                                 prefix=DUMPS_PREFIX,
+                                 with_dt=True)
+    # Get all keys for dump_name
+    keys = [key for key in file_tree.gets('key') if key[0].endswith(dump_name)]
+    keys.sort(key=itemgetter(1))  # Sorts ascending by datetime
+
+    return load_pickle_from_s3(s3_cli, keys[-1][0], DUMPS_BUCKET)
