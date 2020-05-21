@@ -26,7 +26,7 @@ API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
 JSON_CACHE = path.join(API_PATH, '_json_res')
-SIF_BUCKET = 'bigmech'
+DUMPS_BUCKET = 'bigmech'
 DUMPS_PREFIX = 'indra-db/dumps'
 NET_BUCKET = 'depmap-analysis'
 NEW_NETS_PREFIX = 'indra_db_files/new'
@@ -195,14 +195,14 @@ def check_existence_and_date_s3(query_hash, indranet_date=None):
         pass
     else:
         try:
-            query_json = s3.head_object(Bucket=SIF_BUCKET,
+            query_json = s3.head_object(Bucket=DUMPS_BUCKET,
                                         Key=query_json_key)
         except ClientError:
             query_json = ''
         if query_json:
             exits_dict['query_json_key'] = query_json_key
         try:
-            result_json = s3.head_object(Bucket=SIF_BUCKET,
+            result_json = s3.head_object(Bucket=DUMPS_BUCKET,
                                          Key=result_json_key)
         except ClientError:
             result_json = ''
@@ -285,7 +285,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
 def _get_latest_files_s3():
     necc_files = ['belief', 'sif', 'src_counts']
     s3 = get_s3_client(unsigned=False)
-    tree = get_s3_file_tree(s3, bucket=SIF_BUCKET, prefix=DUMPS_PREFIX,
+    tree = get_s3_file_tree(s3, bucket=DUMPS_BUCKET, prefix=DUMPS_PREFIX,
                             with_dt=True)
     # Find all pickles
     keys = [key for key in tree.gets('key') if key[0].endswith('.pkl')]
@@ -304,11 +304,11 @@ def _get_latest_files_s3():
                 necc_keys[n] = k
                 break
     df = _load_pickle_from_s3(s3, key=necc_keys['sif'],
-                              bucket=SIF_BUCKET)
+                              bucket=DUMPS_BUCKET)
     sev = _load_pickle_from_s3(s3, key=necc_keys['src_counts'],
-                               bucket=SIF_BUCKET)
+                               bucket=DUMPS_BUCKET)
     bd = _read_json_from_s3(s3, key=necc_keys['belief'],
-                            bucket=SIF_BUCKET)
+                            bucket=DUMPS_BUCKET)
     return df, sev, bd
 
 
@@ -327,14 +327,14 @@ def _dump_json_to_s3(name, json_obj, public=False, get_url=False):
     """Set public=True for public read access"""
     s3 = get_s3_client(unsigned=False)
     key = 'indra_network_search/' + name
-    options = {'Bucket': SIF_BUCKET,
+    options = {'Bucket': DUMPS_BUCKET,
                'Key': key}
     if public:
         options['ACL'] = 'public-read'
     s3.put_object(Body=json.dumps(json_obj), **options)
     if get_url:
         return s3.generate_presigned_url(
-            'get_object', Params={'Key': key, 'Bucket': SIF_BUCKET})
+            'get_object', Params={'Key': key, 'Bucket': DUMPS_BUCKET})
 
 
 def _read_json_from_s3(s3, key, bucket):
@@ -368,7 +368,7 @@ def dump_query_result_to_s3(filename, json_obj, get_url=False):
 
 def read_query_json_from_s3(s3_key):
     s3 = get_s3_client(unsigned=False)
-    bucket = SIF_BUCKET
+    bucket = DUMPS_BUCKET
     return _read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
 
 
