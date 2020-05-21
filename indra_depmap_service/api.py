@@ -7,6 +7,7 @@ import requests
 from flask import Flask, request, abort, Response, render_template, jsonify, \
     session, url_for
 
+from depmap_analysis.util.aws import check_existence_and_date_s3
 from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST_
 from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
