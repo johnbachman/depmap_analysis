@@ -1,11 +1,14 @@
 import json
 import pickle
+import logging
 from operator import itemgetter
 from botocore.exceptions import ClientError
 
 from indra.util.aws import get_s3_file_tree, get_s3_client
-from indra_depmap_service.util import DUMPS_BUCKET, DUMPS_PREFIX, logger, \
+from indra_depmap_service.util import DUMPS_BUCKET, DUMPS_PREFIX, \
     NET_BUCKET
+
+logger = logging.getLogger(__name__)
 
 
 def get_latest_sif_s3():
