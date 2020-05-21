@@ -176,7 +176,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     expl_types = {'a-b': expl_ab,
                   'b-a': expl_ba,
                   'common parent': find_cp,
-                  'explained set': None,  # a priori explained
+                  'explained set': explained,  # a priori explained
                   'a-x-b': expl_axb,
                   'b-x-a': expl_bxa,
                   'shared regulator': get_sr,
@@ -253,6 +253,11 @@ def match_correlations(corr_z, sd_range, **kwargs):
 
     explainer.has_data = True
     return explainer
+
+
+def explained(s, o, corr, net, signed, **kwargs):
+    # This is the function to used for a priori explained relationships
+    return s, o, 'explained_set'
 
 
 def find_cp(s, o, corr, net, signed, **kwargs):
