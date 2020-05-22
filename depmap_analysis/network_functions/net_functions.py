@@ -460,11 +460,15 @@ def db_dump_to_pybel_sg(stmts_list=None):
 
     # Get a signed edge graph
     logger.info('Getting a PyBEL signed edge graph')
-    pb_signed_edge_graph = belgraph_to_signed_graph(pb_model)
+    pb_signed_edge_graph = belgraph_to_signed_graph(
+        pb_model, include_variants=True, include_components=True,
+        symmetric_component_links=True, propagate_annotations=True
+    )
 
     # Get the signed node graph
     logger.info('Getting a signed node graph from signed edge graph')
-    pb_signed_node_graph = signed_edges_to_signed_nodes(pb_signed_edge_graph)
+    pb_signed_node_graph = signed_edges_to_signed_nodes(
+        pb_signed_edge_graph, copy_edge_data=True)
 
     logger.info('Done assembling signed edge and signed node PyBEL graphs')
     return pb_signed_edge_graph, pb_signed_node_graph
