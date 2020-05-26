@@ -20,7 +20,7 @@ from indra.explanation.pathfinding.pathfinding import shortest_simple_paths, \
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.net_functions import \
-    SIGNS_TO_INT_SIGN, INT_PLUS, INT_MINUS, SIGN_TO_STANDARD
+    INT_PLUS, INT_MINUS
 
 bfs_kwargs = inspect.signature(bfs_search).parameters.keys()
 

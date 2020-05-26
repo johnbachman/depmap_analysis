@@ -9,10 +9,13 @@ from flask import Flask, request, abort, Response, render_template, jsonify, \
 
 from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST_
 from indra.config import CONFIG_DICT
+from indra.util.aws import get_s3_client
 from indralab_web_templates.path_templates import path_temps
 from depmap_analysis.network_functions.indra_network import IndraNetwork, \
     EMPTY_RESULT, list_all_hashes
 from depmap_analysis.network_functions.net_functions import SIGNS_TO_INT_SIGN
+from depmap_analysis.util.aws import check_existence_and_date_s3, \
+    read_query_json_from_s3, load_pickled_net_from_s3
 from .util import *
 
 app = Flask(__name__)
@@ -92,16 +95,12 @@ else:
                     INDRA_DG)
         makedirs(CACHE, exist_ok=True)
         s3 = get_s3_client(unsigned=True)
+        dg_net = load_pickled_net_from_s3(name=INDRA_DG)
         logger.info('Caching network to %s' % CACHE)
-        dg_key = 'indra_db_files/' + INDRA_DG
-        dg_obj = s3.get_object(Bucket=NET_BUCKET, Key=dg_key)
-        dg_net = pickle.loads(dg_obj['Body'].read())
         dump_it_to_pickle(INDRA_DG_CACHE, dg_net)
 
         if FILES['sign_edge_graph_path'] is None:
-            seg_key = 'indra_db_files/' + INDRA_SEG
-            seg_obj = s3.get_object(Bucket=NET_BUCKET, Key=seg_key)
-            seg_net = pickle.loads(seg_obj['Body'].read())
+            seg_net = load_pickled_net_from_s3(INDRA_SEG)
             dump_it_to_pickle(INDRA_SEG_CACHE, seg_net)
         else:
             seg_net = pickle_open(FILES['sign_edge_graph_path'])

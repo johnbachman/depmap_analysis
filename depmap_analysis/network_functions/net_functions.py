@@ -1,8 +1,6 @@
 import logging
 from decimal import Decimal
 from collections import defaultdict
-
-import requests
 import subprocess
 
 import requests
@@ -14,13 +12,15 @@ from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
 from indra.belief import load_default_probs
 from indra.assemblers.english import EnglishAssembler
-from indra.statements import Agent, get_statement_by_name
+from indra.statements import Agent, get_statement_by_name, stmts_from_json
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
+from indra.assemblers.pybel import PybelAssembler
+from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
 from indra_reading.readers import get_reader_classes
-
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
+from depmap_analysis.util.aws import get_latest_pa_stmt_dump
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
@@ -34,7 +34,7 @@ INT_MINUS = 1
 SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
                     '-': '-', 'minus': '-', INT_MINUS: '-'}
 SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
-                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS,
+                     '-': INT_MINUS, 'minus': INT_MINUS, INT_MINUS: INT_MINUS,
                      None: None}
 REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
@@ -42,16 +42,6 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
 
 READERS = set([rc.name.lower() for rc in get_reader_classes()])
 READERS.update(['medscan', 'rlimsp'])
-
-INT_PLUS = 0
-INT_MINUS = 1
-SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
-                    '-': '-', 'minus': '-', INT_MINUS: '-'}
-SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
-                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS}
-REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
-                '+': '-', '-': '+',
-                'plus': 'minus', 'minus': 'plus'}
 
 
 def _get_smallest_belief_prior():
@@ -214,7 +204,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     hashes = []
     beliefs = []
     for k, v in belief_dict.items():
-        hashes.append(k)
+        hashes.append(int(k))
         beliefs.append(v)
 
     merged_df = merged_df.merge(
@@ -234,7 +224,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
     hashes = []
     strat_dicts = []
     for k, v in sed.items():
-        hashes.append(k)
+        hashes.append(int(k))
         strat_dicts.append(v)
 
     merged_df = merged_df.merge(
@@ -302,7 +292,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         Return type for the returned graph. Currently supports:
             - 'digraph': IndraNet(nx.DiGraph) (Default)
             - 'multidigraph': IndraNet(nx.MultiDiGraph)
-            - 'signed': SignedGraphModelChecker(ModelChecker)
+            - 'signed': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
     include_entity_hierarchies : bool
         Default: True
     verbosity: int
@@ -312,12 +302,14 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     -------
     indranet_graph : IndraNet(graph_type)
         The type is determined by the graph_type argument"""
-    graph_options = ['digraph', 'multidigraph', 'signed']
-    if graph_type not in graph_options:
+    graph_options = ('digraph', 'multidigraph', 'signed', 'pybel')
+    if graph_type.lower() not in graph_options:
         raise ValueError('Graph type %s not supported. Can only chose between'
                          ' %s' % (graph_type, graph_options))
+    graph_type = graph_type.lower()
 
-    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict, verbosity)
+    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict,
+                                verbosity=verbosity)
 
     # Map ns:id to node name
     logger.info('Creating dictionary with mapping from (ns,id) to node name')
@@ -422,6 +414,65 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         indranet_graph.graph['node_by_uri'] = node_by_uri
     indranet_graph.graph['node_by_ns_id'] = ns_id_to_nodename
     return indranet_graph
+
+
+def db_dump_to_pybel_sg(stmts_list=None):
+    """Create a signed pybel graph from an evidenceless dump from the db
+
+    Parameters
+    ----------
+    stmts_list : list[indrs.statements.Statement]
+        Provide a list of statements if they are already loaded. By default
+        the latest available pa statements dump is downloaded from s3.
+        Default: None.
+
+    Returns
+    -------
+    tuple(nx.DiGraph, nx.MultiDiGraph)
+    """
+    # Get statement dump:
+    # Look for latest file on S3 and pickle.loads it
+    if stmts_list is None:
+        stmts_list = get_latest_pa_stmt_dump()
+
+    # Filter bad statements
+    logger.info('Fltering out statements with bad position attribute')
+    filtered_stmts = []
+    for st in stmts_list:
+        try:
+            pos = getattr(st, 'position')
+            try:
+                if pos is not None and str(int(float(pos))) != pos:
+                    continue
+                else:
+                    filtered_stmts.append(st)
+            # Pos is not convertible to float
+            except ValueError:
+                continue
+        # Not a statement with a position attribute
+        except AttributeError:
+            filtered_stmts.append(st)
+
+    # Assemble Pybel model
+    logger.info('Assembling PyBEL model')
+    pb = PybelAssembler(stmts=filtered_stmts)
+    pb_model = pb.make_model()
+
+    # Get a signed edge graph
+    logger.info('Getting a PyBEL signed edge graph')
+    pb_signed_edge_graph = belgraph_to_signed_graph(
+        pb_model, include_variants=True, symmetric_variant_links=True,
+        include_components=True, symmetric_component_links=True,
+        propagate_annotations=True
+    )
+
+    # Get the signed node graph
+    logger.info('Getting a signed node graph from signed edge graph')
+    pb_signed_node_graph = signed_edges_to_signed_nodes(
+        pb_signed_edge_graph, copy_edge_data=True)
+
+    logger.info('Done assembling signed edge and signed node PyBEL graphs')
+    return pb_signed_edge_graph, pb_signed_node_graph
 
 
 def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
