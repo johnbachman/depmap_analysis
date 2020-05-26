@@ -7,16 +7,21 @@ from time import time, gmtime, strftime
 import requests
 import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
+
 from indra.config import CONFIG_DICT
 from indra.assemblers.indranet.net import default_sign_dict
-from indra.explanation.model_checker import signed_edges_to_signed_nodes
+from indra.explanation.pathfinding.util import signed_nodes_to_signed_edge, \
+    path_sign_to_signed_nodes
+from indra.explanation.model_checker.model_checker import \
+    signed_edges_to_signed_nodes
+from indra.explanation.pathfinding.pathfinding import shortest_simple_paths,\
+    bfs_search
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.net_functions import \
-    SIGNS_TO_INT_SIGN, INT_PLUS, INT_MINUS, SIGN_TO_STANDARD, REVERSE_SIGN
+    SIGNS_TO_INT_SIGN, INT_PLUS, INT_MINUS, SIGN_TO_STANDARD
 
-bfs_signature = inspect.signature(nf.bfs_search)
-bfs_kwargs = bfs_signature.parameters.keys()
+bfs_kwargs = inspect.signature(bfs_search).parameters.keys()
 
 logger = logging.getLogger('indra network')
 
@@ -506,7 +511,7 @@ class IndraNetwork:
                        'ign_hashes': options.get('edge_hash_blacklist', [])}
         if options['sign'] is not None:
             sign_source, signed_target =\
-                nf.path_sign_to_signed_nodes(source, target, options['sign'])
+                path_sign_to_signed_nodes(source, target, options['sign'])
             sign_interm = set(self.sign_node_graph_repr.succ[sign_source]) & \
                 set(self.sign_node_graph_repr.pred[signed_target])
             paths_gen = _paths_genr(sign_source, signed_target, sign_interm,
@@ -535,7 +540,7 @@ class IndraNetwork:
                 edge_signs = None
             else:
                 path = [n[0] for n in _path]
-                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
+                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(_path[:-1], _path[1:])]
             hash_path = self._get_hash_path(path=path, source=source,
                                             target=target,
@@ -562,7 +567,7 @@ class IndraNetwork:
         number of edges (unweighted search).
 
         If weighted, use
-        depmap_analysis.network_functions.net_functions.shortest_simple_paths
+        indra.explanation.pathfinding.shortest_simple_paths
 
         If open ended, i.e. only source or target is provided, use
         self.open_bfs
@@ -593,7 +598,7 @@ class IndraNetwork:
                             if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
-                paths = nf.shortest_simple_paths(self.nx_dir_graph_repr,
+                paths = shortest_simple_paths(self.nx_dir_graph_repr,
                                                  source, target,
                                                  options['weight'],
                                                  **blacklist_options)
@@ -601,8 +606,8 @@ class IndraNetwork:
                 obj = target
             else:
                 # Generate signed nodes from query's overall sign
-                (src, src_sign), (trgt, trgt_sign) =\
-                    nf.path_sign_to_signed_nodes(
+                (src, src_sign), (trgt, trgt_sign) = \
+                    path_sign_to_signed_nodes(
                         source, target, options['sign']
                     )
                 # Get signed nodes for source and target
@@ -612,7 +617,7 @@ class IndraNetwork:
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
-                paths = nf.shortest_simple_paths(
+                paths = shortest_simple_paths(
                     self.sign_node_graph_repr, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes)
 
@@ -714,12 +719,10 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        bfs_gen = nf.bfs_search(g=graph, source_node=starting_node,
-                                reverse=reverse, depth_limit=depth_limit,
-                                path_limit=path_limit,
-                                max_per_node=max_per_node,
-                                terminal_ns=terminal_ns,
-                                **bfs_options)
+        bfs_gen = bfs_search(g=graph, source_node=starting_node,
+                             reverse=reverse, depth_limit=depth_limit,
+                             path_limit=path_limit, max_per_node=max_per_node,
+                             terminal_ns=terminal_ns, **bfs_options)
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
 
@@ -745,7 +748,7 @@ class IndraNetwork:
 
             # Handle signed path
             if options.get('sign') is not None:
-                edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
+                edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                               for s, t in zip(path[:-1], path[1:])]
                 path = [n[0] for n in path]
                 graph_type = 'signed'
@@ -1084,7 +1087,7 @@ class IndraNetwork:
                 if sign is not None:
                     signed_path_nodes = next(paths_gen)
                     path = [n[0] for n in signed_path_nodes]
-                    edge_signs = [nf.signed_nodes_to_signed_edge(s, t)[2]
+                    edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                                   for s, t in zip(signed_path_nodes[:-1],
                                                   signed_path_nodes[1:])]
                 else:
