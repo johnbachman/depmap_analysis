@@ -461,8 +461,9 @@ def db_dump_to_pybel_sg(stmts_list=None):
     # Get a signed edge graph
     logger.info('Getting a PyBEL signed edge graph')
     pb_signed_edge_graph = belgraph_to_signed_graph(
-        pb_model, include_variants=True, include_components=True,
-        symmetric_component_links=True, propagate_annotations=True
+        pb_model, include_variants=True, symmetric_variant_links=True,
+        include_components=True, symmetric_component_links=True,
+        propagate_annotations=True
     )
 
     # Get the signed node graph
