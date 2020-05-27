@@ -11,12 +11,15 @@ from requests.exceptions import ConnectionError
 from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
 from indra.belief import load_default_probs
+from indra.sources.bel.processor import get_agent
 from indra.assemblers.english import EnglishAssembler
 from indra.statements import Agent, get_statement_by_name, stmts_from_json
+from indra.preassembler.hierarchy_manager import hierarchies
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
-from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
+from indra.assemblers.pybel.assembler import belgraph_to_signed_graph, \
+    _get_agent_node
 from indra_reading.readers import get_reader_classes
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
@@ -628,3 +631,55 @@ def ns_id_from_name(name, gilda_retry=False):
             logger.warning('Indra Grounding service not available. Add '
                            'GILDA_URL to `indra/config.ini`')
     return None, None
+
+
+def _get_pb_model_agents(pb_model):
+    """Get model agents from pybel model
+
+    Parameters
+    ----------
+    pb_model : PyBEL.Model
+
+    Returns
+    -------
+    list
+
+    """
+    return [get_agent(node) for node in pb_model.nodes]
+
+
+def get_unsigned_pybel_nodes(pb_model, agent, signed_edge_pb_graph):
+    """Get pybel nodes from agent, pybel model and signed IndraNet PyBEL graph
+
+    Parameters
+    ----------
+    pb_model : PyBEL.Model
+        An assembled pybel model
+    agent : indra.statements.agent.Agent
+        The agent to look for a PyBEL node representation of in
+        signed_edge_pb_graph
+    signed_edge_pb_graph : nx.MultiDiGraph
+        The signed edge representation of the signed_edge_pb_graph
+
+    Returns
+    -------
+    set
+        The set of node(s) in signed_edge_pb_graph that represent the
+        provided Agent.
+    """
+    nodes = set()
+    if agent is None:
+        return nodes
+
+    agent_node = _get_agent_node(agent)[0]
+    if agent_node and agent_node in signed_edge_pb_graph.nodes:
+        nodes.add(agent_node)
+
+    # Get refined versions of the node
+    for ag in _get_pb_model_agents(pb_model):
+        if ag is not None and ag.refinement_of(agent, hierarchies):
+            agent_node = _get_agent_node(agent)[0]
+            if agent_node and agent_node in signed_edge_pb_graph.nodes:
+                nodes.add(agent_node)
+
+    return nodes
