@@ -684,3 +684,55 @@ def get_unsigned_pybel_nodes(pb_model, agent, signed_edge_pb_graph):
                 nodes.add(agent_node)
 
     return nodes
+
+
+def get_hgnc_node_mapping(hgnc_names, pb_model, pb_signed_edge_graph):
+    """Generate a mapping of HGNC symbols to pybel nodes
+
+    Parameters
+    ----------
+    hgnc_names : iterable[str]
+        An iterable containing HGNC names to be mapped to pybel nodes
+    pb_model : PyBEL.Model
+        An assembled pybel model
+    pb_signed_edge_graph : nx.MultiDiGraph
+        The signed edge representation of the signed_edge_pb_graph
+
+    Returns
+    -------
+    dict
+        A dictionary mapping names (HGNC symbols) to a sets of pybel nodes
+    """
+    hgnc_tuples = set()
+    for name in hgnc_names:
+        ns, _id = ns_id_from_name(name)
+        hgnc_tuples.add((name, ns, _id))
+    return hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model,
+                                      pb_signed_edge_graph)
+
+
+def hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model, pb_signed_edge_graph):
+    """Generate a mapping of name, ns, id tuples to pybel nodes
+
+    Parameters
+    ----------
+    hgnc_tuples : set[tuple]
+        A set of tuples of name, ns, id to map to sets of pybel nodes found
+        in pb_signed_edge_graph
+    pb_model : PyBEL.Model
+        An assembled pybel model
+    pb_signed_edge_graph : nx.MultiDiGraph
+        The signed edge representation of the signed_edge_pb_graph
+
+    Returns
+    -------
+    dict
+        A dictionary mapping names (HGNC symbols) to sets of pybel nodes
+    """
+    node_mapping = {}
+    for name, ns, _id in hgnc_tuples:
+        pb_nodes = get_unsigned_pybel_nodes(pb_model,
+                                            Agent(name, db_refs={ns: _id}),
+                                            pb_signed_edge_graph)
+        node_mapping[name] = pb_nodes
+    return node_mapping
