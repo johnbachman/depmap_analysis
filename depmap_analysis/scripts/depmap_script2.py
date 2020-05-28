@@ -38,7 +38,7 @@ from itertools import islice
 from datetime import datetime
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 from depmap_analysis.network_functions.net_functions import \
-    INT_MINUS, INT_PLUS, ns_id_from_name
+    INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, iter_chunker
@@ -537,8 +537,18 @@ if __name__ == '__main__':
     indranet = pickle_open(args.indranet)
     # run_options['indranet'] = indranet  # Use in global scope
 
-    # Todo check signed
-    run_options['signed_search'] = indranet.is_multigraph()
+    graph_type = args.graph_type
+    run_options['graph_type'] = graph_type
+
+    # Get mapping of correlation names to pybel nodes
+    if graph_type == 'pybel':
+        hgnc_node_mapping = get_hgnc_node_mapping(
+            hgnc_names=z_corr.columns.values,
+            pb_model=pickle_open(args.pybel_model),
+            pb_signed_edge_graph=indranet
+        )
+    else:
+        hgnc_node_mapping = None
 
     # 2. Filter to SD range
     if sd_l and sd_u:
