@@ -36,6 +36,7 @@ from math import floor
 from pathlib import Path
 from itertools import islice
 from datetime import datetime
+from pybel.dsl.node_classes import CentralDogma
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
