@@ -469,18 +469,16 @@ if __name__ == '__main__':
     corr_group = parser.add_mutually_exclusive_group(required=True)
     corr_group.add_argument(
         '--raw-data', nargs=2, type=file_path(),
-        help='--raw-data CRISPR RNAI | File paths to CRISPR raw data and RNAi '
-             'raw data from the DepMap Portal. The CRISPR file name should '
-             'match '
+        help='File paths to CRISPR raw data and RNAi raw data from the '
+             'DepMap Portal. The CRISPR file name should match '
              '*gene_effect.csv. The RNAi file name should match '
              '*gene_dep_scores.csv'
     )
     corr_group.add_argument(
         '--raw-corr', nargs=2, type=file_path(),
-        help='--raw-corr CRISPR RNAI | File paths to raw correlation data ('
-             'before z-score conversion) containing hdf compressed '
-             'correlation data. These files contain the result of running '
-             '`raw_df.corr()`'
+        help='File paths to raw correlation data (before z-score conversion) '
+             'containing hdf compressed correlation data. These files '
+             'contain the result of running `raw_df.corr()`'
     )
     corr_group.add_argument(
         '--z-score', type=file_path(),
