@@ -9,7 +9,9 @@ if the IndraNetwork
 #      agA/B: (name, ns, id), hash, type, belief, sign
 
 # Processing:
-#   0. If signed graph: match edge sign with correlation sign
+#   0a. If signed graph: match edge sign with correlation sign
+#   0b. If pybel graph: get node representation and match edge sign with
+#       correlation sign
 #   1. Find direct links both ways
 #   2. Find A-X-B links: both ways (2), common target, common regulator
 #   3. Find famplex links (have common parent)
