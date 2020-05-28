@@ -34,7 +34,8 @@ import multiprocessing as mp
 from time import time
 from math import floor
 from pathlib import Path
-from itertools import islice
+from itertools import product
+from collections import defaultdict
 from datetime import datetime
 from pybel.dsl.node_classes import CentralDogma
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
@@ -53,23 +54,27 @@ logger.setLevel(logging.DEBUG)
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
                             expl_columns, bool_columns, min_columns,
-                            explained_set, signed_search):
+                            explained_set, _type):
     # Separate out this part
 
     stats_dict = {k: [] for k in stats_columns}
     expl_dict = {k: [] for k in expl_columns}
 
-    for A, B, zsc in corr_iter:
+    for gA, gB, zsc in corr_iter:
         # Initialize current iteration stats
         stats = {k: False for k in bool_columns}
 
         # Append to stats_dict
-        stats_dict['agA'].append(A)
-        stats_dict['agB'].append(B)
+        stats_dict['agA'].append(gA)
+        stats_dict['agB'].append(gB)
         stats_dict['z-score'].append(zsc)
 
-        # Skip if A or B not in graph
-        if A not in indranet.nodes or B not in indranet.nodes:
+        # Skip if A or B not in graph or if type is pybel and no node
+        # mapping exists
+        if _type == 'pybel' and \
+                not (hgnc_node_mapping[gA] and hgnc_node_mapping[gB]) or \
+                _type != 'pybel' and \
+                (gA not in indranet.nodes or gB not in indranet.nodes):
             for k in set(stats_dict.keys()).difference(set(min_columns)):
                 if k == 'not in graph':
                     # Flag not in graph
@@ -79,8 +84,14 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                     stats_dict[k].append(np.nan)
             continue
 
-        # Get ns:id
-        a_ns, a_id, b_ns, b_id = get_ns_id(A, B, indranet)
+        if _type == 'pybel':
+            # Get ns, id
+            a_pb_node = list(hgnc_node_mapping[gA])[0]
+            a_ns, a_id = a_pb_node.namespace, a_pb_node.identifier
+            b_pb_node = list(hgnc_node_mapping[gB])[0]
+            b_ns, b_id = b_pb_node.namespace, b_pb_node.identifier
+        else:
+            a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
 
         # Append to stats dict
         stats_dict['agA_ns'].append(a_ns)
@@ -90,7 +101,7 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
 
         # If in expl set, skip other explanations
         if explained_set:
-            if A in explained_set and B in explained_set:
+            if gA in explained_set and gB in explained_set:
                 # Set explained set = True
                 stats_dict['explained set'].append(True)
 
@@ -104,8 +115,8 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
 
                 # Set explanation type and data
                 # Append to expl_dict
-                expl_dict['agA'].append(A)
-                expl_dict['agB'].append(B)
+                expl_dict['agA'].append(gA)
+                expl_dict['agB'].append(gB)
                 expl_dict['z-score'].append(zsc)
                 expl_dict['expl type'].append('explained set')
                 expl_dict['expl data'].append(np.nan)
@@ -113,26 +124,37 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 # And skip the rest of explanations
                 continue
 
-        # Loop expl functions
-        for expl_type, expl_func in expl_types.items():
-            # Function signature: s, o, corr, net, signed, **kwargs
-            # Function should return what will be kept in the 'expl_data'
-            # column of the expl_df
+        # Create iterator for pairs
+        expl_iter = product(hgnc_node_mapping[gA], hgnc_node_mapping[gB]) \
+            if _type == 'pybel' else [(gA, gB)]
 
-            # Skip if 'explained set', which is caught above
-            if expl_type == 'explained set':
-                continue
+        expl_iterations = defaultdict(list)
+        for A, B in expl_iter:
+            # Loop expl functions
+            for expl_type, expl_func in expl_types.items():
+                # Function signature: s, o, corr, net, graph_type, **kwargs
+                # Function should return what will be kept in the 'expl_data'
+                # column of the expl_df
 
-            # Some functions reverses A, B hence the s, o assignment
-            s, o, expl_data = expl_func(A, B, zsc, indranet, signed_search)
-            if expl_data:
-                expl_dict['agA'].append(s)
-                expl_dict['agB'].append(o)
-                expl_dict['z-score'].append(zsc)
-                expl_dict['expl type'].append(expl_type)
-                expl_dict['expl data'].append(expl_data)
+                # Skip if 'explained set', which is caught above
+                if expl_type == 'explained set':
+                    continue
 
-            stats[expl_type] = bool(expl_data)
+                # Some functions reverses A, B hence the s, o assignment
+                s, o, expl_data = expl_func(A, B, zsc, indranet, _type)
+                if expl_data:
+                    expl_dict['agA'].append(s)
+                    expl_dict['agB'].append(o)
+                    expl_dict['z-score'].append(zsc)
+                    expl_dict['expl type'].append(expl_type)
+                    expl_dict['expl data'].append(expl_data)
+
+                    # Append to expl_iterations
+                    expl_iterations[expl_type].append(expl_data)
+
+        # Check which ones got explained
+        for expl_type_, expl_data_ in expl_iterations.items():
+            stats[expl_type_] = bool(expl_data_)
 
         # Set explained column
         stats['explained'] = any([b for b in stats.values()])
@@ -190,7 +212,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
     explained_set = kwargs.get('explained_set', {})
 
-    signed_search = kwargs.get('signed_search', False)
+    _type = kwargs.get('graph_type', 'unsigned')
     ymd_now = datetime.now().strftime('%Y%m%d')
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
         else ymd_now
@@ -216,7 +238,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
             pool.apply_async(func=_match_correlation_body,
                              # corr_iter, expl_types, stats_columns,
                              # expl_columns, bool_columns, min_columns,
-                             # explained_set, signed_search
+                             # explained_set, _type
                              args=(
                                  chunk,
                                  expl_types,
@@ -225,7 +247,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
                                  bool_columns,
                                  min_columns,
                                  explained_set,
-                                 signed_search
+                                 _type
                              ),
                              callback=success_callback)
 
@@ -243,7 +265,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
                                 info={'indra_network_date': indra_date,
                                       'depmap_date': depmap_date,
                                       'sd_range': sd_range,
-                                      },
+                                      'graph_type': _type},
                                 )
 
     logger.info(f'Generating DepMapExplainer with output from '
