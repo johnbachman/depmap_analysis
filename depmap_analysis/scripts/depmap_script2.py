@@ -257,17 +257,20 @@ def match_correlations(corr_z, sd_range, **kwargs):
     return explainer
 
 
-def explained(s, o, corr, net, signed, **kwargs):
-    # This is the function to used for a priori explained relationships
+def explained(s, o, corr, net, graph_type, **kwargs):
+    # This function is used for a priori explained relationships
     return s, o, 'explained_set'
 
 
-def find_cp(s, o, corr, net, signed, **kwargs):
-    # This function does not have a signed version
+def find_cp(s, o, corr, net, _type, **kwargs):
+    # This function is the same for all graph_types
     s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
-    if not s_id or not o_id:
+
+    if not s_id:
         s_ns, s_id = ns_id_from_name(s)
+    if not o_id:
         o_ns, o_id = ns_id_from_name(o)
+
     if s_id and o_id:
         parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
         if parents:
@@ -276,9 +279,9 @@ def find_cp(s, o, corr, net, signed, **kwargs):
     return s, o, None
 
 
-def expl_axb(s, o, corr, net, signed, **kwargs):
+def expl_axb(s, o, corr, net, _type, **kwargs):
     x_set = set(net.succ[s]) & set(net.pred[o])
-    if signed:
+    if _type in {'signed', 'pybel'}:
         x_nodes = _get_signed_interm(s, o, corr, net, x_set)
     else:
         x_nodes = x_set
@@ -289,15 +292,15 @@ def expl_axb(s, o, corr, net, signed, **kwargs):
         return s, o, None
 
 
-def expl_bxa(s, o, corr, net, signed, **kwargs):
-    return expl_axb(o, s, corr, net, signed, **kwargs)
+def expl_bxa(s, o, corr, net, _type, **kwargs):
+    return expl_axb(o, s, corr, net, _type, **kwargs)
 
 
 # Shared regulator: A<-X->B
-def get_sr(s, o, corr, net, signed, **kwargs):
+def get_sr(s, o, corr, net, _type, **kwargs):
     x_set = set(net.pred[s]) & set(net.pred[o])
 
-    if signed:
+    if _type in {'signed', 'pybel'}:
         x_nodes = _get_signed_interm(s, o, corr, net, x_set)
     else:
         x_nodes = x_set
@@ -309,11 +312,11 @@ def get_sr(s, o, corr, net, signed, **kwargs):
 
 
 # Shared target: A->X<-B
-def get_st(s, o, corr, net, signed, **kwargs):
+def get_st(s, o, corr, net, _type, **kwargs):
     x_set = set(net.succ[s]) & set(net.succ[o])
 
-    if signed:
-        x_nodes = _get_signed_interm(s, o, corr, net,x_set)
+    if _type in {'signed', 'pybel'}:
+        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
     else:
         x_nodes = x_set
 
@@ -323,20 +326,21 @@ def get_st(s, o, corr, net, signed, **kwargs):
         return s, o, None
 
 
-def expl_ab(s, o, corr, net, signed, **kwargs):
-    edge_dict = get_edge_statements(s, o, corr, net, signed, **kwargs)
+def expl_ab(s, o, corr, net, _type, **kwargs):
+    edge_dict = get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
-        return s, o, edge_dict.get('statements')
+        return s, o, edge_dict.get('stmt_hash') if _type == 'pybel' else \
+            edge_dict.get('statements')
     return s, o, None
 
 
-def expl_ba(s, o, corr, net, signed, **kwargs):
+def expl_ba(s, o, corr, net, _type, **kwargs):
     # Reverse order call to expl_ab
-    return expl_ab(o, s, corr, net, signed, **kwargs)
+    return expl_ab(o, s, corr, net, _type, **kwargs)
 
 
-def get_edge_statements(s, o, corr, net, signed, **kwargs):
-    if signed:
+def get_edge_statements(s, o, corr, net, _type, **kwargs):
+    if _type in {'signed', 'pybel'}:
         int_sign = INT_PLUS if corr >= 0 else INT_MINUS
         return net.edges.get((s, o, int_sign), None)
     else:
