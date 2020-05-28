@@ -432,10 +432,9 @@ def file_path():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Explainer main script')
     #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
-    corr_group = parser.add_mutually_exclusive_group(
-        required=True)
+    corr_group = parser.add_mutually_exclusive_group(required=True)
     corr_group.add_argument(
-        '--raw-data', nargs=2, type=str,
+        '--raw-data', nargs=2, type=file_path(),
         help='--raw-data CRISPR RNAI | File paths to CRISPR raw data and RNAi '
              'raw data from the DepMap Portal. The CRISPR file name should '
              'match '
@@ -443,23 +442,39 @@ if __name__ == '__main__':
              '*gene_dep_scores.csv'
     )
     corr_group.add_argument(
-        '--raw-corr', nargs=2, type=str,
+        '--raw-corr', nargs=2, type=file_path(),
         help='--raw-corr CRISPR RNAI | File paths to raw correlation data ('
              'before z-score conversion) containing hdf compressed '
              'correlation data. These files contain the result of running '
              '`raw_df.corr()`'
     )
     corr_group.add_argument(
-        '--z-score', type=str,
+        '--z-score', type=file_path(),
         help='The file path to the fully merged correlation matrix '
              'containing z-scores.')
 
     #   1b Load indranet
     parser.add_argument(
-        '--indranet', type=str, required=True,
+        '--indranet', type=file_path(), required=True,
         help='The indra network to use for explanations. Should be either a '
              'DiGraph or signed DiGraph (a MultiDiGraph with max two edges '
              'per node pair, one edge per sign).'
+    )
+
+    #   1c Optionally provide PyBEL model
+    parser.add_argument(
+        '--pybel-model', type=file_path(),
+        help='If graph type is "pybel", use this argument to provide the '
+             'necessary pybel model used to precompute the pybel node mapping.'
+    )
+
+    #   1d Provide graph type
+    allowed_types = {'unsigned', 'signed', 'pybel'}
+    parser.add_argument(
+        '--graph-type', type=graph_types(allowed_types),
+        default='unsigned',
+        help='Specify the graph type used. Allowed values are '
+             f'{allowed_types}'
     )
 
     #   2. Filter to SD range
@@ -501,6 +516,10 @@ if __name__ == '__main__':
     if not sd_l and not sd_u:
         raise ValueError('Must specify at least a lower bound for the SD '
                          'range')
+
+    if args.graph_type == 'pybel' and not args.pybel_model:
+        raise ValueError('Must provide PyBEL model with option --pybel-model '
+                         'if graph type is pybel')
 
     # Get the z-score corr matrix
     if args.z_score:
