@@ -652,6 +652,8 @@ def _get_pb_model_agents(pb_model):
 def get_unsigned_pybel_nodes(pb_model, agent, signed_edge_pb_graph):
     """Get pybel nodes from agent, pybel model and signed IndraNet PyBEL graph
 
+    Note: this is a signed edge version of PybelModelChecker.get_nodes
+
     Parameters
     ----------
     pb_model : PyBEL.Model
