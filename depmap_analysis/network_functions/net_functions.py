@@ -57,6 +57,7 @@ MIN_BELIEF = _get_smallest_belief_prior()
 
 
 GRND_URI = None
+GILDA_TIMEOUT = False
 try:
     GRND_URI = CONFIG_DICT['GILDA_URL']
 except KeyError:
