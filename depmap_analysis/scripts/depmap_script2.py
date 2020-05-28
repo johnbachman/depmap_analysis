@@ -383,10 +383,17 @@ def get_ns_id(subj, obj, net):
         A tuple with four entries:
         (subj namespace, subj id, obj namespace, obj id)
     """
-    s_ns = net.nodes[subj]['ns'] if net.nodes.get(subj) else None
-    s_id = net.nodes[subj]['id'] if net.nodes.get(subj) else None
-    o_ns = net.nodes[obj]['ns'] if net.nodes.get(obj) else None
-    o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
+    if isinstance(subj, CentralDogma):
+        s_pbn = list(hgnc_node_mapping[subj])[0]
+        s_ns, s_id = s_pbn.namespace, s_pbn.identifier
+        o_pbn = list(hgnc_node_mapping[obj])[0]
+        o_ns, o_id = o_pbn.namespace, o_pbn.identifier
+
+    else:
+        s_ns = net.nodes[subj]['ns'] if net.nodes.get(subj) else None
+        s_id = net.nodes[subj]['id'] if net.nodes.get(subj) else None
+        o_ns = net.nodes[obj]['ns'] if net.nodes.get(obj) else None
+        o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
 
     return s_ns, s_id, o_ns, o_id
 
