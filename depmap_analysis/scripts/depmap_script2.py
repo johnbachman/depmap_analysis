@@ -213,6 +213,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     explained_set = kwargs.get('explained_set', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
+    logger.info(f'Doing correlation matching with {_type} graph')
     ymd_now = datetime.now().strftime('%Y%m%d')
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
         else ymd_now
