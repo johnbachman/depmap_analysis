@@ -411,6 +411,15 @@ def breadth_search():
         abort(Response('Signed graph not available. Remove "sign" from '
                        'options to perform search', 415))
 
+    # Check terminal_ns
+    terminal_ns = [s.lower() for s in query_json.get('terminal_ns',
+                                                     ['chebi', 'pubchem'])]
+    if not set(terminal_ns).issubset(set(default_ns)):
+        abort(Response('One or more of the provided ns in "terminal_ns" is '
+                       'not part of the standard namespaces. Provided ns '
+                       'list: %s. Allowed ns list: %s' %
+                       (str(terminal_ns), str(default_ns)), 415))
+
     sign = SIGNS_TO_INT_SIGN[query_json.get('sign')]
 
     # If reversed, search upstream instead of downstream from source
@@ -425,8 +434,7 @@ def breadth_search():
         'bsco': float(query_json.get('belief_cutoff', 0)),
         'stmt_filter': query_json.get('skip_stmt_types', []),
         'curated_db_only': bool(query_json.get('db_only', False)),
-        'terminal_ns': [s.lower() for s in
-                        query_json.get('terminal_ns', ['chebi', 'pubchem'])],
+        'terminal_ns': terminal_ns,
         'max_results': int(query_json.get('max_results', 50)) if isinstance(
             query_json.get('max_results'), (str, int)) else None,
         'max_per_node': int(query_json.get('max_per_node', 5)) if isinstance(
