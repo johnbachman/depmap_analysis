@@ -440,7 +440,7 @@ def breadth_search():
         options['source'] = options['start_node']
 
     if query_json.get('max_memory'):
-        options['max_memory'] = query_json['max_memory']
+        options['max_memory'] = min(int(query_json['max_memory']), 2**30)
 
     # Get query hash
     query_hash = get_query_hash(options)
