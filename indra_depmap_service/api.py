@@ -1,20 +1,18 @@
 """INDRA Causal Network Search API"""
-import requests
 from sys import argv
 from os import makedirs, environ
 from time import time, gmtime, strftime
 
-from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST_
-from flask import Flask, request, abort, Response, render_template, jsonify,\
+import requests
+from flask import Flask, request, abort, Response, render_template, jsonify, \
     session, url_for
 
+from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST_
 from indra.config import CONFIG_DICT
 from indralab_web_templates.path_templates import path_temps
-
 from depmap_analysis.network_functions.indra_network import IndraNetwork, \
     EMPTY_RESULT, list_all_hashes
 from depmap_analysis.network_functions.net_functions import SIGNS_TO_INT_SIGN
-
 from .util import *
 
 app = Flask(__name__)
@@ -427,7 +425,8 @@ def breadth_search():
         'bsco': float(query_json.get('belief_cutoff', 0)),
         'stmt_filter': query_json.get('skip_stmt_types', []),
         'curated_db_only': bool(query_json.get('db_only', False)),
-        'terminal_ns': query_json.get('terminal_ns',  ['chebi', 'pubchem']),
+        'terminal_ns': [s.lower() for s in
+                        query_json.get('terminal_ns', ['chebi', 'pubchem'])],
         'max_results': int(query_json.get('max_results', 50)) if isinstance(
             query_json.get('max_results'), (str, int)) else None,
         'max_per_node': int(query_json.get('max_per_node', 5)) if isinstance(
