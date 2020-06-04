@@ -32,25 +32,52 @@ def file_opener(fname):
         raise ValueError(f'Unknown file extension for file {fname}')
 
 
-def dump_it_to_pickle(fname, pyobj):
+def dump_it_to_pickle(fname, pyobj, overwrite=False):
     """Save pyobj to fname as pickle"""
     logger.info('Dumping to pickle file %s' % fname)
-    with open(fname, 'wb') as po:
+    file = Path(fname)
+
+    if not overwrite and file.is_file():
+        raise FileExistsError('File already exists! Use overwrite=True to '
+                              'overwrite current file')
+
+    if not file.parent.is_dir():
+        file.parent.mkdir(parents=True)
+
+    with file.open('wb') as po:
         pickle.dump(obj=pyobj, file=po)
     logger.info('Finished dumping to pickle')
 
 
-def dump_it_to_json(fname, pyobj):
+def dump_it_to_json(fname, pyobj, overwrite=False):
     """Save pyobj to fname as json"""
     logger.info('Dumping to json file %s' % fname)
+    file = Path(fname)
+
+    if not overwrite and file.is_file():
+        raise FileExistsError('File already exists! Use overwrite=True to '
+                              'overwrite current file')
+
+    if not file.parent.is_dir():
+        file.parent.mkdir(parents=True)
+
     with open(fname, 'w') as json_out:
         json.dump(pyobj, json_out)
     logger.info('Finished dumping to pickle')
 
 
-def dump_it_to_csv(fname, pyobj, separator=',', header=None):
+def dump_it_to_csv(fname, pyobj, separator=',', header=None, overwrite=False):
     """Save pyobj to fname as csv file"""
     logger.info('Dumping to csv file %s' % fname)
+    file = Path(fname)
+
+    if not overwrite and file.is_file():
+        raise FileExistsError('File already exists! Use overwrite=True to '
+                              'overwrite current file')
+
+    if not file.parent.is_dir():
+        file.parent.mkdir(parents=True)
+
     if header:
         logger.info('Writing csv header')
         with open(fname, 'w') as fo:
