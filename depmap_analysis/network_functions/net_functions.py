@@ -325,7 +325,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     # Create graph from df
     if graph_type == 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
-    elif graph_type is 'digraph':
+    elif graph_type == 'digraph':
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
@@ -562,20 +562,20 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
 
     dir_path_nodes_wb = []
 
-    if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
+    if x_type == 'x_is_intermediary':  # A->X->B or A<-X<-B
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
                                 subj_ax=gene_a, obj_ax=gene_x,
                                 subj_xb=gene_x, obj_xb=gene_b)
             dir_path_nodes_wb.append((gene_x, x_rank))
 
-    elif x_type is 'x_is_downstream':  # A->X<-B
+    elif x_type == 'x_is_downstream':  # A->X<-B
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
                                 subj_ax=gene_a, obj_ax=gene_x,
                                 subj_xb=gene_b, obj_xb=gene_x)
             dir_path_nodes_wb.append((gene_x, x_rank))
-    elif x_type is 'x_is_upstream':  # A<-X->B
+    elif x_type == 'x_is_upstream':  # A<-X->B
 
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
