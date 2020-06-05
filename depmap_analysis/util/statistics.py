@@ -1,12 +1,13 @@
-import boto3
 import logging
-import pandas as pd
-import matplotlib.pyplot as plt
-from time import time
 from math import floor
 from io import BytesIO
 from pathlib import Path
 from datetime import datetime
+
+import boto3
+import pandas as pd
+import matplotlib.pyplot as plt
+
 from indra.util.aws import get_s3_client
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
@@ -14,13 +15,41 @@ logger = logging.getLogger(__name__)
 
 
 class DepMapExplainer:
+    """Contains the result of the matching of correlations and an indranet
+    graph
+
+    Attributes
+    ----------
+    tag : str
+    indra_network_date : str
+    depmap_date : str
+    sd_range : tuple(float|None)
+    info : dict
+    network_type : str
+    stats_df : pd.DataFrame
+    expl_df : pd.DataFrame
+    is_signed : Bool
+    summary : dict
+    summary_str : str
+    corr_stats_axb : dict
+    """
 
     def __init__(self, stats_columns, expl_columns, info, tag=None,
                  network_type='digraph'):
+        """
+        Parameters
+        ----------
+        stats_columns : list[str]|tuple[str]
+        expl_columns : list[str]|tuple[str]
+        info : dict
+        tag : str
+        network_type : str
+        """
         self.tag = tag
-        self.indra_network_date = info['indra_network_date']
-        self.depmap_date = info['depmap_date']
-        self.sd_range = info['sd_range']
+        self.indra_network_date = info.pop('indra_network_date')
+        self.depmap_date = info.pop('depmap_date')
+        self.sd_range = info.pop('sd_range')
+        self.info = info
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
@@ -31,7 +60,7 @@ class DepMapExplainer:
         self.corr_stats_axb = {}
 
     def __str__(self):
-        return self.summary_str if self.has_data() else \
+        return self.get_summary_str() if self.has_data else \
             'DepMapExplainer is empty'
 
     def __len__(self):
