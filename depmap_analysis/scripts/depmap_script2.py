@@ -25,11 +25,9 @@ if the IndraNetwork
 #   An object of a new class that wraps a dataframe that can generate
 #   different explanations statistics
 """
+import inspect
 import logging
 import argparse
-import numpy as np
-import pandas as pd
-import networkx as nx
 import multiprocessing as mp
 from time import time
 from math import floor
@@ -37,7 +35,12 @@ from pathlib import Path
 from itertools import product
 from collections import defaultdict
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import networkx as nx
 from pybel.dsl.node_classes import CentralDogma
+
 from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
 from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
@@ -47,9 +50,12 @@ from depmap_analysis.network_functions.depmap_network_functions import \
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 
-
 logger = logging.getLogger('DepMap Script')
 logger.setLevel(logging.DEBUG)
+
+indranet = None
+hgnc_node_mapping = None
+output_list = None
 
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
@@ -266,7 +272,8 @@ def match_correlations(corr_z, sd_range, **kwargs):
                                 info={'indra_network_date': indra_date,
                                       'depmap_date': depmap_date,
                                       'sd_range': sd_range,
-                                      'graph_type': _type},
+                                      'graph_type': _type,
+                                      **kwargs.get('info', {})},
                                 )
 
     logger.info(f'Generating DepMapExplainer with output from '
@@ -464,6 +471,96 @@ def file_path():
     return check_path
 
 
+def main(indra_net, sd_range, outname, graph_type, z_score=None,
+         raw_data=None, raw_corr=None, pb_model=None,
+         pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
+         indra_date=None, depmap_date=None):
+    global indranet, hgnc_node_mapping, output_list
+    indranet = indra_net
+    hgnc_node_mapping = pb_node_mapping
+
+    run_options = {'n-chunks': n_chunks}
+
+    # 1 Check options
+    sd_l, sd_u = sd_range if len(sd_range) == 2 else \
+        ((sd_range[0], None) if len(sd_range) == 1 else (None, None))
+
+    if not sd_l and not sd_u:
+        raise ValueError('Must specify at least a lower bound for the SD '
+                         'range')
+
+    if graph_type == 'pybel' and not pb_model:
+        raise ValueError('Must provide PyBEL model with option pybel_model '
+                         'if graph type is pybel')
+
+    # Get the z-score corr matrix
+    if not (bool(z_score is not None and len(z_score)) ^
+            bool(raw_data or raw_corr)):
+        raise ValueError('Must provide either z_score XOR either of raw_data '
+                         'or raw_corr')
+
+    outname = outname if outname.endswith('.pkl') else \
+        outname + '.pkl'
+    outpath = Path(outname)
+
+    if z_score is not None:
+        z_corr = z_score
+    else:
+        z_sc_options = {
+            'crispr_raw': raw_data[0],
+            'rnai_raw': raw_data[1],
+            'crispr_corr': raw_corr[0],
+            'rnai_corr': raw_corr[1]
+        }
+        z_corr = run_corr_merge(**z_sc_options)
+
+    graph_type = graph_type
+    run_options['graph_type'] = graph_type
+
+    # Get mapping of correlation names to pybel nodes
+    if graph_type == 'pybel':
+        hgnc_node_mapping = get_hgnc_node_mapping(
+            hgnc_names=z_corr.columns.values,
+            pb_model=pb_model,
+            pb_signed_edge_graph=indranet
+        )
+
+    # 2. Filter to SD range
+    if sd_l and sd_u:
+        logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
+        z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
+                        ((z_corr < -sd_l) & (z_corr > -sd_u))]
+    elif sd_l and not sd_u:
+        logger.info(f'Filtering correlations to {sd_l}+ SD')
+        z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
+    run_options['corr_z'] = z_corr
+    run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
+
+    # 3. Ignore list as file
+
+    if ignore_list:
+        run_options['explained_set'] = set(ignore_list)
+
+    # 4. Add meta data
+    info_dict = {}
+    if info:
+        info_dict['info'] = info
+    if depmap_date:
+        info_dict['depmap_date'] = depmap_date
+    if indra_date:
+        info_dict['indra_date'] = indra_date
+    run_options['info'] = info_dict
+
+    # Create output list in global scope
+    output_list = []
+    explanations = match_correlations(**run_options)
+
+    # mkdir in case it  doesn't exist
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+    dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
+                      pyobj=explanations)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Explainer main script')
     #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
@@ -533,78 +630,26 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-    run_options = {'n-chunks': args.n_chunks}
+    arg_dict = vars(args)
 
-    # Check options
-    sd_l, sd_u = args.sd_range if len(args.sd_range) == 2 else\
-        ((args.sd_range[0], None) if len(args.sd_range) == 1 else (None, None))
+    # Load z_corr, indranet and optionally pybel_model
+    inet_graph = pickle_open(args.indranet)
+    arg_dict['indra_net'] = inet_graph
+    if arg_dict.get('z_score'):
+        corr_matrix = pd.read_hdf(arg_dict['z_score'])
+        arg_dict['z_score'] = corr_matrix
+    else:
+        arg_dict['raw_data'] = arg_dict.get('raw_data')
+        arg_dict['corr_data'] = arg_dict.get('corr_data')
 
-    outname = args.outname if args.outname.endswith('.pkl') else \
-        args.outname + '.pkl'
-    outpath = Path(outname)
-
-    if not Path(args.indranet).is_file():
-        raise FileNotFoundError(f'File {args.indranet} does not exist')
-
-    if not sd_l and not sd_u:
-        raise ValueError('Must specify at least a lower bound for the SD '
-                         'range')
-
-    if args.graph_type == 'pybel' and not args.pybel_model:
-        raise ValueError('Must provide PyBEL model with option --pybel-model '
+    if arg_dict.get('graph_type') == 'pybel' and \
+            not arg_dict.get('pybel_model'):
+        raise ValueError('Must provide PyBEL model with option pybel_model '
                          'if graph type is pybel')
+    if arg_dict.get('pybel_model'):
+        arg_dict['pb_model'] = pickle_open(arg_dict['pybel_model'])
 
-    # Get the z-score corr matrix
-    if args.z_score:
-        z_corr = pd.read_hdf(args.z_score)
-    else:
-        z_sc_options = {
-            'crispr_raw': args.raw_data[0],
-            'rnai_raw': args.raw_data[1],
-            'crispr_corr': args.raw_corr[0],
-            'rnai_corr': args.raw_corr[1]
-        }
-        z_corr = run_corr_merge(**z_sc_options)
+    main_keys = inspect.signature(main).parameters.keys()
+    kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
 
-    # Get indranet
-    indranet = pickle_open(args.indranet)
-    # run_options['indranet'] = indranet  # Use in global scope
-
-    graph_type = args.graph_type
-    run_options['graph_type'] = graph_type
-
-    # Get mapping of correlation names to pybel nodes
-    if graph_type == 'pybel':
-        hgnc_node_mapping = get_hgnc_node_mapping(
-            hgnc_names=z_corr.columns.values,
-            pb_model=pickle_open(args.pybel_model),
-            pb_signed_edge_graph=indranet
-        )
-    else:
-        hgnc_node_mapping = None
-
-    # 2. Filter to SD range
-    if sd_l and sd_u:
-        logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
-        z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
-                        ((z_corr < -sd_l) & (z_corr > -sd_u))]
-    elif sd_l and not sd_u:
-        logger.info(f'Filtering correlations to {sd_l}+ SD')
-        z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
-    run_options['corr_z'] = z_corr
-    run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
-
-    # 3. Ignore list as file
-    ignore_file = args.ignore_list
-    if ignore_file:
-        with open(ignore_file, 'r') as f:
-            run_options['explained_set'] = set(f.readlines())
-
-    # Create output list in global scope
-    output_list = []
-    explanations = match_correlations(**run_options)
-
-    # mkdir in case it  doesn't exist
-    outpath.parent.mkdir(parents=True, exist_ok=True)
-    dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
-                      pyobj=explanations)
+    main(**kwargs)
