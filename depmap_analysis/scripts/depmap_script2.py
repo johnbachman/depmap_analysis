@@ -629,6 +629,14 @@ if __name__ == '__main__':
              'have to be equal to the amount of CPUs.'
     )
 
+    # 6 Extra info
+    parser.add_argument('--indra-date',
+                        help='Provide a date for the dump from which the '
+                             'indra network was created')
+    parser.add_argument('--depmap-date',
+                        help='Provide the release date of the depmap data '
+                             'used.')
+
     args = parser.parse_args()
     arg_dict = vars(args)
 
