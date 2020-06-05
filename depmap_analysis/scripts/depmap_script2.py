@@ -475,6 +475,29 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
          raw_data=None, raw_corr=None, pb_model=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
          indra_date=None, depmap_date=None):
+    """Set up correlation mtaching of depmap data with an indranet graph
+
+    Parameters
+    ----------
+    indra_net : nx.DiGraph|nx.MultiDiGraph
+    sd_range : tuple(float|None)
+    outname : str
+    graph_type : str
+    z_score : pd.DataFrame
+    raw_data : str
+    raw_corr : str
+    pb_model : PyBEL network
+    pb_node_mapping : dict
+    n_chunks : int
+    ignore_list : list
+    info : dict
+    indra_date : str
+    depmap_date : str
+
+    Returns
+    -------
+    depmap_analysis.util.statistics.DepMapExplainer
+    """
     global indranet, hgnc_node_mapping, output_list
     indranet = indra_net
     hgnc_node_mapping = pb_node_mapping
