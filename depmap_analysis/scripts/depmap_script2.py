@@ -41,7 +41,8 @@ import pandas as pd
 import networkx as nx
 from pybel.dsl.node_classes import CentralDogma
 
-from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
+from depmap_analysis.util.io_functions import pickle_open, \
+    dump_it_to_pickle, json_open
 from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
 from depmap_analysis.network_functions.famplex_functions import common_parent
@@ -487,7 +488,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     raw_data : str
     raw_corr : str
     pb_model : PyBEL network
-    pb_node_mapping : dict
+    pb_node_mapping : dict|str
     n_chunks : int
     ignore_list : list
     info : dict
@@ -500,7 +501,6 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     """
     global indranet, hgnc_node_mapping, output_list
     indranet = indra_net
-    hgnc_node_mapping = pb_node_mapping
 
     run_options = {'n-chunks': n_chunks}
 
@@ -542,11 +542,21 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
 
     # Get mapping of correlation names to pybel nodes
     if graph_type == 'pybel':
-        hgnc_node_mapping = get_hgnc_node_mapping(
-            hgnc_names=z_corr.columns.values,
-            pb_model=pb_model,
-            pb_signed_edge_graph=indranet
-        )
+        if pb_node_mapping is None:
+            hgnc_node_mapping = get_hgnc_node_mapping(
+                hgnc_names=z_corr.columns.values,
+                pb_model=pb_model,
+                pb_signed_edge_graph=indranet
+            )
+        else:
+            if isinstance(pb_node_mapping, dict):
+                hgnc_node_mapping = pb_node_mapping
+            elif Path(pb_node_mapping).is_file():
+                hgnc_node_mapping = pickle_open(pb_node_mapping) if \
+                    pb_node_mapping.endswith('.pkl') else \
+                    json_open(pb_node_mapping)
+            else:
+                raise ValueError('Could not load pybel node mapping')
 
     # 2. Filter to SD range
     if sd_l and sd_u:
@@ -614,11 +624,19 @@ if __name__ == '__main__':
              'per node pair, one edge per sign).'
     )
 
-    #   1c Optionally provide PyBEL model
+    #   1c-1 Optionally provide PyBEL model
     parser.add_argument(
         '--pybel-model', type=file_path(),
         help='If graph type is "pybel", use this argument to provide the '
              'necessary pybel model used to precompute the pybel node mapping.'
+    )
+
+    #   1c-2 Optionally provide node mapping for hgnc symbol - pybel node
+    parser.add_argument(
+        '--pybel-node-mapping', type=file_path(),
+        help='If graph type is "pybel", use this argument to optionally '
+             'provide a mapping from HGNC symbols to pybel nodes in the '
+             'pybel model'
     )
 
     #   1d Provide graph type
@@ -679,6 +697,16 @@ if __name__ == '__main__':
                          'if graph type is pybel')
     if arg_dict.get('pybel_model'):
         arg_dict['pb_model'] = pickle_open(arg_dict['pybel_model'])
+        if arg_dict.get('pybel_node_mapping'):
+            if arg_dict['pybel_node_mapping'].endswith('.pkl'):
+                arg_dict['pb_node_mapping'] = \
+                    pickle_open(arg_dict['pybel_node_mapping'])
+            elif arg_dict['pybel_node_mapping'].endswith('.json'):
+                arg_dict['pb_node_mapping'] = \
+                    json_open(arg_dict['pybel_node_mapping'])
+            else:
+                raise ValueError('Unknown file type %s' %
+                                 arg_dict['pybel_node_mapping'].split('.')[-1])
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
