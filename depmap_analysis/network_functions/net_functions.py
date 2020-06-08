@@ -705,15 +705,42 @@ def get_hgnc_node_mapping(hgnc_names, pb_model, pb_signed_edge_graph):
     dict
         A dictionary mapping names (HGNC symbols) to a sets of pybel nodes
     """
+    # Reduce the number of nodes to look for by checking which nodes are
+    # present in the pb_model
+
+    pb_model_mapping = {}
+    for node in pb_model.nodes:
+        try:
+            if node.namespace == 'HGNC':
+                ns = node.namespace
+                try:
+                    _id = node.identifier
+                except AttributeError:
+                    _id = None
+                pb_model_mapping[node.name] = (ns, _id, node)
+            else:
+                continue
+        # No attribute 'namespace'
+        except AttributeError:
+            continue
+
+    existing_hgnc_names = set(hgnc_names).intersection(pb_model_mapping.keys())
+
     hgnc_tuples = set()
-    for name in hgnc_names:
-        ns, _id = ns_id_from_name(name)
+    for name in existing_hgnc_names:
+        ns, _id, _ = pb_model_mapping[name]
+        if ns is None or _id is None:
+            ns, _id = ns_id_from_name(name)
         hgnc_tuples.add((name, ns, _id))
+    existing_mapping = {k: {node} for k, (_, _, node) in
+                        pb_model_mapping.items()}
     return hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model,
-                                      pb_signed_edge_graph)
+                                      pb_signed_edge_graph,
+                                      existing_mapping)
 
 
-def hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model, pb_signed_edge_graph):
+def hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model, pb_signed_edge_graph,
+                               existing_mapping=None):
     """Generate a mapping of name, ns, id tuples to pybel nodes
 
     Parameters
@@ -725,16 +752,21 @@ def hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model, pb_signed_edge_graph):
         An assembled pybel model
     pb_signed_edge_graph : nx.MultiDiGraph
         The signed edge representation of the signed_edge_pb_graph
+    existing_mapping : dict
+        Provide a mapping to continue on
 
     Returns
     -------
     dict
         A dictionary mapping names (HGNC symbols) to sets of pybel nodes
     """
-    node_mapping = {}
+    node_mapping = {} if existing_mapping is None else existing_mapping
     for name, ns, _id in hgnc_tuples:
         pb_nodes = get_unsigned_pybel_nodes(pb_model,
                                             Agent(name, db_refs={ns: _id}),
                                             pb_signed_edge_graph)
-        node_mapping[name] = pb_nodes
+        if node_mapping.get(name):
+            node_mapping[name].update(pb_nodes)
+        else:
+            node_mapping[name] = pb_nodes
     return node_mapping
