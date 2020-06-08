@@ -475,7 +475,7 @@ def file_path():
 def main(indra_net, sd_range, outname, graph_type, z_score=None,
          raw_data=None, raw_corr=None, pb_model=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
-         indra_date=None, depmap_date=None, sampl_size=None):
+         indra_date=None, depmap_date=None, sample_size=None):
     """Set up correlation mtaching of depmap data with an indranet graph
 
     Parameters
@@ -494,7 +494,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     info : dict
     indra_date : str
     depmap_date : str
-    sampl_size : int
+    sample_size : int
 
     Returns
     -------
@@ -539,10 +539,10 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
         z_corr = run_corr_merge(**z_sc_options)
 
     # Pick a sample
-    if sampl_size is not None and len(z_corr) > sampl_size:
-        logger.info(f'Reducing correlation matrix to a random {sampl_size} '
-                    f'by {sampl_size} sample')
-        z_corr = z_corr.sample(sampl_size, axis=0)
+    if sample_size is not None and len(z_corr) > sample_size:
+        logger.info(f'Reducing correlation matrix to a random {sample_size} '
+                    f'by {sample_size} sample')
+        z_corr = z_corr.sample(sample_size, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
     graph_type = graph_type
@@ -676,6 +676,13 @@ if __name__ == '__main__':
         '--n-chunks', type=int, default=256,
         help='Pick the number of slices to split the work into. Does not '
              'have to be equal to the amount of CPUs.'
+    )
+
+    # Sampling
+    parser.add_argument(
+        '--sample-size', type=int,
+        help='If provided, down sample the correlation matrix to this size, '
+             'provided the loaded matrix is larger than this.'
     )
 
     # 6 Extra info
