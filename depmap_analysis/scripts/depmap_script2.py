@@ -475,7 +475,7 @@ def file_path():
 def main(indra_net, sd_range, outname, graph_type, z_score=None,
          raw_data=None, raw_corr=None, pb_model=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
-         indra_date=None, depmap_date=None):
+         indra_date=None, depmap_date=None, sampl_size=None):
     """Set up correlation mtaching of depmap data with an indranet graph
 
     Parameters
@@ -494,6 +494,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     info : dict
     indra_date : str
     depmap_date : str
+    sampl_size : int
 
     Returns
     -------
@@ -536,6 +537,13 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
             'rnai_corr': raw_corr[1]
         }
         z_corr = run_corr_merge(**z_sc_options)
+
+    # Pick a sample
+    if sampl_size is not None and len(z_corr) > sampl_size:
+        logger.info(f'Reducing correlation matrix to a random {sampl_size} '
+                    f'by {sampl_size} sample')
+        z_corr = z_corr.sample(sampl_size, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
     graph_type = graph_type
     run_options['graph_type'] = graph_type
