@@ -61,7 +61,7 @@ def dump_it_to_json(fname, pyobj, overwrite=False):
     if not file.parent.is_dir():
         file.parent.mkdir(parents=True)
 
-    with open(fname, 'w') as json_out:
+    with file.open('w') as json_out:
         json.dump(pyobj, json_out)
     logger.info('Finished dumping to pickle')
 
@@ -80,9 +80,9 @@ def dump_it_to_csv(fname, pyobj, separator=',', header=None, overwrite=False):
 
     if header:
         logger.info('Writing csv header')
-        with open(fname, 'w') as fo:
+        with file.open('w') as fo:
             fo.write(','.join(header)+'\n')
-    with open(fname, 'a', newline='') as csvf:
+    with file.open('a', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=separator)
         wrtr.writerows(pyobj)
     logger.info('Finished dumping to csv')
@@ -91,7 +91,8 @@ def dump_it_to_csv(fname, pyobj, separator=',', header=None, overwrite=False):
 def pickle_open(fname):
     """Open pickle fname and return the contianed object"""
     logger.info('Loading pickle file %s' % fname)
-    with open(fname, 'rb') as pi:
+    file = Path(fname)
+    with file.open('rb') as pi:
         pkl = pickle.load(file=pi)
     logger.info('Finished loading pickle file')
     return pkl
@@ -100,7 +101,8 @@ def pickle_open(fname):
 def json_open(fname):
     """Open json fname and return the object"""
     logger.info('Loading json file %s' % fname)
-    with open(fname, 'r') as jo:
+    file = Path(fname)
+    with file.open('r') as jo:
         js = json.load(fp=jo)
     logger.info('Finished loading json file')
     return js
@@ -117,8 +119,8 @@ def read_gene_set_file(gf, data):
     except AttributeError:
         # multi index
         dset = set([t[0] for t in data.columns])
-
-    with open(gf, 'rt') as f:
+    file = Path(gf)
+    with file.open('rt') as f:
         for g in f.readlines():
             gn = g.upper().strip()
             if gn in dset:
@@ -167,7 +169,8 @@ def histogram_for_large_files(fpath, number_of_bins, binsize, first):
         binsize and first.
     """
     home_brewed_histo = np.zeros(number_of_bins, dtype=int)
-    with open(file=fpath) as fo:
+    file = Path(fpath)
+    with file.open('r') as fo:
         for line in fo:
             flt = line.strip()
             home_brewed_histo[map2index(start=first, binsize=binsize,
