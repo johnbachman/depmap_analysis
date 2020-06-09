@@ -14,12 +14,10 @@ from indra.belief import load_default_probs
 from indra.sources.bel.processor import get_agent
 from indra.assemblers.english import EnglishAssembler
 from indra.statements import Agent, get_statement_by_name, stmts_from_json
-from indra.preassembler.hierarchy_manager import hierarchies
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
-from indra.assemblers.pybel.assembler import belgraph_to_signed_graph, \
-    _get_agent_node
+from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
 from indra_reading.readers import get_reader_classes
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
@@ -634,61 +632,7 @@ def ns_id_from_name(name, gilda_retry=False):
     return None, None
 
 
-def _get_pb_model_agents(pb_model):
-    """Get model agents from pybel model
-
-    Parameters
-    ----------
-    pb_model : PyBEL.Model
-
-    Returns
-    -------
-    list
-
-    """
-    return [get_agent(node) for node in pb_model.nodes]
-
-
-def get_unsigned_pybel_nodes(pb_model, agent, signed_edge_pb_graph):
-    """Get pybel nodes from agent, pybel model and signed IndraNet PyBEL graph
-
-    Note: this is a signed edge version of PybelModelChecker.get_nodes
-
-    Parameters
-    ----------
-    pb_model : PyBEL.Model
-        An assembled pybel model
-    agent : indra.statements.agent.Agent
-        The agent to look for a PyBEL node representation of in
-        signed_edge_pb_graph
-    signed_edge_pb_graph : nx.MultiDiGraph
-        The signed edge representation of the signed_edge_pb_graph
-
-    Returns
-    -------
-    set
-        The set of node(s) in signed_edge_pb_graph that represent the
-        provided Agent.
-    """
-    nodes = set()
-    if agent is None:
-        return nodes
-
-    agent_node = _get_agent_node(agent)[0]
-    if agent_node and agent_node in signed_edge_pb_graph.nodes:
-        nodes.add(agent_node)
-
-    # Get refined versions of the node
-    for ag in _get_pb_model_agents(pb_model):
-        if ag is not None and ag.refinement_of(agent, hierarchies):
-            agent_node = _get_agent_node(agent)[0]
-            if agent_node and agent_node in signed_edge_pb_graph.nodes:
-                nodes.add(agent_node)
-
-    return nodes
-
-
-def get_hgnc_node_mapping(hgnc_names, pb_model, pb_signed_edge_graph):
+def get_hgnc_node_mapping(hgnc_names, pb_model):
     """Generate a mapping of HGNC symbols to pybel nodes
 
     Parameters
@@ -697,76 +641,28 @@ def get_hgnc_node_mapping(hgnc_names, pb_model, pb_signed_edge_graph):
         An iterable containing HGNC names to be mapped to pybel nodes
     pb_model : PyBEL.Model
         An assembled pybel model
-    pb_signed_edge_graph : nx.MultiDiGraph
-        The signed edge representation of the signed_edge_pb_graph
 
     Returns
     -------
     dict
         A dictionary mapping names (HGNC symbols) to a sets of pybel nodes
     """
-    # Reduce the number of nodes to look for by checking which nodes are
-    # present in the pb_model
 
+    # Get existing node mappings
+    corr_names = set(hgnc_names)
     pb_model_mapping = {}
     for node in pb_model.nodes:
         try:
-            if node.namespace == 'HGNC':
-                ns = node.namespace
-                try:
-                    _id = node.identifier
-                except AttributeError:
-                    _id = None
-                pb_model_mapping[node.name] = (ns, _id, node)
+            # Only consider HGNC nodes and if node name is in provided set
+            # of HGNC symbol names
+            if node.name in corr_names and node.namespace == 'HGNC':
+                if pb_model_mapping.get(node.name):
+                    pb_model_mapping[node.name].add((get_agent(node), node))
+                else:
+                    pb_model_mapping[node.name] = {(get_agent(node), node)}
             else:
                 continue
-        # No attribute 'namespace'
+        # No attribute 'name' or 'namespace'
         except AttributeError:
             continue
-
-    existing_hgnc_names = set(hgnc_names).intersection(pb_model_mapping.keys())
-
-    hgnc_tuples = set()
-    for name in existing_hgnc_names:
-        ns, _id, _ = pb_model_mapping[name]
-        if ns is None or _id is None:
-            ns, _id = ns_id_from_name(name)
-        hgnc_tuples.add((name, ns, _id))
-    existing_mapping = {k: {node} for k, (_, _, node) in
-                        pb_model_mapping.items()}
-    return hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model,
-                                      pb_signed_edge_graph,
-                                      existing_mapping)
-
-
-def hgnc_name_to_pybel_mapping(hgnc_tuples, pb_model, pb_signed_edge_graph,
-                               existing_mapping=None):
-    """Generate a mapping of name, ns, id tuples to pybel nodes
-
-    Parameters
-    ----------
-    hgnc_tuples : set[tuple]
-        A set of tuples of name, ns, id to map to sets of pybel nodes found
-        in pb_signed_edge_graph
-    pb_model : PyBEL.Model
-        An assembled pybel model
-    pb_signed_edge_graph : nx.MultiDiGraph
-        The signed edge representation of the signed_edge_pb_graph
-    existing_mapping : dict
-        Provide a mapping to continue on
-
-    Returns
-    -------
-    dict
-        A dictionary mapping names (HGNC symbols) to sets of pybel nodes
-    """
-    node_mapping = {} if existing_mapping is None else existing_mapping
-    for name, ns, _id in hgnc_tuples:
-        pb_nodes = get_unsigned_pybel_nodes(pb_model,
-                                            Agent(name, db_refs={ns: _id}),
-                                            pb_signed_edge_graph)
-        if node_mapping.get(name):
-            node_mapping[name].update(pb_nodes)
-        else:
-            node_mapping[name] = pb_nodes
-    return node_mapping
+    return pb_model_mapping

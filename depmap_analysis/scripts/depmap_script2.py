@@ -553,8 +553,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
         if pb_node_mapping is None:
             hgnc_node_mapping = get_hgnc_node_mapping(
                 hgnc_names=z_corr.columns.values,
-                pb_model=pb_model,
-                pb_signed_edge_graph=indranet
+                pb_model=pb_model
             )
         else:
             if isinstance(pb_node_mapping, dict):
