@@ -538,13 +538,6 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
         }
         z_corr = run_corr_merge(**z_sc_options)
 
-    # Pick a sample
-    if sample_size is not None and len(z_corr) > sample_size:
-        logger.info(f'Reducing correlation matrix to a random {sample_size} '
-                    f'by {sample_size} sample')
-        z_corr = z_corr.sample(sample_size, axis=0)
-        z_corr = z_corr.filter(list(z_corr.index), axis=1)
-
     graph_type = graph_type
     run_options['graph_type'] = graph_type
 
@@ -573,11 +566,22 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     elif sd_l and not sd_u:
         logger.info(f'Filtering correlations to {sd_l}+ SD')
         z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
-    run_options['corr_z'] = z_corr
+
     run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
 
-    # 3. Ignore list as file
+    # Pick a sample
+    if sample_size is not None:
+        logger.info(f'Reducing correlation matrix to a random {sample_size} '
+                    f'by {sample_size} sample')
+        while z_corr.notna().sum().sum() > sample_size**2:
+            logger.info('Down sampling')
+            sample_size -= 1
+            z_corr = z_corr.sample(sample_size, axis=0)
+            z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
+    run_options['corr_z'] = z_corr
+
+    # 3. Ignore list as file
     if ignore_list:
         run_options['explained_set'] = set(ignore_list)
 
