@@ -258,8 +258,13 @@ class DepMapExplainer:
                         # Upload to s3
                         _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
                                       key=key_base + '/' + name)
+
+                    # Show plot
                     if show_plot:
                         plt.show()
+
+                    # Close figure
+                    plt.close(fig_index)
                 else:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
@@ -325,6 +330,9 @@ class DepMapExplainer:
         # Show plot
         if show_plot:
             plt.show()
+
+        # Close figure
+        plt.close(fig_index)
 
 
 def _upload_to_s3(bytes_io_obj, bucket, key):
