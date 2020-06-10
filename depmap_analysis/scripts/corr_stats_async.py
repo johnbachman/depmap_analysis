@@ -1,10 +1,10 @@
-import numpy as np
 from ctypes import c_wchar_p
 from time import time
 from datetime import datetime
 from multiprocessing import Pool, cpu_count, Array
-
 import logging
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,8 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count()):
         f'with about {len(ab_corr_pairs)} pairs to check'
     )
     tstart = time()
-    max_proc = min(cpu_count(), max_proc)
+    max_proc = min(cpu_count(), max_proc) if max_proc is not None else \
+        cpu_count()
     if max_proc < 1:
         logger.warning('Max processes is set to < 1, resetting to 1')
         max_proc = 1
