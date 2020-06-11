@@ -1,10 +1,12 @@
 import logging
 import argparse
-import pandas as pd
 from math import floor
 from pathlib import Path
 from itertools import count
 from datetime import datetime
+
+import pandas as pd
+
 from depmap_analysis.util.io_functions import pickle_open
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,15 @@ if __name__ == '__main__':
         help='The maximum number of processes to run in the multiprocessing '
              'in get_corr_stats_mp. The number will automatically be floored '
              'if decimal. Default: multiprocessing.cpu_count()'
+    )
+
+    parser.add_argument(
+        '--max-so-pairs', type=int,
+        help='The maximum number of correlation pairs to process. If the '
+             'number of eligble pairs is larger than this number, a random '
+             'sample of max_so_pairs_size is used. Default: 10 000. If the '
+             'number of pairs to check is smaller than 1000, no sampling is '
+             'done.'
     )
 
     args = parser.parse_args()
@@ -77,10 +88,13 @@ if __name__ == '__main__':
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr, show_plot=False,
                                       max_proc=max_proc,
-                                      index_counter=indexer)
+                                      index_counter=indexer,
+                                      max_so_pairs_size=args.max_so_pairs)
+
             explainer.plot_dists(outdir=explainer_out,
                                  z_corr=None, show_plot=False,
-                                 index_counter=indexer)
+                                 index_counter=indexer,
+                                 max_so_pairs_size=args.max_so_pairs)
         else:
             if not Path(explainer_file).is_file():
                 raise FileNotFoundError(f'{explainer_file} does not exist')

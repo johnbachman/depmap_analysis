@@ -86,7 +86,7 @@ class GlobalVars(object):
 
 # ToDo: make one work submitting function as a wrapper and provide the inner
 #  loop as argument
-def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count()):
+def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
     logger.info("Stratifying correlations by interaction type")
     logger.info(
         f'Starting workers for pairs at '
@@ -100,11 +100,17 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count()):
         logger.warning('Max processes is set to < 1, resetting to 1')
         max_proc = 1
 
+    if max_pairs and len(ab_corr_pairs) > max_pairs:
+        corr_pairs = np.random.choice(ab_corr_pairs, size=max_pairs,
+                                      replace=False)
+    else:
+        corr_pairs = ab_corr_pairs
+
     # Loop workers
     with Pool(max_proc) as pool:
         # Split up number of pairs
-        size = len(ab_corr_pairs) // max_proc + 1 if max_proc > 1 else 1
-        lst_gen = _list_chunk_gen(lst=list(ab_corr_pairs),
+        size = len(corr_pairs) // max_proc + 1 if max_proc > 1 else 1
+        lst_gen = _list_chunk_gen(lst=list(corr_pairs),
                                   size=size,
                                   shuffle=True)
         for corr_pairs in lst_gen:
@@ -127,6 +133,7 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count()):
     results_pairs = set()
     for s in global_results_pairs:
         results_pairs.update(s)
+    assert len(results_pairs) <= max_pairs, len(results_pairs)
     return results_pairs
 
 

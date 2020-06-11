@@ -5,17 +5,19 @@ import sys
 import ast
 import pickle
 import logging
-from os import path, environ
+from os import path
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
 from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
 
 logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.INFO)
 
 
-def main(expl_df, z_corr, eval_str=False, max_proc=None):
+def main(expl_df, z_corr, eval_str=False, max_proc=None, max_corr_pairs=10000):
     """Get statistics of the correlations associated with different
     explanation types
 
@@ -31,6 +33,12 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None):
     max_proc : int > 0
         The maximum number of processes to run in the multiprocessing in
         get_corr_stats_mp. Default: multiprocessing.cpu_count()
+    max_corr_pairs : int
+        The maximum number of correlation pairs to process. If the number of
+        eligble pairs is larger than this number, a random sample of
+        max_so_pairs_size is used. Default: 10 000. If the number of pairs
+        to check is smaller than 1000, no sampling is done.
+
     Returns
     -------
     dict
@@ -59,7 +67,8 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None):
     if len(all_ab_corr_pairs) > 1000:
         # Do multiprocessing
         gbv.assert_global_vars({'df'})
-        pairs_axb_only = get_pairs_mp(all_ab_corr_pairs, max_proc=max_proc)
+        pairs_axb_only = get_pairs_mp(all_ab_corr_pairs, max_proc=max_proc,
+                                      max_pairs=max_corr_pairs)
     else:
         # Pairs where a-x-b AND a-b explanation exists
         pairs_axb_direct = set()
