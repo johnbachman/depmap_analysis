@@ -1,8 +1,9 @@
-from ctypes import c_wchar_p
 from time import time
+from ctypes import c_wchar_p
 from datetime import datetime
 from multiprocessing import Pool, cpu_count, Array
 import logging
+import random
 
 import numpy as np
 
@@ -101,8 +102,9 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
         max_proc = 1
 
     if max_pairs and len(ab_corr_pairs) > max_pairs:
-        corr_pairs = np.random.choice(list(ab_corr_pairs), size=max_pairs,
-                                      replace=False)
+        corr_pairs = random.sample(
+            ab_corr_pairs, max_pairs
+        )
     else:
         corr_pairs = ab_corr_pairs
 
