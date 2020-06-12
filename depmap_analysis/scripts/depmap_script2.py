@@ -30,7 +30,6 @@ import logging
 import argparse
 import multiprocessing as mp
 from time import time
-from math import floor
 from pathlib import Path
 from itertools import product
 from collections import defaultdict
@@ -227,8 +226,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
         else ymd_now
 
-    bool_matrix = np.invert(np.isnan(corr_z.values))
-    estim_pairs = floor((bool_matrix.sum() - bool_matrix.diagonal().sum())/2)
+    estim_pairs = corr_z.notna().sum().sum()
     print(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} with '
           f'about {estim_pairs} pairs to check')
     tstart = time()
