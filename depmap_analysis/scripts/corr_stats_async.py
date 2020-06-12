@@ -92,7 +92,7 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
     logger.info(
         f'Starting workers for pairs at '
         f'{datetime.now().strftime("%H:%M:%S")} '
-        f'with about {len(ab_corr_pairs)} pairs to check'
+        f'with {len(ab_corr_pairs)} pairs to check'
     )
     tstart = time()
     max_proc = min(cpu_count(), max_proc) if max_proc is not None else \
@@ -136,7 +136,7 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
     results_pairs = set()
     for s in global_results_pairs:
         results_pairs.update(s)
-    assert len(results_pairs) <= max_pairs, len(results_pairs)
+    assert len(results_pairs) <= len(ab_corr_pairs)
     return results_pairs
 
 
