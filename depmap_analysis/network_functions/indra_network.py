@@ -9,6 +9,7 @@ import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
 
 from indra.config import CONFIG_DICT
+from indra.databases import get_identifiers_url
 from indra.assemblers.indranet.net import default_sign_dict
 from indra.explanation.pathfinding.util import signed_nodes_to_signed_edge, \
     path_sign_to_signed_nodes
@@ -71,7 +72,8 @@ class IndraNetwork:
         self.mdg_edges = indra_multi_dir_graph.edges
         self.signed_node_edges = self.sign_node_graph_repr.edges
         self.signed_edges = indra_sign_edge_graph.edges
-        self.ehm = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
+        # FIXME: THIS SHOULD PROBABLY BE CALLED 'ontology'
+        self.ontology = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.node_by_ns_id = indra_dir_graph.graph.get('node_by_ns_id', None)
         self.MAX_PATHS = MAX_PATHS
@@ -1447,7 +1449,7 @@ class IndraNetwork:
         # Check existence of node outside function
         node_id = self.nodes[node]['id']
         node_ns = self.nodes[node]['ns']
-        return self.ehm.get_uri(id=node_id, ns=node_ns)
+        return get_identifiers_url(node_ns, node_id)
 
     def _get_parents(self, node):
         if self.nodes.get(node):
@@ -1456,9 +1458,9 @@ class IndraNetwork:
 
             true_ns, true_id = nf.ns_id_from_name(db_id)
             if true_ns and true_id:
-                return self.ehm.get_parents(uri=self.ehm.get_uri(true_ns,
-                                                                 true_id))
-            return self.ehm.get_parents(uri=self.ehm.get_uri(ns, db_id))
+                ns, db_id = true_ns, true_id
+            parents = self.ontology.get_parents(ns, db_id)
+            return {get_identifiers_url(*p) for p in parents}
         else:
             return set()
 
