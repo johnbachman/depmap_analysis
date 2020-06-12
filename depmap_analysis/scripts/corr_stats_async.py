@@ -102,6 +102,7 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
         max_proc = 1
 
     if max_pairs and len(ab_corr_pairs) > max_pairs:
+        logger.info(f'Down sampling ab_corr_pairs to {max_pairs}')
         corr_pairs = random.sample(
             ab_corr_pairs, max_pairs
         )
