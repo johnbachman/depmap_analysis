@@ -255,7 +255,8 @@ def match_correlations(corr_z, sd_range, **kwargs):
                                  explained_set,
                                  _type
                              ),
-                             callback=success_callback)
+                             callback=success_callback,
+                             error_callback=error_callback)
 
         logger.info('Done submitting work to pool workers')
         pool.close()
@@ -435,6 +436,12 @@ def get_ns_id(subj, obj, net):
 def success_callback(res):
     logger.info('Appending a result')
     output_list.append(res)
+
+
+def error_callback(err):
+    logger.error('The following exception occurred (this is a print of the '
+                 'traceback and thus not debuggable in ipython):')
+    logger.exception(err)
 
 
 def graph_types(types):
