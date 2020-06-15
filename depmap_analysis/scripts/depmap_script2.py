@@ -191,13 +191,13 @@ def match_correlations(corr_z, sd_range, **kwargs):
         The graph representation of the indra network. Each edge should
         have an attribute named 'statements' containing a list of sources
         supporting that edge. If signed search, indranet is expected to be an
-        nx.MultiDiGraph with edges keyes by (gene, gene, sign) tuples.
+        nx.MultiDiGraph with edges keys by (gene, gene, sign) tuples.
     sd_range : tuple[float]
         The SD ranges that the corr_z is filtered to
 
     Returns
     -------
-    depmap_explainer
+    depmap_analysis.util.statistics.DepMapExplainer
         An instance of the DepMapExplainer class containing the explanations
         for the correlations.
     """
@@ -265,7 +265,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     print(f'Execution time: {time() - tstart} seconds')
     print(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
-    # Here initialize a DepMapExplainer and append the result fro the
+    # Here initialize a DepMapExplainer and append the result for the
     # different processes
     explainer = DepMapExplainer(stats_columns=stats_columns,
                                 expl_columns=expl_columns,
@@ -481,7 +481,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
          raw_data=None, raw_corr=None, pb_model=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
          indra_date=None, depmap_date=None, sample_size=None):
-    """Set up correlation mtaching of depmap data with an indranet graph
+    """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
     ----------
