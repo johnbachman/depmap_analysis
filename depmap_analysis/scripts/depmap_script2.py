@@ -75,10 +75,11 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
         stats_dict['agB'].append(gB)
         stats_dict['z-score'].append(zsc)
 
-        # Skip if A or B not in graph or if type is pybel and no node
-        # mapping exists
+        # Skip if A or B not in graph or (if type is pybel) no node
+        # mapping exists for either A or B
         if _type == 'pybel' and \
-                not (hgnc_node_mapping[gA] and hgnc_node_mapping[gB]) or \
+                (gA not in hgnc_node_mapping or gB not in hgnc_node_mapping) \
+                or \
                 _type != 'pybel' and \
                 (gA not in indranet.nodes or gB not in indranet.nodes):
             for k in set(stats_dict.keys()).difference(set(min_columns)):
