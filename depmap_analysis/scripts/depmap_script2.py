@@ -440,8 +440,8 @@ def success_callback(res):
 
 
 def error_callback(err):
-    logger.error('The following exception occurred (this is a print of the '
-                 'traceback and thus not debuggable in ipython):')
+    logger.error('The following exception occurred (this is only a print of '
+                 'the traceback):')
     logger.exception(err)
 
 
