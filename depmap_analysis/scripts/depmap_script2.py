@@ -93,10 +93,8 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
 
         if _type == 'pybel':
             # Get ns, id
-            a_pb_node = list(hgnc_node_mapping[gA])[0]
-            a_ns, a_id = a_pb_node.namespace, a_pb_node.identifier
-            b_pb_node = list(hgnc_node_mapping[gB])[0]
-            b_ns, b_id = b_pb_node.namespace, b_pb_node.identifier
+            a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
+            b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
         else:
             a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
 
@@ -147,8 +145,15 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 if expl_type == 'explained set':
                     continue
 
+                # Add hgnc symbol name to kwargs if pybel
+                options = {}
+                if _type == 'pybel':
+                    options['s_name'] = gA
+                    options['o_name'] = gB
+
                 # Some functions reverses A, B hence the s, o assignment
-                s, o, expl_data = expl_func(A, B, zsc, indranet, _type)
+                s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
+                                            **options)
                 if expl_data:
                     expl_dict['agA'].append(s)
                     expl_dict['agB'].append(o)
@@ -295,13 +300,20 @@ def explained(s, o, corr, net, graph_type, **kwargs):
 
 
 def find_cp(s, o, corr, net, _type, **kwargs):
-    # This function is the same for all graph_types
-    s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
+    if _type == 'pybel':
+        s_name = kwargs['s_name']
+        s_ns, s_id = get_ns_id_pybel_node(s_name, s)
+        o_name = kwargs['o_name']
+        o_ns, o_id = get_ns_id_pybel_node(o_name, o)
+    else:
+        s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
 
     if not s_id:
-        s_ns, s_id = ns_id_from_name(s)
+        s_ns, s_id = ns_id_from_name(s_name) if _type == 'pybel' else \
+            ns_id_from_name(s)
     if not o_id:
-        o_ns, o_id = ns_id_from_name(o)
+        o_ns, o_id = ns_id_from_name(o_name) if _type == 'pybel' else \
+            ns_id_from_name(o)
 
     if s_id and o_id:
         parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
@@ -325,7 +337,12 @@ def expl_axb(s, o, corr, net, _type, **kwargs):
 
 
 def expl_bxa(s, o, corr, net, _type, **kwargs):
-    return expl_axb(o, s, corr, net, _type, **kwargs)
+    if _type == 'pybel':
+        s_name = kwargs.pop('s_name')
+        o_name = kwargs.pop('o_name')
+        options = {'o_name': s_name, 's_name': o_name}
+
+    return expl_axb(o, s, corr, net, _type, **kwargs, **options)
 
 
 # Shared regulator: A<-X->B
@@ -367,8 +384,12 @@ def expl_ab(s, o, corr, net, _type, **kwargs):
 
 
 def expl_ba(s, o, corr, net, _type, **kwargs):
-    # Reverse order call to expl_ab
-    return expl_ab(o, s, corr, net, _type, **kwargs)
+    options = {}
+    if _type == 'pybel':
+        options['o_name'] = kwargs.pop('s_name')
+        options['s_name'] = kwargs.pop('o_name')
+
+    return expl_ab(o, s, corr, net, _type, **kwargs, **options)
 
 
 def get_edge_statements(s, o, corr, net, _type, **kwargs):
@@ -403,6 +424,8 @@ def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
 def get_ns_id(subj, obj, net):
     """Get ns:id for both subj and obj
 
+    Note: should *NOT* be used with PyBEL nodes
+
     Parameters
     ----------
 
@@ -419,19 +442,48 @@ def get_ns_id(subj, obj, net):
         A tuple with four entries:
         (subj namespace, subj id, obj namespace, obj id)
     """
-    if isinstance(subj, CentralDogma):
-        s_pbn = list(hgnc_node_mapping[subj])[0]
-        s_ns, s_id = s_pbn.namespace, s_pbn.identifier
-        o_pbn = list(hgnc_node_mapping[obj])[0]
-        o_ns, o_id = o_pbn.namespace, o_pbn.identifier
-
-    else:
-        s_ns = net.nodes[subj]['ns'] if net.nodes.get(subj) else None
-        s_id = net.nodes[subj]['id'] if net.nodes.get(subj) else None
-        o_ns = net.nodes[obj]['ns'] if net.nodes.get(obj) else None
-        o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
-
+    s_ns = net.nodes[subj]['ns'] if net.nodes.get(subj) else None
+    s_id = net.nodes[subj]['id'] if net.nodes.get(subj) else None
+    o_ns = net.nodes[obj]['ns'] if net.nodes.get(obj) else None
+    o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
     return s_ns, s_id, o_ns, o_id
+
+
+def get_ns_id_pybel_node(hgnc_sym, node):
+    """
+
+    Parameters
+    ----------
+    hgnc_sym : str
+        Name to match
+    node : CentralDogma|tuple
+        PyBEL node or tuple of PyBEL nodes
+
+    Returns
+    -------
+    tuple
+        Tuple of ns, id for node
+    """
+    # If tuple of nodes, recursive call until match is found
+    if isinstance(node, tuple):
+        for n in node:
+            ns, _id = get_ns_id_pybel_node(hgnc_sym, n)
+            if ns is not None:
+                return ns, _id
+        logger.warning('None of the names in the tuple matched the HGNC '
+                       'symbol')
+        return None, None
+    # If PyBEL node, check name match, return if match, else None tuple
+    elif isinstance(node, CentralDogma):
+        if node.name == hgnc_sym:
+            try:
+                return node.namespace, node.identifier
+            except AttributeError:
+                return None, None
+    # Not recognized
+    else:
+        logger.warning(f'Type {node.__class__} not recognized')
+        return None, None
 
 
 def success_callback(res):
