@@ -11,9 +11,8 @@ from requests.exceptions import ConnectionError
 from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
 from indra.belief import load_default_probs
-from indra.sources.bel.processor import get_agent
 from indra.assemblers.english import EnglishAssembler
-from indra.statements import Agent, get_statement_by_name, stmts_from_json
+from indra.statements import Agent, get_statement_by_name
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
@@ -657,9 +656,9 @@ def get_hgnc_node_mapping(hgnc_names, pb_model):
             # of HGNC symbol names
             if node.name in corr_names and node.namespace == 'HGNC':
                 if pb_model_mapping.get(node.name):
-                    pb_model_mapping[node.name].add((get_agent(node), node))
+                    pb_model_mapping[node.name].add(node)
                 else:
-                    pb_model_mapping[node.name] = {(get_agent(node), node)}
+                    pb_model_mapping[node.name] = {node}
             else:
                 continue
         # No attribute 'name' or 'namespace'
