@@ -25,20 +25,23 @@ if the IndraNetwork
 #   An object of a new class that wraps a dataframe that can generate
 #   different explanations statistics
 """
+import inspect
 import logging
 import argparse
-import numpy as np
-import pandas as pd
-import networkx as nx
 import multiprocessing as mp
 from time import time
-from math import floor
 from pathlib import Path
 from itertools import product
 from collections import defaultdict
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import networkx as nx
 from pybel.dsl.node_classes import CentralDogma
-from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
+
+from depmap_analysis.util.io_functions import pickle_open, \
+    dump_it_to_pickle, json_open
 from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
 from depmap_analysis.network_functions.famplex_functions import common_parent
@@ -47,9 +50,12 @@ from depmap_analysis.network_functions.depmap_network_functions import \
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 
-
 logger = logging.getLogger('DepMap Script')
 logger.setLevel(logging.DEBUG)
+
+indranet = None
+hgnc_node_mapping = None
+output_list = None
 
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
@@ -69,10 +75,11 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
         stats_dict['agB'].append(gB)
         stats_dict['z-score'].append(zsc)
 
-        # Skip if A or B not in graph or if type is pybel and no node
-        # mapping exists
+        # Skip if A or B not in graph or (if type is pybel) no node
+        # mapping exists for either A or B
         if _type == 'pybel' and \
-                not (hgnc_node_mapping[gA] and hgnc_node_mapping[gB]) or \
+                (gA not in hgnc_node_mapping or gB not in hgnc_node_mapping) \
+                or \
                 _type != 'pybel' and \
                 (gA not in indranet.nodes or gB not in indranet.nodes):
             for k in set(stats_dict.keys()).difference(set(min_columns)):
@@ -86,10 +93,8 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
 
         if _type == 'pybel':
             # Get ns, id
-            a_pb_node = list(hgnc_node_mapping[gA])[0]
-            a_ns, a_id = a_pb_node.namespace, a_pb_node.identifier
-            b_pb_node = list(hgnc_node_mapping[gB])[0]
-            b_ns, b_id = b_pb_node.namespace, b_pb_node.identifier
+            a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
+            b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
         else:
             a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
 
@@ -140,8 +145,15 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 if expl_type == 'explained set':
                     continue
 
+                # Add hgnc symbol name to kwargs if pybel
+                options = {}
+                if _type == 'pybel':
+                    options['s_name'] = gA
+                    options['o_name'] = gB
+
                 # Some functions reverses A, B hence the s, o assignment
-                s, o, expl_data = expl_func(A, B, zsc, indranet, _type)
+                s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
+                                            **options)
                 if expl_data:
                     expl_dict['agA'].append(s)
                     expl_dict['agB'].append(o)
@@ -185,13 +197,13 @@ def match_correlations(corr_z, sd_range, **kwargs):
         The graph representation of the indra network. Each edge should
         have an attribute named 'statements' containing a list of sources
         supporting that edge. If signed search, indranet is expected to be an
-        nx.MultiDiGraph with edges keyes by (gene, gene, sign) tuples.
+        nx.MultiDiGraph with edges keys by (gene, gene, sign) tuples.
     sd_range : tuple[float]
         The SD ranges that the corr_z is filtered to
 
     Returns
     -------
-    depmap_explainer
+    depmap_analysis.util.statistics.DepMapExplainer
         An instance of the DepMapExplainer class containing the explanations
         for the correlations.
     """
@@ -210,7 +222,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
-    explained_set = kwargs.get('explained_set', {})
+    explained_set = kwargs.get('explained_set', set())
 
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
@@ -220,8 +232,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
         else ymd_now
 
-    bool_matrix = np.invert(np.isnan(corr_z.values))
-    estim_pairs = floor((bool_matrix.sum() - bool_matrix.diagonal().sum())/2)
+    estim_pairs = corr_z.notna().sum().sum()
     print(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} with '
           f'about {estim_pairs} pairs to check')
     tstart = time()
@@ -250,7 +261,8 @@ def match_correlations(corr_z, sd_range, **kwargs):
                                  explained_set,
                                  _type
                              ),
-                             callback=success_callback)
+                             callback=success_callback,
+                             error_callback=error_callback)
 
         logger.info('Done submitting work to pool workers')
         pool.close()
@@ -259,14 +271,15 @@ def match_correlations(corr_z, sd_range, **kwargs):
     print(f'Execution time: {time() - tstart} seconds')
     print(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
-    # Here initialize a DepMapExplainer and append the result fro the
+    # Here initialize a DepMapExplainer and append the result for the
     # different processes
     explainer = DepMapExplainer(stats_columns=stats_columns,
                                 expl_columns=expl_columns,
                                 info={'indra_network_date': indra_date,
                                       'depmap_date': depmap_date,
                                       'sd_range': sd_range,
-                                      'graph_type': _type},
+                                      'graph_type': _type,
+                                      **kwargs.get('info', {})},
                                 )
 
     logger.info(f'Generating DepMapExplainer with output from '
@@ -281,19 +294,26 @@ def match_correlations(corr_z, sd_range, **kwargs):
     return explainer
 
 
-def explained(s, o, corr, net, graph_type, **kwargs):
+def explained(s, o, corr, net, _type, **kwargs):
     # This function is used for a priori explained relationships
     return s, o, 'explained_set'
 
 
 def find_cp(s, o, corr, net, _type, **kwargs):
-    # This function is the same for all graph_types
-    s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
+    if _type == 'pybel':
+        s_name = kwargs['s_name']
+        s_ns, s_id = get_ns_id_pybel_node(s_name, s)
+        o_name = kwargs['o_name']
+        o_ns, o_id = get_ns_id_pybel_node(o_name, o)
+    else:
+        s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
 
     if not s_id:
-        s_ns, s_id = ns_id_from_name(s)
+        s_ns, s_id = ns_id_from_name(s_name) if _type == 'pybel' else \
+            ns_id_from_name(s)
     if not o_id:
-        o_ns, o_id = ns_id_from_name(o)
+        o_ns, o_id = ns_id_from_name(o_name) if _type == 'pybel' else \
+            ns_id_from_name(o)
 
     if s_id and o_id:
         parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
@@ -317,7 +337,12 @@ def expl_axb(s, o, corr, net, _type, **kwargs):
 
 
 def expl_bxa(s, o, corr, net, _type, **kwargs):
-    return expl_axb(o, s, corr, net, _type, **kwargs)
+    if _type == 'pybel':
+        s_name = kwargs.pop('s_name')
+        o_name = kwargs.pop('o_name')
+        options = {'o_name': s_name, 's_name': o_name}
+
+    return expl_axb(o, s, corr, net, _type, **kwargs, **options)
 
 
 # Shared regulator: A<-X->B
@@ -359,8 +384,12 @@ def expl_ab(s, o, corr, net, _type, **kwargs):
 
 
 def expl_ba(s, o, corr, net, _type, **kwargs):
-    # Reverse order call to expl_ab
-    return expl_ab(o, s, corr, net, _type, **kwargs)
+    options = {}
+    if _type == 'pybel':
+        options['o_name'] = kwargs.pop('s_name')
+        options['s_name'] = kwargs.pop('o_name')
+
+    return expl_ab(o, s, corr, net, _type, **kwargs, **options)
 
 
 def get_edge_statements(s, o, corr, net, _type, **kwargs):
@@ -395,6 +424,8 @@ def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
 def get_ns_id(subj, obj, net):
     """Get ns:id for both subj and obj
 
+    Note: should *NOT* be used with PyBEL nodes
+
     Parameters
     ----------
 
@@ -411,24 +442,59 @@ def get_ns_id(subj, obj, net):
         A tuple with four entries:
         (subj namespace, subj id, obj namespace, obj id)
     """
-    if isinstance(subj, CentralDogma):
-        s_pbn = list(hgnc_node_mapping[subj])[0]
-        s_ns, s_id = s_pbn.namespace, s_pbn.identifier
-        o_pbn = list(hgnc_node_mapping[obj])[0]
-        o_ns, o_id = o_pbn.namespace, o_pbn.identifier
-
-    else:
-        s_ns = net.nodes[subj]['ns'] if net.nodes.get(subj) else None
-        s_id = net.nodes[subj]['id'] if net.nodes.get(subj) else None
-        o_ns = net.nodes[obj]['ns'] if net.nodes.get(obj) else None
-        o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
-
+    s_ns = net.nodes[subj]['ns'] if net.nodes.get(subj) else None
+    s_id = net.nodes[subj]['id'] if net.nodes.get(subj) else None
+    o_ns = net.nodes[obj]['ns'] if net.nodes.get(obj) else None
+    o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
     return s_ns, s_id, o_ns, o_id
+
+
+def get_ns_id_pybel_node(hgnc_sym, node):
+    """
+
+    Parameters
+    ----------
+    hgnc_sym : str
+        Name to match
+    node : CentralDogma|tuple
+        PyBEL node or tuple of PyBEL nodes
+
+    Returns
+    -------
+    tuple
+        Tuple of ns, id for node
+    """
+    # If tuple of nodes, recursive call until match is found
+    if isinstance(node, tuple):
+        for n in node:
+            ns, _id = get_ns_id_pybel_node(hgnc_sym, n)
+            if ns is not None:
+                return ns, _id
+        logger.warning('None of the names in the tuple matched the HGNC '
+                       'symbol')
+        return None, None
+    # If PyBEL node, check name match, return if match, else None tuple
+    elif isinstance(node, CentralDogma):
+        if node.name == hgnc_sym:
+            try:
+                return node.namespace, node.identifier
+            except AttributeError:
+                return None, None
+    # Not recognized
+    else:
+        logger.warning(f'Type {node.__class__} not recognized')
+        return None, None
 
 
 def success_callback(res):
     logger.info('Appending a result')
     output_list.append(res)
+
+
+def error_callback(err):
+    logger.error('The following exception occurred (this is only a print of '
+                 'the traceback):')
+    logger.exception(err)
 
 
 def graph_types(types):
@@ -464,6 +530,145 @@ def file_path():
     return check_path
 
 
+def main(indra_net, sd_range, outname, graph_type, z_score=None,
+         raw_data=None, raw_corr=None, pb_model=None,
+         pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
+         indra_date=None, depmap_date=None, sample_size=None, shuffle=False):
+    """Set up correlation matching of depmap data with an indranet graph
+
+    Parameters
+    ----------
+    indra_net : nx.DiGraph|nx.MultiDiGraph
+    sd_range : tuple(float|None)
+    outname : str
+    graph_type : str
+    z_score : pd.DataFrame
+    raw_data : str
+    raw_corr : str
+    pb_model : PyBEL network
+    pb_node_mapping : dict|str
+    n_chunks : int
+    ignore_list : list
+    info : dict
+    indra_date : str
+    depmap_date : str
+    sample_size : int
+    shuffle : bool
+
+    Returns
+    -------
+    depmap_analysis.util.statistics.DepMapExplainer
+    """
+    global indranet, hgnc_node_mapping, output_list
+    indranet = indra_net
+
+    run_options = {'n-chunks': n_chunks}
+
+    # 1 Check options
+    sd_l, sd_u = sd_range if len(sd_range) == 2 else \
+        ((sd_range[0], None) if len(sd_range) == 1 else (None, None))
+
+    if not sd_l and not sd_u:
+        raise ValueError('Must specify at least a lower bound for the SD '
+                         'range')
+
+    if graph_type == 'pybel' and not pb_model:
+        raise ValueError('Must provide PyBEL model with option pybel_model '
+                         'if graph type is pybel')
+
+    # Get the z-score corr matrix
+    if not (bool(z_score is not None and len(z_score)) ^
+            bool(raw_data or raw_corr)):
+        raise ValueError('Must provide either z_score XOR either of raw_data '
+                         'or raw_corr')
+
+    outname = outname if outname.endswith('.pkl') else \
+        outname + '.pkl'
+    outpath = Path(outname)
+
+    if z_score is not None:
+        z_corr = z_score
+    else:
+        z_sc_options = {
+            'crispr_raw': raw_data[0],
+            'rnai_raw': raw_data[1],
+            'crispr_corr': raw_corr[0],
+            'rnai_corr': raw_corr[1]
+        }
+        z_corr = run_corr_merge(**z_sc_options)
+
+    graph_type = graph_type
+    run_options['graph_type'] = graph_type
+
+    # Get mapping of correlation names to pybel nodes
+    if graph_type == 'pybel':
+        if pb_node_mapping is None:
+            hgnc_node_mapping = get_hgnc_node_mapping(
+                hgnc_names=z_corr.columns.values,
+                pb_model=pb_model
+            )
+        else:
+            if isinstance(pb_node_mapping, dict):
+                hgnc_node_mapping = pb_node_mapping
+            elif Path(pb_node_mapping).is_file():
+                hgnc_node_mapping = pickle_open(pb_node_mapping) if \
+                    pb_node_mapping.endswith('.pkl') else \
+                    json_open(pb_node_mapping)
+            else:
+                raise ValueError('Could not load pybel node mapping')
+
+    # 2. Filter to SD range
+    if sd_l and sd_u:
+        logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
+        z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
+                        ((z_corr < -sd_l) & (z_corr > -sd_u))]
+    elif sd_l and not sd_u:
+        logger.info(f'Filtering correlations to {sd_l}+ SD')
+        z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
+
+    run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
+
+    # Pick a sample
+    if sample_size is not None:
+        logger.info(f'Reducing correlation matrix to a random {sample_size} '
+                    f'by {sample_size} sample')
+        while z_corr.notna().sum().sum() > sample_size**2:
+            logger.info('Down sampling')
+            sample_size -= 1
+            z_corr = z_corr.sample(sample_size, axis=0)
+            z_corr = z_corr.filter(list(z_corr.index), axis=1)
+    # Shuffle corr matrix without removing items
+    elif shuffle:
+        logger.info('Shuffling correlation matrix...')
+        z_corr = z_corr.sample(frac=1, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+
+    run_options['corr_z'] = z_corr
+
+    # 3. Ignore list as file
+    if ignore_list:
+        run_options['explained_set'] = set(ignore_list)
+
+    # 4. Add meta data
+    info_dict = {}
+    if info:
+        info_dict['info'] = info
+    if depmap_date:
+        info_dict['depmap_date'] = depmap_date
+    if indra_date:
+        info_dict['indra_date'] = indra_date
+    run_options['info'] = info_dict
+
+    # Create output list in global scope
+    output_list = []
+    explanations = match_correlations(**run_options)
+
+    # mkdir in case it  doesn't exist
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+    dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
+                      pyobj=explanations)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Explainer main script')
     #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
@@ -494,11 +699,19 @@ if __name__ == '__main__':
              'per node pair, one edge per sign).'
     )
 
-    #   1c Optionally provide PyBEL model
+    #   1c-1 Optionally provide PyBEL model
     parser.add_argument(
         '--pybel-model', type=file_path(),
         help='If graph type is "pybel", use this argument to provide the '
              'necessary pybel model used to precompute the pybel node mapping.'
+    )
+
+    #   1c-2 Optionally provide node mapping for hgnc symbol - pybel node
+    parser.add_argument(
+        '--pybel-node-mapping', type=file_path(),
+        help='If graph type is "pybel", use this argument to optionally '
+             'provide a mapping from HGNC symbols to pybel nodes in the '
+             'pybel model'
     )
 
     #   1d Provide graph type
@@ -532,79 +745,55 @@ if __name__ == '__main__':
              'have to be equal to the amount of CPUs.'
     )
 
+    # Sampling
+    parser.add_argument(
+        '--sample-size', type=int,
+        help='If provided, down sample the correlation matrix to this size, '
+             'provided the loaded matrix is larger than this.'
+    )
+
+    # 6 Extra info
+    parser.add_argument('--indra-date',
+                        help='Provide a date for the dump from which the '
+                             'indra network was created')
+    parser.add_argument('--depmap-date',
+                        help='Provide the release date of the depmap data '
+                             'used.')
+    parser.add_argument('--shuffle', action='store_true',
+                        help='Shuffle the correlation matrix before running '
+                             'matching loop.')
+
     args = parser.parse_args()
-    run_options = {'n-chunks': args.n_chunks}
+    arg_dict = vars(args)
 
-    # Check options
-    sd_l, sd_u = args.sd_range if len(args.sd_range) == 2 else\
-        ((args.sd_range[0], None) if len(args.sd_range) == 1 else (None, None))
+    # Load z_corr, indranet and optionally pybel_model
+    inet_graph = pickle_open(args.indranet)
+    arg_dict['indra_net'] = inet_graph
+    if arg_dict.get('z_score'):
+        corr_matrix = pd.read_hdf(arg_dict['z_score'])
+        arg_dict['z_score'] = corr_matrix
+    else:
+        arg_dict['raw_data'] = arg_dict.get('raw_data')
+        arg_dict['corr_data'] = arg_dict.get('corr_data')
 
-    outname = args.outname if args.outname.endswith('.pkl') else \
-        args.outname + '.pkl'
-    outpath = Path(outname)
-
-    if not Path(args.indranet).is_file():
-        raise FileNotFoundError(f'File {args.indranet} does not exist')
-
-    if not sd_l and not sd_u:
-        raise ValueError('Must specify at least a lower bound for the SD '
-                         'range')
-
-    if args.graph_type == 'pybel' and not args.pybel_model:
-        raise ValueError('Must provide PyBEL model with option --pybel-model '
+    if arg_dict.get('graph_type') == 'pybel' and \
+            not arg_dict.get('pybel_model'):
+        raise ValueError('Must provide PyBEL model with option pybel_model '
                          'if graph type is pybel')
+    if arg_dict.get('pybel_model'):
+        arg_dict['pb_model'] = pickle_open(arg_dict['pybel_model'])
+        if arg_dict.get('pybel_node_mapping'):
+            if arg_dict['pybel_node_mapping'].endswith('.pkl'):
+                arg_dict['pb_node_mapping'] = \
+                    pickle_open(arg_dict['pybel_node_mapping'])
+            elif arg_dict['pybel_node_mapping'].endswith('.json'):
+                arg_dict['pb_node_mapping'] = \
+                    json_open(arg_dict['pybel_node_mapping'])
+            else:
+                raise ValueError('Unknown file type %s' %
+                                 arg_dict['pybel_node_mapping'].split('.')[-1])
 
-    # Get the z-score corr matrix
-    if args.z_score:
-        z_corr = pd.read_hdf(args.z_score)
-    else:
-        z_sc_options = {
-            'crispr_raw': args.raw_data[0],
-            'rnai_raw': args.raw_data[1],
-            'crispr_corr': args.raw_corr[0],
-            'rnai_corr': args.raw_corr[1]
-        }
-        z_corr = run_corr_merge(**z_sc_options)
+    main_keys = inspect.signature(main).parameters.keys()
+    kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
 
-    # Get indranet
-    indranet = pickle_open(args.indranet)
-    # run_options['indranet'] = indranet  # Use in global scope
-
-    graph_type = args.graph_type
-    run_options['graph_type'] = graph_type
-
-    # Get mapping of correlation names to pybel nodes
-    if graph_type == 'pybel':
-        hgnc_node_mapping = get_hgnc_node_mapping(
-            hgnc_names=z_corr.columns.values,
-            pb_model=pickle_open(args.pybel_model),
-            pb_signed_edge_graph=indranet
-        )
-    else:
-        hgnc_node_mapping = None
-
-    # 2. Filter to SD range
-    if sd_l and sd_u:
-        logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
-        z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
-                        ((z_corr < -sd_l) & (z_corr > -sd_u))]
-    elif sd_l and not sd_u:
-        logger.info(f'Filtering correlations to {sd_l}+ SD')
-        z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
-    run_options['corr_z'] = z_corr
-    run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
-
-    # 3. Ignore list as file
-    ignore_file = args.ignore_list
-    if ignore_file:
-        with open(ignore_file, 'r') as f:
-            run_options['explained_set'] = set(f.readlines())
-
-    # Create output list in global scope
-    output_list = []
-    explanations = match_correlations(**run_options)
-
-    # mkdir in case it  doesn't exist
-    outpath.parent.mkdir(parents=True, exist_ok=True)
-    dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
-                      pyobj=explanations)
+    main(**kwargs)
