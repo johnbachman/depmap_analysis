@@ -222,7 +222,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
-    explained_set = kwargs.get('explained_set', {})
+    explained_set = kwargs.get('explained_set', set())
 
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
@@ -294,7 +294,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
     return explainer
 
 
-def explained(s, o, corr, net, graph_type, **kwargs):
+def explained(s, o, corr, net, _type, **kwargs):
     # This function is used for a priori explained relationships
     return s, o, 'explained_set'
 
