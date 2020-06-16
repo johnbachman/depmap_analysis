@@ -1,4 +1,5 @@
 import logging
+
 from indra.ontology.bio import bio_ontology
 from indra.databases import get_identifiers_url
 

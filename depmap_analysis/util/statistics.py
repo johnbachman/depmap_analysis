@@ -1,12 +1,13 @@
-import boto3
 import logging
-import pandas as pd
-import matplotlib.pyplot as plt
-from time import time
 from math import floor
 from io import BytesIO
 from pathlib import Path
 from datetime import datetime
+
+import boto3
+import pandas as pd
+import matplotlib.pyplot as plt
+
 from indra.util.aws import get_s3_client
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
@@ -14,13 +15,41 @@ logger = logging.getLogger(__name__)
 
 
 class DepMapExplainer:
+    """Contains the result of the matching of correlations and an indranet
+    graph
+
+    Attributes
+    ----------
+    tag : str
+    indra_network_date : str
+    depmap_date : str
+    sd_range : tuple(float|None)
+    info : dict
+    network_type : str
+    stats_df : pd.DataFrame
+    expl_df : pd.DataFrame
+    is_signed : Bool
+    summary : dict
+    summary_str : str
+    corr_stats_axb : dict
+    """
 
     def __init__(self, stats_columns, expl_columns, info, tag=None,
                  network_type='digraph'):
+        """
+        Parameters
+        ----------
+        stats_columns : list[str]|tuple[str]
+        expl_columns : list[str]|tuple[str]
+        info : dict
+        tag : str
+        network_type : str
+        """
         self.tag = tag
-        self.indra_network_date = info['indra_network_date']
-        self.depmap_date = info['depmap_date']
-        self.sd_range = info['sd_range']
+        self.indra_network_date = info.pop('indra_network_date')
+        self.depmap_date = info.pop('depmap_date')
+        self.sd_range = info.pop('sd_range')
+        self.info = info
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
@@ -31,7 +60,7 @@ class DepMapExplainer:
         self.corr_stats_axb = {}
 
     def __str__(self):
-        return self.summary_str if self.has_data() else \
+        return self.get_summary_str() if self.has_data else \
             'DepMapExplainer is empty'
 
     def __len__(self):
@@ -122,7 +151,8 @@ class DepMapExplainer:
         ].index
         return len(indices)
 
-    def get_corr_stats_axb(self, z_corr=None, max_proc=None):
+    def get_corr_stats_axb(self, z_corr=None, max_proc=None,
+                           max_so_pairs_size=10000):
         """Get statistics of the correlations associated with different
         explanation types
 
@@ -134,6 +164,13 @@ class DepMapExplainer:
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing
             in get_corr_stats_mp. Default: multiprocessing.cpu_count()
+        max_so_pairs_size : int
+            The maximum number of correlation pairs to process. If the
+            number of eligble pairs is larger than this number, a random
+            sample of max_so_pairs_size is used. Default: 10 000. If the
+            number of pairs to check is smaller than 1000, no sampling is
+            done.
+
         Returns
         -------
         dict
@@ -146,12 +183,15 @@ class DepMapExplainer:
                                  'for the first time.')
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
-            self.corr_stats_axb = axb_stats(self.expl_df, z_corr=z_corr,
-                                            eval_str=False, max_proc=max_proc)
+            self.corr_stats_axb = axb_stats(
+                self.expl_df, z_corr=z_corr, eval_str=False,
+                max_proc=max_proc, max_corr_pairs=max_so_pairs_size
+            )
         return self.corr_stats_axb
 
     def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
-                        max_proc=None, index_counter=None):
+                        max_proc=None, index_counter=None,
+                        max_so_pairs_size=10000):
         """Plot the results of running explainer.get_corr_stats_axb()
 
         Parameters
@@ -173,6 +213,10 @@ class DepMapExplainer:
             An object which produces a new int by using 'next()' on it. The
             integers are used to separate the figures so as to not append
             new plots in the same figure.
+        max_so_pairs_size : int
+            The maximum number of correlation pairs to process. If the
+            number of eligble pairs is larger than this number, a random
+            sample of max_so_pairs_size is used. Default: 10000.
         """
         # Local file or s3
         if outdir.startswith('s3:'):
@@ -192,8 +236,10 @@ class DepMapExplainer:
                 od.mkdir(parents=True, exist_ok=True)
 
         # Get corr stats
-        corr_stats = self.get_corr_stats_axb(z_corr=z_corr,
-                                             max_proc=max_proc)
+        corr_stats = self.get_corr_stats_axb(
+            z_corr=z_corr, max_proc=max_proc,
+            max_so_pairs_size=max_so_pairs_size
+        )
         sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
         for n, (k, v) in enumerate(corr_stats.items()):
@@ -229,14 +275,20 @@ class DepMapExplainer:
                         # Upload to s3
                         _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
                                       key=key_base + '/' + name)
+
+                    # Show plot
                     if show_plot:
                         plt.show()
+
+                    # Close figure
+                    plt.close(fig_index)
                 else:
                     logger.warning('Empty result for %s (%s) in range %s'
                                    % (k, plot_type, sd))
 
     def plot_dists(self, outdir, z_corr=None, show_plot=False,
-                   max_proc=None, index_counter=None):
+                   max_proc=None, index_counter=None,
+                   max_so_pairs_size=10000):
         # Local file or s3
         if outdir.startswith('s3:'):
             full_path = outdir.replace('s3:', '').split('/')
@@ -255,8 +307,10 @@ class DepMapExplainer:
                 od.mkdir(parents=True, exist_ok=True)
 
         # Get corr stats
-        corr_stats = self.get_corr_stats_axb(z_corr=z_corr,
-                                             max_proc=max_proc)
+        corr_stats = self.get_corr_stats_axb(
+            z_corr=z_corr, max_proc=max_proc,
+            max_so_pairs_size=max_so_pairs_size
+        )
         fig_index = next(index_counter) if index_counter \
             else floor(datetime.timestamp(datetime.utcnow()))
         plt.figure(fig_index)
@@ -296,6 +350,9 @@ class DepMapExplainer:
         # Show plot
         if show_plot:
             plt.show()
+
+        # Close figure
+        plt.close(fig_index)
 
 
 def _upload_to_s3(bytes_io_obj, bucket, key):

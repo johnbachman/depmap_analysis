@@ -12,7 +12,7 @@ from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
 from indra.belief import load_default_probs
 from indra.assemblers.english import EnglishAssembler
-from indra.statements import Agent, get_statement_by_name, stmts_from_json
+from indra.statements import Agent, get_statement_by_name
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
@@ -54,6 +54,7 @@ MIN_BELIEF = _get_smallest_belief_prior()
 
 
 GRND_URI = None
+GILDA_TIMEOUT = False
 try:
     GRND_URI = CONFIG_DICT['GILDA_URL']
 except KeyError:
@@ -321,7 +322,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     # Create graph from df
     if graph_type == 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
-    elif graph_type is 'digraph':
+    elif graph_type == 'digraph':
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
@@ -558,20 +559,20 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
 
     dir_path_nodes_wb = []
 
-    if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
+    if x_type == 'x_is_intermediary':  # A->X->B or A<-X<-B
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
                                 subj_ax=gene_a, obj_ax=gene_x,
                                 subj_xb=gene_x, obj_xb=gene_b)
             dir_path_nodes_wb.append((gene_x, x_rank))
 
-    elif x_type is 'x_is_downstream':  # A->X<-B
+    elif x_type == 'x_is_downstream':  # A->X<-B
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
                                 subj_ax=gene_a, obj_ax=gene_x,
                                 subj_xb=gene_b, obj_xb=gene_x)
             dir_path_nodes_wb.append((gene_x, x_rank))
-    elif x_type is 'x_is_upstream':  # A<-X->B
+    elif x_type == 'x_is_upstream':  # A<-X->B
 
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
@@ -628,3 +629,39 @@ def ns_id_from_name(name, gilda_retry=False):
             logger.warning('Indra Grounding service not available. Add '
                            'GILDA_URL to `indra/config.ini`')
     return None, None
+
+
+def get_hgnc_node_mapping(hgnc_names, pb_model):
+    """Generate a mapping of HGNC symbols to pybel nodes
+
+    Parameters
+    ----------
+    hgnc_names : iterable[str]
+        An iterable containing HGNC names to be mapped to pybel nodes
+    pb_model : PyBEL.Model
+        An assembled pybel model
+
+    Returns
+    -------
+    dict
+        A dictionary mapping names (HGNC symbols) to a sets of pybel nodes
+    """
+
+    # Get existing node mappings
+    corr_names = set(hgnc_names)
+    pb_model_mapping = {}
+    for node in pb_model.nodes:
+        try:
+            # Only consider HGNC nodes and if node name is in provided set
+            # of HGNC symbol names
+            if node.name in corr_names and node.namespace == 'HGNC':
+                if pb_model_mapping.get(node.name):
+                    pb_model_mapping[node.name].add(node)
+                else:
+                    pb_model_mapping[node.name] = {node}
+            else:
+                continue
+        # No attribute 'name' or 'namespace'
+        except AttributeError:
+            continue
+    return pb_model_mapping
