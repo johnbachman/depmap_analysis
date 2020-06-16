@@ -1,3 +1,4 @@
+import logging
 from indra.ontology.bio import bio_ontology
 from indra.databases import get_identifiers_url
 
@@ -27,8 +28,7 @@ def get_all_entities(ontology=None):
 
 def find_parent(ontology=None, ns='HGNC',
                 id_=None, type_='all'):
-    """A wrapper function for he.get_parents to make the functionality more
-    clear.
+    """A wrapper function for IndraOntology.get_parents()
 
     Parameters
     ----------
@@ -45,11 +45,11 @@ def find_parent(ontology=None, ns='HGNC',
 
     Returns
     -------
-    set
-        set of parents of database id in namespace ns
+    set[tuple]
+        set of parents as (namespace, identifier) tuples
     """
     ontology = bio_ontology if not ontology else ontology
-    return ontology.get_parents(ns, id_)
+    return set(ontology.get_parents(ns, id_))
 
 
 def common_parent(ontology=None, ns1='HGNC',
@@ -76,7 +76,7 @@ def common_parent(ontology=None, ns1='HGNC',
     Returns
     -------
     set
-        set of common parents in uri format
+        set of common parents as (namespace, identifier) tuples
     """
     ontology = bio_ontology if not ontology else ontology
     return find_parent(ontology, ns1, id1, type_) & \
