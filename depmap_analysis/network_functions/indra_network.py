@@ -15,7 +15,7 @@ from indra.explanation.pathfinding.util import signed_nodes_to_signed_edge, \
     path_sign_to_signed_nodes
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
-from indra.explanation.pathfinding.pathfinding import shortest_simple_paths,\
+from indra.explanation.pathfinding.pathfinding import shortest_simple_paths, \
     bfs_search
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
@@ -1264,7 +1264,10 @@ class IndraNetwork:
             cp_results['common_parents'] = []
             return cp_results
         else:
-            cp_results['common_parents'] = sorted(list(cp))
+            cp_list = [(ns, _id, ff.get_identifiers_url(ns, _id))
+                       for ns, _id in cp]
+            cp_results['common_parents'] = sorted(cp_list,
+                                                  key=lambda t: (t[0], t[1]))
             return cp_results
 
     def _get_edge(self, s, o, index, edge_sign=None, graph='digraph'):
