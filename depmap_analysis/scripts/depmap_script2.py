@@ -481,7 +481,7 @@ def file_path():
 def main(indra_net, sd_range, outname, graph_type, z_score=None,
          raw_data=None, raw_corr=None, pb_model=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
-         indra_date=None, depmap_date=None, sample_size=None):
+         indra_date=None, depmap_date=None, sample_size=None, shuffle=False):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -501,6 +501,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     indra_date : str
     depmap_date : str
     sample_size : int
+    shuffle : bool
 
     Returns
     -------
@@ -584,6 +585,11 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
             sample_size -= 1
             z_corr = z_corr.sample(sample_size, axis=0)
             z_corr = z_corr.filter(list(z_corr.index), axis=1)
+    # Shuffle corr matrix without removing items
+    elif shuffle:
+        logger.info('Shuffling correlation matrix...')
+        z_corr = z_corr.sample(frac=1, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
     run_options['corr_z'] = z_corr
 
@@ -701,6 +707,9 @@ if __name__ == '__main__':
     parser.add_argument('--depmap-date',
                         help='Provide the release date of the depmap data '
                              'used.')
+    parser.add_argument('--shuffle', action='store_true',
+                        help='Shuffle the correlation matrix before running '
+                             'matching loop.')
 
     args = parser.parse_args()
     arg_dict = vars(args)
