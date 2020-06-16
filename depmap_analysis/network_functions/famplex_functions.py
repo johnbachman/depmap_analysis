@@ -1,6 +1,9 @@
 import logging
+
 from indra.ontology.bio import bio_ontology
 from indra.databases import get_identifiers_url
+
+logger = logging.getLogger(__name__)
 
 
 def get_all_entities(ontology=None):
