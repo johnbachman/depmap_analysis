@@ -29,8 +29,7 @@ def get_all_entities(ontology=None):
     return ent_list
 
 
-def find_parent(ontology=None, ns='HGNC',
-                id_=None, type_='all'):
+def find_parent(ontology=None, ns='HGNC', id_=None):
     """A wrapper function for IndraOntology.get_parents()
 
     Parameters
@@ -41,10 +40,6 @@ def find_parent(ontology=None, ns='HGNC',
         namespace id. Default: HGNC
     id_ : str
         id to check parents for. Default: None
-    type_ : str
-        'all': (Default) return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
 
     Returns
     -------
@@ -55,8 +50,7 @@ def find_parent(ontology=None, ns='HGNC',
     return set(ontology.get_parents(ns, id_))
 
 
-def common_parent(ontology=None, ns1='HGNC',
-                  id1=None, ns2='HGNC', id2=None, type_='all'):
+def common_parent(ontology=None, ns1='HGNC', id1=None, ns2='HGNC', id2=None):
     """Returns the set of common parents.
 
     Parameters
@@ -71,10 +65,6 @@ def common_parent(ontology=None, ns1='HGNC',
         namespace id. Default: HGNC
     id2 : str
         Second id to check parents for. Default: None
-    type_ : str
-        'all': (Default) return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
 
     Returns
     -------
@@ -82,13 +72,12 @@ def common_parent(ontology=None, ns1='HGNC',
         set of common parents as (namespace, identifier) tuples
     """
     ontology = bio_ontology if not ontology else ontology
-    return find_parent(ontology, ns1, id1, type_) & \
-        find_parent(ontology, ns2, id2, type_)
+    return find_parent(ontology, ns1, id1) & \
+        find_parent(ontology, ns2, id2)
 
 
 def has_common_parent(ontology=None, ns1='HGNC', id1=None,
-                      ns2='HGNC', id2=None, type='all'):
-
+                      ns2='HGNC', id2=None):
     """Returns True if id1 and id2 has at least one common parent.
 
     Parameters
@@ -103,10 +92,6 @@ def has_common_parent(ontology=None, ns1='HGNC', id1=None,
         namespace id. Default: HGNC
     id2 : str
         Second id to check parents for. Default: None
-    type : str
-        'all': return all parents irrespective of level;
-        'immediate': return only the immediate parents;
-        'top': return only the highest level parents
 
     Returns
     -------
@@ -114,6 +99,6 @@ def has_common_parent(ontology=None, ns1='HGNC', id1=None,
         True if hgnc1 and hgnc2 has one or more common parents.
     """
     ontology = bio_ontology if not ontology else ontology
-    return bool(common_parent(ontology, ns1, id1, ns2, id2, type))
+    return bool(common_parent(ontology, ns1, id1, ns2, id2))
 
 
