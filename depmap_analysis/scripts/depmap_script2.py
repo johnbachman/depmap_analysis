@@ -554,6 +554,8 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     indra_date : str
     depmap_date : str
     sample_size : int
+        Number of correlation pairs to approximately get out of the
+        correlation matrix after down sampling it
     shuffle : bool
 
     Returns
@@ -631,13 +633,14 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
 
     # Pick a sample
     if sample_size is not None:
-        logger.info(f'Reducing correlation matrix to a random {sample_size} '
-                    f'by {sample_size} sample')
-        while z_corr.notna().sum().sum() > sample_size**2:
+        logger.info(f'Reducing correlation matrix to a random approximately '
+                    f'{sample_size} correlation pairs.')
+        row_samples = len(z_corr) - 1
+        while z_corr.notna().sum().sum() > sample_size:
             logger.info('Down sampling')
-            sample_size -= 1
-            z_corr = z_corr.sample(sample_size, axis=0)
+            z_corr = z_corr.sample(row_samples, axis=0)
             z_corr = z_corr.filter(list(z_corr.index), axis=1)
+            row_samples -= 1
     # Shuffle corr matrix without removing items
     elif shuffle:
         logger.info('Shuffling correlation matrix...')
@@ -749,8 +752,8 @@ if __name__ == '__main__':
     # Sampling
     parser.add_argument(
         '--sample-size', type=int,
-        help='If provided, down sample the correlation matrix to this size, '
-             'provided the loaded matrix is larger than this.'
+        help='If provided, down sample the correlation matrix so this many '
+             'pairs (approximately) are picked at random.'
     )
 
     # 6 Extra info
