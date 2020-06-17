@@ -498,6 +498,39 @@ def error_callback(err):
     logger.exception(err)
 
 
+def _down_sampl_size(available_pairs, size_of_matrix, wanted_pairs):
+    """Return a sample size that would make a new square matrix contain
+    close to but above the number of wanted pairs
+
+    Assuming that the number of extractable pairs is N = k*L^2 (k is some
+    constant), we want to pick the fraction p of the matrix size L that
+    provides the number of rows to sample such that the resulting number of
+    extractable pairs from the matrix comes close to s, the number of
+    desired samples.
+
+    Parameters
+    ----------
+    available_pairs : int
+        Number of pairs in correlation matrix as counted by
+        corr.notna().sum().sum()
+    size_of_matrix : int
+        The number of rows/columns of the correlation matrix as counted by
+        len(corr)
+    wanted_pairs : int
+        The target number of pairs to the get out from the matrix
+    """
+    # Set vars
+    L = size_of_matrix
+    N = available_pairs
+    s = wanted_pairs
+
+    # Calculate fraction
+    p = np.sqrt(2*s/N)
+
+    # Get number of rows to sample
+    return int(np.ceil(p*L))
+
+
 def graph_types(types):
     """Types is a set of strings with names of the allowed graph types"""
     def types_check(_type):
@@ -643,8 +676,8 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
 
             # Update n_pairs and row_samples
             n_pairs = z_corr.notna().sum().sum()
-            row_samples -= 1 if n_pairs < 10*sample_size else \
-                (10 if n_pairs < 100*sample_size else 1000)
+            row_samples = row_samples - 1 if n_pairs < 2*sample_size else \
+                _down_sampl_size(n_pairs, len(z_corr), sample_size)
 
     # Shuffle corr matrix without removing items
     elif shuffle:
