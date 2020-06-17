@@ -636,11 +636,16 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
         logger.info(f'Reducing correlation matrix to a random approximately '
                     f'{sample_size} correlation pairs.')
         row_samples = len(z_corr) - 1
-        while z_corr.notna().sum().sum() > sample_size:
-            logger.info('Down sampling')
+        n_pairs = z_corr.notna().sum().sum()
+        while n_pairs > sample_size:
+            logger.info(f'Down sampling from {n_pairs}')
             z_corr = z_corr.sample(row_samples, axis=0)
             z_corr = z_corr.filter(list(z_corr.index), axis=1)
-            row_samples -= 1
+
+            # Update n_pairs and row_samples
+            n_pairs = z_corr.notna().sum().sum()
+            row_samples -= 1 if n_pairs < 10*sample_size else 10
+
     # Shuffle corr matrix without removing items
     elif shuffle:
         logger.info('Shuffling correlation matrix...')
