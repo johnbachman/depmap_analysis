@@ -676,8 +676,9 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
 
             # Update n_pairs and row_samples
             n_pairs = z_corr.notna().sum().sum()
-            row_samples = row_samples - 1 if n_pairs < 2*sample_size else \
-                _down_sampl_size(n_pairs, len(z_corr), sample_size)
+            row_samples = row_samples - int(np.ceil(0.05*len(z_corr))) \
+                if n_pairs - sample_size < np.ceil(0.1*sample_size) \
+                else _down_sampl_size(n_pairs, len(z_corr), sample_size)
 
     # Shuffle corr matrix without removing items
     elif shuffle:
