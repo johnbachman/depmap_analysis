@@ -531,9 +531,9 @@ def file_path():
 
 
 def main(indra_net, sd_range, outname, graph_type, z_score=None,
-         raw_data=None, raw_corr=None, pb_model=None,
-         pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
-         indra_date=None, depmap_date=None, sample_size=None, shuffle=False):
+         raw_data=None, raw_corr=None, pb_node_mapping=None, n_chunks=256,
+         ignore_list=None, info=None, indra_date=None, depmap_date=None,
+         sample_size=None, shuffle=False):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -542,10 +542,9 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     sd_range : tuple(float|None)
     outname : str
     graph_type : str
-    z_score : pd.DataFrame
+    z_score : pd.DataFrame|str
     raw_data : str
     raw_corr : str
-    pb_model : PyBEL network
     pb_node_mapping : dict|str
     n_chunks : int
     ignore_list : list
@@ -572,9 +571,9 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
         raise ValueError('Must specify at least a lower bound for the SD '
                          'range')
 
-    if graph_type == 'pybel' and not pb_model:
-        raise ValueError('Must provide PyBEL model with option pybel_model '
-                         'if graph type is pybel')
+    if graph_type == 'pybel' and not pb_node_mapping:
+        raise ValueError('Must provide PyBEL node mapping with option '
+                         'pb_node_mapping if graph type is "pybel"')
 
     # Get the z-score corr matrix
     if not (bool(z_score is not None and len(z_score)) ^
@@ -587,7 +586,13 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     outpath = Path(outname)
 
     if z_score is not None:
-        z_corr = z_score
+        if isinstance(z_score, str) and Path(z_score).is_file():
+            z_corr = pd.read_hdf(z_score)
+        elif isinstance(z_score, pd.DataFrame):
+            z_corr = z_score
+        else:
+            raise ValueError(f'Unknown type {z_score.__class__} of provided '
+                             f'correlation matrix.')
     else:
         z_sc_options = {
             'crispr_raw': raw_data[0],
@@ -602,20 +607,14 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
 
     # Get mapping of correlation names to pybel nodes
     if graph_type == 'pybel':
-        if pb_node_mapping is None:
-            hgnc_node_mapping = get_hgnc_node_mapping(
-                hgnc_names=z_corr.columns.values,
-                pb_model=pb_model
-            )
+        if isinstance(pb_node_mapping, dict):
+            hgnc_node_mapping = pb_node_mapping
+        elif Path(pb_node_mapping).is_file():
+            hgnc_node_mapping = pickle_open(pb_node_mapping) if \
+                pb_node_mapping.endswith('.pkl') else \
+                json_open(pb_node_mapping)
         else:
-            if isinstance(pb_node_mapping, dict):
-                hgnc_node_mapping = pb_node_mapping
-            elif Path(pb_node_mapping).is_file():
-                hgnc_node_mapping = pickle_open(pb_node_mapping) if \
-                    pb_node_mapping.endswith('.pkl') else \
-                    json_open(pb_node_mapping)
-            else:
-                raise ValueError('Could not load pybel node mapping')
+            raise ValueError('Could not load pybel node mapping')
 
     # 2. Filter to SD range
     if sd_l and sd_u:
@@ -771,27 +770,44 @@ if __name__ == '__main__':
     arg_dict['indra_net'] = inet_graph
     if arg_dict.get('z_score'):
         corr_matrix = pd.read_hdf(arg_dict['z_score'])
-        arg_dict['z_score'] = corr_matrix
     else:
         arg_dict['raw_data'] = arg_dict.get('raw_data')
         arg_dict['corr_data'] = arg_dict.get('corr_data')
+        z_sc_options = {
+            'crispr_raw': arg_dict['raw_data'][0],
+            'rnai_raw': arg_dict['raw_data'][1],
+            'crispr_corr': arg_dict['corr_data'][0],
+            'rnai_corr': arg_dict['corr_data'][1]
+        }
+        corr_matrix = run_corr_merge(**z_sc_options)
 
+    arg_dict['z_score'] = corr_matrix
+    hgnc_names = corr_matrix.columns.values
+    # Get hgnc node mapping
     if arg_dict.get('graph_type') == 'pybel' and \
+            not arg_dict.get('pybel_node_mapping') and \
             not arg_dict.get('pybel_model'):
         raise ValueError('Must provide PyBEL model with option pybel_model '
+                         'or provide node mapping with option '
                          'if graph type is pybel')
-    if arg_dict.get('pybel_model'):
-        arg_dict['pb_model'] = pickle_open(arg_dict['pybel_model'])
-        if arg_dict.get('pybel_node_mapping'):
-            if arg_dict['pybel_node_mapping'].endswith('.pkl'):
-                arg_dict['pb_node_mapping'] = \
-                    pickle_open(arg_dict['pybel_node_mapping'])
-            elif arg_dict['pybel_node_mapping'].endswith('.json'):
-                arg_dict['pb_node_mapping'] = \
-                    json_open(arg_dict['pybel_node_mapping'])
-            else:
-                raise ValueError('Unknown file type %s' %
-                                 arg_dict['pybel_node_mapping'].split('.')[-1])
+    # Only model provided: create mapping
+    if arg_dict.get('pybel_model') and not arg_dict.get('pybel_node_mapping'):
+        mapping = get_hgnc_node_mapping(
+            hgnc_names=hgnc_names,
+            pb_model=pickle_open(arg_dict['pybel_model'])
+        )
+        arg_dict['pb_node_mapping'] = mapping
+    # Mapping is provided: load the mapping
+    elif arg_dict.get('pybel_node_mapping'):
+        if arg_dict['pybel_node_mapping'].endswith('.pkl'):
+            arg_dict['pb_node_mapping'] = \
+                pickle_open(arg_dict['pybel_node_mapping'])
+        elif arg_dict['pybel_node_mapping'].endswith('.json'):
+            arg_dict['pb_node_mapping'] = \
+                json_open(arg_dict['pybel_node_mapping'])
+        else:
+            raise ValueError('Unknown file type %s' %
+                             arg_dict['pybel_node_mapping'].split('.')[-1])
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
