@@ -1,11 +1,11 @@
 import logging
 import argparse
 from os import path
+
 import pandas as pd
 
 from depmap_analysis.network_functions.depmap_network_functions import \
     merge_corr_df, raw_depmap_to_corr
-
 
 logger = logging.getLogger('DepMap PreProcessing')
 
@@ -77,8 +77,16 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         rnai_corr_df = pd.read_hdf(rnai_corr)
     else:
         # Create new one, write to input file's directory
-        rnai_corr_df = raw_depmap_to_corr(pd.read_csv(rnai_raw,
-                                                      index_col=0))
+        rnai_raw_df = pd.read_csv(rnai_raw, index_col=0)
+
+        # Check if we need to transpose the df
+        if len(set(crispr_corr_df.columns.values) &
+               set([n.split()[0] for n in rnai_raw_df.columns])) == 0:
+            logger.info('Transposing RNAi raw data dataframe...')
+            rnai_raw_df = rnai_raw_df.T
+
+        rnai_corr_df = raw_depmap_to_corr(rnai_raw_df)
+
         in_dir = output_dir if output_dir else path.dirname(
             rnai_raw)
         logger.info(f'Saving rnai correlation matrix to {in_dir}')
