@@ -341,7 +341,8 @@ def expl_bxa(s, o, corr, net, _type, **kwargs):
         s_name = kwargs.pop('s_name')
         o_name = kwargs.pop('o_name')
         options = {'o_name': s_name, 's_name': o_name}
-
+    else:
+        options = {}
     return expl_axb(o, s, corr, net, _type, **kwargs, **options)
 
 
@@ -384,11 +385,12 @@ def expl_ab(s, o, corr, net, _type, **kwargs):
 
 
 def expl_ba(s, o, corr, net, _type, **kwargs):
-    options = {}
     if _type == 'pybel':
-        options['o_name'] = kwargs.pop('s_name')
-        options['s_name'] = kwargs.pop('o_name')
-
+        s_name = kwargs.pop('s_name')
+        o_name = kwargs.pop('o_name')
+        options = {'o_name': s_name, 's_name': o_name}
+    else:
+        options = {}
     return expl_ab(o, s, corr, net, _type, **kwargs, **options)
 
 
