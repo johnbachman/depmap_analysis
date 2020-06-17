@@ -1,6 +1,6 @@
 import logging
 import argparse
-from os import path
+from pathlib import Path
 
 import pandas as pd
 
@@ -11,7 +11,8 @@ logger = logging.getLogger('DepMap PreProcessing')
 
 
 def run_corr_merge(crispr_raw=None, rnai_raw=None,
-                   crispr_corr=None, rnai_corr=None, output_dir=None,
+                   crispr_corr=None, rnai_corr=None,
+                   output_dir='correlation_output',
                    remove_self_corr=True, random_sampl=0):
     """Return a merged correlation matrix from DepMap data
 
@@ -20,16 +21,16 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
 
     Parameters
     ----------
-    crispr_raw : str
+    crispr_raw : str|pd.DataFrame
         Path to the raw crispr data. This file is typically named
         'Achilles_gene_effect.csv' at the DepMap portal.
-    rnai_raw : str
+    rnai_raw : str|pd.DataFrame
         Path to the raw RNAi data. This file is typically named
         'D2_combined_gene_dep_scores.csv'
-    crispr_corr : str
+    crispr_corr : str|pd.DataFrame
         Path to the pre-calculated crispr data matrix. This data structure
         is the result from running `crispr_raw_df.corr()`.
-    rnai_corr : str
+    rnai_corr : str|pd.DataFrame
         Path to the pre-calculated rnai data matrix. This data structure
         is the result from running `rnai_raw_df.corr()`.
     output_dir : str
@@ -51,33 +52,46 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         A data frame containing the combined z-score matrix with NaN's
         removed.
     """
-    if not crispr_raw and not crispr_corr:
-        raise ValueError('Need to provide one of crispr_raw or '
-                         'cripsr_corr')
-    if not rnai_raw and not rnai_corr:
+    if crispr_raw is None and crispr_corr is None:
+        raise ValueError('Need to provide one of crispr_raw or cripsr_corr')
+    if rnai_raw is None and rnai_corr is None:
         raise ValueError('Need to provide one of rnai_raw or rnai_corr')
 
     # First check for correlation matrix, then get it if it doesn't exist
     if crispr_corr:
-        logger.info(f'Reading crispr correlations from file {crispr_corr}')
-        crispr_corr_df = pd.read_hdf(crispr_corr)
+        if isinstance(crispr_corr, str):
+            logger.info(f'Reading crispr correlations from file {crispr_corr}')
+            crispr_corr_df = pd.read_hdf(crispr_corr)
+        else:
+            crispr_corr_df = crispr_corr
     else:
         # Create new one, write to input file's directory
-        logger.info(f'Reading raw DepMap data from {crispr_raw}')
-        crispr_corr_df = raw_depmap_to_corr(pd.read_csv(crispr_raw,
-                                                        index_col=0))
-        in_dir = output_dir if output_dir else path.dirname(
-            crispr_raw)
-        logger.info(f'Saving crispr correlation matrix to {in_dir}')
-        name = '_crispr_all_correlations.h5'
-        crispr_corr_df.to_hdf(path.join(in_dir, name), name)
+        if isinstance(crispr_raw, str):
+            logger.info(f'Reading raw DepMap data from {crispr_raw}')
+            crispr_raw_df = pd.read_csv(crispr_raw, index_col=0)
+        else:
+            crispr_raw_df = crispr_raw
+        crispr_corr_df = raw_depmap_to_corr(crispr_raw_df)
+
+        crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
+        logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
+        if not crispr_fpath.parent.is_dir():
+            crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
+        crispr_corr_df.to_hdf(crispr_fpath.absolute(), 'corr')
 
     if rnai_corr:
-        logger.info(f'Reading rnai correlations from file {crispr_corr}')
-        rnai_corr_df = pd.read_hdf(rnai_corr)
+        if isinstance(rnai_corr, str):
+            logger.info(f'Reading rnai correlations from file {crispr_corr}')
+            rnai_corr_df = pd.read_hdf(rnai_corr)
+        else:
+            rnai_corr_df = rnai_corr
     else:
         # Create new one, write to input file's directory
-        rnai_raw_df = pd.read_csv(rnai_raw, index_col=0)
+        if isinstance(rnai_raw, str):
+            logger.info(f'Reading raw DepMap data from {rnai_raw}')
+            rnai_raw_df = pd.read_csv(rnai_raw, index_col=0)
+        else:
+            rnai_raw_df = rnai_raw
 
         # Check if we need to transpose the df
         if len(set(crispr_corr_df.columns.values) &
@@ -87,11 +101,11 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
 
         rnai_corr_df = raw_depmap_to_corr(rnai_raw_df)
 
-        in_dir = output_dir if output_dir else path.dirname(
-            rnai_raw)
-        logger.info(f'Saving rnai correlation matrix to {in_dir}')
-        name = '_rnai_all_correlations.h5'
-        rnai_corr_df.to_hdf(path.join(in_dir, name), name)
+        rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
+        if not rnai_fpath.parent.is_dir():
+            rnai_fpath.mkdir(parents=True, exist_ok=True)
+        logger.info(f'Saving rnai correlation matrix to {rnai_fpath}')
+        rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
 
     # Merge the correlation matrices
     z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df, remove_self_corr)
@@ -158,9 +172,9 @@ if __name__ == '__main__':
     z_corr = run_corr_merge(**options)
 
     # Write merged correlations combined z score
-    outdir = args.output_dir if args.output_dir else (path.dirname(
-        args.crispr_corr) if args.crispr_corr else path.dirname(
-        args.crispr_raw))
+    outdir = args.output_dir if args.output_dir else (Path(
+        args.crispr_corr).parent.as_posix() if args.crispr_corr else Path(
+        args.crispr_raw).parent.as_posix())
     logger.info(f'Writing combined correlations to {outdir}')
     fname = args.fname if args.fname else 'combined_z_score.h5'
-    z_corr.to_hdf(path.join(outdir, fname), 'zsc')
+    z_corr.to_hdf(Path(outdir, fname), 'zsc')
