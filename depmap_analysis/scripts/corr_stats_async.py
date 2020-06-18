@@ -1,7 +1,7 @@
 from time import time
 from ctypes import c_wchar_p
 from datetime import datetime
-from multiprocessing import Pool, cpu_count, Array
+from multiprocessing import Pool, cpu_count, Array, current_process
 import logging
 import random
 
@@ -31,6 +31,11 @@ def success_callback(res):
 
 def success_callback_pairs(res):
     global_results_pairs.append(res)
+
+
+def error_callback(err):
+    logger.error(f'An error occurred in process {current_process().pid}')
+    logger.exception(err)
 
 
 class GlobalVars(object):
@@ -120,7 +125,8 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
             pool.apply_async(
                 func=get_pairs,
                 args=(corr_pairs, ),
-                callback=success_callback_pairs
+                callback=success_callback_pairs,
+                error_callback=error_callback
             )
         logger.info('Done submitting work to pool of workers')
         pool.close()
@@ -132,7 +138,7 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
     # Assemble results
-    logger.info('Assembling results')
+    logger.info(f'Assembling {len(global_results_pairs)} results')
     results_pairs = set()
     for s in global_results_pairs:
         results_pairs.update(s)
@@ -203,6 +209,7 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
                 func=get_corr_stats,
                 args=(pairs, ),
                 callback=success_callback,
+                error_callback=error_callback
             )
         logger.info('Done submitting work to pool of workers')
         pool.close()
@@ -212,7 +219,7 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
     logger.info(f'Execution time: {time() - tstart} seconds')
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
-    logger.info('Assembling results')
+    logger.info(f'Assembling {len(global_results)} results')
     results = [[], [], [], [], []]
     for done_res in global_results:
         # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
@@ -291,6 +298,10 @@ def get_corr_stats(so_pairs):
             max_magn_avg = max(ab_avg_corrs)
             top_axb_corrs.append((subj, obj, max_magn_avg))
             #ab_to_axb_avg.append((subj, obj, comb_zsc, max_magn_avg))
+    assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
+                                  top_axb_corrs, all_azb_corrs,
+                                  azb_avg_corrs]),\
+        logger.error(f'No results for process {current_process().pid}')
 
     return {'all_axb_corrs': all_axb_corrs,
             'axb_avg_corrs': axb_avg_corrs,
