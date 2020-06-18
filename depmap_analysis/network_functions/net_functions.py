@@ -8,8 +8,9 @@ import pandas as pd
 from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
-from indra.preassembler import hierarchy_manager as hm
+from indra.ontology.bio import bio_ontology
 from indra.assemblers.indranet import IndraNet
+from indra.databases import get_identifiers_url
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.io_functions import pickle_open
@@ -236,10 +237,8 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     if include_entity_hierarchies and graph_type != 'signed':
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
-        ehm = hm.hierarchies['entity']
-        ehm.initialize()
         logger.info('Adding entity hierarchy manager as graph attribute')
-        node_by_uri = {}
+        node_by_uri = {uri: _id for (ns, _id, uri) in full_entity_list}
         added_pairs = set()  # Save (A, B, URI)
         logger.info('Building entity relations to be added to data frame')
         entities = 0
@@ -250,17 +249,15 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
                 node = ns_id_to_nodename[(ns, _id)]
             else:
                 ns_id_to_nodename[(ns, _id)] = node
-            node_by_uri[uri] = node
 
             # Add famplex edge
-            for puri in ehm.get_parents(uri):
-                pns, pid = ehm.ns_id_from_uri(puri)
+            for pns, pid in bio_ontology.get_parents(ns, _id):
+                puri = get_identifiers_url(pns, pid)
                 pnode = pid
                 if ns_id_to_nodename.get((pns, pid), None):
                     pnode = ns_id_to_nodename[(pns, pid)]
                 else:
                     ns_id_to_nodename[(pns, pid)] = pnode
-                node_by_uri[puri] = pnode
                 # Check if edge already exists
                 if (node, pnode, puri) not in added_pairs:
                     entities += 1
