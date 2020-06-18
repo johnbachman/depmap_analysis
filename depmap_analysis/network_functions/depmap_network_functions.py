@@ -8,6 +8,7 @@ from random import choices
 from math import ceil, log10
 from itertools import islice
 from collections import Mapping, OrderedDict, defaultdict
+
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -23,7 +24,6 @@ from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
-
 import depmap_analysis.util.io_functions as io
 import depmap_analysis.network_functions.famplex_functions as ff
 
@@ -804,7 +804,8 @@ def raw_depmap_to_corr(depmap_raw_df, dropna=False):
     return corr
 
 
-def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
+def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
+                  dropna=False):
     """Merge two correlation matrices containing their combined z-scores
 
     Parameters
@@ -818,6 +819,10 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
     remove_self_corr : bool
         If True, remove self correlations from the resulting DataFrame.
         Default: True
+    dropna : bool
+        If True, return the result of
+        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
+        Default: False.
 
     Returns
     -------
@@ -843,7 +848,9 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
         other_corr_df = _rename(other_corr_df)
 
     # Get corresponding z-score matrices
+    dnf_logger.info('Getting z-score matrix of first data frame.')
     corr_z = _z_scored(corr_df)
+    dnf_logger.info('Getting z-score matrix of second data frame.')
     other_z = _z_scored(other_corr_df)
 
     # Merge
@@ -852,7 +859,10 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
         # Assumes the max correlation ONLY occurs on the diagonal
         self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
         dep_z = dep_z[dep_z != self_corr_value]
-    return dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
+    if dropna:
+        dep_z = dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
+    assert dep_z.notna().sum().sum() > 0, print('Correlation matrix is empty')
+    return dep_z
 
 
 def get_gene_gene_corr_dict(tuple_generator):
