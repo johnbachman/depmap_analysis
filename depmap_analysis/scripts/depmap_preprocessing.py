@@ -13,7 +13,7 @@ logger = logging.getLogger('DepMap PreProcessing')
 def run_corr_merge(crispr_raw=None, rnai_raw=None,
                    crispr_corr=None, rnai_corr=None,
                    output_dir='correlation_output',
-                   remove_self_corr=True, random_sampl=0):
+                   remove_self_corr=True, dropna=False, random_sampl=0):
     """Return a merged correlation matrix from DepMap data
 
     Start with with either the raw DepMap files or pre-calculated
@@ -44,7 +44,10 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         If specified, provides the size of the final correlation matrix
         where the genes are picked at random from the intersection of genes
         from both the RNAI and CRISPR data sets.
-
+    dropna : bool
+        If True, return the result of
+        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
+        Default: False.
 
     Returns
     -------
@@ -71,7 +74,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
             crispr_raw_df = pd.read_csv(crispr_raw, index_col=0)
         else:
             crispr_raw_df = crispr_raw
-        crispr_corr_df = raw_depmap_to_corr(crispr_raw_df)
+        crispr_corr_df = raw_depmap_to_corr(crispr_raw_df, dropna=True)
 
         crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
         logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
@@ -99,7 +102,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
             logger.info('Transposing RNAi raw data dataframe...')
             rnai_raw_df = rnai_raw_df.T
 
-        rnai_corr_df = raw_depmap_to_corr(rnai_raw_df)
+        rnai_corr_df = raw_depmap_to_corr(rnai_raw_df, dropna=True)
 
         rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
         if not rnai_fpath.parent.is_dir():
@@ -108,13 +111,19 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
 
     # Merge the correlation matrices
-    z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df, remove_self_corr)
+    z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df,
+                         remove_self_corr, dropna)
+
     if random_sampl and random_sampl < len(z_cm.columns):
         # Get n random rows
         z_cm = z_cm.sample(n=random_sampl)
 
         # Make square
         z_cm = z_cm[list(z_cm.index.values)]
+
+    assert z_cm.notna().sum().sum() > 0, \
+        print(f'Correlation matrix is empty')
+
     return z_cm
 
 
