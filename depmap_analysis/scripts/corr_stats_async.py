@@ -7,6 +7,8 @@ import random
 
 import numpy as np
 
+from .mp_exceptions import WrapException
+
 logger = logging.getLogger(__name__)
 
 global_results = []
@@ -237,74 +239,77 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
 
 
 def get_corr_stats(so_pairs):
-    global list_of_genes
-    df = global_vars['df']
-    z_corr = global_vars['z_cm']
-    subset_size = global_vars['subset_size']
-    chunk_size = max(len(list_of_genes[:]) // subset_size, 1)
+    try:
+        global list_of_genes
+        df = global_vars['df']
+        z_corr = global_vars['z_cm']
+        subset_size = global_vars['subset_size']
+        chunk_size = max(len(list_of_genes[:]) // subset_size, 1)
 
-    all_axb_corrs = []
-    top_axb_corrs = []
-    azb_avg_corrs = []
-    all_azb_corrs = []
-    axb_avg_corrs = []
-    for subj, obj in so_pairs:
-        ab_avg_corrs = []
-        path_rows = df[(df['agA'] == subj) &
-                       (df['agB'] == obj) &
-                       ((df['expl type'] == 'a-x-b') |
-                        (df['expl type'] == 'b-x-a') |
-                       (df['expl type'] == 'shared target'))]
+        all_axb_corrs = []
+        top_axb_corrs = []
+        azb_avg_corrs = []
+        all_azb_corrs = []
+        axb_avg_corrs = []
+        for subj, obj in so_pairs:
+            ab_avg_corrs = []
+            path_rows = df[(df['agA'] == subj) &
+                           (df['agB'] == obj) &
+                           ((df['expl type'] == 'a-x-b') |
+                            (df['expl type'] == 'b-x-a') |
+                           (df['expl type'] == 'shared target'))]
 
-        # Make sure we don't double-count Xs such that X is shared target
-        # and also a pathway; also, don't include X if X = subj or obj
-        x_set = set()
-        for ix, path_row in path_rows.iterrows():
-            x_set.update([x for x in path_row['expl data']
-                          if x not in (subj, obj)])
+            # Make sure we don't double-count Xs such that X is shared target
+            # and also a pathway; also, don't include X if X = subj or obj
+            x_set = set()
+            for ix, path_row in path_rows.iterrows():
+                x_set.update([x for x in path_row['expl data']
+                              if x not in (subj, obj)])
 
-        for x in x_set:
-            if x in z_corr.columns:
-                ax_corr = z_corr.loc[subj, x]
-                xb_corr = z_corr.loc[x, obj]
-                all_axb_corrs += [ax_corr, xb_corr]
-                avg_corr = 0.5 * abs(ax_corr) + 0.5 * abs(xb_corr)
-                ab_avg_corrs.append(avg_corr)
-                axb_avg_corrs.append(avg_corr)
-            else:
-                # if warn < 3:
-                #     warn += 1
-                #     logger.warning('%s does not exist in the crispr or '
-                #                    'rnai correlation matrices.' % x)
-                # else:
-                #     logger.warning('Muting warnings...')
-                continue
+            for x in x_set:
+                if x in z_corr.columns:
+                    ax_corr = z_corr.loc[subj, x]
+                    xb_corr = z_corr.loc[x, obj]
+                    all_axb_corrs += [ax_corr, xb_corr]
+                    avg_corr = 0.5 * abs(ax_corr) + 0.5 * abs(xb_corr)
+                    ab_avg_corrs.append(avg_corr)
+                    axb_avg_corrs.append(avg_corr)
+                else:
+                    # if warn < 3:
+                    #     warn += 1
+                    #     logger.warning('%s does not exist in the crispr or '
+                    #                    'rnai correlation matrices.' % x)
+                    # else:
+                    #     logger.warning('Muting warnings...')
+                    continue
 
-        # Get a random subset of the possible correlation z scores
-        for z in np.random.choice(list_of_genes[:], chunk_size, False):
-            if z == subj or z == obj:
-                continue
-            az_corr = z_corr.loc[z, subj]
-            bz_corr = z_corr.loc[z, obj]
-            if np.isnan(az_corr) or np.isnan(bz_corr):
-                continue  # Is there a more efficient way of doing this?
-            all_azb_corrs.extend([az_corr, bz_corr])
-            azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
+            # Get a random subset of the possible correlation z scores
+            for z in np.random.choice(list_of_genes[:], chunk_size, False):
+                if z == subj or z == obj:
+                    continue
+                az_corr = z_corr.loc[z, subj]
+                bz_corr = z_corr.loc[z, obj]
+                if np.isnan(az_corr) or np.isnan(bz_corr):
+                    continue  # Is there a more efficient way of doing this?
+                all_azb_corrs.extend([az_corr, bz_corr])
+                azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
 
-        # if warn:
-        #     logger.warning('%d missing X genes out of %d in correlation '
-        #                    'matrices' % (warn, len(x_list)))
-        if len(ab_avg_corrs) > 0:
-            max_magn_avg = max(ab_avg_corrs)
-            top_axb_corrs.append((subj, obj, max_magn_avg))
-            #ab_to_axb_avg.append((subj, obj, comb_zsc, max_magn_avg))
-    assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
-                                  top_axb_corrs, all_azb_corrs,
-                                  azb_avg_corrs]),\
-        logger.error(f'No results for process {current_process().pid}')
+            # if warn:
+            #     logger.warning('%d missing X genes out of %d in correlation '
+            #                    'matrices' % (warn, len(x_list)))
+            if len(ab_avg_corrs) > 0:
+                max_magn_avg = max(ab_avg_corrs)
+                top_axb_corrs.append((subj, obj, max_magn_avg))
+                #ab_to_axb_avg.append((subj, obj, comb_zsc, max_magn_avg))
+        assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
+                                      top_axb_corrs, all_azb_corrs,
+                                      azb_avg_corrs]),\
+            logger.error(f'No results for process {current_process().pid}')
 
-    return {'all_axb_corrs': all_axb_corrs,
-            'axb_avg_corrs': axb_avg_corrs,
-            'top_axb_corrs': top_axb_corrs,
-            'all_azb_corrs': all_azb_corrs,
-            'azb_avg_corrs': azb_avg_corrs}
+        return {'all_axb_corrs': all_axb_corrs,
+                'axb_avg_corrs': axb_avg_corrs,
+                'top_axb_corrs': top_axb_corrs,
+                'all_azb_corrs': all_azb_corrs,
+                'azb_avg_corrs': azb_avg_corrs}
+    except Exception:
+        raise WrapException()
