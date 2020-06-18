@@ -764,7 +764,7 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     return get_gaussian_stats(bin_edges, interp_gaussian)
 
 
-def raw_depmap_to_corr(depmap_raw_df):
+def raw_depmap_to_corr(depmap_raw_df, dropna=False):
     """Pre-process and create a correlation matrix
 
     Any multi indexing is removed. Duplicated columns are also removed.
@@ -773,6 +773,9 @@ def raw_depmap_to_corr(depmap_raw_df):
     ----------
     depmap_raw_df : pd.DataFrame
         The raw data from the DepMap portal as a pd.DataFrame
+    dropna : bool
+        If True, drop nan columns (should be genes) before calculating the
+        correlations
 
     Returns
     -------
@@ -787,6 +790,11 @@ def raw_depmap_to_corr(depmap_raw_df):
 
     # Drop duplicates
     depmap_raw_df = depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
+
+    # Drop nan's
+    if dropna:
+        dnf_logger.info('Dropping nan columns (axis=1)')
+        depmap_raw_df = depmap_raw_df.dropna(axis=1)
 
     # Calculate correlation
     dnf_logger.info('Calculating data correlation matrix. This will take '
