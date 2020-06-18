@@ -17,13 +17,15 @@ for (s of stmtOptions) {
 let nodeItems = [];
 for (let n of nodeOptions) {
   let sel = false;
-  if (n === 'HGNC') sel = true;
+  if (n === 'HGNC') {
+    sel = true;
+  }
   nodeItems.push({
     value: n.toLowerCase(),
     label: n,
     selected: sel,
     disabled: false
-  })
+  });
 }
 
 function submitQuery() {
@@ -148,14 +150,14 @@ function isEmptyResult(resultJson, allowTimeOut=false) {
     $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
     $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
     $.isEmptyObject(resultJson.common_targets) &&
-    $.isEmptyObject(resultJson.common_parents)
+    $.isEmptyObject(resultJson.common_parents);
   } else {
   return $.isEmptyObject(resultJson.paths_by_node_count) &&
     $.isEmptyObject(resultJson.paths_by_node_count.forward) &&
     $.isEmptyObject(resultJson.paths_by_node_count.backward) &&
     $.isEmptyObject(resultJson.common_targets) &&
     $.isEmptyObject(resultJson.common_parents) &&
-    !(resultJson.timeout)
+    !(resultJson.timeout);
   }
 }
 
@@ -248,9 +250,9 @@ function fillResultsTable(data, source, target){
     pathStmtHashes = data.result.paths_by_node_count.path_hashes;
 
     // Fill common parents table
-    if (data.result.common_parents &&
-        data.result.common_parents.common_parents &&
-        data.result.common_parents.common_parents.length > 0) {
+    if (commonParents &&
+        commonParents.common_parents &&
+        commonParents.common_parents.length > 0) {
       let cardHtml = generateCommonParents();
       tableArea.appendChild(cardHtml);
       document.getElementById('subject-placeholder-cp').textContent =
@@ -263,12 +265,14 @@ function fillResultsTable(data, source, target){
         let newRow = document.createElement('tr');
 
         let newIdCol = document.createElement('td');
-        let hs = '<a href="' + par + '">' + par.split('/')[par.split('/').length-1] + '</a>';
+
+        let [parNS, parID, parUri] = par;
+        let hs = `<a href="${parUri}" target="_blank">${parID}</a>`;
         newIdCol.innerHTML = hs;
         newRow.appendChild(newIdCol);
 
         let newNsCol = document.createElement('td');
-        newNsCol.textContent = par.split('/')[par.split('/').length-2].toUpperCase();
+        newNsCol.textContent = parNS.toUpperCase();
         newRow.appendChild(newNsCol);
 
         cpTableBody.appendChild(newRow)
