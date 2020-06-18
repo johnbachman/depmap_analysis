@@ -7,7 +7,7 @@ import random
 
 import numpy as np
 
-from .mp_exceptions import WrapException
+from indra.util.multiprocessing_traceback import WrapException
 
 logger = logging.getLogger(__name__)
 
