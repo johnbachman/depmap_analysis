@@ -6,6 +6,7 @@ import logging
 import random
 
 import numpy as np
+from pybel.dsl.node_classes import CentralDogma
 
 from indra.util.multiprocessing_traceback import WrapException
 
@@ -267,9 +268,10 @@ def get_corr_stats(so_pairs):
                               if x not in (subj, obj)])
 
             for x in x_set:
-                if x in z_corr.columns:
-                    ax_corr = z_corr.loc[subj, x]
-                    xb_corr = z_corr.loc[x, obj]
+                x_name = x.name if isinstance(x, CentralDogma) else x
+                if x_name in z_corr.columns:
+                    ax_corr = z_corr.loc[subj, x_name]
+                    xb_corr = z_corr.loc[x_name, obj]
                     all_axb_corrs += [ax_corr, xb_corr]
                     avg_corr = 0.5 * abs(ax_corr) + 0.5 * abs(xb_corr)
                     ab_avg_corrs.append(avg_corr)
