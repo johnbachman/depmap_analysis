@@ -672,7 +672,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
                     f'{sample_size} correlation pairs.')
         row_samples = len(z_corr) - 1
         n_pairs = z_corr.notna().sum().sum()
-        while n_pairs-10 > sample_size:
+        while n_pairs > int(1.1*sample_size):
             logger.info(f'Down sampling from {n_pairs}')
             z_corr = z_corr.sample(row_samples, axis=0)
             z_corr = z_corr.filter(list(z_corr.index), axis=1)
