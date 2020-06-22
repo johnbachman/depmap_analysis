@@ -72,7 +72,7 @@ class GlobalVars(object):
         """
 
         varname : set(str)
-            Set of names of variables to checkif they exists
+            Set of names of variables to check if they exists
 
         Returns
         -------
@@ -285,7 +285,10 @@ def get_corr_stats(so_pairs):
 
             # Get a random subset of the possible correlation z scores
             for z in np.random.choice(list_of_genes[:], chunk_size, False):
-                if z == subj or z == obj:
+                if z is None or z not in z_corr.columns or \
+                        z == subj or z == obj:
+                    logger.info(f'Skipping z intermediate {str(z)} ('
+                                f'{z.__class__})')
                     continue
                 az_corr = z_corr.loc[z, subj]
                 bz_corr = z_corr.loc[z, obj]
