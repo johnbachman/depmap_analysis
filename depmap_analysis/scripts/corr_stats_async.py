@@ -285,18 +285,25 @@ def get_corr_stats(so_pairs):
 
             # Get a random subset of the possible correlation z scores
             for z in np.random.choice(list_of_genes[:], chunk_size, False):
-                if z is None or z not in z_corr.columns or \
-                        z == subj or z == obj:
-                    logger.info(f'Skipping z intermediate {str(z)} ('
-                                f'{z.__class__})')
-                    continue
-                az_corr = z_corr.loc[z, subj]
-                bz_corr = z_corr.loc[z, obj]
-                if np.isnan(az_corr) or np.isnan(bz_corr):
-                    continue  # Is there a more efficient way of doing this?
-                all_azb_corrs.extend([az_corr, bz_corr])
-                azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
-
+                try:
+                    if z == subj or z == obj:
+                        logger.info(f'Skipping z intermediate {str(z)} ('
+                                    f'{z.__class__})')
+                        continue
+                    az_corr = z_corr.loc[z, subj]
+                    bz_corr = z_corr.loc[z, obj]
+                    if np.isnan(az_corr) or np.isnan(bz_corr):
+                        # Is there a more efficient way of doing this?
+                        continue
+                    all_azb_corrs.extend([az_corr, bz_corr])
+                    azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
+                except KeyError as err:
+                    raise KeyError(
+                        f'KeyError was raised trying to sample background '
+                        f'correlation distribution with subject {str(subj)}'
+                        f'({subj.__class__}), object {str(obj)} '
+                        f'({obj.__class__}) and z {z} ({z.__class__})'
+                    ) from err
             # if warn:
             #     logger.warning('%d missing X genes out of %d in correlation '
             #                    'matrices' % (warn, len(x_list)))
