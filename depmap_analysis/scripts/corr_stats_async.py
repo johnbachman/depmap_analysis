@@ -1,6 +1,7 @@
 from time import time
 from ctypes import c_wchar_p
 from datetime import datetime
+from collections import Counter
 from multiprocessing import Pool, cpu_count, Array, current_process
 import logging
 import random
@@ -252,6 +253,12 @@ def get_corr_stats(so_pairs):
         azb_avg_corrs = []
         all_azb_corrs = []
         axb_avg_corrs = []
+
+        # reset counters
+        counter = Counter({'z_nans': 0,
+                           'z_skip': 0,
+                           'x_skip': 0})
+
         for subj, obj in so_pairs:
             ab_avg_corrs = []
             path_rows = df[(df['agA'] == subj) &
@@ -277,20 +284,14 @@ def get_corr_stats(so_pairs):
                     ab_avg_corrs.append(avg_corr)
                     axb_avg_corrs.append(avg_corr)
                 else:
-                    # if warn < 3:
-                    #     warn += 1
-                    #     logger.warning('%s does not exist in the crispr or '
-                    #                    'rnai correlation matrices.' % x)
-                    # else:
-                    #     logger.warning('Muting warnings...')
+                    counter.update('x_skip')
                     continue
 
             # Get a random subset of the possible correlation z scores
             for z in np.random.choice(list_of_genes[:], chunk_size, False):
                 try:
                     if z == subj or z == obj:
-                        logger.info(f'Skipping z intermediate {str(z)} ('
-                                    f'{z.__class__})')
+                        counter.update('z_skip')
                         continue
                     az_corr = z_corr.loc[z, subj]
                     bz_corr = z_corr.loc[z, obj]
@@ -301,6 +302,7 @@ def get_corr_stats(so_pairs):
                             f'subj-z ({str(subj)}-{str(z)}) or '
                             f'obj-z ({str(obj)}-{str(z)})'
                         )
+                        counter.update('z_nans')
                         continue
                     all_azb_corrs.extend([az_corr, bz_corr])
                     azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
@@ -327,6 +329,9 @@ def get_corr_stats(so_pairs):
                          f'top_axb_corrs: {len(top_axb_corrs)}, '
                          f'all_azb_corrs: {len(all_azb_corrs)}, '
                          f'azb_avg_corrs: {len(azb_avg_corrs)}')
+
+        for k, v in counter.items():
+            logger.info(f'Skipped {k} {v} times')
 
         return {'all_axb_corrs': all_axb_corrs,
                 'axb_avg_corrs': axb_avg_corrs,
