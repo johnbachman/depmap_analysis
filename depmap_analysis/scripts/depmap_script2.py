@@ -155,8 +155,11 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
                                             **options)
                 if expl_data:
-                    expl_dict['agA'].append(s)
-                    expl_dict['agB'].append(o)
+                    # Use original name
+                    s_name = s.name if _type == 'pybel' else s
+                    o_name = o.name if _type == 'pybel' else o
+                    expl_dict['agA'].append(s_name)
+                    expl_dict['agB'].append(o_name)
                     expl_dict['z-score'].append(zsc)
                     expl_dict['expl type'].append(expl_type)
                     expl_dict['expl data'].append(expl_data)
