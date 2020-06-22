@@ -294,6 +294,11 @@ def get_corr_stats(so_pairs):
                     bz_corr = z_corr.loc[z, obj]
                     if np.isnan(az_corr) or np.isnan(bz_corr):
                         # Is there a more efficient way of doing this?
+                        logger.info(
+                            f'NaN correlations for '
+                            f'subj-z ({str(subj)}-{str(z)}) or '
+                            f'obj-z ({str(obj)}-{str(z)})'
+                        )
                         continue
                     all_azb_corrs.extend([az_corr, bz_corr])
                     azb_avg_corrs.append(0.5 * abs(az_corr) + 0.5 * abs(bz_corr))
@@ -314,7 +319,12 @@ def get_corr_stats(so_pairs):
         assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
                                       top_axb_corrs, all_azb_corrs,
                                       azb_avg_corrs]),\
-            logger.error(f'No results for process {current_process().pid}')
+            logger.error(f'No results for process {current_process().pid}. '
+                         f'Stats:\nall_axb_corrs: {len(all_axb_corrs)}, '
+                         f'axb_avg_corrs: {len(axb_avg_corrs)}, '
+                         f'top_axb_corrs: {len(top_axb_corrs)}, '
+                         f'all_azb_corrs: {len(all_azb_corrs)}, '
+                         f'azb_avg_corrs: {len(azb_avg_corrs)}')
 
         return {'all_axb_corrs': all_axb_corrs,
                 'axb_avg_corrs': axb_avg_corrs,
