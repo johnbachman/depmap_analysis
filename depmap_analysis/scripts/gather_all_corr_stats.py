@@ -53,7 +53,7 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        '--mp-pairs', type=bool, action='store_true',
+        '--mp-pairs', action='store_true',
         help='Perform multi processing when gathering the subj-obj axb '
              'pairs to process.'
     )
