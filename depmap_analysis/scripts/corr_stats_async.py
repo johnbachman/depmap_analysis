@@ -125,10 +125,10 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
         lst_gen = _list_chunk_gen(lst=list(corr_pairs),
                                   size=size,
                                   shuffle=True)
-        for corr_pairs in lst_gen:
+        for chunk_of_pairs in lst_gen:
             pool.apply_async(
                 func=get_pairs,
-                args=(corr_pairs, ),
+                args=(chunk_of_pairs, ),
                 callback=success_callback_pairs,
                 error_callback=error_callback
             )
