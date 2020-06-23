@@ -64,7 +64,7 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None, max_corr_pairs=10000):
                                 expl_df[['agA', 'agB']].values))
 
     gbv = GlobalVars(df=expl_df, sampl=16)
-    if len(all_ab_corr_pairs) > 1000:
+    if len(all_ab_corr_pairs) > 50000:
         # Do multiprocessing
         gbv.assert_global_vars({'df'})
         pairs_axb_only = get_pairs_mp(all_ab_corr_pairs, max_proc=max_proc,
