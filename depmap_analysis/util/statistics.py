@@ -152,7 +152,7 @@ class DepMapExplainer:
         return len(indices)
 
     def get_corr_stats_axb(self, z_corr=None, max_proc=None,
-                           max_so_pairs_size=10000):
+                           max_so_pairs_size=10000, mp_pairs=True):
         """Get statistics of the correlations associated with different
         explanation types
 
@@ -168,8 +168,11 @@ class DepMapExplainer:
             The maximum number of correlation pairs to process. If the
             number of eligble pairs is larger than this number, a random
             sample of max_so_pairs_size is used. Default: 10 000. If the
-            number of pairs to check is smaller than 1000, no sampling is
+            number of pairs to check is smaller than 10 000, no sampling is
             done.
+        mp_pairs : bool
+            If True, get the pairs to process using multiprocessing if larger
+            than 10 000. Default: True.
 
         Returns
         -------
@@ -185,13 +188,14 @@ class DepMapExplainer:
                 z_corr = pd.read_hdf(z_corr)
             self.corr_stats_axb = axb_stats(
                 self.expl_df, z_corr=z_corr, eval_str=False,
-                max_proc=max_proc, max_corr_pairs=max_so_pairs_size
+                max_proc=max_proc, max_corr_pairs=max_so_pairs_size,
+                do_mp_pairs=mp_pairs
             )
         return self.corr_stats_axb
 
     def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
                         max_proc=None, index_counter=None,
-                        max_so_pairs_size=10000):
+                        max_so_pairs_size=10000, mp_pairs=True):
         """Plot the results of running explainer.get_corr_stats_axb()
 
         Parameters
@@ -217,6 +221,9 @@ class DepMapExplainer:
             The maximum number of correlation pairs to process. If the
             number of eligble pairs is larger than this number, a random
             sample of max_so_pairs_size is used. Default: 10000.
+        mp_pairs : bool
+            If True, get the pairs to process using multiprocessing if larger
+            than 10 000. Default: True.
         """
         # Local file or s3
         if outdir.startswith('s3:'):
@@ -238,7 +245,7 @@ class DepMapExplainer:
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(
             z_corr=z_corr, max_proc=max_proc,
-            max_so_pairs_size=max_so_pairs_size
+            max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
         sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
@@ -288,7 +295,7 @@ class DepMapExplainer:
 
     def plot_dists(self, outdir, z_corr=None, show_plot=False,
                    max_proc=None, index_counter=None,
-                   max_so_pairs_size=10000):
+                   max_so_pairs_size=10000, mp_pairs=True):
         # Local file or s3
         if outdir.startswith('s3:'):
             full_path = outdir.replace('s3:', '').split('/')
@@ -309,7 +316,7 @@ class DepMapExplainer:
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(
             z_corr=z_corr, max_proc=max_proc,
-            max_so_pairs_size=max_so_pairs_size
+            max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
         fig_index = next(index_counter) if index_counter \
             else floor(datetime.timestamp(datetime.utcnow()))

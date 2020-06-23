@@ -17,7 +17,8 @@ logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.INFO)
 
 
-def main(expl_df, z_corr, eval_str=False, max_proc=None, max_corr_pairs=10000):
+def main(expl_df, z_corr, eval_str=False, max_proc=None,
+         max_corr_pairs=10000, do_mp_pairs=True):
     """Get statistics of the correlations associated with different
     explanation types
 
@@ -38,6 +39,9 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None, max_corr_pairs=10000):
         eligble pairs is larger than this number, a random sample of
         max_so_pairs_size is used. Default: 10 000. If the number of pairs
         to check is smaller than 1000, no sampling is done.
+    do_mp_pairs : bool
+        If True, get the pairs to process using multiprocessing if larger
+        than 10 000. Default: True.
 
     Returns
     -------
