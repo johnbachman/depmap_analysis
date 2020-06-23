@@ -331,7 +331,8 @@ def get_corr_stats(so_pairs):
                          f'azb_avg_corrs: {len(azb_avg_corrs)}')
 
         for k, v in counter.items():
-            logger.info(f'Skipped {k} {v} times')
+            if v > 0:
+                logger.info(f'Skipped {k} {v} times')
 
         return {'all_axb_corrs': all_axb_corrs,
                 'axb_avg_corrs': axb_avg_corrs,
