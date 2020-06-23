@@ -36,7 +36,7 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None,
         get_corr_stats_mp. Default: multiprocessing.cpu_count()
     max_corr_pairs : int
         The maximum number of correlation pairs to process. If the number of
-        eligble pairs is larger than this number, a random sample of
+        eligible pairs is larger than this number, a random sample of
         max_so_pairs_size is used. Default: 10 000. If the number of pairs
         to check is smaller than 1000, no sampling is done.
     do_mp_pairs : bool

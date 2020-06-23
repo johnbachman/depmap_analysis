@@ -219,7 +219,7 @@ class DepMapExplainer:
             new plots in the same figure.
         max_so_pairs_size : int
             The maximum number of correlation pairs to process. If the
-            number of eligble pairs is larger than this number, a random
+            number of eligible pairs is larger than this number, a random
             sample of max_so_pairs_size is used. Default: 10000.
         mp_pairs : bool
             If True, get the pairs to process using multiprocessing if larger
