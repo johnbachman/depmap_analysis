@@ -52,6 +52,12 @@ if __name__ == '__main__':
              'done.'
     )
 
+    parser.add_argument(
+        '--mp-pairs', action='store_true',
+        help='Perform multi processing when gathering the subj-obj axb '
+             'pairs to process.'
+    )
+
     args = parser.parse_args()
     base_path = Path(args.base_path)
     output_dir = Path(args.outdir) if args.outdir else \
@@ -89,12 +95,14 @@ if __name__ == '__main__':
                                       z_corr=z_corr, show_plot=False,
                                       max_proc=max_proc,
                                       index_counter=indexer,
-                                      max_so_pairs_size=args.max_so_pairs)
+                                      max_so_pairs_size=args.max_so_pairs,
+                                      mp_pairs=args.mp_pairs)
 
             explainer.plot_dists(outdir=explainer_out,
                                  z_corr=None, show_plot=False,
                                  index_counter=indexer,
-                                 max_so_pairs_size=args.max_so_pairs)
+                                 max_so_pairs_size=args.max_so_pairs,
+                                 mp_pairs=args.mp_pairs)
         else:
             if not Path(explainer_file).is_file():
                 raise FileNotFoundError(f'{explainer_file} does not exist')

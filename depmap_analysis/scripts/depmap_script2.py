@@ -155,8 +155,11 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
                                             **options)
                 if expl_data:
-                    expl_dict['agA'].append(s)
-                    expl_dict['agB'].append(o)
+                    # Use original name
+                    s_name = s.name if _type == 'pybel' else s
+                    o_name = o.name if _type == 'pybel' else o
+                    expl_dict['agA'].append(s_name)
+                    expl_dict['agB'].append(o_name)
                     expl_dict['z-score'].append(zsc)
                     expl_dict['expl type'].append(expl_type)
                     expl_dict['expl data'].append(expl_data)
@@ -669,7 +672,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
                     f'{sample_size} correlation pairs.')
         row_samples = len(z_corr) - 1
         n_pairs = z_corr.notna().sum().sum()
-        while n_pairs-10 > sample_size:
+        while n_pairs > int(1.1*sample_size):
             logger.info(f'Down sampling from {n_pairs}')
             z_corr = z_corr.sample(row_samples, axis=0)
             z_corr = z_corr.filter(list(z_corr.index), axis=1)
