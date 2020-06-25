@@ -1,5 +1,6 @@
 import logging
 from decimal import Decimal
+from collections import defaultdict
 import subprocess
 
 import requests
@@ -9,10 +10,17 @@ from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
+from indra.belief import load_default_probs
+from indra.assemblers.english import EnglishAssembler
+from indra.statements import Agent, get_statement_by_name
 from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
+from indra.assemblers.pybel import PybelAssembler
+from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
+from indra_reading.readers import get_reader_classes
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
+from depmap_analysis.util.aws import get_latest_pa_stmt_dump
 from depmap_analysis.util.io_functions import pickle_open
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
@@ -26,14 +34,27 @@ INT_MINUS = 1
 SIGN_TO_STANDARD = {INT_PLUS: '+', '+': '+', 'plus': '+',
                     '-': '-', 'minus': '-', INT_MINUS: '-'}
 SIGNS_TO_INT_SIGN = {INT_PLUS: INT_PLUS, '+': INT_PLUS, 'plus': INT_PLUS,
-                     '-': INT_MINUS, 'minus': INT_MINUS, 1: INT_MINUS,
+                     '-': INT_MINUS, 'minus': INT_MINUS, INT_MINUS: INT_MINUS,
                      None: None}
 REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 
+READERS = set([rc.name.lower() for rc in get_reader_classes()])
+READERS.update(['medscan', 'rlimsp'])
+
+
+def _get_smallest_belief_prior():
+    def_probs = load_default_probs()
+    return min([v for v in def_probs['syst'].values() if v > 0])# +
+               #[[v for v in def_probs['rand'].values() if v > 0]])
+
+
+MIN_BELIEF = _get_smallest_belief_prior()
+
 
 GRND_URI = None
+GILDA_TIMEOUT = False
 try:
     GRND_URI = CONFIG_DICT['GILDA_URL']
 except KeyError:
@@ -56,19 +77,80 @@ def gilda_pinger():
         return False
 
 
-GILDA_TIMEOUT = False
+def _curated_func(ev_dict):
+    """Return False if no source dict exists, or if all sources are
+    readers, otherwise return True."""
+    return False if not ev_dict else \
+        (False if all(s.lower() in READERS for s in ev_dict) else True)
 
 
-def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
-                           graph_type='digraph',
-                           include_entity_hierarchies=True,
-                           verbosity=0):
-    """Return a NetworkX digraph from a pandas dataframe of a db dump
+# Initialize bio ontology before use
+bio_ontology.initialize()
+
+
+def _weight_from_belief(belief):
+    """Map belief score 'belief' to weight. If the calculation goes below
+    precision, return longfloat precision insted to avoid making the
+    weight zero."""
+    return np.max([NP_PRECISION, -np.log(belief, dtype=np.longfloat)])
+
+
+def _weight_mapping(G, verbosity=0):
+    """Mapping function for adding the weight of the flattened edges
+
+    Parameters
+    ----------
+    G : IndraNet
+        Incoming graph
+
+    Returns
+    -------
+    G : IndraNet
+        Graph with updated belief
+    """
+    for edge in G.edges:
+        try:
+            G.edges[edge]['weight'] = \
+                _weight_from_belief(G.edges[edge]['belief'])
+        except FloatingPointError as err:
+            logger.warning('FloatingPointError from unexpected belief '
+                           '%s. Resetting ag_belief to 10*np.longfloat '
+                           'precision (%.0e)' %
+                           (G.edges[edge]['belief'],
+                            Decimal(NP_PRECISION * 10)))
+            if verbosity == 1:
+                logger.error('Error string: %s' % err)
+            elif verbosity > 1:
+                logger.error('Exception output follows:')
+                logger.exception(err)
+            G.edges[edge]['weight'] = NP_PRECISION
+    return G
+
+
+def _english_from_row(row):
+    return _english_from_agents_type(row.agA_name, row.agB_name,
+                                     row.stmt_type)
+
+
+def _english_from_agents_type(agA_name, agB_name, stmt_type):
+    agA = Agent(agA_name)
+    agB = Agent(agB_name)
+    StmtClass = get_statement_by_name(stmt_type)
+    if stmt_type.lower() == 'complex':
+        stmt = StmtClass([agA, agB])
+    else:
+        stmt = StmtClass(agA, agB)
+    return EnglishAssembler([stmt]).make_model()
+
+
+def sif_dump_df_merger(df, strat_ev_dict, belief_dict, set_weights=True,
+                       verbosity=0):
+    """Merge the sif dump df with the provided dictionaries
 
     Parameters
     ----------
     df : str|pd.DataFrame
-        A dataframe, either as a file path to a pickle or a pandas
+        A dataframe, either as a file path to a pickle or csv, or a pandas
         DataFrame object.
     belief_dict : str|dict
         The file path to a pickled dict or a dict object keyed by statement
@@ -78,62 +160,32 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         The file path to a pickled dict or a dict object keyed by statement
         hash containing the stratified evidence count per statement. The
         hashes should correspond to the hashes in the loaded dataframe.
-    graph_type : str
-        Return type for the returned graph. Currently supports:
-            - 'digraph': IndraNet(nx.DiGraph) (Default)
-            - 'multidigraph': IndraNet(nx.MultiDiGraph)
-            - 'signed': SignedGraphModelChecker(ModelChecker)
-    include_entity_hierarchies : bool
-        Default: True
-    verbosity: int
-        Output various messages if > 0. For all messages, set to 4
+    set_weights : bool
+        If True, set the edge weights. Default: True.
+    verbosity : int
+        Output various extra messages if > 1.
 
     Returns
     -------
-    indranet_graph : IndraNet(graph_type)
-        The type is determined by the graph_type argument"""
-    graph_options = ['digraph', 'multidigraph', 'signed']
-    if graph_type not in graph_options:
-        raise ValueError('Graph type %s not supported. Can only chose between'
-                         ' %s' % (graph_type, graph_options))
+    pd.DataFrame
+        A pandas DataFrame with new columns from the merge
+    """
     sed = None
-    readers = {'medscan', 'rlimsp', 'trips', 'reach', 'sparser', 'isi'}
-
-    def _curated_func(ev_dict):
-        return False if not ev_dict else \
-            (False if all(s.lower() in readers for s in ev_dict) else True)
-
-    def _weight_from_belief(belief):
-        """Map belief score 'belief' to weight. If the calculation goes below
-        precision, return longfloat precision insted to avoid making the
-        weight zero."""
-        return np.max([NP_PRECISION, -np.log(belief, dtype=np.longfloat)])
-
-    def _weight_mapping(G):
-        """Mapping function for adding the weight of the flattened edges
-
-        Parameters
-        ----------
-        G : IndraNet
-            Incoming graph
-
-        Returns
-        -------
-        G : IndraNet
-            Graph with updated belief
-        """
-        for edge in G.edges:
-            G.edges[edge]['weight'] = \
-                _weight_from_belief(G.edges[edge]['belief'])
-        return G
 
     if isinstance(df, str):
-        sif_df = pickle_open(df)
+        if df.endswith('.pkl'):
+            merged_df = pickle_open(df)
+        elif df.endswith('.csv'):
+            logger.info(f'Loading csv file {df}')
+            merged_df = pd.read_csv(df)
+            logger.info('Finished loading csv file')
+        else:
+            raise ValueError('Path to DataFrame must be a .pkl or .csv file')
     else:
-        sif_df = df
+        merged_df = df
 
-    if 'hash' in sif_df.columns:
-        sif_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
+    if 'hash' in merged_df.columns:
+        merged_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
 
     if isinstance(belief_dict, str):
         belief_dict = pickle_open(belief_dict)
@@ -148,51 +200,122 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     # Extend df with these columns:
     #   belief score from provided dict
     #   stratified evidence count by source
+    #   english string from mock statements
     # Extend df with famplex rows
     # 'stmt_hash' must exist as column in the input dataframe for merge to work
-    # Preserve all rows in sif_df, so do left join:
-    # sif_df.merge(other, how='left', on='stmt_hash')
+    # Preserve all rows in merged_df, so do left join:
+    # merged_df.merge(other, how='left', on='stmt_hash')
 
     hashes = []
     beliefs = []
     for k, v in belief_dict.items():
-        hashes.append(k)
+        hashes.append(int(k))
         beliefs.append(v)
 
-    sif_df = sif_df.merge(
+    merged_df = merged_df.merge(
         right=pd.DataFrame(data={'stmt_hash': hashes, 'belief': beliefs}),
         how='left',
         on='stmt_hash'
     )
     # Check for missing hashes
-    if sif_df['belief'].isna().sum() > 0:
+    if merged_df['belief'].isna().sum() > 0:
         logger.warning('%d rows with missing belief score found' %
-                       sif_df['belief'].isna().sum())
+                       merged_df['belief'].isna().sum())
         if verbosity > 1:
             logger.info('Missing hashes in belief dict: %s' % list(
-                sif_df['stmt_hash'][sif_df['belief'].isna() == True]))
+                merged_df['stmt_hash'][merged_df['belief'].isna() == True]))
         logger.info('Setting missing belief scores to 1/evidence count')
 
     hashes = []
     strat_dicts = []
     for k, v in sed.items():
-        hashes.append(k)
+        hashes.append(int(k))
         strat_dicts.append(v)
 
-    sif_df = sif_df.merge(
+    merged_df = merged_df.merge(
         right=pd.DataFrame(data={'stmt_hash': hashes,
                                  'source_counts': strat_dicts}),
         how='left',
         on='stmt_hash'
     )
     # Check for missing hashes
-    if sif_df['source_counts'].isna().sum() > 0:
+    if merged_df['source_counts'].isna().sum() > 0:
         logger.warning('%d rows with missing evidence found' %
-                       sif_df['source_counts'].isna().sum())
+                       merged_df['source_counts'].isna().sum())
         if verbosity > 1:
-            logger.info('Missing hashes in stratified evidence dict: %s' %
-                        list(sif_df['stmt_hash'][sif_df['source_counts'].isna()
-                                            == True]))
+            logger.info(
+                'Missing hashes in stratified evidence dict: %s' %
+                list(merged_df['stmt_hash'][
+                         merged_df['source_counts'].isna() == True]))
+
+    logger.info('Setting "curated" flag')
+    # Map to boolean 'curated' for reader/non-reader
+    merged_df['curated'] = merged_df['source_counts'].apply(func=_curated_func)
+
+    # Make english statement
+    merged_df['english'] = merged_df.apply(_english_from_row, axis=1)
+
+    if set_weights:
+        logger.info('Setting edge weights')
+        # Add weight: -log(belief) or 1/evidence count if no belief
+        has_belief = (merged_df['belief'].isna() == False)
+        has_no_belief = (merged_df['belief'].isna() == True)
+        merged_df['weight'] = 0
+        if has_belief.sum() > 0:
+            merged_df.loc[has_belief, 'weight'] = merged_df['belief'].apply(
+                func=_weight_from_belief)
+        if has_no_belief.sum() > 0:
+            merged_df.loc[has_no_belief, 'weight'] = \
+                merged_df['evidence_count'].apply(
+                    func=lambda ec: 1/np.longfloat(ec))
+    else:
+        logger.info('Skipping setting edge weight')
+
+    return merged_df
+
+
+def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
+                           graph_type='digraph',
+                           include_entity_hierarchies=True,
+                           verbosity=0):
+    """Return a NetworkX digraph from a pandas dataframe of a db dump
+
+    Parameters
+    ----------
+    df : str|pd.DataFrame
+        A dataframe, either as a file path to a file (.pkl or .csv) or a
+        pandas DataFrame object.
+    belief_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the belief score for the corresponding statements.
+        The hashes should correspond to the hashes in the loaded dataframe.
+    strat_ev_dict : str|dict
+        The file path to a pickled dict or a dict object keyed by statement
+        hash containing the stratified evidence count per statement. The
+        hashes should correspond to the hashes in the loaded dataframe.
+    graph_type : str
+        Return type for the returned graph. Currently supports:
+            - 'digraph': IndraNet(nx.DiGraph) (Default)
+            - 'multidigraph': IndraNet(nx.MultiDiGraph)
+            - 'signed': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
+    include_entity_hierarchies : bool
+        Default: True
+    verbosity: int
+        Output various messages if > 0. For all messages, set to 4
+
+    Returns
+    -------
+    indranet_graph : IndraNet(graph_type)
+        The type is determined by the graph_type argument"""
+    graph_options = ('digraph', 'multidigraph', 'signed', 'pybel')
+    if graph_type.lower() not in graph_options:
+        raise ValueError('Graph type %s not supported. Can only chose between'
+                         ' %s' % (graph_type, graph_options))
+    graph_type = graph_type.lower()
+
+    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict,
+                                verbosity=verbosity)
+
     # Map ns:id to node name
     logger.info('Creating dictionary with mapping from (ns,id) to node name')
     ns_id_name_tups = set(
@@ -200,34 +323,20 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         set(zip(sif_df.agB_ns, sif_df.agB_id, sif_df.agB_name)))
     ns_id_to_nodename = {(ns, _id): name for ns, _id, name in ns_id_name_tups}
 
-    logger.info('Setting "curated" flag')
-    # Map to boolean 'curated' for reader/non-reader
-    sif_df['curated'] = sif_df['source_counts'].apply(func=_curated_func)
-
-    logger.info('Setting edge weights')
-    # Add weight: -log(belief) or 1/evidence count if no belief
-    has_belief = (sif_df['belief'].isna() == False)
-    has_no_belief = (sif_df['belief'].isna() == True)
-    sif_df['weight'] = 0
-    if has_belief.sum() > 0:
-        sif_df.loc[has_belief, 'weight'] = sif_df['belief'].apply(
-            func=_weight_from_belief)
-    if has_no_belief.sum() > 0:
-        sif_df.loc[has_no_belief, 'weight'] = sif_df['evidence_count'].apply(
-            func=lambda ec: 1/np.longfloat(ec))
-
     # Create graph from df
     if graph_type == 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
-    elif graph_type is 'digraph':
+    elif graph_type == 'digraph':
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
                                                   _weight_mapping)
     elif graph_type == 'signed':
-        signed_edge_graph = IndraNet.signed_from_df(sif_df,
+        signed_edge_graph = IndraNet.signed_from_df(
+            df=sif_df,
             flattening_method='complementary_belief',
-            weight_mapping=_weight_mapping)
+            weight_mapping=_weight_mapping
+        )
         signed_node_graph = signed_edges_to_signed_nodes(
             graph=signed_edge_graph, copy_edge_data={'weight'})
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
@@ -235,7 +344,8 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         return signed_edge_graph, signed_node_graph
 
     # Add hierarchy relations to graph (not applicable for signed graphs)
-    if include_entity_hierarchies and graph_type != 'signed':
+    if include_entity_hierarchies and graph_type in ('multidigraph',
+                                                     'digraph'):
         logger.info('Fetching entity hierarchy relationsships')
         full_entity_list = fplx_fcns.get_all_entities()
         logger.info('Adding entity hierarchy manager as graph attribute')
@@ -311,6 +421,65 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     return indranet_graph
 
 
+def db_dump_to_pybel_sg(stmts_list=None):
+    """Create a signed pybel graph from an evidenceless dump from the db
+
+    Parameters
+    ----------
+    stmts_list : list[indrs.statements.Statement]
+        Provide a list of statements if they are already loaded. By default
+        the latest available pa statements dump is downloaded from s3.
+        Default: None.
+
+    Returns
+    -------
+    tuple(nx.DiGraph, nx.MultiDiGraph)
+    """
+    # Get statement dump:
+    # Look for latest file on S3 and pickle.loads it
+    if stmts_list is None:
+        stmts_list = get_latest_pa_stmt_dump()
+
+    # Filter bad statements
+    logger.info('Fltering out statements with bad position attribute')
+    filtered_stmts = []
+    for st in stmts_list:
+        try:
+            pos = getattr(st, 'position')
+            try:
+                if pos is not None and str(int(float(pos))) != pos:
+                    continue
+                else:
+                    filtered_stmts.append(st)
+            # Pos is not convertible to float
+            except ValueError:
+                continue
+        # Not a statement with a position attribute
+        except AttributeError:
+            filtered_stmts.append(st)
+
+    # Assemble Pybel model
+    logger.info('Assembling PyBEL model')
+    pb = PybelAssembler(stmts=filtered_stmts)
+    pb_model = pb.make_model()
+
+    # Get a signed edge graph
+    logger.info('Getting a PyBEL signed edge graph')
+    pb_signed_edge_graph = belgraph_to_signed_graph(
+        pb_model, include_variants=True, symmetric_variant_links=True,
+        include_components=True, symmetric_component_links=True,
+        propagate_annotations=True
+    )
+
+    # Get the signed node graph
+    logger.info('Getting a signed node graph from signed edge graph')
+    pb_signed_node_graph = signed_edges_to_signed_nodes(
+        pb_signed_edge_graph, copy_edge_data=True)
+
+    logger.info('Done assembling signed edge and signed node PyBEL graphs')
+    return pb_signed_edge_graph, pb_signed_node_graph
+
+
 def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
     """Returns a list of tuples of nodes and their rank score
 
@@ -325,9 +494,9 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
     nested_dict_stmts : defaultdict(dict)
         Nested dict of statements: nest_d[subj][obj]
     gene_a : str
-        HGNC name of gene A in an A-X-B connection
+        Name of node A in an A-X-B connection
     gene_b : str
-        HGNC name of gene B in an A-X-B connection
+        Name of node B in an A-X-B connection
     x_type : str
         One of 'x_is_intermediary', 'x_is_downstream' or 'x_is_upstream'
 
@@ -336,33 +505,49 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
     dir_path_nodes_wb : list[(node, rank)]
         A list of node, rank tuples.
     """
+    def _tuple_rank(ax_stmts, xb_stmts):
+        def _body(t):
+            assert len(t) == 2 or len(t) == 3
+            bel = MIN_BELIEF
+            if len(t) == 2:
+                tp, hs = t
+            elif len(t) == 3:
+                tp, hs, bel = t
+            else:
+                raise IndexError('Tuple must have len(t) == 2,3 Tuple: %s' %
+                                 repr(t))
+            return tp, hs, bel
+        ax_score_list = []
+        xb_score_list = []
+        for tup in ax_stmts:
+            typ, hsh_a, belief = _body(tup)
+            ax_score_list.append(belief)
+        for tup in xb_stmts:
+            typ, hsh_b, belief = _body(tup)
+            xb_score_list.append(belief)
+        return ax_score_list, xb_score_list
+
+    def _dict_rank(ax_stmts, xb_stmts):
+        ax_score_list = []
+        xb_score_list = []
+        for sd in ax_stmts:
+            ax_score_list.append(float(sd.get('belief', MIN_BELIEF)))
+        for sd in xb_stmts:
+            xb_score_list.append(float(sd.get('belief', MIN_BELIEF)))
+        return ax_score_list, xb_score_list
 
     def _calc_rank(nest_dict_stmts, subj_ax, obj_ax, subj_xb, obj_xb):
         ax_stmts = nest_dict_stmts[subj_ax][obj_ax]
         xb_stmts = nest_dict_stmts[subj_xb][obj_xb]
-        ax_score_list = []
-        xb_score_list = []
         hsh_a, hsh_b = None, None
 
         # The statment with the highest belief score should
         # represent the edge (potentially multiple stmts per edge)
-        # To get latest belief score: see indra_db.belief
-        for tup in ax_stmts:
-            assert len(tup) == 2 or len(tup) == 3
-            belief = 1
-            if len(tup) == 2:
-                typ, hsh_a = tup
-            elif len(tup) == 3:
-                typ, hsh_a, belief = tup
-            ax_score_list.append(belief)
-        for tup in xb_stmts:
-            assert len(tup) == 2 or len(tup) == 3
-            belief = 1
-            if len(tup) == 2:
-                typ, hsh_b = tup
-            elif len(tup) == 3:
-                typ, hsh_b, belief = tup
-            xb_score_list.append(belief)
+
+        if isinstance(ax_stmts[0], tuple):
+            ax_score_list, xb_score_list = _tuple_rank(ax_stmts, xb_stmts)
+        elif isinstance(ax_stmts[0], (dict, defaultdict)):
+            ax_score_list, xb_score_list = _dict_rank(ax_stmts, xb_stmts)
 
         # Rank by multiplying the best two belief scores for each edge
         rank = max(ax_score_list) * max(xb_score_list)
@@ -377,20 +562,21 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
         return rank
 
     dir_path_nodes_wb = []
-    if x_type is 'x_is_intermediary':  # A->X->B or A<-X<-B
+
+    if x_type == 'x_is_intermediary':  # A->X->B or A<-X<-B
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
                                 subj_ax=gene_a, obj_ax=gene_x,
                                 subj_xb=gene_x, obj_xb=gene_b)
             dir_path_nodes_wb.append((gene_x, x_rank))
 
-    elif x_type is 'x_is_downstream':  # A->X<-B
+    elif x_type == 'x_is_downstream':  # A->X<-B
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
                                 subj_ax=gene_a, obj_ax=gene_x,
                                 subj_xb=gene_b, obj_xb=gene_x)
             dir_path_nodes_wb.append((gene_x, x_rank))
-    elif x_type is 'x_is_upstream':  # A<-X->B
+    elif x_type == 'x_is_upstream':  # A<-X->B
 
         for gene_x in node_list:
             x_rank = _calc_rank(nest_dict_stmts=nested_dict_stmts,
@@ -447,3 +633,39 @@ def ns_id_from_name(name, gilda_retry=False):
             logger.warning('Indra Grounding service not available. Add '
                            'GILDA_URL to `indra/config.ini`')
     return None, None
+
+
+def get_hgnc_node_mapping(hgnc_names, pb_model):
+    """Generate a mapping of HGNC symbols to pybel nodes
+
+    Parameters
+    ----------
+    hgnc_names : iterable[str]
+        An iterable containing HGNC names to be mapped to pybel nodes
+    pb_model : PyBEL.Model
+        An assembled pybel model
+
+    Returns
+    -------
+    dict
+        A dictionary mapping names (HGNC symbols) to a sets of pybel nodes
+    """
+
+    # Get existing node mappings
+    corr_names = set(hgnc_names)
+    pb_model_mapping = {}
+    for node in pb_model.nodes:
+        try:
+            # Only consider HGNC nodes and if node name is in provided set
+            # of HGNC symbol names
+            if node.name in corr_names and node.namespace == 'HGNC':
+                if pb_model_mapping.get(node.name):
+                    pb_model_mapping[node.name].add(node)
+                else:
+                    pb_model_mapping[node.name] = {node}
+            else:
+                continue
+        # No attribute 'name' or 'namespace'
+        except AttributeError:
+            continue
+    return pb_model_mapping

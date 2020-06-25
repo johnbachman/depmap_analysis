@@ -20,7 +20,7 @@ from indra.explanation.pathfinding.pathfinding import shortest_simple_paths, \
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.net_functions import \
-    SIGNS_TO_INT_SIGN, INT_PLUS, INT_MINUS, SIGN_TO_STANDARD
+    INT_PLUS, INT_MINUS
 
 bfs_kwargs = inspect.signature(bfs_search).parameters.keys()
 
@@ -480,7 +480,7 @@ class IndraNetwork:
                 hash_path = self._get_hash_path(path=path, source=source,
                                                 target=target, **options)
         elif options['sign'] is not None:
-            int_sign = SIGNS_TO_INT_SIGN[options['sign']]
+            int_sign = nf.SIGNS_TO_INT_SIGN[options['sign']]
             if self.signed_edges.get((source, target, int_sign)):
                 if self.verbose > 1:
                     logger.info('Found direct signed path from %s to %s' %
@@ -613,8 +613,8 @@ class IndraNetwork:
                         source, target, options['sign']
                     )
                 # Get signed nodes for source and target
-                subj = (src, SIGNS_TO_INT_SIGN[src_sign])
-                obj = (trgt, SIGNS_TO_INT_SIGN[trgt_sign])
+                subj = (src, nf.SIGNS_TO_INT_SIGN[src_sign])
+                obj = (trgt, nf.SIGNS_TO_INT_SIGN[trgt_sign])
                 # Generate signed blacklisted nodes
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
@@ -1280,7 +1280,7 @@ class IndraNetwork:
             if edge_sign is None:
                 raise nx.NetworkXException('Argument edge_sign needs to be '
                                            'specified to get signed edge.')
-            sign = SIGNS_TO_INT_SIGN[edge_sign]
+            sign = nf.SIGNS_TO_INT_SIGN[edge_sign]
             try:
                 stmt_edge = self.signed_edges[(s, o, sign)][
                     'statements'][index]
@@ -1545,8 +1545,8 @@ def translate_query(query_json):
             options['weight'] = 'weight' if v else None
         if k == 'sign':
             # Positive regulation: 0; Negative regulation: 1;
-            options[k] = 0 if SIGN_TO_STANDARD.get(v) == '+' \
-                else (1 if SIGN_TO_STANDARD.get(v) == '-' else None)
+            options[k] = 0 if nf.SIGN_TO_STANDARD.get(v) == '+' \
+                else (1 if nf.SIGN_TO_STANDARD.get(v) == '-' else None)
         if k == 'edge_hash_blacklist' and options.get(k) and \
                 isinstance(options[k][0], int):
             options[k] = [str(i) for i in options[k]]
