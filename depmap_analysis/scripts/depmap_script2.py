@@ -705,8 +705,15 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     elif ignore_list and isinstance(ignore_list, str):
         with Path(ignore_list).open('r') as fh:
             expl_set = set(fh.readlines())
-            expl_set.remove('')  # If there are empty lines
+            try:
+                expl_set.remove('')  # If there are empty lines
+            except KeyError:
+                pass  # Handle '' not existing
             run_options['explained_set'] = expl_set
+
+    if run_options.get('explained_set'):
+        logger.info(f'Using explained set with '
+                    f'{len(run_options["explained_set"])} genes')
 
     # 4. Add meta data
     info_dict = {}
