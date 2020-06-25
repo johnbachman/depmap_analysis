@@ -1,7 +1,7 @@
 """The DepMap script
 
-The script matches observed correlations with different graph represenations
-if the IndraNetwork
+The script matches observed correlations with different graph
+representations if the IndraNetwork
 
 # Inputs:
 #   1. Pre-processed correlation matrix with only (gene, gene, z-score)
