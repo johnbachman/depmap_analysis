@@ -704,7 +704,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
         run_options['explained_set'] = set(ignore_list)
     elif ignore_list and isinstance(ignore_list, str):
         with Path(ignore_list).open('r') as fh:
-            expl_set = set(fh.readlines())
+            expl_set = set(fh.read().split())
             try:
                 expl_set.remove('')  # If there are empty lines
             except KeyError:
