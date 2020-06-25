@@ -185,7 +185,7 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
     return stats_dict, expl_dict
 
 
-def match_correlations(corr_z, sd_range, **kwargs):
+def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     """The main loop for matching correlations with INDRA explanations
 
     Parameters
@@ -203,6 +203,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
         nx.MultiDiGraph with edges keys by (gene, gene, sign) tuples.
     sd_range : tuple[float]
         The SD ranges that the corr_z is filtered to
+    script_settings :
 
     Returns
     -------
@@ -283,6 +284,7 @@ def match_correlations(corr_z, sd_range, **kwargs):
                                       'sd_range': sd_range,
                                       'graph_type': _type,
                                       **kwargs.get('info', {})},
+                                script_settings=script_settings,
                                 )
 
     logger.info(f'Generating DepMapExplainer with output from '
@@ -568,8 +570,9 @@ def file_path():
 
 
 def main(indra_net, sd_range, outname, graph_type, z_score=None,
-         raw_data=None, raw_corr=None, pb_node_mapping=None, n_chunks=256,
-         ignore_list=None, info=None, indra_date=None, depmap_date=None,
+         z_score_file=None, raw_data=None, raw_corr=None,
+         pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
+         indra_date=None, indra_net_file=None, depmap_date=None,
          sample_size=None, shuffle=False):
     """Set up correlation matching of depmap data with an indranet graph
 
@@ -580,13 +583,15 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     outname : str
     graph_type : str
     z_score : pd.DataFrame|str
+    z_score_file : str
     raw_data : str
     raw_corr : str
     pb_node_mapping : dict|str
     n_chunks : int
-    ignore_list : list
+    ignore_list : list|str
     info : dict
     indra_date : str
+    indra_net_file : str
     depmap_date : str
     sample_size : int
         Number of correlation pairs to approximately get out of the
@@ -648,7 +653,8 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     if graph_type == 'pybel':
         if isinstance(pb_node_mapping, dict):
             hgnc_node_mapping = pb_node_mapping
-        elif Path(pb_node_mapping).is_file():
+        elif isinstance(pb_node_mapping, str) and \
+                Path(pb_node_mapping).is_file():
             hgnc_node_mapping = pickle_open(pb_node_mapping) if \
                 pb_node_mapping.endswith('.pkl') else \
                 json_open(pb_node_mapping)
@@ -694,8 +700,13 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     run_options['corr_z'] = z_corr
 
     # 3. Ignore list as file
-    if ignore_list:
+    if ignore_list and isinstance(ignore_list, (set, list, tuple)):
         run_options['explained_set'] = set(ignore_list)
+    elif ignore_list and isinstance(ignore_list, str):
+        with Path(ignore_list).open('r') as fh:
+            expl_set = set(fh.readlines())
+            expl_set.remove('')  # If there are empty lines
+            run_options['explained_set'] = expl_set
 
     # 4. Add meta data
     info_dict = {}
@@ -706,6 +717,25 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     if indra_date:
         info_dict['indra_date'] = indra_date
     run_options['info'] = info_dict
+
+    # Set the script_settings
+    run_options['script_settings'] = {'raw_data': raw_data,
+                                      'raw_corr': raw_corr,
+                                      'z_score': z_score if isinstance(
+                                          z_score, str) else
+                                      (z_score_file or 'no info'),
+                                      'indranet': indra_net_file or 'no info',
+                                      'shuffle': shuffle,
+                                      'sample_size': sample_size,
+                                      'n_chunks': n_chunks,
+                                      'outname': outname,
+                                      'ignore_list': ignore_list if
+                                      isinstance(ignore_list, str) else
+                                      'no info',
+                                      'graph_type': graph_type,
+                                      'pybel_node_mapping': pb_node_mapping
+                                      if isinstance(pb_node_mapping, str) else
+                                      'no_info'}
 
     # Create output list in global scope
     output_list = []
@@ -817,8 +847,10 @@ if __name__ == '__main__':
     # Load z_corr, indranet and optionally pybel_model
     inet_graph = pickle_open(args.indranet)
     arg_dict['indra_net'] = inet_graph
+    arg_dict['indra_net_file'] = args.indranet
     if arg_dict.get('z_score'):
         corr_matrix = pd.read_hdf(arg_dict['z_score'])
+        arg_dict['z_score_file'] = arg_dict['z_score']
     else:
         arg_dict['raw_data'] = arg_dict.get('raw_data')
         arg_dict['corr_data'] = arg_dict.get('corr_data')
