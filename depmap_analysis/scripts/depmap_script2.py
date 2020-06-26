@@ -41,7 +41,7 @@ import networkx as nx
 from pybel.dsl.node_classes import CentralDogma
 
 from depmap_analysis.util.io_functions import pickle_open, \
-    dump_it_to_pickle, json_open
+    dump_it_to_pickle, json_open, graph_types, file_path
 from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
 from depmap_analysis.network_functions.famplex_functions import common_parent
@@ -534,39 +534,6 @@ def _down_sampl_size(available_pairs, size_of_matrix, wanted_pairs):
 
     # Get number of rows to sample
     return int(np.ceil(p*L))
-
-
-def graph_types(types):
-    """Types is a set of strings with names of the allowed graph types"""
-    def types_check(_type):
-        """Check the input graph type
-
-        Parameters
-        ----------
-        _type : str
-            The input graph type
-
-        Returns
-        -------
-        str
-            Returns the lowercase of the input string representing the graph
-            type
-        """
-        if _type.lower() not in types:
-            raise argparse.ArgumentError(f'Provided graph type {_type} not '
-                                         f'allowed. Have to be one of {types}')
-        return _type.lower()
-    return types_check
-
-
-def file_path():
-    """Checks if file at provided path exists"""
-    def check_path(fpath):
-        p = Path(fpath)
-        if not p.is_file():
-            raise argparse.ArgumentError(f'File {fpath} does not exist')
-        return fpath
-    return check_path
 
 
 def main(indra_net, sd_range, outname, graph_type, z_score=None,

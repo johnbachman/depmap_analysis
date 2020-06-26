@@ -2,8 +2,11 @@ import csv
 import json
 import pickle
 import logging
-import numpy as np
+from argparse import ArgumentError
+from pathlib import Path
 from itertools import repeat, takewhile
+
+import numpy as np
 
 logger = logging.getLogger('dnf utils')
 
@@ -126,3 +129,36 @@ def histogram_for_large_files(fpath, number_of_bins, binsize, first):
 
 def _manually_add_to_histo(hist, start, binsize, value):
     hist[map2index(start, binsize, value)] += 1
+
+
+def graph_types(types):
+    """Types is a set of strings with names of the allowed graph types"""
+    def types_check(_type):
+        """Check the input graph type
+
+        Parameters
+        ----------
+        _type : str
+            The input graph type
+
+        Returns
+        -------
+        str
+            Returns the lowercase of the input string representing the graph
+            type
+        """
+        if _type.lower() not in types:
+            raise ArgumentError(f'Provided graph type {_type} not allowed. '
+                                f'Have to be one of {types}')
+        return _type.lower()
+    return types_check
+
+
+def file_path():
+    """Checks if file at provided path exists"""
+    def check_path(fpath):
+        p = Path(fpath)
+        if not p.is_file():
+            raise ArgumentError(f'File {fpath} does not exist')
+        return fpath
+    return check_path
