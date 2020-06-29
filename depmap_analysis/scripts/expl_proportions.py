@@ -2,91 +2,118 @@ import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 from os import path
+from pathlib import Path
 
-parser = argparse.ArgumentParser('log plotter')
-parser.add_argument('--stats-file', help='path to stats file', required=True)
-parser.add_argument('--title',
+from depmap_analysis.util.io_functions import is_dir_path, pickle_open
+
+# Parameters to care about:
+# 1. Graph type
+# 2. SD ranges
+# 3. Type of explanations
+
+
+def thousands(n):
+    """Turn an int to a string of its value per 1000
+
+    Parameters
+    ----------
+    n : int
+
+    Returns
+    -------
+    str
+    """
+    if n < 1000:
+        return str(n)
+    else:
+        return str(n // 1000) + 'k'
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--title', required=True,
                     help='Title for data (will also be user got plot output '
-                         'name)',
-                    required=True)
-parser.add_argument('--first-n',
-                    help='Cut data after n lines. Useful if there are extra '
-                         'notes in the csv file after the actual data',
-                    type=int)
-parser.add_argument('--columns', nargs='+', default=['total_expl_excl_sr',
-                                                     'common_parent',
-                                                     'mitochondrial',
-                                                     'direct',
-                                                     'axb_excl_sr'],
-                    help='Specify columns to plot. Default: '
-                         '[\'total_expl_excl_sr\', \'common_parent\', '
-                         '\'mitochondrial\', \'direct\', \'axb_excl_sr\']')
+                         'name)')
+total_col = 'total checked'
+default_cols = ['explained (excl sr)',
+                'common parent',
+                'explained set',
+                'complex or direct',
+                'x intermediate']
+parser.add_argument('--columns', nargs='+',
+                    default=default_cols,
+                    help=f'Specify columns to plot. Default: {default_cols}')
+parser.add_argument('--explainer-dir', type=is_dir_path(), required=True,
+                    help='The explainer files live here. No other pickle '
+                         'files should be present.')
 parser.add_argument('--labels', nargs='+',
                     help='Legend labels on plot (corresponding to column '
                          'names). Default: column names')
 parser.add_argument('--outdir',
                     help='Directory where to put the saved figure. Default '
                          'is same directory as stats file.')
+parser.add_argument('--show-plot', action='store_true',
+                    help='With this flag active, the generated plots will ' +
+                         'be shown as well as saved')
+
 
 args = parser.parse_args()
-stats_file = args.stats_file
-outdir = args.outdir if args.outdir else path.dirname(stats_file)
+expl_dir = Path(args.explainer_dir)
+outdir = Path(args.outdir) if args.outdir else expl_dir.joinpath('output')
+if not outdir.is_dir():
+    outdir.mkdir(parents=True)
 data_title = args.title
-top = args.first_n
 labels = args.columns
-labels = labels if len(labels) > 0 else ['total_expl_excl_sr',
-                                         'common_parent',
-                                         'mitochondrial',
-                                         'direct',
-                                         'axb_excl_sr']
+labels = labels if len(labels) > 0 else default_cols
 legend_labels = args.labels if args.labels else labels
 print('Using legend labels: %s' % ' '.join(legend_labels))
 
-stats_df = pd.read_csv(stats_file, header=0)
+# Store explainers by their graph type
+expl_by_type = {'pybel': [],
+                'signed': [],
+                'unsigned': []}
+for explainer_file in expl_dir.glob('*.pkl'):
+    expl = pickle_open(explainer_file)
+    expl_by_type[expl.script_settings['graph_type']].append(expl)
 
-stats_df = stats_df.head(top) if top else stats_df
-stats_norm = pd.DataFrame()
+# Per graph type, extract what the old code has
+for graph_type, list_of_explainers in expl_by_type.items():
+    if len(list_of_explainers) == 0:
+        print(f'Skipping graph type {graph_type}')
+        continue
+    stats_norm = pd.DataFrame(columns=['range', 'filter_w_count'] + labels)
 
-stats_df.sort_values('range', inplace=True)
-stats_norm['range'] = stats_df['range']
+    for explainer in list_of_explainers:
+        sumd = explainer.get_summary()
+        N = sumd['total checked']
+        data = {k: v/N for k, v in sumd.items() if k in labels}
+        lo, hi = explainer.sd_range
+        data['range'] = f'{lo}-{hi} SD' if hi else f'{lo}+ SD'
+        data['filter_w_count'] = data['range'] + '\n' + thousands(N)
+        stats_norm = stats_norm.append(other=pd.DataFrame(data=data,
+                                                          index=[0]))
+    stats_norm.sort_values('range', inplace=True)
 
-# for col in stats_df.drop(columns=['range', 'low_num', 'high_num']).columns:
-for col in stats_df.drop(columns=['range']).columns:
-    stats_norm[col] = stats_df[col] / stats_df['total_corr']
+    stats_norm.plot(x='filter_w_count',
+                    y=labels,
+                    legend=legend_labels,
+                    kind='bar',
+                    # logy=ylog,
+                    title=data_title,
+                    stacked=False)
+    # plt.xticks(rotation=270)
+    plt.ylabel('Explained fraction')
+    plt.savefig(outdir.joinpath(f'{data_title}_{graph_type}.png'))
+    plt.show()
 
-
-def thousands(row):
-    if row.total_corr < 1000:
-        return str(row.total_corr)
-    else:
-        return str(row.total_corr // 1000) + 'k'
-
-
-label_count = stats_df.apply(thousands, axis=1)
-
-stats_norm['filter_w_count'] = stats_norm['range'] + '\n' + label_count
-
-stats_norm.plot(x='filter_w_count',
-                y=labels,
-                legend=legend_labels,
-                kind='bar',
-                # logy=ylog,
-                title=data_title,
-                stacked=False)
-# plt.xticks(rotation=270)
-plt.ylabel('Explained fracation')
-plt.savefig(path.join(outdir, data_title+'.png'))
-plt.show()
-
-data_title += ' ylog'
-stats_norm.plot(x='filter_w_count',
-                y=labels,
-                legend=legend_labels,
-                kind='bar',
-                logy=True,
-                title=data_title,
-                stacked=False)
-# plt.xticks(rotation=270)
-plt.ylabel('Explained fracation')
-plt.savefig(path.join(outdir, data_title+'.png'))
-plt.show()
+    data_title += ' ylog'
+    stats_norm.plot(x='filter_w_count',
+                    y=labels,
+                    legend=legend_labels,
+                    kind='bar',
+                    logy=True,
+                    title=data_title,
+                    stacked=False)
+    # plt.xticks(rotation=270)
+    plt.ylabel('Explained fracation')
+    plt.savefig(path.join(outdir, data_title+'.png'))
+    plt.show()
