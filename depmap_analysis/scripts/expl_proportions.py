@@ -90,7 +90,8 @@ for graph_type, list_of_explainers in expl_by_type.items():
         data['range'] = f'{lo}-{hi} SD' if hi else f'{lo}+ SD'
         data['filter_w_count'] = data['range'] + '\n' + thousands(N)
         stats_norm = stats_norm.append(other=pd.DataFrame(data=data,
-                                                          index=[0]))
+                                                          index=[0]),
+                                       sort=False)
     stats_norm.sort_values('range', inplace=True)
 
     stats_norm.plot(x='filter_w_count',
