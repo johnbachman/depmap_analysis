@@ -164,13 +164,11 @@ def file_path():
     return check_path
 
 
-def is_dir_path(check_empty=True):
+def is_dir_path():
     """Checks if provided path exists"""
     def is_dir(path):
         dp = Path(path)
         if not dp.is_dir():
             raise ArgumentError(f'Path {path} does not exist')
-        # if check_empty:
-        #     pass
         return path
     return is_dir
