@@ -98,7 +98,7 @@ for graph_type, list_of_explainers in expl_by_type.items():
                     legend=legend_labels,
                     kind='bar',
                     # logy=ylog,
-                    title=data_title,
+                    title=f'{data_title}, {graph_type.capitalize()}',
                     stacked=False)
     # plt.xticks(rotation=270)
     plt.ylabel('Explained fraction')
