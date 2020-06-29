@@ -105,13 +105,12 @@ for graph_type, list_of_explainers in expl_by_type.items():
     plt.savefig(outdir.joinpath(f'{data_title}_{graph_type}.png'))
     plt.show()
 
-    data_title += ' ylog'
     stats_norm.plot(x='filter_w_count',
                     y=labels,
                     legend=legend_labels,
                     kind='bar',
                     logy=True,
-                    title=data_title,
+                    title=f'{data_title} (ylog)',
                     stacked=False)
     # plt.xticks(rotation=270)
     plt.ylabel('Explained fracation')
