@@ -111,9 +111,9 @@ for graph_type, list_of_explainers in expl_by_type.items():
                     legend=legend_labels,
                     kind='bar',
                     logy=True,
-                    title=f'{data_title} (ylog)',
+                    title=f'{data_title}, {graph_type.capitalize()} (ylog)',
                     stacked=False)
     # plt.xticks(rotation=270)
     plt.ylabel('Explained fracation')
-    plt.savefig(path.join(outdir, data_title+'.png'))
+    plt.savefig(outdir.joinpath(f'{data_title}_{graph_type}_ylog.png'))
     plt.show()
