@@ -103,6 +103,7 @@ for graph_type, list_of_explainers in expl_by_type.items():
                     stacked=False)
     # plt.xticks(rotation=270)
     plt.ylabel('Explained fraction')
+    plt.ylim((0, 1))
     plt.savefig(outdir.joinpath(f'{data_title}_{graph_type}.png'))
     plt.show()
 
@@ -115,5 +116,6 @@ for graph_type, list_of_explainers in expl_by_type.items():
                     stacked=False)
     # plt.xticks(rotation=270)
     plt.ylabel('Explained fracation')
+    plt.ylim((10**-4, 1))
     plt.savefig(outdir.joinpath(f'{data_title}_{graph_type}_ylog.png'))
     plt.show()
