@@ -67,7 +67,7 @@ if __name__ == '__main__':
     z_sc_file = Path('/home/klas/repos/depmap_analysis/input_data/depmap/19Q4'
                      '/combined_z_score.h5')
     reactome_file = Path('/home/klas/repos/temp/reactome_pathways.pkl')
-    sd_ranges = [(2, 3), (3, 4), (4, 5), (5, None)]
+    sd_ranges = [('rnd', None), (2, 3), (3, 4), (4, 5), (5, None)]
 
     # Only need first dict
     reactome_mapping = pickle_open(reactome_file)[0]
@@ -82,13 +82,19 @@ if __name__ == '__main__':
 
     for ll, ul in sd_ranges:
         # Filter matrix
-        if ll and ul:
+        if isinstance(ll, (int, float)) and ll and ul:
             logger.info(f'Filtering correlations to {ll} - {ul} SD')
             z_sc_filtered = z_sc_full[((z_sc_full > ll) & (z_sc_full < ul)) |
                                       ((z_sc_full < -ll) & (z_sc_full > -ul))]
-        elif ll and not ul:
+        elif isinstance(ll, (int, float)) and ll and not ul:
             logger.info(f'Filtering correlations to {ll}+ SD')
             z_sc_filtered = z_sc_full[(z_sc_full > ll) | (z_sc_full < -ll)]
+        elif isinstance(ll, str):
+            rnd_sample = 101
+            logger.info(f'Doing a random sample of {rnd_sample}')
+            z_sc_filtered = z_sc_full.sample(rnd_sample, axis=0)
+            z_sc_filtered = z_sc_filtered.filter(list(z_sc_filtered.index),
+                                                 axis=1)
         else:
             raise ValueError('Must have both ll and ul defined')
 
