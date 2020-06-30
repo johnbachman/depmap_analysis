@@ -1,6 +1,7 @@
 import logging
 import pandas as pd
 from pathlib import Path
+from matplotlib import pyplot as plt
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
 from depmap_analysis.util.io_functions import pickle_open
 from depmap_analysis.network_functions.depmap_network_functions import \
@@ -111,4 +112,12 @@ if __name__ == '__main__':
 
     # Get a stats df
     all_stats_df = pd.DataFrame(data=all_stats)
-    print(all_stats_df)
+    all_stats_df.plot(x='range',
+                      y=['has_pathways_norm'],
+                      legend=['Has pathways'],
+                      kind='bar',
+                      title='Test title',
+                      stacked=False)
+    plt.show()
+    plt.savefig('reactome_matching.png')
+    logger.info(f'Saved plot to {Path("reactome_matching.png").absolute()}')
