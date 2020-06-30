@@ -34,14 +34,15 @@ class DepMapExplainer:
     corr_stats_axb : dict
     """
 
-    def __init__(self, stats_columns, expl_columns, info, tag=None,
-                 network_type='digraph'):
+    def __init__(self, stats_columns, expl_columns, info, script_settings,
+                 tag=None, network_type='digraph'):
         """
         Parameters
         ----------
         stats_columns : list[str]|tuple[str]
         expl_columns : list[str]|tuple[str]
         info : dict
+        script_settings : dict
         tag : str
         network_type : str
         """
@@ -50,6 +51,7 @@ class DepMapExplainer:
         self.depmap_date = info.pop('depmap_date')
         self.sd_range = info.pop('sd_range')
         self.info = info
+        self.script_settings = script_settings
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
