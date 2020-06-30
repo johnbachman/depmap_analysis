@@ -1,0 +1,114 @@
+import logging
+import pandas as pd
+from pathlib import Path
+from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
+from depmap_analysis.util.io_functions import pickle_open
+from depmap_analysis.network_functions.depmap_network_functions import \
+    corr_matrix_to_generator
+
+
+logger = logging.getLogger(__name__)
+
+
+def match_reactome(z_sc, reactome_dict):
+    logger.info('Generating generator')
+    corr_iterator = corr_matrix_to_generator(z_sc)
+    res = {'agA_hgnc': [], 'agA_up': [], 'agB_hgnc': [], 'agB_up': [],
+           'z_sc': [], 'has_pathways': [], 'common_pathways': []}
+    logger.info('Looping correlations')
+    for a, b, corr in corr_iterator:
+        hgnc_id_a = get_current_hgnc_id(a)
+        if isinstance(hgnc_id_a, list):
+            ix = 0
+            while True:
+                try:
+                    a_up = get_uniprot_id(hgnc_id_a[ix])
+                except IndexError:
+                    a_up = None
+                    break
+                if a_up is None:
+                    ix += 1
+        else:
+            a_up = get_uniprot_id(hgnc_id_a)
+        if a_up is None:
+            continue
+
+        hgnc_id_b = get_current_hgnc_id(b)
+        if isinstance(hgnc_id_b, list):
+            ix = 0
+            while True:
+                try:
+                    b_up = get_uniprot_id(hgnc_id_b[ix])
+                except IndexError:
+                    b_up = None
+                    break
+                if b_up is None:
+                    ix += 1
+        else:
+            b_up = get_uniprot_id(hgnc_id_b)
+        if b_up is None:
+            continue
+
+        common_reactome = set(reactome_dict.get(a_up, [])) & \
+                          set(reactome_dict.get(b_up, []))
+        res['agA_hgnc'].append(a)
+        res['agA_up'].append(a_up)
+        res['agB_hgnc'].append(b)
+        res['agB_up'].append(b_up)
+        res['z_sc'].append(corr)
+        res['common_pathways'].append(common_reactome)
+        res['has_pathways'].append(bool(common_reactome))
+    logger.info('Returning results')
+    return res
+
+
+if __name__ == '__main__':
+    z_sc_file = Path('/home/klas/repos/depmap_analysis/input_data/depmap/19Q4'
+                     '/combined_z_score.h5')
+    reactome_file = Path('/home/klas/repos/temp/reactome_pathways.pkl')
+    # sd_ranges = [(2, 3), (3, 4), (4, 5), (5, None)]
+    sd_ranges = [(4, 5), (5, None)]
+
+    # Only need first dict
+    reactome_mapping = pickle_open(reactome_file)[0]
+
+    # Load corr matrix
+    z_sc_full = pd.read_hdf(z_sc_file)
+    assert isinstance(z_sc_full, pd.DataFrame)
+
+    all_stats = {'range': [], 'checked': [], 'has_pathways': [],
+                 'has_pathways_norm': []}
+    data_frames = {}
+
+    for ll, ul in sd_ranges:
+        # Filter matrix
+        if ll and ul:
+            logger.info(f'Filtering correlations to {ll} - {ul} SD')
+            z_sc_filtered = z_sc_full[((z_sc_full > ll) & (z_sc_full < ul)) |
+                                      ((z_sc_full < -ll) & (z_sc_full > -ul))]
+        elif ll and not ul:
+            logger.info(f'Filtering correlations to {ll}+ SD')
+            z_sc_filtered = z_sc_full[(z_sc_full > ll) | (z_sc_full < -ll)]
+        else:
+            raise ValueError('Must have both ll and ul defined')
+
+        # Run match
+        results = match_reactome(z_sc=z_sc_filtered,
+                                 reactome_dict=reactome_mapping)
+
+        # Create df
+        res_df = pd.DataFrame(data=results)
+
+        # Do counts
+        range_str = f'{ll}-{ul} SD'
+        data_frames[range_str] = res_df
+        all_stats['range'].append(range_str)
+        all_stats['checked'].append(len(res_df))
+        all_stats['has_pathways'].append(res_df['has_pathways'].sum())
+        all_stats['has_pathways_norm'].append(
+            res_df['has_pathways'].sum()/len(res_df)
+        )
+
+    # Get a stats df
+    all_stats_df = pd.DataFrame(data=all_stats)
+    print(all_stats_df)
