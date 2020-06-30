@@ -67,8 +67,7 @@ if __name__ == '__main__':
     z_sc_file = Path('/home/klas/repos/depmap_analysis/input_data/depmap/19Q4'
                      '/combined_z_score.h5')
     reactome_file = Path('/home/klas/repos/temp/reactome_pathways.pkl')
-    # sd_ranges = [(2, 3), (3, 4), (4, 5), (5, None)]
-    sd_ranges = [(4, 5), (5, None)]
+    sd_ranges = [(2, 3), (3, 4), (4, 5), (5, None)]
 
     # Only need first dict
     reactome_mapping = pickle_open(reactome_file)[0]
