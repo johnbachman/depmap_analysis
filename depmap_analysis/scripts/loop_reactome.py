@@ -1,9 +1,10 @@
 import logging
+import argparse
 import pandas as pd
 from pathlib import Path
 from matplotlib import pyplot as plt
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
-from depmap_analysis.util.io_functions import pickle_open
+from depmap_analysis.util.io_functions import pickle_open, file_path
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, down_sampl_size
 
@@ -64,9 +65,15 @@ def match_reactome(z_sc, reactome_dict):
 
 
 if __name__ == '__main__':
-    z_sc_file = Path('/home/klas/repos/depmap_analysis/input_data/depmap/19Q4'
-                     '/combined_z_score.h5')
-    reactome_file = Path('/home/klas/repos/temp/reactome_pathways.pkl')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--z-corr', type=file_path('h5'), required=True,
+                        help='The path to the stored correlation matrix as '
+                             'a pandas DataFrame')
+    parser.add_argument('--reactome', type=file_path('pkl'), required=True,
+                        help='The reactome pickle')
+    args = parser.parse_args()
+    z_sc_file = Path(args.z_corr)
+    reactome_file = Path(args.reactome)
     sd_ranges = [('rnd', None), (2, 3), (3, 4), (4, 5), (5, None)]
 
     # Only need first dict
