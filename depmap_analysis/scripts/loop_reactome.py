@@ -143,6 +143,7 @@ if __name__ == '__main__':
                       kind='bar',
                       title='Test title',
                       stacked=False)
+    plt.savefig('reactome_matching.png', format='png')
     plt.show()
-    plt.savefig('reactome_matching.png')
+    plt.close()
     logger.info(f'Saved plot to {Path("reactome_matching.png").absolute()}')
