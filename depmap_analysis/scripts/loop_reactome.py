@@ -100,13 +100,13 @@ if __name__ == '__main__':
                              ' or set ll to "rnd"')
 
         # down sample if too large
-        target_pairs = 100000
+        target_pairs = 20000
         n_pairs = z_sc_filtered.notna().sum().sum()
         sample_size = down_sampl_size(n_pairs,
                                       len(z_sc_filtered),
                                       target_pairs,
                                       buffer_factor=1.1)
-        while n_pairs > 1.5*target_pairs:
+        while n_pairs > 2*target_pairs:
             logger.info(f'Down sampling DataFrame matrix from {n_pairs}')
             z_sc_filtered = z_sc_filtered.sample(sample_size,
                                                  axis=0)
@@ -133,6 +133,7 @@ if __name__ == '__main__':
         all_stats['has_pathways_norm'].append(
             res_df['has_pathways'].sum()/len(res_df)
         )
+        logger.info(f'Finished assembling results for {range_str}')
 
     # Get a stats df
     all_stats_df = pd.DataFrame(data=all_stats)
