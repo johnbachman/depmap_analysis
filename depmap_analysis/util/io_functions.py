@@ -154,12 +154,15 @@ def graph_types(types):
     return types_check
 
 
-def file_path():
+def file_path(file_ending=None):
     """Checks if file at provided path exists"""
     def check_path(fpath):
         p = Path(fpath)
         if not p.is_file():
             raise ArgumentError(f'File {fpath} does not exist')
+        if file_ending and not p.name.endswith(file_ending):
+            raise ArgumentError(f'Unrecognized file type '
+                                f'{p.name.split(".")[-1]}')
         return fpath
     return check_path
 
