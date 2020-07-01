@@ -46,7 +46,7 @@ from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, iter_chunker
+    corr_matrix_to_generator, iter_chunker, down_sampl_size
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 
@@ -503,39 +503,6 @@ def error_callback(err):
     logger.exception(err)
 
 
-def _down_sampl_size(available_pairs, size_of_matrix, wanted_pairs):
-    """Return a sample size that would make a new square matrix contain
-    close to but above the number of wanted pairs
-
-    Assuming that the number of extractable pairs is N = k*L^2 (k is some
-    constant), we want to pick the fraction p of the matrix size L that
-    provides the number of rows to sample such that the resulting number of
-    extractable pairs from the matrix comes close to s, the number of
-    desired samples.
-
-    Parameters
-    ----------
-    available_pairs : int
-        Number of pairs in correlation matrix as counted by
-        corr.notna().sum().sum()
-    size_of_matrix : int
-        The number of rows/columns of the correlation matrix as counted by
-        len(corr)
-    wanted_pairs : int
-        The target number of pairs to the get out from the matrix
-    """
-    # Set vars
-    L = size_of_matrix
-    N = available_pairs
-    s = wanted_pairs
-
-    # Calculate fraction
-    p = np.sqrt(2*s/N)
-
-    # Get number of rows to sample
-    return int(np.ceil(p*L))
-
-
 def main(indra_net, sd_range, outname, graph_type, z_score=None,
          z_score_file=None, raw_data=None, raw_corr=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
@@ -654,7 +621,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
             n_pairs = z_corr.notna().sum().sum()
             mm = max(row_samples - int(np.ceil(0.05*row_samples))
                      if n_pairs - sample_size < np.ceil(0.1*sample_size)
-                     else _down_sampl_size(n_pairs, len(z_corr), sample_size),
+                     else down_sampl_size(n_pairs, len(z_corr), sample_size),
                      1)
             row_samples = row_samples - 1 if mm >= row_samples else mm
 

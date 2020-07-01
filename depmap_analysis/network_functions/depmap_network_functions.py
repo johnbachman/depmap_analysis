@@ -2242,3 +2242,36 @@ def connection_types(id1, id2, long_stmts=set()):
     if ff.has_common_parent(id1=id1, id2=id2):
         ctypes += ['parent']
     return ctypes
+
+
+def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs):
+    """Return a sample size that would make a new square dataframe contain
+    close to but above the number of wanted pairs
+
+    Assuming that the number of extractable pairs is N = k*L^2 (k is some
+    constant), we want to pick the fraction p of the matrix size L that
+    provides the number of rows to sample such that the resulting number of
+    extractable pairs from the matrix comes close to s, the number of
+    desired samples.
+
+    Parameters
+    ----------
+    available_pairs : int
+        Number of pairs in correlation matrix as counted by
+        corr.notna().sum().sum()
+    size_of_matrix : int
+        The number of rows/columns of the correlation matrix as counted by
+        len(corr)
+    wanted_pairs : int
+        The target number of pairs to the get out from the matrix
+    """
+    # Set vars
+    L = size_of_matrix
+    N = available_pairs
+    s = wanted_pairs
+
+    # Calculate fraction
+    p = np.sqrt(2*s/N)
+
+    # Get number of rows to sample
+    return int(np.ceil(p*L))
