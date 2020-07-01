@@ -692,6 +692,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Explainer main script')
     #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
     corr_group = parser.add_mutually_exclusive_group(required=True)
+    range_group = parser.add_mutually_exclusive_group(required=True)
     corr_group.add_argument(
         '--raw-data', nargs=2, type=file_path(),
         help='File paths to CRISPR raw data and RNAi raw data from the '
@@ -742,9 +743,14 @@ if __name__ == '__main__':
              f'{allowed_types}'
     )
 
-    #   2. Filter to SD range
-    parser.add_argument('--sd-range', nargs='+', type=float, required=True,
-                        help='SD range to filter to')
+    #   2a. Filter to SD range
+    range_group.add_argument('--sd-range', nargs='+', type=float,
+                             help='SD range to filter to')
+    # OR do random sampling from correlation matrix genes
+    range_group.add_argument('--random', action='store_true',
+                             help='Check the explanation rate for randomly '
+                                  'sampled pairs of genes from the full '
+                                  'correlation matrix')
     #   3. Ignore list as file
     parser.add_argument(
         '--ignore-list', type=str,
