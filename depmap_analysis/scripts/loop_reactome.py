@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
 from depmap_analysis.util.io_functions import pickle_open
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator
+    corr_matrix_to_generator, down_sampl_size
 
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,26 @@ if __name__ == '__main__':
             z_sc_filtered = z_sc_filtered.filter(list(z_sc_filtered.index),
                                                  axis=1)
         else:
-            raise ValueError('Must have both ll and ul defined')
+            raise ValueError('Must have both ll and ul defined'
+                             ' or set ll to "rnd"')
+
+        # down sample if too large
+        target_pairs = 100000
+        n_pairs = z_sc_filtered.notna().sum().sum()
+        sample_size = down_sampl_size(n_pairs,
+                                      len(z_sc_filtered),
+                                      target_pairs,
+                                      buffer_factor=1.1)
+        while n_pairs > 1.5*target_pairs:
+            logger.info(f'Down sampling DataFrame matrix from {n_pairs}')
+            z_sc_filtered = z_sc_filtered.sample(sample_size,
+                                                 axis=0)
+            z_sc_filtered = z_sc_filtered.filter(list(z_sc_filtered.index),
+                                                 axis=1)
+            n_pairs = z_sc_filtered.notna().sum().sum()
+            sample_size = down_sampl_size(n_pairs, len(z_sc_filtered),
+                                          target_pairs, buffer_factor=1.1)
+        logger.info(f'Correlation matrix sampled to {n_pairs}')
 
         # Run match
         results = match_reactome(z_sc=z_sc_filtered,

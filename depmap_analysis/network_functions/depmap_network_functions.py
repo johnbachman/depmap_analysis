@@ -2244,7 +2244,8 @@ def connection_types(id1, id2, long_stmts=set()):
     return ctypes
 
 
-def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs):
+def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
+                    buffer_factor=2):
     """Return a sample size that would make a new square dataframe contain
     close to but above the number of wanted pairs
 
@@ -2264,6 +2265,14 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs):
         len(corr)
     wanted_pairs : int
         The target number of pairs to the get out from the matrix
+    buffer_factor : float
+        The buffer factor will be multiplied with the wanted_pairs to
+        safeguard that the output sample size does not yield a matrix
+        containing fewer than the wanted number of extractable pairs.
+
+    Returns
+    -------
+    int
     """
     # Set vars
     L = size_of_matrix
@@ -2271,7 +2280,7 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs):
     s = wanted_pairs
 
     # Calculate fraction
-    p = np.sqrt(2*s/N)
+    p = np.sqrt(buffer_factor*s/N)
 
     # Get number of rows to sample
     return int(np.ceil(p*L))
