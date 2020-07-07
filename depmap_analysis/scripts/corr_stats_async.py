@@ -458,4 +458,4 @@ def _hgncsym2up(hgnc_symb):
 
 
 def _up2hgncsym(up_id):
-    return get_hgnc_name(uniprot_ids_reverse(up_id)) or None
+    return get_hgnc_name(uniprot_ids_reverse[up_id]) or None
