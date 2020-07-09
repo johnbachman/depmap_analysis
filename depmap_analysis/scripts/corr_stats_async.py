@@ -79,7 +79,7 @@ class GlobalVars(object):
     def assert_global_vars(varnames):
         """
 
-        varname : set(str)
+        varnames : set(str)
             Set of names of variables to check if they exists
 
         Returns
@@ -352,20 +352,33 @@ def get_corr_stats(so_pairs):
             #             f'({obj.__class__}) and z {z} ({z.__class__})'
             #         ) from err
 
-        # TODO Add reactome output to returned dict
-        assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
-                                      top_axb_corrs, all_azb_corrs,
-                                      azb_avg_corrs]),\
-            logger.error(f'No results for process {current_process().pid}. '
-                         f'Stats:\nall_axb_corrs: {len(all_axb_corrs)}, '
-                         f'axb_avg_corrs: {len(axb_avg_corrs)}, '
-                         f'top_axb_corrs: {len(top_axb_corrs)}, '
-                         f'all_azb_corrs: {len(all_azb_corrs)}, '
-                         f'azb_avg_corrs: {len(azb_avg_corrs)}')
+        try:
+            assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
+                                          top_axb_corrs, all_azb_corrs,
+                                          azb_avg_corrs, all_reactome_corrs,
+                                          reactome_avg_corrs])
+        except AssertionError as exc:
+            raise ValueError(
+                f'Zero or partial results in process '
+                f'({current_process().pid}). '
+                f'Stats: all_axb_corrs: {len(all_axb_corrs)}, '
+                f'axb_avg_corrs: {len(axb_avg_corrs)}, '
+                f'top_axb_corrs: {len(top_axb_corrs)}, '
+                f'all_azb_corrs: {len(all_azb_corrs)}, '
+                f'azb_avg_corrs: {len(azb_avg_corrs)} ',
+                f'all_reactome_corrs: {len(all_reactome_corrs)} ',
+                f'reactome_avg_corrs: {len(reactome_avg_corrs)}'
+            ) from exc
 
+        logger.info('Counting skips...')
+        skip_tot = 0
         for k, v in counter.items():
             if v > 0:
                 logger.info(f'Skipped {k} {v} times')
+                skip_tot += v
+
+        if skip_tot == 0:
+            logger.info('No skips made')
 
         return {'all_axb_corrs': all_axb_corrs,
                 'axb_avg_corrs': axb_avg_corrs,
