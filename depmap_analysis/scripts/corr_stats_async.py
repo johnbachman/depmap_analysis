@@ -300,58 +300,6 @@ def get_corr_stats(so_pairs):
             all_reactome_corrs += reactome_corrs
             counter['r_skip'] += r_len - len(avg_reactome_corrs_per_ab)
 
-            ## OLD ##
-
-            # path_rows = df[(df['agA'] == subj) &
-            #                (df['agB'] == obj) &
-            #                ((df['expl type'] == 'a-x-b') |
-            #                 (df['expl type'] == 'b-x-a') |
-            #                (df['expl type'] == 'shared target'))]
-            #
-            # # Make sure we don't double-count Xs such that X is shared target
-            # # and also a pathway; also, don't include X if X = subj or obj
-            # x_set = set()
-            # for ix, path_row in path_rows.iterrows():
-            #     x_set.update([x for x in path_row['expl data']
-            #                   if x not in (subj, obj)])
-            #
-            # for x in x_set:
-            #     x_name = x.name if isinstance(x, CentralDogma) else x
-            #     if x_name in z_corr.columns:
-            #         ax_corr = z_corr.loc[subj, x_name]
-            #         xb_corr = z_corr.loc[x_name, obj]
-            #         all_axb_corrs += [ax_corr, xb_corr]
-            #         avg_corr = 0.5 * abs(ax_corr) + 0.5 * abs(xb_corr)
-            #         avg_x_corrs_per_ab.append(avg_corr)
-            #     else:
-            #         continue
-            #
-            # # Get a random subset of the possible correlation z scores
-            # for z in np.random.choice(list_of_genes[:], chunk_size, False):
-            #     try:
-            #         if z == subj or z == obj:
-            #             counter.update('z_skip')
-            #             continue
-            #         az_corr = z_corr.loc[z, subj]
-            #         bz_corr = z_corr.loc[z, obj]
-            #         if np.isnan(az_corr) or np.isnan(bz_corr):
-            #             # Is there a more efficient way of doing this?
-            #             logger.info(
-            #                 f'NaN correlations for '
-            #                 f'subj-z ({str(subj)}-{str(z)}) or '
-            #                 f'obj-z ({str(obj)}-{str(z)})'
-            #             )
-            #             continue
-            #         all_azb_corrs.extend([az_corr, bz_corr])
-            #         azb_avg_corrs.append(0.5*abs(az_corr) + 0.5*abs(bz_corr))
-            #     except KeyError as err:
-            #         raise KeyError(
-            #             f'KeyError was raised trying to sample background '
-            #             f'correlation distribution with subject {str(subj)}'
-            #             f'({subj.__class__}), object {str(obj)} '
-            #             f'({obj.__class__}) and z {z} ({z.__class__})'
-            #         ) from err
-
         try:
             assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
                                           top_axb_corrs, all_azb_corrs,
