@@ -193,7 +193,7 @@ class DepMapExplainer:
             the Reactome IDs to their descriptions.
         max_so_pairs_size : int
             The maximum number of correlation pairs to process. If the
-            number of eligble pairs is larger than this number, a random
+            number of eligible pairs is larger than this number, a random
             sample of max_so_pairs_size is used. Default: 10 000. If the
             number of pairs to check is smaller than 10 000, no sampling is
             done.
