@@ -379,8 +379,9 @@ def get_interm_corr_stats_x(subj, obj, z_corr, df):
                     (df['expl type'] == 'shared target'))]
     x_set = set()
     for ix, path_row in path_rows.iterrows():
-        x_set.update([x for x in path_row['expl data']
-                      if x not in (subj, obj)])
+        x_names = [x.name if isinstance(x, CentralDogma) else x for x in
+                   path_row['expl data'] if x not in (subj, obj)]
+        x_set.update(x_names)
     return _get_interm_corr_stats(subj, obj, x_set, z_corr), len(x_set)
 
 
@@ -392,18 +393,21 @@ def get_interm_corr_stats_reactome(subj, obj, reactome, z_corr):
     pathways_by_gene, genes_by_pathway, _ = reactome
     subj_up = _hgncsym2up(subj)
     if subj_up is None:
-        return [], []
+        return ([], []), 0
     obj_up = _hgncsym2up(obj)
     if obj_up is None:
-        return [], []
+        return ([], []), 0
 
-    paths = set(pathways_by_gene[subj_up]) & set(pathways_by_gene[obj_up])
+    paths = set(pathways_by_gene.get(subj_up, [])) & \
+        set(pathways_by_gene.get(obj_up, []))
     gene_set = set()
     for rp in paths:
         gene_set.update([g for g in genes_by_pathway[rp]])
     hgnc_gene_set = [_up2hgncsym(up) for up in gene_set]
-    return _get_interm_corr_stats(subj, obj, hgnc_gene_set, z_corr),\
-           len(hgnc_gene_set)
+    if hgnc_gene_set:
+        return _get_interm_corr_stats(subj, obj, hgnc_gene_set, z_corr),\
+               len(hgnc_gene_set)
+    return ([], []), len(hgnc_gene_set)
 
 
 def _get_interm_corr_stats(a, b, y_set, z_corr):
@@ -413,10 +417,14 @@ def _get_interm_corr_stats(a, b, y_set, z_corr):
     # Get all ax and bc correlations
     all_ayb_corrs = []
 
+    c = Counter({'y_none': 0, 'y_corr_none': 0})
+
     for y in y_set:
         try:
             # Skip self correlations and non-existing names
-            if y is None or y == a or y == b or y not in z_corr.columns:
+            if y is None or y == a or y == b or y not in z_corr.columns or \
+                    a not in z_corr.columns or b not in z_corr.columns:
+                c.update('y_none')
                 continue
             ay_corr = z_corr.loc[y, a]
             by_corr = z_corr.loc[y, b]
@@ -426,6 +434,7 @@ def _get_interm_corr_stats(a, b, y_set, z_corr):
                     f'NaN correlations for subj-y ({str(a)}-{str(y)}) or '
                     f'obj-y ({str(b)}-{str(y)})'
                 )
+                c.update('y_corr_none')
                 continue
 
             all_ayb_corrs += [ay_corr, by_corr]
@@ -438,6 +447,12 @@ def _get_interm_corr_stats(a, b, y_set, z_corr):
                 f'({a.__class__}), object {str(b)} '
                 f'({b.__class__}) and intermediate {str(y)} ({y.__class__})'
             ) from ke
+    if c['y_corr_none'] > 0:
+        logger.warning(f'Skipped {c["y_corr_none"]} pairs because of nan '
+                       f'values')
+    if c['y_none'] > 0:
+        logger.warning(f'Skipped {c["y_none"]} pairs because y was None or '
+                       f'self correlation or y, a or b not being in z_corr')
     return avg_y_corrs_per_ab, all_ayb_corrs
 
 
