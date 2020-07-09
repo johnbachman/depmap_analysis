@@ -328,8 +328,9 @@ class DepMapExplainer:
                     # Close figure
                     plt.close(fig_index)
                 else:
-                    logger.warning('Empty result for %s (%s) in range %s'
-                                   % (k, plot_type, sd))
+                    logger.warning(f'Empty result for {k} ({plot_type}) in '
+                                   f'range {sd} for graph type '
+                                   f'{self.script_settings["graph_type"]}')
 
     def plot_dists(self, outdir, z_corr=None, reactome=None,
                    show_plot=False, max_proc=None, index_counter=None,
@@ -399,8 +400,11 @@ class DepMapExplainer:
                  color='b', alpha=0.3)
         plt.hist(all_ind['avg_x_corrs'], bins='auto', density=True,
                  color='r', alpha=0.3)
-        plt.hist(all_ind['reactome_avg_corrs'], bins='auto', density=True,
-                 color='g', alpha=0.3)
+        legend = ['A-X-B for all X', 'A-X-B for X in network']
+        if len(all_ind['reactome_avg_corrs']):
+            plt.hist(all_ind['reactome_avg_corrs'], bins='auto',
+                     density=True, color='g', alpha=0.3)
+            legend.append('A-X-B for X in reactome path')
 
         sd_str = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
@@ -409,8 +413,7 @@ class DepMapExplainer:
         plt.title(title)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
-        plt.legend(['A-X-B for all X', 'A-X-B for X in network',
-                    'A-X-B for X in reactome path'])
+        plt.legend()
         name = '%s_%s_axb_hist_comparison.pdf' % \
                (sd_str, self.script_settings['graph_type'])
 
