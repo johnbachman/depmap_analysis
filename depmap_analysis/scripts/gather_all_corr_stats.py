@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Corr script looper')
     parser.add_argument(
-        '--z-corr', required=True,
+        '--z-corr', required=True, type=file_path('h5'),
         help='The correlation matrix that was used to create the explanations'
     )
     parser.add_argument(
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--outdir',
         help='Path to an output directory. Will be created if it non '
-             'existing. If not provided, outut files will be put in a '
+             'existing. If not provided, output files will be put in a '
              'directory called "output" in the "--base-path". If path '
              'starts with "s3:" upload to s3 instead and must then have the '
              'form "s3:<bucket>/<sub_dir>" where <bucket> must be specified '
