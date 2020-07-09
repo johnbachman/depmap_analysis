@@ -270,7 +270,8 @@ class DepMapExplainer:
                                            'all_reactome_corrs',
                                            'reactome_avg_corrs']):
                 if len(v[plot_type]) > 0:
-                    name = '%s_%s.pdf' % (plot_type, k)
+                    name = '%s_%s_%s.pdf' % \
+                           (plot_type, k, self.script_settings['graph_type'])
                     if od is None:
                         fname = BytesIO()
                     else:
@@ -283,10 +284,11 @@ class DepMapExplainer:
                         else int(f'{n}{m}')
                     plt.figure(fig_index)
                     plt.hist(x=data, bins='auto')
-                    plt.title('%s %s; %s' %
-                              (plot_type.replace('_', ' ').capitalize(),
-                               k.replace('_', ' '),
-                               sd))
+                    title = '%s %s; %s (%s)' % \
+                            (plot_type.replace('_', ' ').capitalize(),
+                             k.replace('_', ' '), sd,
+                             self.script_settings['graph_type'])
+                    plt.title(title)
                     plt.xlabel('combined z-score')
                     plt.ylabel('count')
 
@@ -351,12 +353,15 @@ class DepMapExplainer:
 
         sd_str = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
-        plt.title('A-B corrs %s, indirect paths only' % sd_str)
+        title = 'avg X corrs %s (%s)' % (sd_str,
+                                         self.script_settings['graph_type'])
+        plt.title(title)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
         plt.legend(['A-X-B for all X', 'A-X-B for X in network',
                     'A-X-B for X in reactome path'])
-        name = '%s_axb_hist_comparison.pdf' % sd_str
+        name = '%s_%s_axb_hist_comparison.pdf' % \
+               (sd_str, self.script_settings['graph_type'])
 
         # Save to file or ByteIO and S3
         if od is None:
