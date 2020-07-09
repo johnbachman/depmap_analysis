@@ -252,9 +252,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                                   iterable=corr_matrix_to_generator(corr_z))
         for chunk in chunk_iter:
             pool.apply_async(func=_match_correlation_body,
-                             # corr_iter, expl_types, stats_columns,
-                             # expl_columns, bool_columns, min_columns,
-                             # explained_set, _type
+                             # args should match the args for func
                              args=(
                                  chunk,
                                  expl_types,
