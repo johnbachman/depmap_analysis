@@ -296,8 +296,9 @@ class DepMapExplainer:
                         # Reset pointer
                         fname.seek(0)
                         # Upload to s3
-                        _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
-                                      key=key_base + '/' + name)
+                        _upload_bytes_io_to_s3(bytes_io_obj=fname,
+                                               bucket=bucket,
+                                               key=key_base + '/' + name)
 
                     # Show plot
                     if show_plot:
@@ -367,8 +368,8 @@ class DepMapExplainer:
             # Reset pointer
             fname.seek(0)
             # Upload to s3
-            _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
-                          key=key_base + '/' + name)
+            _upload_bytes_io_to_s3(bytes_io_obj=fname, bucket=bucket,
+                                   key=key_base + '/' + name)
 
         # Show plot
         if show_plot:
@@ -378,12 +379,12 @@ class DepMapExplainer:
         plt.close(fig_index)
 
 
-def _upload_to_s3(bytes_io_obj, bucket, key):
+def _upload_bytes_io_to_s3(bytes_io_obj, bucket, key):
     """
 
     :param bytes_io_obj: BytesIO
     :param bucket: str
-    :param key: srt
+    :param key: str
     """
     bytes_io_obj.seek(0)  # Just in case
     s3 = get_s3_client(unsigned=False)
