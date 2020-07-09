@@ -94,9 +94,10 @@ class GlobalVars(object):
         """Same as assert_global_vars but with the shared array as well"""
         df_exists = global_vars.get('df', False) is not False
         z_cm_exists = global_vars.get('z_cm', False) is not False
+        reactome_exists = global_vars.get('reactome', False) is not False
         ssize_exists = global_vars.get('subset_size', False) is not False
         shared_ar_exists = bool(len(list_of_genes[:]))
-        return df_exists and z_cm_exists and \
+        return df_exists and z_cm_exists and reactome_exists and \
             ssize_exists and shared_ar_exists
 
 
@@ -230,19 +231,22 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
     logger.info(f'Assembling {len(global_results)} results')
-    results = [[], [], [], [], []]
+    results = [[], [], [], [], [], [], []]
     for done_res in global_results:
         # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
-        results[0].extend(done_res['all_axb_corrs'])
+        results[0] += done_res['all_axb_corrs']
         # Var name: avg_x_corrs; Dict key: axb_avg_corrs
-        results[1].extend(done_res['axb_avg_corrs'])
+        results[1] += done_res['axb_avg_corrs']
         # Var name: top_x_corrs; Dict key: top_axb_corrs
-        results[2].extend(done_res['top_axb_corrs'])
+        results[2] += done_res['top_axb_corrs']
         # Var name: all_azb_corrs; Dict key: all_azb_corrs
-        results[3].extend(done_res['all_azb_corrs'])
+        results[3] += done_res['all_azb_corrs']
         # Var name: azb_avg_corrs; Dict key: azb_avg_corrs
-        results[4].extend(done_res['azb_avg_corrs'])
-
+        results[4] += done_res['azb_avg_corrs']
+        # Var name: all_reactome_corrs; Dict key: all_reactome_corrs
+        results[5] += done_res['all_reactome_corrs']
+        # Var name: reactome_avg_corrs; Dict key: reactome_avg_corrs
+        results[6] += done_res['reactome_avg_corrs']
     return results
 
 
@@ -293,6 +297,7 @@ def get_corr_stats(so_pairs):
             (avg_reactome_corrs_per_ab, reactome_corrs), r_len = \
                 get_interm_corr_stats_reactome(subj, obj, reactome, z_corr)
             reactome_avg_corrs += avg_reactome_corrs_per_ab
+            all_reactome_corrs += reactome_corrs
             counter['r_skip'] += r_len - len(avg_reactome_corrs_per_ab)
 
             ## OLD ##
@@ -366,7 +371,9 @@ def get_corr_stats(so_pairs):
                 'axb_avg_corrs': axb_avg_corrs,
                 'top_axb_corrs': top_axb_corrs,
                 'all_azb_corrs': all_azb_corrs,
-                'azb_avg_corrs': azb_avg_corrs}
+                'azb_avg_corrs': azb_avg_corrs,
+                'all_reactome_corrs': all_reactome_corrs,
+                'reactome_avg_corrs': reactome_avg_corrs}
     except Exception:
         raise WrapException()
 

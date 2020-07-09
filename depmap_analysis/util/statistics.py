@@ -153,7 +153,7 @@ class DepMapExplainer:
         ].index
         return len(indices)
 
-    def get_corr_stats_axb(self, z_corr=None, max_proc=None,
+    def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True):
         """Get statistics of the correlations associated with different
         explanation types
@@ -166,6 +166,12 @@ class DepMapExplainer:
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing
             in get_corr_stats_mp. Default: multiprocessing.cpu_count()
+        reactome : tuple[dict]|list[dict]
+            A tuple or list of dicts. The first dict is expected to contain
+            mappings from UP IDs of genes to Reactome pathway IDs. The second
+            dict is expected to contain the reverse mapping (i.e Reactome IDs
+            to UP IDs). The third dict is expected to contain mappings from
+            the Reactome IDs to their descriptions.
         max_so_pairs_size : int
             The maximum number of correlation pairs to process. If the
             number of eligble pairs is larger than this number, a random
@@ -189,14 +195,14 @@ class DepMapExplainer:
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
             self.corr_stats_axb = axb_stats(
-                self.expl_df, z_corr=z_corr, eval_str=False,
-                max_proc=max_proc, max_corr_pairs=max_so_pairs_size,
-                do_mp_pairs=mp_pairs
+                self.expl_df, z_corr=z_corr, reactome=reactome,
+                eval_str=False, max_proc=max_proc,
+                max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs
             )
         return self.corr_stats_axb
 
-    def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
-                        max_proc=None, index_counter=None,
+    def plot_corr_stats(self, outdir, z_corr=None, reactome=None,
+                        show_plot=False, max_proc=None, index_counter=None,
                         max_so_pairs_size=10000, mp_pairs=True):
         """Plot the results of running explainer.get_corr_stats_axb()
 
@@ -210,6 +216,12 @@ class DepMapExplainer:
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
             create the statistics in this object
+        reactome : tuple[dict]|list[dict]
+            A tuple or list of dicts. The first dict is expected to contain
+            mappings from UP IDs of genes to Reactome pathway IDs. The second
+            dict is expected to contain the reverse mapping (i.e Reactome IDs
+            to UP IDs). The third dict is expected to contain mappings from
+            the Reactome IDs to their descriptions.
         show_plot : bool
             If True also show plots
         max_proc : int > 0
@@ -246,7 +258,7 @@ class DepMapExplainer:
 
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(
-            z_corr=z_corr, max_proc=max_proc,
+            z_corr=z_corr, max_proc=max_proc, reactome=reactome,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
         sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
@@ -254,7 +266,9 @@ class DepMapExplainer:
         for n, (k, v) in enumerate(corr_stats.items()):
             for m, plot_type in enumerate(['all_azb_corrs', 'azb_avg_corrs',
                                            'all_x_corrs', 'avg_x_corrs',
-                                           'top_x_corrs']):
+                                           'top_x_corrs',
+                                           'all_reactome_corrs',
+                                           'reactome_avg_corrs']):
                 if len(v[plot_type]) > 0:
                     name = '%s_%s.pdf' % (plot_type, k)
                     if od is None:
@@ -327,20 +341,20 @@ class DepMapExplainer:
         #all_res, db_res, sd):
         #all_ind = all_res['axb_not_dir']
         #db_ind = db_res['axb_not_dir']
-        plt.hist(all_ind['azb_avg_corrs'], bins='auto', normed=1, color='b',
-                 alpha=0.3)
-        plt.hist(all_ind['avg_x_corrs'], bins='auto', normed=1, color='r',
-                 alpha=0.3)
-        #plt.hist(db_ind['avg_x_corrs'], bins='auto', normed=1, color='g',
-        #         alpha=0.3)
+        plt.hist(all_ind['azb_avg_corrs'], bins='auto', density=True,
+                 color='b', alpha=0.3)
+        plt.hist(all_ind['avg_x_corrs'], bins='auto', density=True,
+                 color='r', alpha=0.3)
+        plt.hist(all_ind['reactome_avg_corrs'], bins='auto', density=True,
+                 color='g', alpha=0.3)
 
         sd_str = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
         plt.title('A-B corrs %s, indirect paths only' % sd_str)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
-        plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)', ])
-                    # 'A-X-B for X in path (DB only)'])
+        plt.legend(['A-X-B for all X', 'A-X-B for X in network',
+                    'A-X-B for X in reactome path'])
         name = '%s_axb_hist_comparison.pdf' % sd_str
 
         # Save to file or ByteIO and S3

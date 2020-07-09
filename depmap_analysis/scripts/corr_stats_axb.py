@@ -17,7 +17,7 @@ logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.INFO)
 
 
-def main(expl_df, z_corr, eval_str=False, max_proc=None,
+def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
          max_corr_pairs=10000, do_mp_pairs=True):
     """Get statistics of the correlations associated with different
     explanation types
@@ -29,6 +29,12 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None,
         of genes in z_corr
     z_corr : pd.DataFrame
         A pd.DataFrame of correlation z scores
+    reactome : tuple[dict]|list[dict]
+        A tuple or list of dicts. The first dict is expected to contain
+        mappings from UP IDs of genes to Reactome pathway IDs. The second
+        dict is expected to contain the reverse mapping (i.e Reactome IDs
+        to UP IDs). The third dict is expected to contain mappings from the
+        Reactome IDs to their descriptions.
     eval_str : bool
         If True, run ast.literal_eval() on the 'expl data' column of expl_df
     max_proc : int > 0
@@ -136,11 +142,15 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None,
         options['max_proc'] = max_proc
 
     # Set and assert existence of global variables
-    gbv.update_global_vars(z_cm=z_corr)
+    gbv.update_global_vars(z_cm=z_corr, reactome=reactome)
     if gbv.assert_vars():
-        all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
-            all_azb_corrs_no_direct, azb_avg_corrs_no_direct = \
-            get_corr_stats_mp(**options)
+        all_x_corrs_no_direct, \
+        avg_x_corrs_no_direct, \
+        top_x_corrs_no_direct, \
+        all_azb_corrs_no_direct, \
+        azb_avg_corrs_no_direct, \
+        all_reactome_corrs, \
+        reactome_avg_corrs = get_corr_stats_mp(**options)
     else:
         raise ValueError('Global variables could not be set')
 
@@ -178,7 +188,9 @@ def main(expl_df, z_corr, eval_str=False, max_proc=None,
                             'avg_x_corrs': avg_x_corrs_no_direct,
                             'top_x_corrs': top_x_corrs_no_direct,
                             'all_azb_corrs': all_azb_corrs_no_direct,
-                            'azb_avg_corrs': azb_avg_corrs_no_direct}}
+                            'azb_avg_corrs': azb_avg_corrs_no_direct,
+                            'all_reactome_corrs': all_reactome_corrs,
+                            'reactome_avg_corrs': reactome_avg_corrs}}
 
 
 if __name__ == '__main__':
