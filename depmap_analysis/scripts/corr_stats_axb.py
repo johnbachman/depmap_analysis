@@ -160,36 +160,6 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
     else:
         raise ValueError('Global variables could not be set')
 
-    """
-    # a-x-b (with and without direct)
-    logger.info("Getting correlations for all a-x-b (direct and indirect)")
-    all_x_corrs_union, avg_x_corrs_union, top_x_corrs_union, \
-            all_azb_corrs_union, azb_avg_corrs_union = \
-        get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
-                       rnai_cm=rnai_corr_matrix, so_pairs=ab_axb_union)
-    """
-
-    # All corrs for range (all pairs regardless of explanation type)
-    # all_x_corrs, top_x_corrs, corr_vs_maxavg = \
-    #     get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
-    #                    rnai_cm=rnai_corr_matrix, so_pairs=all_ab_corr_pairs)
-    """
-    return {'axb_and_dir': {'all_x_corrs': all_x_corrs_direct,
-                            'avg_x_corrs': avg_x_corrs_direct,
-                            'top_x_corrs': top_x_corrs_direct,
-                            'all_azb_corrs': all_azb_corrs_direct,
-                            'azb_avg_corrs': azb_avg_corrs_direct},
-            'axb_not_dir': {'all_x_corrs': all_x_corrs_no_direct,
-                            'avg_x_corrs': avg_x_corrs_no_direct,
-                            'top_x_corrs': top_x_corrs_no_direct,
-                            'all_azb_corrs': all_azb_corrs_no_direct,
-                            'azb_avg_corrs': azb_avg_corrs_no_direct},
-            'all_axb': {'all_x_corrs': all_x_corrs_union,
-                        'avg_x_corrs': avg_x_corrs_union,
-                        'top_x_corrs': top_x_corrs_union,
-                        'all_azb_corrs': all_azb_corrs_union,
-                        'azb_avg_corrs': azb_avg_corrs_union}}
-    """
     return {'axb_not_dir': {'all_x_corrs': all_x_corrs_no_direct,
                             'avg_x_corrs': avg_x_corrs_no_direct,
                             'top_x_corrs': top_x_corrs_no_direct,
