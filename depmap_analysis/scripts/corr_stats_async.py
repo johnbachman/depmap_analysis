@@ -255,7 +255,7 @@ def get_corr_stats(so_pairs):
         global list_of_genes
         df = global_vars['df']
         z_corr = global_vars['z_cm']
-        reactome = global_vars['reactome']
+        reactome = global_vars.get('reactome')
         subset_size = global_vars['subset_size']
         chunk_size = max(len(list_of_genes[:]) // subset_size, 1)
 
@@ -294,17 +294,19 @@ def get_corr_stats(so_pairs):
             counter['z_skip'] += len(z_iter) - len(avg_z_corrs_per_ab)
 
             # Get reactome values
-            (avg_reactome_corrs_per_ab, reactome_corrs), r_len = \
-                get_interm_corr_stats_reactome(subj, obj, reactome, z_corr)
-            reactome_avg_corrs += avg_reactome_corrs_per_ab
-            all_reactome_corrs += reactome_corrs
-            counter['r_skip'] += r_len - len(avg_reactome_corrs_per_ab)
+            if reactome:
+                (avg_reactome_corrs_per_ab, reactome_corrs), r_len = \
+                    get_interm_corr_stats_reactome(subj, obj, reactome, z_corr)
+                reactome_avg_corrs += avg_reactome_corrs_per_ab
+                all_reactome_corrs += reactome_corrs
+                counter['r_skip'] += r_len - len(avg_reactome_corrs_per_ab)
 
+        assert_list = [all_axb_corrs, axb_avg_corrs, top_axb_corrs,
+                       all_azb_corrs, azb_avg_corrs]
+        if reactome:
+            assert_list += [all_reactome_corrs, reactome_avg_corrs]
         try:
-            assert all(len(cl) for cl in [all_axb_corrs, axb_avg_corrs,
-                                          top_axb_corrs, all_azb_corrs,
-                                          azb_avg_corrs, all_reactome_corrs,
-                                          reactome_avg_corrs])
+            assert all(len(cl) for cl in assert_list)
         except AssertionError as exc:
             raise ValueError(
                 f'Zero or partial results in process '
@@ -313,8 +315,8 @@ def get_corr_stats(so_pairs):
                 f'axb_avg_corrs: {len(axb_avg_corrs)}, '
                 f'top_axb_corrs: {len(top_axb_corrs)}, '
                 f'all_azb_corrs: {len(all_azb_corrs)}, '
-                f'azb_avg_corrs: {len(azb_avg_corrs)} ',
-                f'all_reactome_corrs: {len(all_reactome_corrs)} ',
+                f'azb_avg_corrs: {len(azb_avg_corrs)}, '
+                f'all_reactome_corrs: {len(all_reactome_corrs)}, '
                 f'reactome_avg_corrs: {len(reactome_avg_corrs)}'
             ) from exc
 
