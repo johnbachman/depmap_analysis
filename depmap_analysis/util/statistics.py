@@ -70,6 +70,12 @@ class DepMapExplainer:
         return len(self.stats_df)
 
     def has_data(self):
+        """Check if any of the data frames have data in them
+
+        Returns
+        -------
+        bool
+        """
         if len(self.stats_df) > 0 or len(self.expl_df) > 0:
             self._has_data = True
         else:
@@ -77,11 +83,18 @@ class DepMapExplainer:
         return self._has_data
 
     def summarize(self):
+        """Count explanations and print a summary count of them"""
         if not self.summary_str:
             self.summary_str = self.get_summary_str()
         print(self.summary_str)
 
     def get_summary(self):
+        """Calculate and return a dict with the summary counts per explanation
+
+        Returns
+        -------
+        dict
+        """
         if not self.summary:
             # Total pairs checked
             self.summary['total checked'] = len(self.stats_df)
@@ -119,6 +132,12 @@ class DepMapExplainer:
         return self.summary
 
     def get_summary_str(self):
+        """Get the summary string or fill it out from the summary dictionary
+
+        Returns
+        -------
+        str
+        """
         if not self.summary_str:
             for expl in ['total checked', 'not in graph', 'explained',
                          'explained (excl sr)', 'unexplained',
@@ -127,7 +146,7 @@ class DepMapExplainer:
                          'shared regulator', 'shared target', 'sr only']:
                 summary = self.get_summary()
                 self.summary_str +=\
-                    (expl +": ").ljust(22) + str(summary[expl]) + '\n'
+                    (expl + ": ").ljust(22) + str(summary[expl]) + '\n'
         return self.summary_str
 
     def save_summary(self, fname):
@@ -153,7 +172,7 @@ class DepMapExplainer:
         ].index
         return len(indices)
 
-    def get_corr_stats_axb(self, z_corr=None, max_proc=None,
+    def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True):
         """Get statistics of the correlations associated with different
         explanation types
@@ -166,9 +185,15 @@ class DepMapExplainer:
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing
             in get_corr_stats_mp. Default: multiprocessing.cpu_count()
+        reactome : tuple[dict]|list[dict]
+            A tuple or list of dicts. The first dict is expected to contain
+            mappings from UP IDs of genes to Reactome pathway IDs. The second
+            dict is expected to contain the reverse mapping (i.e Reactome IDs
+            to UP IDs). The third dict is expected to contain mappings from
+            the Reactome IDs to their descriptions.
         max_so_pairs_size : int
             The maximum number of correlation pairs to process. If the
-            number of eligble pairs is larger than this number, a random
+            number of eligible pairs is larger than this number, a random
             sample of max_so_pairs_size is used. Default: 10 000. If the
             number of pairs to check is smaller than 10 000, no sampling is
             done.
@@ -189,14 +214,14 @@ class DepMapExplainer:
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
             self.corr_stats_axb = axb_stats(
-                self.expl_df, z_corr=z_corr, eval_str=False,
-                max_proc=max_proc, max_corr_pairs=max_so_pairs_size,
-                do_mp_pairs=mp_pairs
+                self.expl_df, z_corr=z_corr, reactome=reactome,
+                eval_str=False, max_proc=max_proc,
+                max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs
             )
         return self.corr_stats_axb
 
-    def plot_corr_stats(self, outdir, z_corr=None, show_plot=False,
-                        max_proc=None, index_counter=None,
+    def plot_corr_stats(self, outdir, z_corr=None, reactome=None,
+                        show_plot=False, max_proc=None, index_counter=None,
                         max_so_pairs_size=10000, mp_pairs=True):
         """Plot the results of running explainer.get_corr_stats_axb()
 
@@ -210,6 +235,12 @@ class DepMapExplainer:
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
             create the statistics in this object
+        reactome : tuple[dict]|list[dict]
+            A tuple or list of dicts. The first dict is expected to contain
+            mappings from UP IDs of genes to Reactome pathway IDs. The second
+            dict is expected to contain the reverse mapping (i.e Reactome IDs
+            to UP IDs). The third dict is expected to contain mappings from
+            the Reactome IDs to their descriptions.
         show_plot : bool
             If True also show plots
         max_proc : int > 0
@@ -246,7 +277,7 @@ class DepMapExplainer:
 
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(
-            z_corr=z_corr, max_proc=max_proc,
+            z_corr=z_corr, max_proc=max_proc, reactome=reactome,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
         sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
@@ -254,9 +285,12 @@ class DepMapExplainer:
         for n, (k, v) in enumerate(corr_stats.items()):
             for m, plot_type in enumerate(['all_azb_corrs', 'azb_avg_corrs',
                                            'all_x_corrs', 'avg_x_corrs',
-                                           'top_x_corrs']):
+                                           'top_x_corrs',
+                                           'all_reactome_corrs',
+                                           'reactome_avg_corrs']):
                 if len(v[plot_type]) > 0:
-                    name = '%s_%s.pdf' % (plot_type, k)
+                    name = '%s_%s_%s.pdf' % \
+                           (plot_type, k, self.script_settings['graph_type'])
                     if od is None:
                         fname = BytesIO()
                     else:
@@ -269,10 +303,11 @@ class DepMapExplainer:
                         else int(f'{n}{m}')
                     plt.figure(fig_index)
                     plt.hist(x=data, bins='auto')
-                    plt.title('%s %s; %s' %
-                              (plot_type.replace('_', ' ').capitalize(),
-                               k.replace('_', ' '),
-                               sd))
+                    title = '%s %s; %s (%s)' % \
+                            (plot_type.replace('_', ' ').capitalize(),
+                             k.replace('_', ' '), sd,
+                             self.script_settings['graph_type'])
+                    plt.title(title)
                     plt.xlabel('combined z-score')
                     plt.ylabel('count')
 
@@ -282,8 +317,9 @@ class DepMapExplainer:
                         # Reset pointer
                         fname.seek(0)
                         # Upload to s3
-                        _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
-                                      key=key_base + '/' + name)
+                        _upload_bytes_io_to_s3(bytes_io_obj=fname,
+                                               bucket=bucket,
+                                               key=key_base + '/' + name)
 
                     # Show plot
                     if show_plot:
@@ -292,12 +328,48 @@ class DepMapExplainer:
                     # Close figure
                     plt.close(fig_index)
                 else:
-                    logger.warning('Empty result for %s (%s) in range %s'
-                                   % (k, plot_type, sd))
+                    logger.warning(f'Empty result for {k} ({plot_type}) in '
+                                   f'range {sd} for graph type '
+                                   f'{self.script_settings["graph_type"]}')
 
-    def plot_dists(self, outdir, z_corr=None, show_plot=False,
-                   max_proc=None, index_counter=None,
+    def plot_dists(self, outdir, z_corr=None, reactome=None,
+                   show_plot=False, max_proc=None, index_counter=None,
                    max_so_pairs_size=10000, mp_pairs=True):
+        """Compare the distributions of differently sampled A-X-B correlations
+
+        Parameters
+        ----------
+        outdir : str
+            The output directory to save the plots in. If string starts with
+            's3:' upload to s3. outdir must then have the form
+            's3:<bucket>/<sub_dir>' where <bucket> must be specified and
+            <sub_dir> is optional and may contain subdirectories.
+        z_corr : pd.DataFrame
+            A pd.DataFrame containing the correlation z scores used to
+            create the statistics in this object
+        reactome : tuple[dict]|list[dict]
+            A tuple or list of dicts. The first dict is expected to contain
+            mappings from UP IDs of genes to Reactome pathway IDs. The second
+            dict is expected to contain the reverse mapping (i.e Reactome IDs
+            to UP IDs). The third dict is expected to contain mappings from
+            the Reactome IDs to their descriptions.
+        show_plot : bool
+            If True also show plots
+        max_proc : int > 0
+            The maximum number of processes to run in the multiprocessing in
+            get_corr_stats_mp. Default: multiprocessing.cpu_count()
+        index_counter : generator
+            An object which produces a new int by using 'next()' on it. The
+            integers are used to separate the figures so as to not append
+            new plots in the same figure.
+        max_so_pairs_size : int
+            The maximum number of correlation pairs to process. If the
+            number of eligible pairs is larger than this number, a random
+            sample of max_so_pairs_size is used. Default: 10000.
+        mp_pairs : bool
+            If True, get the pairs to process using multiprocessing if larger
+            than 10 000. Default: True.
+        """
         # Local file or s3
         if outdir.startswith('s3:'):
             full_path = outdir.replace('s3:', '').split('/')
@@ -317,31 +389,33 @@ class DepMapExplainer:
 
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(
-            z_corr=z_corr, max_proc=max_proc,
+            z_corr=z_corr, max_proc=max_proc, reactome=reactome,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
         fig_index = next(index_counter) if index_counter \
             else floor(datetime.timestamp(datetime.utcnow()))
         plt.figure(fig_index)
         all_ind = corr_stats['axb_not_dir']
-        #all_res, db_res, sd):
-        #all_ind = all_res['axb_not_dir']
-        #db_ind = db_res['axb_not_dir']
-        plt.hist(all_ind['azb_avg_corrs'], bins='auto', normed=1, color='b',
-                 alpha=0.3)
-        plt.hist(all_ind['avg_x_corrs'], bins='auto', normed=1, color='r',
-                 alpha=0.3)
-        #plt.hist(db_ind['avg_x_corrs'], bins='auto', normed=1, color='g',
-        #         alpha=0.3)
+        plt.hist(all_ind['azb_avg_corrs'], bins='auto', density=True,
+                 color='b', alpha=0.3)
+        plt.hist(all_ind['avg_x_corrs'], bins='auto', density=True,
+                 color='r', alpha=0.3)
+        legend = ['A-X-B for all X', 'A-X-B for X in network']
+        if len(all_ind['reactome_avg_corrs']):
+            plt.hist(all_ind['reactome_avg_corrs'], bins='auto',
+                     density=True, color='g', alpha=0.3)
+            legend.append('A-X-B for X in reactome path')
 
         sd_str = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
             if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
-        plt.title('A-B corrs %s, indirect paths only' % sd_str)
+        title = 'avg X corrs %s (%s)' % (sd_str,
+                                         self.script_settings['graph_type'])
+        plt.title(title)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
-        plt.legend(['A-X-B for all X', 'A-X-B for X in path (all)', ])
-                    # 'A-X-B for X in path (DB only)'])
-        name = '%s_axb_hist_comparison.pdf' % sd_str
+        plt.legend()
+        name = '%s_%s_axb_hist_comparison.pdf' % \
+               (sd_str, self.script_settings['graph_type'])
 
         # Save to file or ByteIO and S3
         if od is None:
@@ -353,8 +427,8 @@ class DepMapExplainer:
             # Reset pointer
             fname.seek(0)
             # Upload to s3
-            _upload_to_s3(bytes_io_obj=fname, bucket=bucket,
-                          key=key_base + '/' + name)
+            _upload_bytes_io_to_s3(bytes_io_obj=fname, bucket=bucket,
+                                   key=key_base + '/' + name)
 
         # Show plot
         if show_plot:
@@ -364,12 +438,17 @@ class DepMapExplainer:
         plt.close(fig_index)
 
 
-def _upload_to_s3(bytes_io_obj, bucket, key):
-    """
+def _upload_bytes_io_to_s3(bytes_io_obj, bucket, key):
+    """Upload a BytesIO object to s3
 
-    :param bytes_io_obj: BytesIO
-    :param bucket: str
-    :param key: srt
+    Parameters
+    ----------
+    bytes_io_obj : BytesIO
+        Object to upload
+    bucket : str
+        S3 bucket to save object in
+    key : str
+        S3 key to use for object
     """
     bytes_io_obj.seek(0)  # Just in case
     s3 = get_s3_client(unsigned=False)

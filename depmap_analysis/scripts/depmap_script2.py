@@ -252,9 +252,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                                   iterable=corr_matrix_to_generator(corr_z))
         for chunk in chunk_iter:
             pool.apply_async(func=_match_correlation_body,
-                             # corr_iter, expl_types, stats_columns,
-                             # expl_columns, bool_columns, min_columns,
-                             # explained_set, _type
+                             # args should match the args for func
                              args=(
                                  chunk,
                                  expl_types,
@@ -503,8 +501,8 @@ def error_callback(err):
     logger.exception(err)
 
 
-def main(indra_net, sd_range, outname, graph_type, z_score=None,
-         z_score_file=None, raw_data=None, raw_corr=None,
+def main(indra_net, outname, graph_type, sd_range=None, random=False,
+         z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
          indra_date=None, indra_net_file=None, depmap_date=None,
          sample_size=None, shuffle=False):
@@ -513,9 +511,10 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     Parameters
     ----------
     indra_net : nx.DiGraph|nx.MultiDiGraph
-    sd_range : tuple(float|None)
     outname : str
     graph_type : str
+    sd_range : tuple(float|None)
+    random : bool
     z_score : pd.DataFrame|str
     z_score_file : str
     raw_data : str
@@ -542,10 +541,11 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
     run_options = {'n-chunks': n_chunks}
 
     # 1 Check options
-    sd_l, sd_u = sd_range if len(sd_range) == 2 else \
-        ((sd_range[0], None) if len(sd_range) == 1 else (None, None))
+    sd_l, sd_u = sd_range if sd_range and len(sd_range) == 2 else \
+        ((sd_range[0], None) if sd_range and len(sd_range) == 1 else
+         (None, None))
 
-    if not sd_l and not sd_u:
+    if not random and not sd_l and not sd_u:
         raise ValueError('Must specify at least a lower bound for the SD '
                          'range')
 
@@ -595,19 +595,26 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
         else:
             raise ValueError('Could not load pybel node mapping')
 
-    # 2. Filter to SD range
-    if sd_l and sd_u:
-        logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
-        z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
-                        ((z_corr < -sd_l) & (z_corr > -sd_u))]
-    elif sd_l and not sd_u:
-        logger.info(f'Filtering correlations to {sd_l}+ SD')
-        z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
+    # 2. Filter to SD range OR run random sampling
+    if random:
+        logger.info('Doing random sampling through df.sample')
+        z_corr = z_corr.sample(142, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+        # Remove correlation values to not confuse with real data
+        z_corr.loc[:, :] = 0
+    else:
+        if sd_l and sd_u:
+            logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
+            z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
+                            ((z_corr < -sd_l) & (z_corr > -sd_u))]
+        elif isinstance(sd_l, (int, float)) and sd_l and not sd_u:
+            logger.info(f'Filtering correlations to {sd_l}+ SD')
+            z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
 
     run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
 
     # Pick a sample
-    if sample_size is not None:
+    if sample_size is not None and not random:
         logger.info(f'Reducing correlation matrix to a random approximately '
                     f'{sample_size} correlation pairs.')
         row_samples = len(z_corr) - 1
@@ -626,7 +633,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
             row_samples = row_samples - 1 if mm >= row_samples else mm
 
     # Shuffle corr matrix without removing items
-    elif shuffle:
+    elif shuffle and not random:
         logger.info('Shuffling correlation matrix...')
         z_corr = z_corr.sample(frac=1, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
@@ -665,6 +672,7 @@ def main(indra_net, sd_range, outname, graph_type, z_score=None,
                                       'z_score': z_score if isinstance(
                                           z_score, str) else
                                       (z_score_file or 'no info'),
+                                      'random': random,
                                       'indranet': indra_net_file or 'no info',
                                       'shuffle': shuffle,
                                       'sample_size': sample_size,
@@ -692,6 +700,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Explainer main script')
     #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
     corr_group = parser.add_mutually_exclusive_group(required=True)
+    range_group = parser.add_mutually_exclusive_group(required=True)
     corr_group.add_argument(
         '--raw-data', nargs=2, type=file_path(),
         help='File paths to CRISPR raw data and RNAi raw data from the '
@@ -742,9 +751,15 @@ if __name__ == '__main__':
              f'{allowed_types}'
     )
 
-    #   2. Filter to SD range
-    parser.add_argument('--sd-range', nargs='+', type=float, required=True,
-                        help='SD range to filter to')
+    #   2a. Filter to SD range
+    range_group.add_argument('--sd-range', nargs='+', type=float,
+                             help='SD range to filter to')
+    # OR
+    #   2b. do random sampling from correlation matrix genes
+    range_group.add_argument('--random', action='store_true',
+                             help='Check the explanation rate for randomly '
+                                  'sampled pairs of genes from the full '
+                                  'correlation matrix')
     #   3. Ignore list as file
     parser.add_argument(
         '--ignore-list', type=str,
