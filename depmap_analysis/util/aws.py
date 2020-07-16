@@ -9,6 +9,7 @@ from indra_db.managers.dump_manager import Belief, Sif, StatementHashMeshId,\
     SourceCount
 
 dumpers = [Belief, Sif, SourceCount]
+dumpers_alt_name = {SourceCount.name: 'src_counts'}
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +33,16 @@ def get_latest_sif_s3(get_mesh_ids=False):
     # Sort newest first
     keys.sort(key=lambda t: t[1], reverse=True)
     # Get keys of those pickles
-    keys_in_latest_dir = [k[0] for k in keys if
-                          any(nfl in k[0] for nfl in necc_files)]
+    keys_in_latest_dir = \
+        [k[0] for k in keys if
+         any(nfl in k[0] for nfl in necc_files) or
+         any(dumpers_alt_name.get(nfl, 'null') in k[0] for nfl in necc_files)]
     # Map key to resource
     necc_keys = {}
     for n in necc_files:
         for k in keys_in_latest_dir:
-            if n in k:
+            # check name then alt name
+            if n in k or dumpers_alt_name.get(n, 'null') in k:
                 # Save and continue to next file in necc_files
                 necc_keys[n] = k
                 break
