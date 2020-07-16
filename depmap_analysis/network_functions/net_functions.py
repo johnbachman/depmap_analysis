@@ -293,6 +293,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict, set_weights
 
 
 def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
+                           mesh_id_dict,
                            graph_type='digraph',
                            include_entity_hierarchies=True,
                            verbosity=0):
@@ -311,6 +312,9 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         The file path to a pickled dict or a dict object keyed by statement
         hash containing the stratified evidence count per statement. The
         hashes should correspond to the hashes in the loaded dataframe.
+    mesh_id_dict : dict
+        A dict object mapping statement hashes to all mesh ids sharing a 
+        common PMID
     graph_type : str
         Return type for the returned graph. Currently supports:
             - 'digraph': IndraNet(nx.DiGraph) (Default)
@@ -331,7 +335,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
                          ' %s' % (graph_type, graph_options))
     graph_type = graph_type.lower()
 
-    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict,
+    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict,
                                 verbosity=verbosity)
 
     # Map ns:id to node name
