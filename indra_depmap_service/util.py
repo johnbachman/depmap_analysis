@@ -215,7 +215,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
     indra_signed_edge_graph = nx.MultiDiGraph()
     indra_signed_node_graph = nx.DiGraph()
 
-    if update:
+    if update:  # Todo: Download from db dumps instead
         df = make_dataframe(True, load_db_content(True, NS_LIST))
         options = {'df': df,
                    'belief_dict': belief_dict,
