@@ -17,7 +17,6 @@ from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
-from indra_reading.readers import get_reader_classes
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.aws import get_latest_pa_stmt_dump
@@ -40,8 +39,8 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 
-READERS = set([rc.name.lower() for rc in get_reader_classes()])
-READERS.update(['medscan', 'rlimsp'])
+READERS = set(['reach', 'trips', 'isi', 'sparser', 'medscan', 'rlimsp',
+                'eidos', 'cwms', 'geneways', 'tees', 'hume', 'sofia'])
 
 
 def _get_smallest_belief_prior():
@@ -80,7 +79,7 @@ def gilda_pinger():
 def _curated_func(ev_dict):
     """Return False if no source dict exists, or if all sources are
     readers, otherwise return True."""
-    return False if not ev_dict else \
+    return False if not ev_dict or not isinstance(ev_dict, dict) else \
         (False if all(s.lower() in READERS for s in ev_dict) else True)
 
 
