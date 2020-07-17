@@ -12,7 +12,6 @@ import networkx as nx
 from fnvhash import fnv1a_32
 
 from indra_db.client.readonly.query import FromMeshIds
-from indra_db.config import CONFIG_EXISTS
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.statements import get_all_descendants, Activation, Inhibition, \
     IncreaseAmount, DecreaseAmount, AddModification, RemoveModification, \
@@ -318,10 +317,7 @@ def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
 
 def find_related_hashes(mesh_ids):
     q = FromMeshIds(mesh_ids)
-    if CONFIG_EXISTS:
-        result = q.get_hashes()
-    else:
-        result = q.rest_get('hashes')
+    result = q.get_hashes()
     return result.json().get('results', [])
 
 
