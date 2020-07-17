@@ -5,6 +5,11 @@ from operator import itemgetter
 from botocore.exceptions import ClientError
 
 from indra.util.aws import get_s3_file_tree, get_s3_client
+from indra_db.managers.dump_manager import Belief, Sif, StatementHashMeshId,\
+    SourceCount
+
+dumpers = [Belief, Sif, SourceCount]
+dumpers_alt_name = {SourceCount.name: 'src_counts'}
 
 logger = logging.getLogger(__name__)
 
@@ -15,35 +20,45 @@ NETS_PREFIX = 'indra_db_files'
 NEW_NETS_PREFIX = NETS_PREFIX + '/new'
 
 
-def get_latest_sif_s3():
-    necc_files = ['belief', 'sif', 'src_counts', 'mesh_ids']
+def get_latest_sif_s3(get_mesh_ids=False):
+    necc_files = [mngr.name for mngr in dumpers]
+    if get_mesh_ids:
+        necc_files.append(StatementHashMeshId.name)
     s3 = get_s3_client(unsigned=False)
     tree = get_s3_file_tree(s3, bucket=DUMPS_BUCKET, prefix=DUMPS_PREFIX,
                             with_dt=True)
-    # Find all pickles
-    keys = [key for key in tree.gets('key') if key[0].endswith('.pkl')]
+    # Find all pickles and jsons
+    keys = [key for key in tree.gets('key') if key[0].endswith(
+        ('.pkl', '.json'))]
     # Sort newest first
     keys.sort(key=lambda t: t[1], reverse=True)
     # Get keys of those pickles
-    keys_in_latest_dir = [k[0] for k in keys if
-                          any(nfl in k[0] for nfl in necc_files)]
+    keys_in_latest_dir = \
+        [k[0] for k in keys if
+         any(nfl in k[0] for nfl in necc_files) or
+         any(dumpers_alt_name.get(nfl, 'null') in k[0] for nfl in necc_files)]
     # Map key to resource
     necc_keys = {}
     for n in necc_files:
         for k in keys_in_latest_dir:
-            if n in k:
+            # check name then alt name
+            if n in k or dumpers_alt_name.get(n, 'null') in k:
                 # Save and continue to next file in necc_files
                 necc_keys[n] = k
                 break
-    df = load_pickle_from_s3(s3, key=necc_keys['sif'],
+    df = load_pickle_from_s3(s3, key=necc_keys[Sif.name],
                              bucket=DUMPS_BUCKET)
-    sev = load_pickle_from_s3(s3, key=necc_keys['src_counts'],
+    sev = load_pickle_from_s3(s3, key=necc_keys[SourceCount.name],
                               bucket=DUMPS_BUCKET)
-    bd = read_json_from_s3(s3, key=necc_keys['belief'],
+    bd = read_json_from_s3(s3, key=necc_keys[Belief.name],
                            bucket=DUMPS_BUCKET)
-    mid = load_pickle_from_s3(s3, key=necc_keys['mesh_ids'],
-                              bucket=DUMPS_BUCKET)
-    return df, sev, bd, mid
+    if get_mesh_ids:
+        mid = load_pickle_from_s3(s3,
+                                  key=necc_keys[StatementHashMeshId.name],
+                                  bucket=DUMPS_BUCKET)
+        return df, sev, bd, mid
+
+    return df, sev, bd
 
 
 def load_pickled_net_from_s3(name):
@@ -57,7 +72,7 @@ def load_pickle_from_s3(s3, key, bucket):
         res = s3.get_object(Key=key, Bucket=bucket)
         pyobj = pickle.loads(res['Body'].read())
     except Exception as err:
-        logger.error('Someting went wrong while loading, reading or '
+        logger.error('Something went wrong while loading, reading or '
                      'unpickling the object from s3')
         raise err
     return pyobj
@@ -82,7 +97,7 @@ def read_json_from_s3(s3, key, bucket):
         res = s3.get_object(Key=key, Bucket=bucket)
         json_obj = json.loads(res['Body'].read().decode())
     except Exception as err:
-        logger.error('Someting went wrong while loading or reading the json '
+        logger.error('Something went wrong while loading or reading the json '
                      'object from s3')
         raise err
     return json_obj

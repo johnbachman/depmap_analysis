@@ -11,6 +11,7 @@ from datetime import datetime
 import networkx as nx
 from fnvhash import fnv1a_32
 
+from indra_db.client.readonly.query import FromMeshIds
 from indra_db.util.dump_sif import load_db_content, make_dataframe, NS_LIST
 from indra.statements import get_all_descendants, Activation, Inhibition, \
     IncreaseAmount, DecreaseAmount, AddModification, RemoveModification, \
@@ -215,7 +216,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
     indra_signed_edge_graph = nx.MultiDiGraph()
     indra_signed_node_graph = nx.DiGraph()
 
-    if update:
+    if update:  # Todo: Download from db dumps instead
         df = make_dataframe(True, load_db_content(True, NS_LIST))
         options = {'df': df,
                    'belief_dict': belief_dict,
@@ -265,21 +266,23 @@ def dump_query_result_to_s3(filename, json_obj, get_url=False):
     return None
 
 
-def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
-                  verbosity=0):
+def dump_new_nets(mdg=False, dg=False, sg=False, spbg=False, dump_to_s3=False,
+                  verbosity=0, add_mesh_ids=False):
     """Main script function for dumping new networks from latest db dumps"""
-    df, sev, bd, mid = get_latest_sif_s3()
+    options = dict()
 
-    mid_dict = dict()
-    for pair in mid:
-        mid_dict.setdefault(pair[0], []).append(pair[1])
+    if add_mesh_ids:
+        df, sev, bd, mid = get_latest_sif_s3(get_mesh_ids=True)
+        mid_dict = dict()
+        for pair in mid:
+            mid_dict.setdefault(pair[0], []).append(pair[1])
+        options['mesh_id_dict'] = mid_dict
+    else:
+        df, sev, bd = get_latest_sif_s3()
 
-    options = {'df': df,
-               'belief_dict': bd,
-               'strat_ev_dict': sev,
-               'mesh_id_dict' : mid_dict,
-               'include_entity_hierarchies': True,
-               'verbosity': verbosity}
+    options.update({'df': df, 'belief_dict': bd, 'strat_ev_dict': sev,
+                    'include_entity_hierarchies': True,
+                    'verbosity': verbosity})
 
     if mdg:
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
@@ -308,6 +311,12 @@ def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
         if dump_to_s3:
             dump_pickle_to_s3(INDRA_SNG, pb_sng, prefix=NEW_NETS_PREFIX)
             dump_pickle_to_s3(INDRA_SEG, pb_seg, prefix=NEW_NETS_PREFIX)
+
+
+def find_related_hashes(mesh_ids):
+    q = FromMeshIds(mesh_ids)
+    result = q.get_hashes()
+    return result.json().get('results', [])
 
 
 if __name__ == '__main__':

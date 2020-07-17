@@ -17,7 +17,6 @@ from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
-from indra_reading.readers import get_reader_classes
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.aws import get_latest_pa_stmt_dump
@@ -40,8 +39,8 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 
-READERS = set([rc.name.lower() for rc in get_reader_classes()])
-READERS.update(['medscan', 'rlimsp'])
+READERS = set(['reach', 'trips', 'isi', 'sparser', 'medscan', 'rlimsp',
+                'eidos', 'cwms', 'geneways', 'tees', 'hume', 'sofia'])
 
 
 def _get_smallest_belief_prior():
@@ -80,12 +79,8 @@ def gilda_pinger():
 def _curated_func(ev_dict):
     """Return False if no source dict exists, or if all sources are
     readers, otherwise return True."""
-    return False if not ev_dict else \
+    return False if not ev_dict or not isinstance(ev_dict, dict) else \
         (False if all(s.lower() in READERS for s in ev_dict) else True)
-
-
-# Initialize bio ontology before use
-bio_ontology.initialize()
 
 
 def _weight_from_belief(belief):
@@ -143,7 +138,7 @@ def _english_from_agents_type(agA_name, agB_name, stmt_type):
     return EnglishAssembler([stmt]).make_model()
 
 
-def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict, set_weights=True,
+def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_weights=True,
                        verbosity=0):
     """Merge the sif dump df with the provided dictionaries
 
@@ -204,7 +199,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict, set_weights
     #   belief score from provided dict
     #   stratified evidence count by source
     #   english string from mock statements
-    #   mesh_id mapped by provided dict
+    #   mesh_id mapped by dict (if provided)
     # Extend df with famplex rows
     # 'stmt_hash' must exist as column in the input dataframe for merge to work
     # Preserve all rows in merged_df, so do left join:
@@ -243,18 +238,19 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict, set_weights
         on='stmt_hash'
     )
 
-    hashes = []
-    mesh_ids = []
-    for k, v in mesh_id_dict.items():
-        hashes.append(int(k))
-        mesh_ids.append(v)
+    if mesh_id_dict is not None:
+        hashes = []
+        mesh_ids = []
+        for k, v in mesh_id_dict.items():
+            hashes.append(int(k))
+            mesh_ids.append(v)
 
-    merged_df = merged_df.merge(
-        right=pd.DataFrame(data={'stmt_hash': hashes,
-                                 'mesh_ids': mesh_ids}),
-        how='left',
-        on='stmt_hash'
-    )
+        merged_df = merged_df.merge(
+            right=pd.DataFrame(data={'stmt_hash': hashes,
+                                    'mesh_ids': mesh_ids}),
+            how='left',
+            on='stmt_hash'
+        )
 
     # Check for missing hashes
     if merged_df['source_counts'].isna().sum() > 0:
@@ -293,7 +289,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict, set_weights
 
 
 def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
-                           mesh_id_dict,
+                           mesh_id_dict=None,
                            graph_type='digraph',
                            include_entity_hierarchies=True,
                            verbosity=0):
@@ -360,7 +356,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
             weight_mapping=_weight_mapping
         )
         signed_node_graph = signed_edges_to_signed_nodes(
-            graph=signed_edge_graph, copy_edge_data={'weight'})
+            graph=signed_edge_graph, copy_edge_data={'weight', 'belief'})
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         return signed_edge_graph, signed_node_graph
