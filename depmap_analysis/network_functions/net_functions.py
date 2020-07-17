@@ -357,7 +357,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
             weight_mapping=_weight_mapping
         )
         signed_node_graph = signed_edges_to_signed_nodes(
-            graph=signed_edge_graph, copy_edge_data={'weight'})
+            graph=signed_edge_graph, copy_edge_data={'weight', 'belief'})
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         return signed_edge_graph, signed_node_graph
