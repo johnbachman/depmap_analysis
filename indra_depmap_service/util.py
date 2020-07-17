@@ -266,7 +266,7 @@ def dump_query_result_to_s3(filename, json_obj, get_url=False):
     return None
 
 
-def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
+def dump_new_nets(mdg=False, dg=False, sg=False, spbg=False, dump_to_s3=False,
                   verbosity=0, add_mesh_ids=False):
     """Main script function for dumping new networks from latest db dumps"""
     options = dict()
@@ -280,11 +280,9 @@ def dump_new_nets(mdg=None, dg=None, sg=None, spbg=None, dump_to_s3=False,
     else:
         df, sev, bd = get_latest_sif_s3()
 
-    options = options.update({'df': df,
-                              'belief_dict': bd,
-                              'strat_ev_dict': sev,
-                              'include_entity_hierarchies': True,
-                              'verbosity': verbosity})
+    options.update({'df': df, 'belief_dict': bd, 'strat_ev_dict': sev,
+                    'include_entity_hierarchies': True,
+                    'verbosity': verbosity})
 
     if mdg:
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
