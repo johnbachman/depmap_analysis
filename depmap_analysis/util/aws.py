@@ -15,8 +15,10 @@ NETS_PREFIX = 'indra_db_files'
 NEW_NETS_PREFIX = NETS_PREFIX + '/new'
 
 
-def get_latest_sif_s3():
-    necc_files = ['belief', 'sif', 'src_counts', 'mesh_ids']
+def get_latest_sif_s3(get_mesh_ids=False):
+    necc_files = ['belief', 'sif', 'src_counts']
+    if get_mesh_ids:
+        necc_files.append('mesh_ids')
     s3 = get_s3_client(unsigned=False)
     tree = get_s3_file_tree(s3, bucket=DUMPS_BUCKET, prefix=DUMPS_PREFIX,
                             with_dt=True)
@@ -41,10 +43,12 @@ def get_latest_sif_s3():
                               bucket=DUMPS_BUCKET)
     bd = read_json_from_s3(s3, key=necc_keys['belief'],
                            bucket=DUMPS_BUCKET)
-    mid = load_pickle_from_s3(s3, key=necc_keys['mesh_ids'],
-                              bucket=DUMPS_BUCKET)
-    return df, sev, bd, mid
+    if get_mesh_ids:
+        mid = load_pickle_from_s3(s3, key=necc_keys['mesh_ids'],
+                                bucket=DUMPS_BUCKET)
+        return df, sev, bd, mid
 
+    return df, sev, bd
 
 def load_pickled_net_from_s3(name):
     s3_cli = get_s3_client(False)
