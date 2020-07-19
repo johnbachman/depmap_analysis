@@ -14,10 +14,10 @@ dumpers_alt_name = {SourceCount.name: 'src_counts'}
 logger = logging.getLogger(__name__)
 
 DUMPS_BUCKET = 'bigmech'
-DUMPS_PREFIX = 'indra-db/dumps'
+DUMPS_PREFIX = 'indra-db/dumps/'
 NET_BUCKET = 'depmap-analysis'
-NETS_PREFIX = 'indra_db_files'
-NEW_NETS_PREFIX = NETS_PREFIX + '/new'
+NETS_PREFIX = 'indra_db_files/'
+NEW_NETS_PREFIX = NETS_PREFIX + 'new/'
 
 
 def get_latest_sif_s3(get_mesh_ids=False):
