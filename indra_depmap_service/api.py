@@ -20,7 +20,6 @@ from .util import *
 
 app = Flask(__name__)
 app.register_blueprint(path_temps)
-app.config['SECRET_KEY'] = environ.get('NETWORK_SEARCH_SESSION_KEY', '')
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = environ['SESSION_KEY']
 STMT_HASH_CACHE = {}
