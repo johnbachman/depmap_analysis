@@ -4,6 +4,7 @@ import pickle
 import logging
 from argparse import ArgumentError
 from pathlib import Path
+from functools import wraps
 from itertools import repeat, takewhile
 
 import numpy as np
@@ -32,52 +33,87 @@ def file_opener(fname):
         raise ValueError(f'Unknown file extension for file {fname}')
 
 
+def file_dump_wrapper(f):
+    """Wrapper for any function that dumps a python object
+
+    The wrapped functions must contain at least the args "fname" and
+    "pyobj", the kwarg "overwrite" to flag for forcing overwriting of the
+    file is strongly encouraged
+
+    Parameters
+    ----------
+    f : function
+
+    Returns
+    -------
+    decorator
+    """
+
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        """Decorates file dumping functions
+
+        Parameters
+        ----------
+        *args
+            Must contain at least two arguments: a string for a filename and
+            the python object to write to a file
+        **kwargs
+            Can contain the flag "overwrite" that is used to raise an error
+            if the provided filepath already exists
+
+        Returns
+        -------
+        function
+        """
+        overwrite = kwargs.get('overwrite', False)
+        if len(args) == 0:
+            try:
+                fname = kwargs['fname']
+            except KeyError:
+                raise TypeError("f() missing a required positional argument: "
+                                "'fname'")
+            file = Path(fname)
+        else:
+            fname = args[0]
+            file = Path(fname)
+
+        # 1. Check if file exists if overwrite is False
+        if not overwrite and file.is_file():
+            raise FileExistsError(f'File {str(file)} already exists! Use '
+                                  f'overwrite=True to overwrite current file.')
+
+        # 2. Create parent directories if not present
+        if not file.parent.is_dir():
+            file.parent.mkdir(parents=True)
+
+        return f(*args, **kwargs)
+    return decorator
+
+
+@file_dump_wrapper
 def dump_it_to_pickle(fname, pyobj, overwrite=False):
     """Save pyobj to fname as pickle"""
     logger.info('Dumping to pickle file %s' % fname)
-    file = Path(fname)
-
-    if not overwrite and file.is_file():
-        raise FileExistsError('File already exists! Use overwrite=True to '
-                              'overwrite current file')
-
-    if not file.parent.is_dir():
-        file.parent.mkdir(parents=True)
-
-    with file.open('wb') as po:
+    with Path(fname).open('wb') as po:
         pickle.dump(obj=pyobj, file=po)
     logger.info('Finished dumping to pickle')
 
 
+@file_dump_wrapper
 def dump_it_to_json(fname, pyobj, overwrite=False):
     """Save pyobj to fname as json"""
     logger.info('Dumping to json file %s' % fname)
-    file = Path(fname)
-
-    if not overwrite and file.is_file():
-        raise FileExistsError('File already exists! Use overwrite=True to '
-                              'overwrite current file')
-
-    if not file.parent.is_dir():
-        file.parent.mkdir(parents=True)
-
-    with file.open('w') as json_out:
+    with Path(fname).open('w') as json_out:
         json.dump(pyobj, json_out)
     logger.info('Finished dumping to pickle')
 
 
+@file_dump_wrapper
 def dump_it_to_csv(fname, pyobj, separator=',', header=None, overwrite=False):
     """Save pyobj to fname as csv file"""
     logger.info('Dumping to csv file %s' % fname)
     file = Path(fname)
-
-    if not overwrite and file.is_file():
-        raise FileExistsError('File already exists! Use overwrite=True to '
-                              'overwrite current file')
-
-    if not file.parent.is_dir():
-        file.parent.mkdir(parents=True)
-
     if header:
         logger.info('Writing csv header')
         with file.open('w') as fo:
@@ -89,7 +125,7 @@ def dump_it_to_csv(fname, pyobj, separator=',', header=None, overwrite=False):
 
 
 def pickle_open(fname):
-    """Open pickle fname and return the contianed object"""
+    """Open pickle fname and return the contained object"""
     logger.info('Loading pickle file %s' % fname)
     file = Path(fname)
     with file.open('rb') as pi:
