@@ -601,7 +601,12 @@ class IndraNetwork:
                             if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
-                paths = shortest_simple_paths(self.nx_dir_graph_repr,
+                if options['mesh_ids'] is None:
+                    search_graph = self.nx_dir_graph_repr
+                else:
+                    search_graph = get_subgraph_from_mesh_ids(
+                        self.nx_dir_graph_repr, options['mesh_ids'])
+                paths = shortest_simple_paths(search_graph,
                                                  source, target,
                                                  options['weight'],
                                                  **blacklist_options)
@@ -620,8 +625,13 @@ class IndraNetwork:
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
+                if options['mesh_ids'] is None:
+                    search_graph = self.sign_node_graph_repr
+                else:
+                    search_graph = get_subgraph_from_mesh_ids(
+                        self.sign_node_graph_repr, options['mesh_ids'])
                 paths = shortest_simple_paths(
-                    self.sign_node_graph_repr, subj, obj, options['weight'],
+                    search_graph, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes)
 
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
