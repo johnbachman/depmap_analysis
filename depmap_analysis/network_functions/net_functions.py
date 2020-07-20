@@ -38,8 +38,8 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 
-READERS = set(['reach', 'trips', 'isi', 'sparser', 'medscan', 'rlimsp',
-                'eidos', 'cwms', 'geneways', 'tees', 'hume', 'sofia'])
+READERS = {'reach', 'trips', 'isi', 'sparser', 'medscan', 'rlimsp', 'eidos',
+           'cwms', 'geneways', 'tees', 'hume', 'sofia'}
 
 
 def _get_smallest_belief_prior():
