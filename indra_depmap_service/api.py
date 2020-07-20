@@ -589,7 +589,7 @@ if __name__ == '__main__':
         pass
     elif args.cache:
         logger.info('Loading provided network files')
-        dg_file = args.cache[0]
+        dg_file = None if args.cache[0].lower() == 'none' else args.cache[0]
         mdg_file = args.cache[1] if len(args.cache) in (2, 3, 4) and\
             args.cache[1].lower() != 'none' else None
         seg_file = args.cache[2] if len(args.cache) >= 3 and\
