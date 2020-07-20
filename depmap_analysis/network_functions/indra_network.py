@@ -1586,7 +1586,7 @@ def list_all_hashes(ksp_results):
 def get_subgraph_from_mesh_ids(indra_graph, mesh_ids):
     """Builds a subgraph with edges related to supplied mesh_ids"""
     related_hashes = find_related_hashes(mesh_ids)
-    subgraph = nx.DiGraph
+    subgraph = nx.DiGraph()
     for e in indra_graph.edges:
         edge_hashes = set(indra_graph.edges[e]['statements'])
         if edge_hashes & related_hashes:
