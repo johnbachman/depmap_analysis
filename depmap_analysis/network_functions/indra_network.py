@@ -8,6 +8,7 @@ import requests
 import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
 
+from indra_depmap_service.util import find_related_hashes
 from indra.config import CONFIG_DICT
 from indra.databases import get_identifiers_url
 from indra.assemblers.indranet.net import default_sign_dict
@@ -1570,3 +1571,14 @@ def list_all_hashes(ksp_results):
                     hash_set.update([item['stmt_hash'] for item in
                                      meta_list])
     return list(hash_set)
+
+
+def get_subgraph_from_mesh_ids(indra_graph, mesh_ids):
+    """Builds a subgraph with edges related to supplied mesh_ids"""
+    related_hashes = find_related_hashes(mesh_ids)
+    subgraph = nx.DiGraph
+    for e in indra_graph.edges:
+        edge_hashes = set(indra_graph.edges[e]['statements'])
+        if edge_hashes & related_hashes:
+            subgraph.add_edge(e)
+    return subgraph
