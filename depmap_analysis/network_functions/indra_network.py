@@ -1281,30 +1281,45 @@ class IndraNetwork:
                                                   key=lambda t: (t[0], t[1]))
             return cp_results
 
-    def _get_edge(self, s, o, index, edge_sign=None, graph='digraph'):
+    def _get_edges(self, s, o, edge_sign=None, graph='digraph'):
         """Return edges from one of the loaded graphs in a uniform format"""
         if graph == 'multi':
             if not self.mdg_edges:
                 raise nx.NetworkXException('MultiDiGraph not loaded')
-            return self.mdg_edges.get((s, o, index))
+            i = 0
+            edge = self.mdg_edges.get((s, o, i))
+            while edge:
+                yield edge
+                i += 1
+                edge = self.mdg_edges.get((s, o, i))
+
         elif graph == 'signed':
             if edge_sign is None:
                 raise nx.NetworkXException('Argument edge_sign needs to be '
                                            'specified to get signed edge.')
             sign = nf.SIGNS_TO_INT_SIGN[edge_sign]
+            i = 0
             try:
                 stmt_edge = self.signed_edges[(s, o, sign)][
                     'statements'][index]
+                while stmt_edge:
+                    yield stmt_edge
+                    i += 1
+                    stmt_edge = self.signed_edges[(s, o, sign)][
+                        'statements'][index]
             except IndexError:
-                stmt_edge = None
-            return stmt_edge
+                return
+
         else:
+            i = 0
             try:
                 stmt_edge = self.dir_edges[(s, o)]['statements'][index]
+                while stmt_edge:
+                    yield stmt_edge
+                    i += 1
+                    stmt_edge = self.dir_edges[(s, o)]['statements'][index]
             except IndexError:
-                # To keep it consistent with the Multi DiGraph implementation
-                stmt_edge = None
-            return stmt_edge
+                return
 
     def _get_hash_path(self, path, source=None, target=None, edge_signs=None,
                        graph_type='digraph', **options):
@@ -1331,17 +1346,16 @@ class IndraNetwork:
                                  options['node_filter']))
                 return []
 
-            # Initialize edges dict, statement index
+            # Initialize edges dict
             edges = {}
-            e = 0
 
             # Get first edge statement
-            edge_stmt = self._get_edge(subj, obj, e, edge_sign, graph_type)
+            edge_stmts = self._get_edges(subj, obj, edge_sign, graph_type)
             if self.verbose > 3:
-                logger.info('First edge stmt %s' % repr(edge_stmt))
+                logger.info('First edge stmt %s' % repr(next(edge_stmts)))
 
             # Exhaustively loop through all edge statments
-            while edge_stmt:
+            for edge_stmt in edge_stmts:
                 # If edge statement passes, append to edges list
                 if self._pass_stmt(edge_stmt, **options):
                     # convert hash to string for javascript compatability
@@ -1357,11 +1371,6 @@ class IndraNetwork:
                         logger.info('edge stmt passed filter, appending to '
                                     'edge list.')
                         logger.info('Next edge stmt %s' % repr(edge_stmt))
-
-                # Incr statement index, get next edge statement
-                e += 1
-                edge_stmt = self._get_edge(subj, obj, e, edge_sign,
-                                           graph_type)
 
             # If edges list contains anything, append to hash_path list
             if edges:
@@ -1423,11 +1432,7 @@ class IndraNetwork:
             # Return sum of averaged weights per stmts
             cost = 0
             for s, o in zip(path[:-1], path[1:]):
-                ew = []
-                e = self._get_edge(s, o, len(ew), direct)
-                while e:
-                    ew.append(e[key])
-                    e = self._get_edge(s, o, len(ew), direct)
+                ew = [e[key] for e in self._get_edges(s, o, direct)]
                 cost += sum(ew)/len(ew)
             return cost
 
