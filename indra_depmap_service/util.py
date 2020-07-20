@@ -267,7 +267,7 @@ def dump_query_result_to_s3(filename, json_obj, get_url=False):
 
 
 def dump_new_nets(mdg=False, dg=False, sg=False, spbg=False, dump_to_s3=False,
-                  verbosity=0, add_mesh_ids=False):
+                  overwrite=False, verbosity=0, add_mesh_ids=False):
     """Main script function for dumping new networks from latest db dumps"""
     options = dict()
 
@@ -286,19 +286,19 @@ def dump_new_nets(mdg=False, dg=False, sg=False, spbg=False, dump_to_s3=False,
 
     if mdg:
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
-        dump_it_to_pickle(INDRA_MDG_CACHE, network)
+        dump_it_to_pickle(INDRA_MDG_CACHE, network, overwrite=overwrite)
         if dump_to_s3:
             dump_pickle_to_s3(INDRA_MDG, network, prefix=NEW_NETS_PREFIX)
     if dg:
         network = nf.sif_dump_df_to_digraph(**options)
-        dump_it_to_pickle(INDRA_DG_CACHE, network)
+        dump_it_to_pickle(INDRA_DG_CACHE, network, overwrite=overwrite)
         if dump_to_s3:
             dump_pickle_to_s3(INDRA_DG, network, prefix=NEW_NETS_PREFIX)
     if sg:
         network, isng = nf.sif_dump_df_to_digraph(graph_type='signed',
                                                   **options)
-        dump_it_to_pickle(INDRA_SEG_CACHE, network)
-        dump_it_to_pickle(INDRA_SNG_CACHE, isng)
+        dump_it_to_pickle(INDRA_SEG_CACHE, network, overwrite=overwrite)
+        dump_it_to_pickle(INDRA_SNG_CACHE, isng, overwrite=overwrite)
         if dump_to_s3:
             dump_pickle_to_s3(INDRA_SEG, network, prefix=NEW_NETS_PREFIX)
             dump_pickle_to_s3(INDRA_SNG, isng, prefix=NEW_NETS_PREFIX)
@@ -306,8 +306,8 @@ def dump_new_nets(mdg=False, dg=False, sg=False, spbg=False, dump_to_s3=False,
     if spbg:
         pb_seg, pb_sng = nf.sif_dump_df_to_digraph(graph_type='pybel',
                                                    **options)
-        dump_it_to_pickle(INDRA_PBSNG_CACHE, pb_sng)
-        dump_it_to_pickle(INDRA_PBSEG_CACHE, pb_seg)
+        dump_it_to_pickle(INDRA_PBSNG_CACHE, pb_sng, overwrite=overwrite)
+        dump_it_to_pickle(INDRA_PBSEG_CACHE, pb_seg, overwrite=overwrite)
         if dump_to_s3:
             dump_pickle_to_s3(INDRA_SNG, pb_sng, prefix=NEW_NETS_PREFIX)
             dump_pickle_to_s3(INDRA_SEG, pb_seg, prefix=NEW_NETS_PREFIX)
@@ -331,6 +331,8 @@ if __name__ == '__main__':
                                      'graphs',
                         action='store_true', default=False)
     parser.add_argument('--s3', help='Also upload the new graphs to s3',
+                        action='store_true', default=False)
+    parser.add_argument('--overwrite', help='Overwrite local files',
                         action='store_true', default=False)
     args = parser.parse_args()
     dump_new_nets(mdg=args.mdg, dg=args.dg, sg=args.sg, spbg=args.pb,
