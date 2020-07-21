@@ -71,10 +71,15 @@ function submitQuery() {
     alert('Culling best node every # paths must be positive integer');
     return;
   }
+  let meshIdList = []
+  for (id of document.getElementById('mesh-id-list').value.split(',')) {
+    // Strip whitespace
+    if (id.replace(/\s/g, ''))  meshIdList.push(id.replace(/\s/g, ''))
+  }
   let statusBox = document.getElementById('query-status');
   let source = document.getElementById('source').value;
   let target = document.getElementById('target').value;
-  let queryDict = {
+  let queryDict = { 
     source: source,
     target: target,
     stmt_filter: stmtFilterList,
@@ -90,6 +95,7 @@ function submitQuery() {
     fplx_expand: document.getElementById('fplx-expand').checked,
     k_shortest: kShortestEntry,
     cull_best_node: cullBestNode,
+    mesh_ids: meshIdList,
     user_timeout: timeoutEntry,
     two_way: document.getElementById('two-ways').checked,
     shared_regulators: document.getElementById('shared-regulators').checked,
