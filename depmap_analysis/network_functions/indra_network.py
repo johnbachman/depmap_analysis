@@ -600,10 +600,16 @@ class IndraNetwork:
                     start_node = target
                     reverse = True
 
-                if not self.nodes.get(start_node):
+                check_node = get_signed_node(start_node, options['sign'],
+                                             reverse)
+                if options['sign'] is None and not self.nodes.get(check_node):
+                    raise NodeNotFound('Node %s not in graph' % start_node)
+                elif options['sign'] is not None and not \
+                        self.signed_nodes.get(check_node):
                     raise NodeNotFound('Node %s not in graph' % start_node)
 
-                return self.open_bfs(start_node=start_node, reverse=reverse,
+                return self.open_bfs(start_node=start_node,
+                                     reverse=reverse,
                                      **options)
             else:
                 logger.info('Doing simple %spath search' % 'weigthed '
@@ -694,17 +700,8 @@ class IndraNetwork:
                 signed_node_blacklist.extend([(node, INT_MINUS),
                                               (node, INT_PLUS)])
             options['node_blacklist'] = signed_node_blacklist
-
-            # Assign the correct sign to source:
-            # If search is downstream, source is the first node and the
-            # search must always start with + as node sign. The leaf node
-            # sign (i.e. the end of the path) in this case will then be
-            # determined by the requested sign.
-            # If reversed search, the source is the last node and can have
-            # + or - as node sign depending on the requested sign.
-            starting_node = (start_node, INT_PLUS) if not reverse \
-                else ((start_node, INT_MINUS) if options['sign'] == INT_MINUS
-                      else (start_node, INT_PLUS))
+            starting_node = get_signed_node(start_node, options['sign'],
+                                            reverse)
 
         # Normal search
         else:
