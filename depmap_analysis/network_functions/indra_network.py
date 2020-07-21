@@ -1599,3 +1599,15 @@ def list_all_hashes(ksp_results):
                                      meta_list])
     return list(hash_set)
 
+def get_signed_node(node, sign, reverse):
+    """Given sign and direction, return a node"""
+    if sign is None:
+        return node
+    else:
+        # Upstream: return asked sign
+        if reverse:
+            return node, sign
+        # Downstream: return positive node
+        else:
+            return node, INT_PLUS
+
