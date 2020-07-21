@@ -81,13 +81,15 @@ def _is_empty_result(res):
     return True
 
 
-if path.isfile(INDRA_DG_CACHE):
+if API_DEBUG:
+    logger.info('Debugging API, no network will be loaded...')
+elif path.isfile(INDRA_DG_CACHE):
     INDRANET_DATE = datetime.utcfromtimestamp(get_earliest_date(
         INDRA_DG_CACHE))
-    if API_DEBUG:
-        logger.info('Debugging API, no network will be loaded...')
-    elif argv[0].split('/')[-1].lower() != 'api.py':
+    if argv[0].split('/')[-1].lower() != 'api.py':
         indra_network = IndraNetwork(*load_indra_graph(**FILES))
+    else:
+        pass
 else:
     # Try to find file(s) on s3
     try:
