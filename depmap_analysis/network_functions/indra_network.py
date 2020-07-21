@@ -708,8 +708,17 @@ class IndraNetwork:
                 signed_node_blacklist.extend([(node, INT_MINUS),
                                               (node, INT_PLUS)])
             options['node_blacklist'] = signed_node_blacklist
-            starting_node = get_signed_node(start_node, options['sign'],
-                                            reverse)
+
+            # Assign the correct sign to source:
+            # If search is downstream, source is the first node and the
+            # search must always start with + as node sign. The leaf node
+            # sign (i.e. the end of the path) in this case will then be
+            # determined by the requested sign.
+            # If reversed search, the source is the last node and can have
+            # + or - as node sign depending on the requested sign.
+            starting_node = (start_node, INT_PLUS) if not reverse \
+                else ((start_node, INT_MINUS) if options['sign'] == INT_MINUS
+                      else (start_node, INT_PLUS))
 
         # Normal search
         else:
