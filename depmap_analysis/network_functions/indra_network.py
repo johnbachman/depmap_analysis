@@ -470,7 +470,7 @@ class IndraNetwork:
             return {}
 
     def _unweighted_direct(self, **options):
-        logger.info('Doing unweighted path saerch for %d-edge paths' %
+        logger.info('Doing unweighted path search for %d-edge paths' %
                     options['path_length'])
         if options['path_length'] == 1:
             return self._one_edge_path(**options)
@@ -610,11 +610,10 @@ class IndraNetwork:
                             if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
-                search_graph = self.nx_dir_graph_repr
-                paths = shortest_simple_paths(search_graph,
-                                                 source, target,
-                                                 options['weight'],
-                                                 **blacklist_options)
+                paths = shortest_simple_paths(self.nx_dir_graph_repr,
+                                              source, target,
+                                              options['weight'],
+                                              **blacklist_options)
                 subj = source
                 obj = target
             else:
@@ -706,12 +705,6 @@ class IndraNetwork:
             starting_node = (start_node, INT_PLUS) if not reverse \
                 else ((start_node, INT_MINUS) if options['sign'] == INT_MINUS
                       else (start_node, INT_PLUS))
-
-            # Nodes are used to check namespaces
-            options['g_nodes'] = self.nodes
-
-            # Edges are used to get belief scores in the neighbor lookup
-            options['g_edges'] = self.signed_edges
 
         # Normal search
         else:
