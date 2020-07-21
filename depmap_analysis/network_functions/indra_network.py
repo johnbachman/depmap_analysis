@@ -1601,17 +1601,9 @@ def list_all_hashes(ksp_results):
                                      meta_list])
     return list(hash_set)
 
+
 def get_signed_node(node, sign, reverse):
-    """Given sign and direction, return a node
-
-    Assign the correct sign to the source node:
-    If search is downstream, source is the first node and the search must
-    always start with + as node sign. The leaf node sign (i.e. the end of
-    the path) in this case will then be determined by the requested sign.
-
-    If reversed search, the source is the last node and can have
-    + or - as node sign depending on the requested sign.
-    """
+    """Given sign and direction, return a node"""
     if sign is None:
         return node
     else:
@@ -1621,4 +1613,3 @@ def get_signed_node(node, sign, reverse):
         # Downstream: return positive node
         else:
             return node, INT_PLUS
-
