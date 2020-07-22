@@ -1593,7 +1593,7 @@ def get_subgraph_from_mesh_ids(indra_graph, mesh_ids):
     related_hashes = find_related_hashes(mesh_ids)
     subgraph = nx.DiGraph()
     for e in indra_graph.edges:
-        edge_hashes = set(indra_graph.edges[e]['statements'])
+        edge_hashes = set(indra_graph.edges[e]['statements'].keys())
         if edge_hashes & related_hashes:
             subgraph.add_edge(e)
     return subgraph
