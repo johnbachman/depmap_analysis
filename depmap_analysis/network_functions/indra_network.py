@@ -642,14 +642,7 @@ class IndraNetwork:
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
-<<<<<<< HEAD
-                search_graph = self.sign_node_graph_repr
-                paths = shortest_simple_paths(
-                    search_graph, subj, obj, options['weight'],
-                    ignore_nodes=signed_blacklisted_nodes,
-                    hashes=related_hashes)
-=======
-                if options['mesh_ids'] is None:
+                if not options['mesh_ids']:
                     search_graph = self.sign_node_graph_repr
                 else:
                     search_graph = get_subgraph_from_mesh_ids(
