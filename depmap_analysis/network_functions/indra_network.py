@@ -601,7 +601,7 @@ class IndraNetwork:
                             if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
-                if options['mesh_ids'] is None:
+                if not options['mesh_ids']:
                     search_graph = self.nx_dir_graph_repr
                 else:
                     search_graph = get_subgraph_from_mesh_ids(
@@ -625,7 +625,7 @@ class IndraNetwork:
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
-                if options['mesh_ids'] is None:
+                if not options['mesh_ids']:
                     search_graph = self.sign_node_graph_repr
                 else:
                     search_graph = get_subgraph_from_mesh_ids(
