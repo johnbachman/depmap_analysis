@@ -228,6 +228,7 @@ class IndraNetwork:
         boptions['source'] = options.get('target')
         boptions['target'] = options.get('source')
 
+        self.hashes_with_mesh_ids = find_related_hashes(options['mesh_ids']) 
         # Special case: 1 or 2 unweighted, unsigned edges only
         if not options['weight'] and options['path_length'] in [1, 2]:
             ksp_forward = self._unweighted_direct(**options)
@@ -601,11 +602,7 @@ class IndraNetwork:
                             if options['weight'] else '')
             if options['sign'] is None:
                 # Do unsigned path search
-                if not options['mesh_ids']:
-                    search_graph = self.nx_dir_graph_repr
-                else:
-                    search_graph = get_subgraph_from_mesh_ids(
-                        self.nx_dir_graph_repr, options['mesh_ids'])
+                search_graph = self.nx_dir_graph_repr
                 paths = shortest_simple_paths(search_graph,
                                                  source, target,
                                                  options['weight'],
@@ -625,11 +622,7 @@ class IndraNetwork:
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
-                if not options['mesh_ids']:
-                    search_graph = self.sign_node_graph_repr
-                else:
-                    search_graph = get_subgraph_from_mesh_ids(
-                        self.sign_node_graph_repr, options['mesh_ids'])
+                search_graph = self.sign_node_graph_repr
                 paths = shortest_simple_paths(
                     search_graph, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes)
@@ -1416,6 +1409,13 @@ class IndraNetwork:
                             edge_stmt['stmt_hash'])
             return False
 
+        # Filter based on mesh ids
+        if self.hashes_with_mesh_ids and \
+                edge_stmt['stmt_hash'] not in self.hashes_with_mesh_ids:
+            if self.verbose > 3:
+                logger.info('hash %s is not related to supplied mesh ids')
+            return False
+
         # Return True is all filters were passed
         return True
 
@@ -1587,14 +1587,3 @@ def list_all_hashes(ksp_results):
                                      meta_list])
     return list(hash_set)
 
-
-def get_subgraph_from_mesh_ids(indra_graph, mesh_ids):
-    """Builds a subgraph with edges related to supplied mesh_ids"""
-    related_hashes = find_related_hashes(mesh_ids)
-    subgraph = nx.DiGraph()
-    for e in indra_graph.edges:
-        edge_hashes = set(s['stmt_hash'] for s in
-                          indra_graph.edges[e]['statements'])
-        if edge_hashes & set(related_hashes):
-            subgraph.add_edge(*e)
-    return subgraph
