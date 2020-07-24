@@ -229,11 +229,46 @@ class IndraNetwork:
         boptions = options.copy()
         boptions['source'] = options.get('target')
         boptions['target'] = options.get('source')
+<<<<<<< HEAD
         print("IT'S CALLED")
         try:
             # Special case: 1 or 2 unweighted, unsigned edges only
             if not options['weight'] and options['path_length'] in [1, 2]:
                 ksp_forward = self._unweighted_direct(**options)
+=======
+
+        self.hashes_with_mesh_ids = find_related_hashes(options['mesh_ids']) 
+        # Special case: 1 or 2 unweighted, unsigned edges only
+        if not options['weight'] and options['path_length'] in [1, 2]:
+            ksp_forward = self._unweighted_direct(**options)
+            if options['two_way']:
+                ksp_backward = self._unweighted_direct(**boptions)
+        else:
+            ksp_forward = self.find_shortest_paths(**options)
+            if options['two_way']:
+                ksp_backward = self.find_shortest_paths(**boptions)
+        if options.get('source') and options.get('target'):
+            ct = self.find_common_targets(**options)
+            sr = self.find_shared_regulators(**options) if\
+                options.get('shared_regulators', False) else []
+            cp = self.get_common_parents(**options)
+        else:
+            ct = EMPTY_RESULT['common_targets']
+            cp = EMPTY_RESULT['common_parents']
+            sr = EMPTY_RESULT['shared_regulators']
+
+        if not ksp_forward and not ksp_backward and not ct and not sr and\
+                not cp.get('common_parents', []):
+            ckwargs = options.copy()
+            bckwargs = boptions.copy()
+            if kwargs['fplx_expand'] and options.get('source') and \
+                    options.get('target'):
+
+                logger.info('No directed path found, looking for paths '
+                            'connected by common parents of source and/or '
+                            'target')
+                ksp_forward = self.try_parents(**ckwargs)
+>>>>>>> Filter edges instead of building subgraph
                 if options['two_way']:
                     ksp_backward = self._unweighted_direct(**boptions)
             else:
@@ -642,11 +677,7 @@ class IndraNetwork:
                 signed_blacklisted_nodes = []
                 for n in options.get('node_blacklist', []):
                     signed_blacklisted_nodes += [(n, INT_PLUS), (n, INT_MINUS)]
-                if not options['mesh_ids']:
-                    search_graph = self.sign_node_graph_repr
-                else:
-                    search_graph = get_subgraph_from_mesh_ids(
-                        self.sign_node_graph_repr, options['mesh_ids'])
+                search_graph = self.sign_node_graph_repr
                 paths = shortest_simple_paths(
                     search_graph, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes)
@@ -1431,7 +1462,18 @@ class IndraNetwork:
                 logger.info('hash %s is blacklisted, skipping' %
                             edge_stmt['stmt_hash'])
             return False
+<<<<<<< HEAD
         
+=======
+
+        # Filter based on mesh ids
+        if self.hashes_with_mesh_ids and \
+                edge_stmt['stmt_hash'] not in self.hashes_with_mesh_ids:
+            if self.verbose > 3:
+                logger.info('hash %s is not related to supplied mesh ids')
+            return False
+
+>>>>>>> Filter edges instead of building subgraph
         # Return True is all filters were passed
         return True
 
