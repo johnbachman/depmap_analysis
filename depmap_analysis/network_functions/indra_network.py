@@ -227,50 +227,53 @@ class IndraNetwork:
         boptions = options.copy()
         boptions['source'] = options.get('target')
         boptions['target'] = options.get('source')
-
-        self.hashes_with_mesh_ids = find_related_hashes(options['mesh_ids']) 
-        # Special case: 1 or 2 unweighted, unsigned edges only
-        if not options['weight'] and options['path_length'] in [1, 2]:
-            ksp_forward = self._unweighted_direct(**options)
-            if options['two_way']:
-                ksp_backward = self._unweighted_direct(**boptions)
-        else:
-            ksp_forward = self.find_shortest_paths(**options)
-            if options['two_way']:
-                ksp_backward = self.find_shortest_paths(**boptions)
-        if options.get('source') and options.get('target'):
-            ct = self.find_common_targets(**options)
-            sr = self.find_shared_regulators(**options) if\
-                options.get('shared_regulators', False) else []
-            cp = self.get_common_parents(**options)
-        else:
-            ct = EMPTY_RESULT['common_targets']
-            cp = EMPTY_RESULT['common_parents']
-            sr = EMPTY_RESULT['shared_regulators']
-
-        if not ksp_forward and not ksp_backward and not ct and not sr and\
-                not cp.get('common_parents', []):
-            ckwargs = options.copy()
-            bckwargs = boptions.copy()
-            if kwargs['fplx_expand'] and options.get('source') and \
-                    options.get('target'):
-
-                logger.info('No directed path found, looking for paths '
-                            'connected by common parents of source and/or '
-                            'target')
-                ksp_forward = self.try_parents(**ckwargs)
+        print("IT'S CALLED")
+        self.hashes_with_mesh_ids = find_related_hashes(options.get('mesh_ids'))
+        with open("found_hashes.txt", "w") as dbgfile:
+            dbgfile.write("list:" + str(self.hashes_with_mesh_ids))
+        try:
+            # Special case: 1 or 2 unweighted, unsigned edges only
+            if not options['weight'] and options['path_length'] in [1, 2]:
+                ksp_forward = self._unweighted_direct(**options)
                 if options['two_way']:
-                    ksp_backward = self.try_parents(**bckwargs)
-                if self.verbose > 2:
-                    logger.info('Parents search result: %s' %
-                                repr(ksp_forward))
-
-            if not ksp_forward and not ksp_backward and GRND_URI:
-                logger.info('No paths found, trying to ground source and '
-                            'target')
-                ksp_forward = self.grounding_fallback(**ckwargs)
+                    ksp_backward = self._unweighted_direct(**boptions)
+            else:
+                ksp_forward = self.find_shortest_paths(**options)
                 if options['two_way']:
-                    ksp_backward = self.grounding_fallback(**bckwargs)
+                    ksp_backward = self.find_shortest_paths(**boptions)
+            if options.get('source') and options.get('target'):
+                ct = self.find_common_targets(**options)
+                sr = self.find_shared_regulators(**options) if\
+                    options.get('shared_regulators', False) else []
+                cp = self.get_common_parents(**options)
+            else:
+                ct = EMPTY_RESULT['common_targets']
+                cp = EMPTY_RESULT['common_parents']
+                sr = EMPTY_RESULT['shared_regulators']
+
+            if not ksp_forward and not ksp_backward and not ct and not sr and\
+                    not cp.get('common_parents', []):
+                ckwargs = options.copy()
+                bckwargs = boptions.copy()
+                if kwargs['fplx_expand'] and options.get('source') and \
+                        options.get('target'):
+
+                    logger.info('No directed path found, looking for paths '
+                                'connected by common parents of source and/or '
+                                'target')
+                    ksp_forward = self.try_parents(**ckwargs)
+                    if options['two_way']:
+                        ksp_backward = self.try_parents(**bckwargs)
+                    if self.verbose > 2:
+                        logger.info('Parents search result: %s' %
+                                    repr(ksp_forward))
+        except NodeNotFound as e:
+            logger.info('No paths found, trying to ground source and '
+                            'target')
+            ksp_forward = self.grounding_fallback(**ckwargs)
+            if options['two_way']:
+                ksp_backward = self.grounding_fallback(**bckwargs)
+
         if not ksp_forward and not ksp_backward:
             logger.info('No directed path found')
         if not options['weight']:
@@ -320,10 +323,12 @@ class IndraNetwork:
 
     def grounding_fallback(self, **ckwargs):
         """Retry search with alternative names found by grounding service"""
+        if ckwargs.get("mesh_ids"):
+            return None
         logger.info('Expanding search using grounding service')
         org_source = ckwargs.get('source')
         org_target = ckwargs.get('target')
-
+        print(str(org_source))
         # ToDo:
         #  -establish grounding priority when scores are equal between
         #   groundings
@@ -331,13 +336,16 @@ class IndraNetwork:
 
         # Get groundings
         if org_source:
+            print("ORG_SOURCE " + str(org_source))
+            print("GRND_URI " + GRND_URI)
             src_groundings = requests.post(GRND_URI,
-                                           json={'text': org_source}).json()
+                                     json={'text': org_source}).json()
         else:
             src_groundings = {}
         if org_target:
+            print("ORG_TARGET" + str(org_target))
             trgt_groundings = requests.post(GRND_URI,
-                                            json={'text': org_target}).json()
+                                     json={'text': org_target}).json()
         else:
             trgt_groundings = {}
 
@@ -457,7 +465,7 @@ class IndraNetwork:
                     weight=options['weight']
                 ),
                 **options)
-        except NodeNotFound or NetworkXNoPath as e:
+        except NetworkXNoPath as e:
             logger.warning(repr(e))
             return {}
 
@@ -630,9 +638,9 @@ class IndraNetwork:
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
 
-        except NodeNotFound as err1:
-            logger.warning(repr(err1))
-            return {}
+        #except NodeNotFound as err1:
+        #    logger.warning(repr(err1))
+        #    return {}
         except NetworkXNoPath as err2:
             logger.warning(repr(err2))
             return {}
@@ -947,8 +955,8 @@ class IndraNetwork:
                                                         source=source,
                                                         target=target,
                                                         **options)
-                except NodeNotFound as e:
-                    logger.warning(repr(e))
+                #except NodeNotFound as e:
+                #    logger.warning(repr(e))
                 except NetworkXNoPath as e:
                     logger.warning(repr(e))
 
@@ -1005,8 +1013,8 @@ class IndraNetwork:
                                                      source=source,
                                                      target=target,
                                                      **options)
-                except NodeNotFound as e:
-                    logger.warning(repr(e))
+                #except NodeNotFound as e:
+                #    logger.warning(repr(e))
                 except NetworkXNoPath as e:
                     logger.warning(repr(e))
 
@@ -1408,6 +1416,16 @@ class IndraNetwork:
                 logger.info('hash %s is blacklisted, skipping' %
                             edge_stmt['stmt_hash'])
             return False
+        
+        # Filter based on mesh ids
+        if options.get('mesh_ids'):
+            if not edge_stmt['stmt_hash'] in self.hashes_with_mesh_ids:
+                print("NO MESH_ID")
+                return False
+            else:
+                print("ALLOW")
+        else:
+            print("NO OPTION")
 
         # Filter based on mesh ids
         if self.hashes_with_mesh_ids and \
@@ -1552,6 +1570,7 @@ def translate_query(query_json):
     """Translate query json"""
     options = {k: v for k, v in query_json.items()  # Handled below
                if k not in ['sign', 'weighted']}
+    print("ITEMS " + str(query_json.items()))
     if 'sign_dict' not in options:
         options['sign_dict'] = default_sign_dict
     for k, v in query_json.items():
