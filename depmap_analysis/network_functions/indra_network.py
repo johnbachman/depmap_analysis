@@ -182,6 +182,7 @@ class IndraNetwork:
                 timeout : Bool
                     True if the query timed out
         """
+        print("HANDLING QUERY")
         self.query_recieve_time = time()
         self.query_timed_out = False
         logger.info('Query received at %s' %
@@ -199,6 +200,7 @@ class IndraNetwork:
             miss = [key in kwargs for key in self.MANDATORY].index(False)
             raise KeyError('Missing mandatory parameter "%s"' %
                            self.MANDATORY[miss])
+        logger.info("SANITY_CHECK_PASSED")
         options = translate_query(kwargs)
 
         # If open ended search, skip common parents, common targets,
@@ -228,9 +230,6 @@ class IndraNetwork:
         boptions['source'] = options.get('target')
         boptions['target'] = options.get('source')
         print("IT'S CALLED")
-        self.hashes_with_mesh_ids = find_related_hashes(options.get('mesh_ids'))
-        with open("found_hashes.txt", "w") as dbgfile:
-            dbgfile.write("list:" + str(self.hashes_with_mesh_ids))
         try:
             # Special case: 1 or 2 unweighted, unsigned edges only
             if not options['weight'] and options['path_length'] in [1, 2]:
@@ -585,8 +584,10 @@ class IndraNetwork:
         self.open_bfs
         """
         try:
+            logger.info("FINDING SHORTEST PATHS")
             blacklist_options =\
                 {'ignore_nodes': options.get('node_blacklist', None)}
+            logger.info("BOOLS BOOLT" + str(bool(source) ^ bool(target)))
             if bool(source) ^ bool(target):
                 logger.info('Doing open ended %sbreadth first search' %
                             'signed ' if options.get('sign') is not None
@@ -612,8 +613,9 @@ class IndraNetwork:
                                      reverse=reverse,
                                      **options)
             else:
-                logger.info('Doing simple %spath search' % 'weigthed '
-                            if options['weight'] else '')
+                logger.info("ELSE")
+                logger.info('Doing simple %spath search' % ('weigthed '
+                            if options['weight'] else ''))
             if options['sign'] is None:
                 # Do unsigned path search
                 paths = shortest_simple_paths(self.nx_dir_graph_repr,
@@ -723,12 +725,16 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
+        logger.info("OPTIONS ARE " + str(options))
+        related_hashes = find_related_hashes(options.get('mesh_ids', []))
+        logger.info("RELHASHES: " + str(related_hashes))
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
                              path_limit=path_limit, max_per_node=max_per_node,
                              terminal_ns=terminal_ns, **bfs_options)
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
-                                    reverse=reverse, **options)
+                                    reverse=reverse, hashes=related_hashes, 
+                                    **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
@@ -1407,23 +1413,6 @@ class IndraNetwork:
                             edge_stmt['stmt_hash'])
             return False
         
-        # Filter based on mesh ids
-        if options.get('mesh_ids'):
-            if not edge_stmt['stmt_hash'] in self.hashes_with_mesh_ids:
-                print("NO MESH_ID")
-                return False
-            else:
-                print("ALLOW")
-        else:
-            print("NO OPTION")
-
-        # Filter based on mesh ids
-        if self.hashes_with_mesh_ids and \
-                edge_stmt['stmt_hash'] not in self.hashes_with_mesh_ids:
-            if self.verbose > 3:
-                logger.info('hash %s is not related to supplied mesh ids')
-            return False
-
         # Return True is all filters were passed
         return True
 
@@ -1565,6 +1554,7 @@ def translate_query(query_json):
         options['sign_dict'] = default_sign_dict
     for k, v in query_json.items():
         if k == 'weighted':
+            logger.info("HERE WILL BE DOING")
             logger.info('Doing %sweighted path search' % 'un' if not v
                         else '')
             options['weight'] = 'weight' if v else None
