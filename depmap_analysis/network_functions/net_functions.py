@@ -20,7 +20,7 @@ from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.aws import get_latest_pa_stmt_dump
-from depmap_analysis.util.io_functions import pickle_open
+from depmap_analysis.util.io_functions import file_opener
 import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
 logger = logging.getLogger(__name__)
@@ -171,14 +171,12 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_we
     sed = None
 
     if isinstance(df, str):
-        if df.endswith('.pkl'):
-            merged_df = pickle_open(df)
-        elif df.endswith('.csv'):
+        if df.endswith('.csv'):
             logger.info(f'Loading csv file {df}')
             merged_df = pd.read_csv(df)
             logger.info('Finished loading csv file')
         else:
-            raise ValueError('Path to DataFrame must be a .pkl or .csv file')
+            merged_df = file_opener(df)
     else:
         merged_df = df
 
@@ -186,12 +184,12 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_we
         merged_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
 
     if isinstance(belief_dict, str):
-        belief_dict = pickle_open(belief_dict)
+        belief_dict = file_opener(belief_dict)
     elif isinstance(belief_dict, dict):
         belief_dict = belief_dict
 
     if isinstance(strat_ev_dict, str):
-        sed = pickle_open(strat_ev_dict)
+        sed = file_opener(strat_ev_dict)
     elif isinstance(strat_ev_dict, dict):
         sed = strat_ev_dict
 
