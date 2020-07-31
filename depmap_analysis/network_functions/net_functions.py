@@ -513,10 +513,28 @@ def db_dump_to_pybel_sg(stmts_list=None):
         propagate_annotations=True
     )
 
+    # Map hashes to edges
+    logger.info('Getting hash to signed edge mapping')
+    seg_hash_edge_dict = {}
+    for edge in pb_signed_edge_graph.edges:
+        if pb_signed_edge_graph.edges[edge].get('stmt_hash'):
+            seg_hash_edge_dict[
+                pb_signed_edge_graph.edges[edge]['stmt_hash']] = edge
+    pb_signed_edge_graph.graph['edge_by_hash'] = seg_hash_edge_dict
+
     # Get the signed node graph
     logger.info('Getting a signed node graph from signed edge graph')
     pb_signed_node_graph = signed_edges_to_signed_nodes(
         pb_signed_edge_graph, copy_edge_data=True)
+
+    # Map hashes to edges for signed nodes
+    logger.info('Getting hash to edge mapping')
+    sng_hash_edge_dict = {}
+    for edge in pb_signed_node_graph.edges:
+        if pb_signed_node_graph.edges[edge].get('stmt_hash'):
+            sng_hash_edge_dict[
+                pb_signed_node_graph.edges[edge]['stmt_hash']] = edge
+    pb_signed_node_graph.graph['edge_by_hash'] = sng_hash_edge_dict
 
     logger.info('Done assembling signed edge and signed node PyBEL graphs')
     return pb_signed_edge_graph, pb_signed_node_graph
