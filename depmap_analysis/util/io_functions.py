@@ -11,6 +11,27 @@ import numpy as np
 logger = logging.getLogger('dnf utils')
 
 
+def file_opener(fname):
+    """Open file based on file extension
+
+    Parameters
+    ----------
+    fname : str
+        The filename
+
+    Returns
+    -------
+    object
+        Object stored in file fname
+    """
+    if fname.endswith('pkl'):
+        return pickle_open(fname)
+    elif fname.endswith('json'):
+        return json_open(fname)
+    else:
+        raise ValueError(f'Unknown file extension for file {fname}')
+
+
 def dump_it_to_pickle(fname, pyobj):
     """Save pyobj to fname as pickle"""
     logger.info('Dumping to pickle file %s' % fname)
