@@ -335,11 +335,20 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
                                 verbosity=verbosity)
 
     # Map ns:id to node name
-    logger.info('Creating dictionary with mapping from (ns,id) to node name')
+    logger.info('Creating dictionary mapping (ns,id) to node name')
     ns_id_name_tups = set(
         zip(sif_df.agA_ns, sif_df.agA_id, sif_df.agA_name)).union(
         set(zip(sif_df.agB_ns, sif_df.agB_id, sif_df.agB_name)))
     ns_id_to_nodename = {(ns, _id): name for ns, _id, name in ns_id_name_tups}
+
+    # Map hashes to edge for non-signed graphs
+    if graph_type in {'multidigraph', 'digraph'}:
+        logger.info('Creating dictionary mapping hashes to edges for '
+                    'unsigned graph')
+        hash_edge_dict = {h: (a, b) for a, b, h in
+                          zip(sif_df.agA_name,
+                              sif_df.agB_name,
+                              sif_df.stmt_hash)}
 
     # Create graph from df
     if graph_type == 'multidigraph':
@@ -359,6 +368,22 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
             graph=signed_edge_graph, copy_edge_data={'weight', 'belief'})
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+
+        # Get hash to signed edge mapping
+        logger.info('Creating dictionary mapping hashes to edges for '
+                    'unsigned graph')
+        seg_hash_edge_dict = {}
+        for edge in signed_edge_graph.edges:
+            for es in signed_edge_graph.edges[edge]['statements']:
+                seg_hash_edge_dict[es['stmt_hash']] = edge
+        signed_edge_graph.graph['edge_by_hash'] = seg_hash_edge_dict
+
+        sng_hash_edge_dict = {}
+        for edge in signed_node_graph.edges:
+            for es in signed_node_graph.edges[edge]['statements']:
+                sng_hash_edge_dict[es['stmt_hash']] = edge
+        signed_node_graph.graph['edge_by_hash'] = sng_hash_edge_dict
+
         return signed_edge_graph, signed_node_graph
 
     # Add hierarchy relations to graph (not applicable for signed graphs)
@@ -436,6 +461,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         logger.info('Loaded %d entity relations into dataframe' % entities)
         indranet_graph.graph['node_by_uri'] = node_by_uri
     indranet_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+    indranet_graph.graph['edge_by_hash'] = hash_edge_dict
     return indranet_graph
 
 
