@@ -237,6 +237,7 @@ class IndraNetwork:
                 if options['two_way']:
                     ksp_backward = self._unweighted_direct(**boptions)
             else:
+                print("LINE 240 ELSE")
                 ksp_forward = self.find_shortest_paths(**options)
                 if options['two_way']:
                     ksp_backward = self.find_shortest_paths(**boptions)
@@ -278,6 +279,7 @@ class IndraNetwork:
         if not options['weight']:
             if ksp_forward:
                 # Sort the results in ksp_forward if non-weighted search
+                print("LINE 282 SORTING")
                 ksp_forward = self._sort_stmts(ksp_forward)
             if ksp_backward:
                 # Sort the results in ksp_forward if non-weighted search
@@ -584,10 +586,10 @@ class IndraNetwork:
         self.open_bfs
         """
         try:
-            logger.info("FINDING SHORTEST PATHS")
+            print("FINDING SHORTEST PATHS")
             blacklist_options =\
                 {'ignore_nodes': options.get('node_blacklist', None)}
-            logger.info("BOOLS BOOLT" + str(bool(source) ^ bool(target)))
+            print("BOOLS BOOLT" + str(bool(source) ^ bool(target)))
             if bool(source) ^ bool(target):
                 logger.info('Doing open ended %sbreadth first search' %
                             'signed ' if options.get('sign') is not None
@@ -616,11 +618,14 @@ class IndraNetwork:
                 logger.info("ELSE")
                 logger.info('Doing simple %spath search' % ('weigthed '
                             if options['weight'] else ''))
+            related_hashes = find_related_hashes(options['mesh_ids'])
+            #print("RELHASHES: " + str(related_hashes))
             if options['sign'] is None:
                 # Do unsigned path search
                 paths = shortest_simple_paths(self.nx_dir_graph_repr,
                                               source, target,
                                               options['weight'],
+                                              hashes=related_hashes,
                                               **blacklist_options)
                 subj = source
                 obj = target
@@ -640,7 +645,8 @@ class IndraNetwork:
                 search_graph = self.sign_node_graph_repr
                 paths = shortest_simple_paths(
                     search_graph, subj, obj, options['weight'],
-                    ignore_nodes=signed_blacklisted_nodes)
+                    ignore_nodes=signed_blacklisted_nodes,
+                    hashes=related_hashes)
 
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
@@ -726,7 +732,6 @@ class IndraNetwork:
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         logger.info("OPTIONS ARE " + str(options))
-        related_hashes = find_related_hashes(options.get('mesh_ids', []))
         logger.info("RELHASHES: " + str(related_hashes))
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
@@ -1121,7 +1126,7 @@ class IndraNetwork:
                                 repr(hash_path))
                 pd = {'stmts': hash_path,
                       'path': path,
-                      'cost': str(self._get_cost(path, edge_signs)),
+                      #'cost': str(self._get_cost(path, edge_signs)),
                       'sort_key': str(self._get_sort_key(path, hash_path,
                                                          edge_signs))}
                 if not path_len or (path_len and path_len == len(path)):

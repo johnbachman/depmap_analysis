@@ -315,6 +315,7 @@ def dump_new_nets(mdg=False, dg=False, sg=False, spbg=False, dump_to_s3=False,
 
 
 def find_related_hashes(mesh_ids):
+    print("FIND RELATED HASHES")
     q = FromMeshIds(mesh_ids)
     result = q.get_hashes()
     return result.json().get('results', [])
