@@ -732,6 +732,7 @@ class IndraNetwork:
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         logger.info("OPTIONS ARE " + str(options))
+        related_hashes = {}
         logger.info("RELHASHES: " + str(related_hashes))
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
