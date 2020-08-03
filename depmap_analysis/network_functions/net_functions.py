@@ -138,8 +138,8 @@ def _english_from_agents_type(agA_name, agB_name, stmt_type):
     return EnglishAssembler([stmt]).make_model()
 
 
-def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_weights=True,
-                       verbosity=0):
+def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None,
+                       set_weights=True, verbosity=0):
     """Merge the sif dump df with the provided dictionaries
 
     Parameters
