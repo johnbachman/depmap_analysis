@@ -20,8 +20,7 @@ from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.aws import get_latest_pa_stmt_dump
-from depmap_analysis.util.io_functions import pickle_open
-import depmap_analysis.network_functions.famplex_functions as fplx_fcns
+from depmap_analysis.util.io_functions import file_opener
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +84,7 @@ def _curated_func(ev_dict):
 
 def _weight_from_belief(belief):
     """Map belief score 'belief' to weight. If the calculation goes below
-    precision, return longfloat precision insted to avoid making the
+    precision, return longfloat precision instead to avoid making the
     weight zero."""
     return np.max([NP_PRECISION, -np.log(belief, dtype=np.longfloat)])
 
@@ -138,8 +137,8 @@ def _english_from_agents_type(agA_name, agB_name, stmt_type):
     return EnglishAssembler([stmt]).make_model()
 
 
-def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_weights=True,
-                       verbosity=0):
+def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None,
+                       set_weights=True, verbosity=0):
     """Merge the sif dump df with the provided dictionaries
 
     Parameters
@@ -171,14 +170,12 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_we
     sed = None
 
     if isinstance(df, str):
-        if df.endswith('.pkl'):
-            merged_df = pickle_open(df)
-        elif df.endswith('.csv'):
+        if df.endswith('.csv'):
             logger.info(f'Loading csv file {df}')
             merged_df = pd.read_csv(df)
             logger.info('Finished loading csv file')
         else:
-            raise ValueError('Path to DataFrame must be a .pkl or .csv file')
+            merged_df = file_opener(df)
     else:
         merged_df = df
 
@@ -186,12 +183,12 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_we
         merged_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
 
     if isinstance(belief_dict, str):
-        belief_dict = pickle_open(belief_dict)
+        belief_dict = file_opener(belief_dict)
     elif isinstance(belief_dict, dict):
         belief_dict = belief_dict
 
     if isinstance(strat_ev_dict, str):
-        sed = pickle_open(strat_ev_dict)
+        sed = file_opener(strat_ev_dict)
     elif isinstance(strat_ev_dict, dict):
         sed = strat_ev_dict
 
@@ -247,7 +244,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None, set_we
 
         merged_df = merged_df.merge(
             right=pd.DataFrame(data={'stmt_hash': hashes,
-                                    'mesh_ids': mesh_ids}),
+                                     'mesh_ids': mesh_ids}),
             how='left',
             on='stmt_hash'
         )
@@ -335,11 +332,20 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
                                 verbosity=verbosity)
 
     # Map ns:id to node name
-    logger.info('Creating dictionary with mapping from (ns,id) to node name')
+    logger.info('Creating dictionary mapping (ns,id) to node name')
     ns_id_name_tups = set(
         zip(sif_df.agA_ns, sif_df.agA_id, sif_df.agA_name)).union(
         set(zip(sif_df.agB_ns, sif_df.agB_id, sif_df.agB_name)))
     ns_id_to_nodename = {(ns, _id): name for ns, _id, name in ns_id_name_tups}
+
+    # Map hashes to edge for non-signed graphs
+    if graph_type in {'multidigraph', 'digraph'}:
+        logger.info('Creating dictionary mapping hashes to edges for '
+                    'unsigned graph')
+        hash_edge_dict = {h: (a, b) for a, b, h in
+                          zip(sif_df.agA_name,
+                              sif_df.agB_name,
+                              sif_df.stmt_hash)}
 
     # Create graph from df
     if graph_type == 'multidigraph':
@@ -359,13 +365,31 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
             graph=signed_edge_graph, copy_edge_data={'weight', 'belief'})
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+
+        # Get hash to signed edge mapping
+        logger.info('Creating dictionary mapping hashes to edges for '
+                    'unsigned graph')
+        seg_hash_edge_dict = {}
+        for edge in signed_edge_graph.edges:
+            for es in signed_edge_graph.edges[edge]['statements']:
+                seg_hash_edge_dict[es['stmt_hash']] = edge
+        signed_edge_graph.graph['edge_by_hash'] = seg_hash_edge_dict
+
+        sng_hash_edge_dict = {}
+        for edge in signed_node_graph.edges:
+            for es in signed_node_graph.edges[edge]['statements']:
+                sng_hash_edge_dict[es['stmt_hash']] = edge
+        signed_node_graph.graph['edge_by_hash'] = sng_hash_edge_dict
+
         return signed_edge_graph, signed_node_graph
 
     # Add hierarchy relations to graph (not applicable for signed graphs)
     if include_entity_hierarchies and graph_type in ('multidigraph',
                                                      'digraph'):
-        logger.info('Fetching entity hierarchy relationsships')
-        full_entity_list = fplx_fcns.get_all_entities()
+        from depmap_analysis.network_functions.famplex_functions import \
+            get_all_entities
+        logger.info('Fetching entity hierarchy relationships')
+        full_entity_list = get_all_entities()
         logger.info('Adding entity hierarchy manager as graph attribute')
         node_by_uri = {uri: _id for (ns, _id, uri) in full_entity_list}
         added_pairs = set()  # Save (A, B, URI)
@@ -436,6 +460,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
         logger.info('Loaded %d entity relations into dataframe' % entities)
         indranet_graph.graph['node_by_uri'] = node_by_uri
     indranet_graph.graph['node_by_ns_id'] = ns_id_to_nodename
+    indranet_graph.graph['edge_by_hash'] = hash_edge_dict
     return indranet_graph
 
 
@@ -489,10 +514,28 @@ def db_dump_to_pybel_sg(stmts_list=None):
         propagate_annotations=True
     )
 
+    # Map hashes to edges
+    logger.info('Getting hash to signed edge mapping')
+    seg_hash_edge_dict = {}
+    for edge in pb_signed_edge_graph.edges:
+        if pb_signed_edge_graph.edges[edge].get('stmt_hash'):
+            seg_hash_edge_dict[
+                pb_signed_edge_graph.edges[edge]['stmt_hash']] = edge
+    pb_signed_edge_graph.graph['edge_by_hash'] = seg_hash_edge_dict
+
     # Get the signed node graph
     logger.info('Getting a signed node graph from signed edge graph')
     pb_signed_node_graph = signed_edges_to_signed_nodes(
         pb_signed_edge_graph, copy_edge_data=True)
+
+    # Map hashes to edges for signed nodes
+    logger.info('Getting hash to edge mapping')
+    sng_hash_edge_dict = {}
+    for edge in pb_signed_node_graph.edges:
+        if pb_signed_node_graph.edges[edge].get('stmt_hash'):
+            sng_hash_edge_dict[
+                pb_signed_node_graph.edges[edge]['stmt_hash']] = edge
+    pb_signed_node_graph.graph['edge_by_hash'] = sng_hash_edge_dict
 
     logger.info('Done assembling signed edge and signed node PyBEL graphs')
     return pb_signed_edge_graph, pb_signed_node_graph
@@ -623,7 +666,7 @@ def ag_belief_score(belief_list):
 
 
 def ns_id_from_name(name, gilda_retry=False):
-    """Query the groudning service for the most likely ns:id pair for name"""
+    """Query the grounding service for the most likely ns:id pair for name"""
     global GILDA_TIMEOUT
     if gilda_retry and GILDA_TIMEOUT and gilda_pinger():
         logger.info('GILDA is responding again!')
@@ -641,7 +684,7 @@ def ns_id_from_name(name, gilda_retry=False):
                                res.status_code)
         except IndexError:
             logger.info('No grounding exists for %s' % name)
-        except ConnectionError as err2:
+        except ConnectionError:
             logger.warning('GILDA has timed out, ignoring future requests')
             GILDA_TIMEOUT = True
     else:
