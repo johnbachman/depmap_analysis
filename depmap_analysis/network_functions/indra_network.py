@@ -182,7 +182,6 @@ class IndraNetwork:
                 timeout : Bool
                     True if the query timed out
         """
-        print("HANDLING QUERY")
         self.query_recieve_time = time()
         self.query_timed_out = False
         logger.info('Query received at %s' %
@@ -200,7 +199,6 @@ class IndraNetwork:
             miss = [key in kwargs for key in self.MANDATORY].index(False)
             raise KeyError('Missing mandatory parameter "%s"' %
                            self.MANDATORY[miss])
-        logger.info("SANITY_CHECK_PASSED")
         options = translate_query(kwargs)
 
         # If open ended search, skip common parents, common targets,
@@ -229,13 +227,6 @@ class IndraNetwork:
         boptions = options.copy()
         boptions['source'] = options.get('target')
         boptions['target'] = options.get('source')
-<<<<<<< HEAD
-        print("IT'S CALLED")
-        try:
-            # Special case: 1 or 2 unweighted, unsigned edges only
-            if not options['weight'] and options['path_length'] in [1, 2]:
-                ksp_forward = self._unweighted_direct(**options)
-=======
 
         self.hashes_with_mesh_ids = find_related_hashes(options['mesh_ids']) 
         # Special case: 1 or 2 unweighted, unsigned edges only
@@ -268,11 +259,9 @@ class IndraNetwork:
                             'connected by common parents of source and/or '
                             'target')
                 ksp_forward = self.try_parents(**ckwargs)
->>>>>>> Filter edges instead of building subgraph
                 if options['two_way']:
                     ksp_backward = self._unweighted_direct(**boptions)
             else:
-                print("LINE 240 ELSE")
                 ksp_forward = self.find_shortest_paths(**options)
                 if options['two_way']:
                     ksp_backward = self.find_shortest_paths(**boptions)
@@ -314,7 +303,6 @@ class IndraNetwork:
         if not options['weight']:
             if ksp_forward:
                 # Sort the results in ksp_forward if non-weighted search
-                print("LINE 282 SORTING")
                 ksp_forward = self._sort_stmts(ksp_forward)
             if ksp_backward:
                 # Sort the results in ksp_forward if non-weighted search
@@ -364,7 +352,6 @@ class IndraNetwork:
         logger.info('Expanding search using grounding service')
         org_source = ckwargs.get('source')
         org_target = ckwargs.get('target')
-        print(str(org_source))
         # ToDo:
         #  -establish grounding priority when scores are equal between
         #   groundings
@@ -372,14 +359,11 @@ class IndraNetwork:
 
         # Get groundings
         if org_source:
-            print("ORG_SOURCE " + str(org_source))
-            print("GRND_URI " + GRND_URI)
             src_groundings = requests.post(GRND_URI,
                                      json={'text': org_source}).json()
         else:
             src_groundings = {}
         if org_target:
-            print("ORG_TARGET" + str(org_target))
             trgt_groundings = requests.post(GRND_URI,
                                      json={'text': org_target}).json()
         else:
@@ -621,14 +605,12 @@ class IndraNetwork:
         self.open_bfs
         """
         try:
-            print("FINDING SHORTEST PATHS")
             blacklist_options =\
                 {'ignore_nodes': options.get('node_blacklist', None)}
-            print("BOOLS BOOLT" + str(bool(source) ^ bool(target)))
             if bool(source) ^ bool(target):
                 logger.info('Doing open ended %sbreadth first search' %
-                            'signed ' if options.get('sign') is not None
-                            else '')
+                            ('signed ' if options.get('sign') is not None
+                            else ''))
                 if source:
                     # Open downstream search
                     start_node = source
@@ -650,11 +632,9 @@ class IndraNetwork:
                                      reverse=reverse,
                                      **options)
             else:
-                logger.info("ELSE")
                 logger.info('Doing simple %spath search' % ('weigthed '
                             if options['weight'] else ''))
             related_hashes = find_related_hashes(options['mesh_ids'])
-            #print("RELHASHES: " + str(related_hashes))
             if options['sign'] is None:
                 # Do unsigned path search
                 paths = shortest_simple_paths(self.nx_dir_graph_repr,
@@ -686,11 +666,8 @@ class IndraNetwork:
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
 
-        #except NodeNotFound as err1:
-        #    logger.warning(repr(err1))
-        #    return {}
-        except NetworkXNoPath as err2:
-            logger.warning(repr(err2))
+        except NetworkXNoPath as err1:
+            logger.warning(repr(err1))
             return {}
 
     def open_bfs(self, start_node, reverse=False, depth_limit=2,
@@ -735,7 +712,6 @@ class IndraNetwork:
                 {'path': <tuple of nodes>,
                  'stmts': <data supporting the paths>}
         """
-        print("OPEN_BFS")
         # Signed search
         if options.get('sign') is not None:
             graph = self.sign_node_graph_repr
@@ -776,9 +752,7 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        logger.info("OPTIONS ARE " + str(options))
         related_hashes = find_related_hashes(options['mesh_ids'])
-        #print("RELHASHES: " + str(related_hashes))
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
                              path_limit=path_limit, max_per_node=max_per_node,
@@ -1002,8 +976,6 @@ class IndraNetwork:
                                                         source=source,
                                                         target=target,
                                                         **options)
-                #except NodeNotFound as e:
-                #    logger.warning(repr(e))
                 except NetworkXNoPath as e:
                     logger.warning(repr(e))
 
@@ -1060,8 +1032,6 @@ class IndraNetwork:
                                                      source=source,
                                                      target=target,
                                                      **options)
-                #except NodeNotFound as e:
-                #    logger.warning(repr(e))
                 except NetworkXNoPath as e:
                     logger.warning(repr(e))
 
@@ -1463,9 +1433,6 @@ class IndraNetwork:
                 logger.info('hash %s is blacklisted, skipping' %
                             edge_stmt['stmt_hash'])
             return False
-<<<<<<< HEAD
-        
-=======
 
         # Filter based on mesh ids
         if self.hashes_with_mesh_ids and \
@@ -1474,7 +1441,6 @@ class IndraNetwork:
                 logger.info('hash %s is not related to supplied mesh ids')
             return False
 
->>>>>>> Filter edges instead of building subgraph
         # Return True is all filters were passed
         return True
 
@@ -1611,12 +1577,10 @@ def translate_query(query_json):
     """Translate query json"""
     options = {k: v for k, v in query_json.items()  # Handled below
                if k not in ['sign', 'weighted']}
-    print("ITEMS " + str(query_json.items()))
     if 'sign_dict' not in options:
         options['sign_dict'] = default_sign_dict
     for k, v in query_json.items():
         if k == 'weighted':
-            logger.info("HERE WILL BE DOING")
             logger.info('Doing %sweighted path search' % 'un' if not v
                         else '')
             options['weight'] = 'weight' if v else None
