@@ -122,9 +122,6 @@ if VERBOSITY > 0 and\
 
 def handle_query(**json_query):
     """Handle queries to the indra network"""
-    # print("BEFORE: " + str(json_query.get("mesh_ids")))
-    # json_query['mesh_ids'] = []
-    # print("AFTER: " + str(json_query.get("mesh_ids")))
     result = indra_network.handle_query(**json_query.copy())
     logger.info('Query resolved at %s' %
                 strftime('%Y-%m-%d %H:%M:%S (UTC)', gmtime(time())))
@@ -264,20 +261,18 @@ def process_query():
 
                 # Upload the query itself
                 query_json_fname = '%s_query.json' % qh
-                s3_query = {}
-                # dump_query_result_to_s3(
-                #     filename=query_json_fname,
-                #     json_obj=query_json,
-                #     get_url=True
-                # )
+                s3_query = dump_query_result_to_s3(
+                    filename=query_json_fname,
+                    json_obj=query_json,
+                    get_url=True
+                )
                 # Upload query result
                 res_json_fname = '%s_result.json' % qh
-                s3_query_res = []
-                # dump_query_result_to_s3(
-                #     filename=res_json_fname,
-                #     json_obj=result,
-                #     get_url=True
-                # )
+                s3_query_res = dump_query_result_to_s3(
+                    filename=res_json_fname,
+                    json_obj=result,
+                    get_url=True
+                )
                 logger.info('Uploaded query and results to %s and %s' %
                             (s3_query, s3_query_res))
         result['redirURL'] = url_for('get_query_page', query=qh)
@@ -544,7 +539,7 @@ def stmts_download():
     logger.info('------------------------------------')
 
     query_hash = request.args.get('query', '')
-    cached_files = {}#check_existence_and_date_s3(query_hash=query_hash)
+    cached_files = check_existence_and_date_s3(query_hash=query_hash)
     if cached_files.get('result_json_key'):
         results_json = read_query_json_from_s3(
             s3_key=cached_files['result_json_key'])

@@ -156,6 +156,8 @@ class IndraNetwork:
             not provided, the default of 30 seconds is used.
         two_way: Bool
             If True, search path both ways, i.e. search A->B and B->A
+        mesh_ids : list
+            List of mesh_ids related to the hashes used for filtering edges
 
         Returns
         -------
