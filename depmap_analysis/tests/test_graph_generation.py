@@ -21,5 +21,6 @@ def test_sif_df():
     assert idg.graph['edge_by_hash'][1234657890] == ('nameX1', 'nameY1')
     assert idg.graph['edge_by_hash'][9876543210] == ('nameX2', 'nameY2')
     assert idg.edges.get(('nameX1', 'nameY1'))
+    assert isinstance(idg.edges[('nameX1', 'nameY1')]['statements'], list)
     assert idg.edges[('nameX1', 'nameY1')]['statements'][0]['stmt_hash'] == \
            1234657890
