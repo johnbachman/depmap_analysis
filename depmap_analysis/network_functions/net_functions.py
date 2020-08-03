@@ -84,7 +84,7 @@ def _curated_func(ev_dict):
 
 def _weight_from_belief(belief):
     """Map belief score 'belief' to weight. If the calculation goes below
-    precision, return longfloat precision insted to avoid making the
+    precision, return longfloat precision instead to avoid making the
     weight zero."""
     return np.max([NP_PRECISION, -np.log(belief, dtype=np.longfloat)])
 
@@ -244,7 +244,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None,
 
         merged_df = merged_df.merge(
             right=pd.DataFrame(data={'stmt_hash': hashes,
-                                    'mesh_ids': mesh_ids}),
+                                     'mesh_ids': mesh_ids}),
             how='left',
             on='stmt_hash'
         )
@@ -388,7 +388,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
                                                      'digraph'):
         from depmap_analysis.network_functions.famplex_functions import \
             get_all_entities
-        logger.info('Fetching entity hierarchy relationsships')
+        logger.info('Fetching entity hierarchy relationships')
         full_entity_list = get_all_entities()
         logger.info('Adding entity hierarchy manager as graph attribute')
         node_by_uri = {uri: _id for (ns, _id, uri) in full_entity_list}
@@ -666,7 +666,7 @@ def ag_belief_score(belief_list):
 
 
 def ns_id_from_name(name, gilda_retry=False):
-    """Query the groudning service for the most likely ns:id pair for name"""
+    """Query the grounding service for the most likely ns:id pair for name"""
     global GILDA_TIMEOUT
     if gilda_retry and GILDA_TIMEOUT and gilda_pinger():
         logger.info('GILDA is responding again!')
@@ -684,7 +684,7 @@ def ns_id_from_name(name, gilda_retry=False):
                                res.status_code)
         except IndexError:
             logger.info('No grounding exists for %s' % name)
-        except ConnectionError as err2:
+        except ConnectionError:
             logger.warning('GILDA has timed out, ignoring future requests')
             GILDA_TIMEOUT = True
     else:
