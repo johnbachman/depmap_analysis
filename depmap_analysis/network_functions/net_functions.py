@@ -21,7 +21,6 @@ from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.aws import get_latest_pa_stmt_dump
 from depmap_analysis.util.io_functions import file_opener
-import depmap_analysis.network_functions.famplex_functions as fplx_fcns
 
 logger = logging.getLogger(__name__)
 
@@ -387,8 +386,10 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     # Add hierarchy relations to graph (not applicable for signed graphs)
     if include_entity_hierarchies and graph_type in ('multidigraph',
                                                      'digraph'):
+        from depmap_analysis.network_functions.famplex_functions import \
+            get_all_entities
         logger.info('Fetching entity hierarchy relationsships')
-        full_entity_list = fplx_fcns.get_all_entities()
+        full_entity_list = get_all_entities()
         logger.info('Adding entity hierarchy manager as graph attribute')
         node_by_uri = {uri: _id for (ns, _id, uri) in full_entity_list}
         added_pairs = set()  # Save (A, B, URI)
