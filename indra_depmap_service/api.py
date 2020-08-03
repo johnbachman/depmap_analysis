@@ -221,7 +221,7 @@ def process_query():
         qc = {k: v for k, v in query_json.items() if k not in ignore_keys}
         qh = get_query_hash(qc)
 
-        cached_files = {}#check_existence_and_date_s3(query_hash=qh)
+        cached_files = check_existence_and_date_s3(query_hash=qh)
         if cached_files.get('result_json_key'):
             qjs3_key = cached_files['result_json_key']
             logger.info('Result found on s3: %s' % qjs3_key)
