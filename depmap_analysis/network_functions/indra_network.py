@@ -735,6 +735,7 @@ class IndraNetwork:
                 {'path': <tuple of nodes>,
                  'stmts': <data supporting the paths>}
         """
+        print("OPEN_BFS")
         # Signed search
         if options.get('sign') is not None:
             graph = self.sign_node_graph_repr
@@ -776,12 +777,12 @@ class IndraNetwork:
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         logger.info("OPTIONS ARE " + str(options))
-        related_hashes = {}
-        logger.info("RELHASHES: " + str(related_hashes))
+        related_hashes = find_related_hashes(options['mesh_ids'])
+        #print("RELHASHES: " + str(related_hashes))
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
                              path_limit=path_limit, max_per_node=max_per_node,
-                             terminal_ns=terminal_ns, **bfs_options)
+                             terminal_ns=terminal_ns, hashes=related_hashes, **bfs_options)
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, hashes=related_hashes, 
                                     **options)
