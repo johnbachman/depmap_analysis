@@ -16,7 +16,8 @@ sif = {'agA_name': ['nameX1', 'nameX2'], 'agA_ns': ['nsX1', 'nsX2'],
 def test_sif_df():
     sif_df = pd.DataFrame(sif)
     idg = sif_dump_df_to_digraph(df=sif_df, strat_ev_dict=src,
-                                 belief_dict=bd, graph_type='digraph')
+                                 belief_dict=bd, graph_type='digraph',
+                                 include_entity_hierarchies=False)
     assert idg.graph.get('edge_by_hash')
     assert idg.graph['edge_by_hash'][1234657890] == ('nameX1', 'nameY1')
     assert idg.graph['edge_by_hash'][9876543210] == ('nameX2', 'nameY2')
