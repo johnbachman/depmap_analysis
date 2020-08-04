@@ -1,5 +1,6 @@
 import logging
 from decimal import Decimal
+from itertools import cycle
 from collections import defaultdict
 import subprocess
 
@@ -17,6 +18,7 @@ from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
+from indra.explanation.pathfinding import bfs_search
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.aws import get_latest_pa_stmt_dump
@@ -730,3 +732,48 @@ def get_hgnc_node_mapping(hgnc_names, pb_model):
         except AttributeError:
             continue
     return pb_model_mapping
+
+
+def yield_multiple_paths(g, sources, path_len=None, **kwargs):
+    """Wraps bfs_search and cycles between one generator per source in sources
+
+    Parameters
+    ----------
+    g : nx.DiGraph
+    sources : list
+    path_len : int
+        Only produce paths of this length (number of edges)
+    kwargs : **kwargs
+    """
+    # create one generator per drug
+    generators = []
+    cycler = cycle(range(len(sources)))
+    for source in sources:
+        generators.append(bfs_search(g, source, **kwargs))
+
+    skip = set()
+    while True:
+        gi = next(cycler)
+        if len(skip) >= len(sources):
+            break
+        # If gi in skip, get new one, unless we added all of them
+        while gi in skip and len(skip) < len(sources):
+            gi = next(cycler)
+        try:
+            path = next(generators[gi])
+            if path_len:
+                if path_len > len(path):
+                    # Too short
+                    continue
+                elif path_len == len(path):
+                    yield path
+                elif path_len < len(path):
+                    # Too long: Done. Add to skip.
+                    skip.add(gi)
+                    continue
+            # No path length specified, yield all
+            else:
+                yield path
+        except StopIteration:
+            print(f'Got StopIteration from {gi}')
+            skip.add(gi)
