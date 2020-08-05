@@ -222,6 +222,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                   'b-x-a': expl_bxa,
                   'shared regulator': get_sr,
                   'shared target': get_st,
+                  'shared downstream': get_sd
                   }
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
@@ -379,6 +380,41 @@ def get_st(s, o, corr, net, _type, **kwargs):
         return s, o, None
 
 
+def get_sd(s, o, corr, net, _type, **kwargs):
+    s_x_set = set()
+    for x in net.succ[s]:
+        # If signed, add edges and match sign in helper
+        if _type in {'signed', 'pybel'}:
+            for y in net.succ[x]:
+                s_x_set.add((x, y))
+        # Just add nodes
+        else:
+            s_x_set.add(x)
+            s_x_set.update(net.succ[x])
+
+    o_x_set = set()
+    for x in net.succ[o]:
+        # If signed, add edges and match sign in helper
+        if _type in {'signed', 'pybel'}:
+            for y in net.succ[x]:
+                o_x_set.add((x, y))
+        else:
+            o_x_set.add(x)
+            o_x_set.update(net.succ[x])
+
+    x_set = s_x_set & o_x_set
+
+    if _type in {'signed', 'pybel'}:
+        x_nodes = _get_signed_deep_interm(s, o, corr, net, x_set)
+    else:
+        x_nodes = x_set
+
+    if x_nodes:
+        return s, o, list(x_nodes)
+    else:
+        return s, o, None
+
+
 def expl_ab(s, o, corr, net, _type, **kwargs):
     edge_dict = get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
@@ -423,6 +459,33 @@ def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
         if int_sign == INT_MINUS:
             if ax_plus and xb_minus or ax_minus and xb_plus:
                 x_approved.add(x)
+    return x_approved
+
+
+def _get_signed_deep_interm(s, o, corr, sign_edge_net, xy_set):
+    # Make sure we have the right sign type
+    path_sign = INT_PLUS if corr >= 0 else INT_MINUS
+
+    # a-x-y and b-x-y need to both match path sign
+    x_approved = set()
+    for x, y in xy_set:
+        sx_plus = (s, x, INT_PLUS) in sign_edge_net.edges
+        ox_plus = (o, x, INT_PLUS) in sign_edge_net.edges
+        xy_plus = (x, y, INT_PLUS) in sign_edge_net.edges
+        sx_minus = (s, x, INT_MINUS) in sign_edge_net.edges
+        ox_minus = (o, x, INT_MINUS) in sign_edge_net.edges
+        xy_minus = (x, y, INT_MINUS) in sign_edge_net.edges
+
+        # Add nodes that form paths with the correct sign
+        if path_sign == INT_PLUS:
+            if (sx_plus and xy_plus or sx_minus and xy_minus) and \
+                    (ox_plus and xy_plus or ox_minus and xy_minus):
+                x_approved.update({x, y})
+        else:
+            if (sx_plus and xy_minus or sx_minus and xy_plus) and \
+                    (ox_plus and xy_minus or ox_minus and xy_plus):
+                x_approved.update({x, y})
+
     return x_approved
 
 
