@@ -448,10 +448,10 @@ def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
     # ax and xb sign need to match correlation sign
     x_approved = set()
     for x in x_set:
-        ax_plus = sign_edge_net.edges.get((s, x, INT_PLUS), {})
-        ax_minus = sign_edge_net.edges.get((s, x, INT_MINUS), {})
-        xb_plus = sign_edge_net.edges.get((x, o, INT_PLUS), {})
-        xb_minus = sign_edge_net.edges.get((x, o, INT_MINUS), {})
+        ax_plus = (s, x, INT_PLUS) in sign_edge_net.edges
+        ax_minus = (s, x, INT_MINUS) in sign_edge_net.edges
+        xb_plus = (x, o, INT_PLUS) in sign_edge_net.edges
+        xb_minus = (x, o, INT_MINUS) in sign_edge_net.edges
 
         if int_sign == INT_PLUS:
             if ax_plus and xb_plus or ax_minus and xb_minus:
