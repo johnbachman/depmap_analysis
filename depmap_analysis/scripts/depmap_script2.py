@@ -402,6 +402,7 @@ def get_sd(s, o, corr, net, _type, **kwargs):
             o_x_set.add(x)
             o_x_set.update(net.succ[x])
 
+    # Get intersection of each nodes 1st & 2nd layer neighbors
     x_set = s_x_set & o_x_set
 
     if _type in {'signed', 'pybel'}:
