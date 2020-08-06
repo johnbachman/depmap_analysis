@@ -643,6 +643,7 @@ class IndraNetwork:
                                               source, target,
                                               options['weight'],
                                               hashes=related_hashes,
+                                              strict_hash_filtering=options['strict_hash_filtering'],
                                               **blacklist_options)
                 subj = source
                 obj = target
@@ -662,8 +663,9 @@ class IndraNetwork:
                 search_graph = self.sign_node_graph_repr
                 paths = shortest_simple_paths(
                     search_graph, subj, obj, options['weight'],
-                    ignore_nodes=signed_blacklisted_nodes)
->>>>>>> Use a subgraph for pathfinding when given mesh_ids
+                    ignore_nodes=signed_blacklisted_nodes,
+                    hashes=related_hashes,
+                    strict_hash_filtering=options['strict_hash_filtering'])
 
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
