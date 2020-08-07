@@ -9,7 +9,7 @@ from itertools import repeat, takewhile
 
 import numpy as np
 
-logger = logging.getLogger('dnf utils')
+logger = logging.getLogger(__name__)
 
 
 def file_opener(fname):
