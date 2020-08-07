@@ -643,7 +643,7 @@ class IndraNetwork:
                                               source, target,
                                               options['weight'],
                                               hashes=related_hashes,
-                                              strict_hash_filtering=options['strict_hash_filtering'],
+                                              strict_mesh_id_filtering=options['strict_mesh_id_filtering'],
                                               **blacklist_options)
                 subj = source
                 obj = target
@@ -665,7 +665,7 @@ class IndraNetwork:
                     search_graph, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes,
                     hashes=related_hashes,
-                    strict_hash_filtering=options['strict_hash_filtering'])
+                    strict_mesh_id_filtering=options['strict_mesh_id_filtering'])
 
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
