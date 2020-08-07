@@ -205,7 +205,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
         nx.MultiDiGraph with edges keys by (gene, gene, sign) tuples.
     sd_range : tuple[float]
         The SD ranges that the corr_z is filtered to
-    script_settings :
+    script_settings : dict
 
     Returns
     -------
@@ -223,9 +223,11 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                   'a-x-b': expl_axb,
                   'b-x-a': expl_bxa,
                   'shared regulator': get_sr,
-                  'shared target': get_st,
-                  'shared downstream': get_sd
+                  'shared target': get_st
                   }
+    if kwargs.get('shared_2neigh'):
+        expl_types['shared downstream']: get_sd
+
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
@@ -768,7 +770,7 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
                                       'graph_type': graph_type,
                                       'pybel_node_mapping': pb_node_mapping
                                       if isinstance(pb_node_mapping, str) else
-                                      'no_info'}
+                                      'no info'}
 
     # Create output list in global scope
     output_list = []
