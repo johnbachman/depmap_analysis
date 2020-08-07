@@ -102,7 +102,7 @@ def _parse_cell_filter(cl_file, id2depmapid_pkl=None, namespace='CCLE_Name'):
             col_separator = None
     with open(cl_file, 'r') as fi:
         if id2depmapid_pkl:
-            id2depmapid_dict = io.pickle_open(id2depmapid_pkl)
+            id2depmapid_dict = io.file_opener(id2depmapid_pkl)
             assert namespace in id2depmapid_dict.keys()
             for n, cl in enumerate(fi.readlines()):
                 cl_name = cl.split(sep=col_separator)[0]
@@ -517,7 +517,7 @@ def main(args, hgnc_name2id=None, fplx_name2id=None):
         elif args.belief_score_dict.endswith('.json'):
             belief_dict = io.json_open(args.belief_score_dict)
         elif args.belief_score_dict.endswith('.pkl'):
-            belief_dict = io.pickle_open(args.belief_score_dict)
+            belief_dict = io.file_opener(args.belief_score_dict)
 
     args_dict = _arg_dict(args)
     npairs = 0
@@ -530,7 +530,7 @@ def main(args, hgnc_name2id=None, fplx_name2id=None):
     filter_settings = {'gene_set_filter': args.gene_set_filter,
                        'strict': args.strict,
                        'cell_line_filter': cell_lines,
-                       'cell_line_translation_dict': io.pickle_open(
+                       'cell_line_translation_dict': io.file_opener(
                                                      args.cell_line_filter[1])
                        if args.cell_line_filter and len(args.cell_line_filter)
                        == 2 else None,
@@ -625,7 +625,7 @@ def main(args, hgnc_name2id=None, fplx_name2id=None):
         nested_dict_statements = \
             dnf.nested_hash_dict_from_pd_dataframe(hash_df)
     elif args.nested_dict_in:
-        nested_dict_statements = io.pickle_open(args.nested_dict_in)
+        nested_dict_statements = io.file_opener(args.nested_dict_in)
     elif args.sif_df_in:
         nested_dict_statements = dnf.sif_dump_df_to_nest_d(args.sif_df_in,
                                                            belief_dict)
@@ -1149,11 +1149,11 @@ if __name__ == '__main__':
 
     # Load mappings
     if a.hgnc_name2id:
-        hgnc_nm2id_map = io.pickle_open(a.hgnc_name2id)
+        hgnc_nm2id_map = io.file_opener(a.hgnc_name2id)
     else:
         hgnc_nm2id_map = None
     if a.fplx_name2id:
-        fplx_nm2id_map = io.pickle_open(a.fplx_name2id)
+        fplx_nm2id_map = io.file_opener(a.fplx_name2id)
     else:
         fplx_nm2id_map = None
     done = main(a, hgnc_name2id=hgnc_nm2id_map, fplx_name2id=fplx_nm2id_map)

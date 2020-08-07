@@ -17,7 +17,7 @@ from indra.statements import get_all_descendants, Activation, Inhibition, \
     IncreaseAmount, DecreaseAmount, AddModification, RemoveModification, \
     Complex
 from depmap_analysis.network_functions import net_functions as nf
-from depmap_analysis.util.io_functions import pickle_open, dump_it_to_pickle
+from depmap_analysis.util.io_functions import file_opener, dump_it_to_pickle
 from depmap_analysis.util.aws import get_latest_sif_s3, dump_json_to_s3, \
     dump_pickle_to_s3, NEW_NETS_PREFIX
 
@@ -236,13 +236,13 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
                 nf.sif_dump_df_to_digraph(graph_type='signed', **options)
     else:
         logger.info('Loading indra network representations from pickles')
-        indra_dir_graph = pickle_open(dir_graph_path)
+        indra_dir_graph = file_opener(dir_graph_path)
         if multi_digraph_path:
-            indra_multi_digraph = pickle_open(multi_digraph_path)
+            indra_multi_digraph = file_opener(multi_digraph_path)
         if sign_edge_graph_path:
-            indra_signed_edge_graph = pickle_open(sign_edge_graph_path)
+            indra_signed_edge_graph = file_opener(sign_edge_graph_path)
         if sign_node_graph_path:
-            indra_signed_node_graph = pickle_open(sign_node_graph_path)
+            indra_signed_node_graph = file_opener(sign_node_graph_path)
         logger.info('Finished loading indra networks.')
     return indra_dir_graph, indra_multi_digraph, indra_signed_edge_graph,\
         indra_signed_node_graph
