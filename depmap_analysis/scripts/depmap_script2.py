@@ -60,7 +60,7 @@ output_list = None
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
                             expl_columns, bool_columns, min_columns,
-                            explained_set, _type):
+                            explained_set, _type, allowed_ns=None):
     # Separate out this part
 
     stats_dict = {k: [] for k in stats_columns}
@@ -150,6 +150,8 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 if _type == 'pybel':
                     options['s_name'] = gA
                     options['o_name'] = gB
+                if allowed_ns:
+                    options['ns_set'] = allowed_ns
 
                 # Some functions reverses A, B hence the s, o assignment
                 s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
@@ -231,6 +233,10 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
 
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
+
+    allowed_ns = set([n.lower() for n in kwargs['allowed_ns']]) if \
+        kwargs.get('allowed_ns') else None
+
     ymd_now = datetime.now().strftime('%Y%m%d')
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
         else ymd_now
@@ -262,7 +268,8 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                                  bool_columns,
                                  min_columns,
                                  explained_set,
-                                 _type
+                                 _type,
+                                 allowed_ns
                              ),
                              callback=success_callback,
                              error_callback=error_callback)
@@ -334,6 +341,11 @@ def expl_axb(s, o, corr, net, _type, **kwargs):
     else:
         x_nodes = x_set
 
+    # Filter ns
+    if kwargs.get('ns_set'):
+        x_nodes = {x for x in x_nodes if
+                   net.nodes[x]['ns'] in kwargs['ns_set']}
+
     if x_nodes:
         return s, o, list(x_nodes)
     else:
@@ -359,6 +371,11 @@ def get_sr(s, o, corr, net, _type, **kwargs):
     else:
         x_nodes = x_set
 
+    # Filter ns
+    if kwargs.get('ns_set'):
+        x_nodes = {x for x in x_nodes if
+                   net.nodes[x]['ns'] in kwargs['ns_set']}
+
     if x_nodes:
         return s, o, list(x_nodes)
     else:
@@ -373,6 +390,11 @@ def get_st(s, o, corr, net, _type, **kwargs):
         x_nodes = _get_signed_interm(s, o, corr, net, x_set)
     else:
         x_nodes = x_set
+
+    # Filter ns
+    if kwargs.get('ns_set'):
+        x_nodes = {x for x in x_nodes if
+                   net.nodes[x]['ns'] in kwargs['ns_set']}
 
     if x_nodes:
         return s, o, list(x_nodes)
@@ -810,6 +832,13 @@ if __name__ == '__main__':
         '--graph-type', type=allowed_types(allowed_graph_types),
         default='unsigned',
         help=f'Specify the graph type used. Allowed values are {allowed_types}'
+    )
+
+    #   1e Provide allowed_ns
+    parser.add_argument(
+        '--allowed-ns', nargs='+',
+        help='Specify the allowed namespaces to be used in the graph for '
+             'intermediate nodes. Default: all namespaces are allowed.'
     )
 
     #   2a. Filter to SD range
