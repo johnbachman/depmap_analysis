@@ -218,21 +218,20 @@ def _manually_add_to_histo(hist, start, binsize, value):
     hist[map2index(start, binsize, value)] += 1
 
 
-def graph_types(types):
-    """Types is a set of strings with names of the allowed graph types"""
+def allowed_types(types):
+    """Types is a set of strings with names of the allowed types"""
     def types_check(_type):
-        """Check the input graph type
+        """Check the input type
 
         Parameters
         ----------
         _type : str
-            The input graph type
+            The input type
 
         Returns
         -------
         str
-            Returns the lowercase of the input string representing the graph
-            type
+            Returns the lowercase of the input string representing the type
         """
         if _type.lower() not in types:
             raise ArgumentError(f'Provided graph type {_type} not allowed. '

@@ -41,7 +41,7 @@ import networkx as nx
 from pybel.dsl.node_classes import CentralDogma
 
 from depmap_analysis.util.io_functions import file_opener, \
-    dump_it_to_pickle, graph_types, file_path
+    dump_it_to_pickle, allowed_types, file_path
 from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
 from depmap_analysis.network_functions.famplex_functions import common_parent
@@ -805,12 +805,11 @@ if __name__ == '__main__':
     )
 
     #   1d Provide graph type
-    allowed_types = {'unsigned', 'signed', 'pybel'}
+    allowed_graph_types = {'unsigned', 'signed', 'pybel'}
     parser.add_argument(
-        '--graph-type', type=graph_types(allowed_types),
+        '--graph-type', type=allowed_types(allowed_graph_types),
         default='unsigned',
-        help='Specify the graph type used. Allowed values are '
-             f'{allowed_types}'
+        help=f'Specify the graph type used. Allowed values are {allowed_types}'
     )
 
     #   2a. Filter to SD range
