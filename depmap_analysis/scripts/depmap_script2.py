@@ -329,6 +329,9 @@ def find_cp(s, o, corr, net, _type, **kwargs):
     if s_id and o_id:
         parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
         if parents:
+            if kwargs.get('ns_set'):
+                parents = {(ns, _id) for ns, _id in parents if ns in
+                           kwargs['ns_set']} or None
             return s, o, parents
 
     return s, o, None
@@ -344,7 +347,7 @@ def expl_axb(s, o, corr, net, _type, **kwargs):
     # Filter ns
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'] in kwargs['ns_set']}
+                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
@@ -374,7 +377,7 @@ def get_sr(s, o, corr, net, _type, **kwargs):
     # Filter ns
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'] in kwargs['ns_set']}
+                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
@@ -394,7 +397,7 @@ def get_st(s, o, corr, net, _type, **kwargs):
     # Filter ns
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'] in kwargs['ns_set']}
+                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
@@ -403,9 +406,10 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
 
 def get_sd(s, o, corr, net, _type, **kwargs):
+    # Get next-nearest-neighborhood for subject
     s_x_set = set()
     for x in net.succ[s]:
-        # If signed, add edges and match sign in helper
+        # If signed, add edges instead and match sign in helper
         if _type in {'signed', 'pybel'}:
             for y in net.succ[x]:
                 s_x_set.add((x, y))
@@ -413,10 +417,10 @@ def get_sd(s, o, corr, net, _type, **kwargs):
         else:
             s_x_set.add(x)
             s_x_set.update(net.succ[x])
-
+    # Get next-nearest-neighborhood for object
     o_x_set = set()
     for x in net.succ[o]:
-        # If signed, add edges and match sign in helper
+        # If signed, add edges instead and match sign in helper
         if _type in {'signed', 'pybel'}:
             for y in net.succ[x]:
                 o_x_set.add((x, y))
@@ -424,13 +428,18 @@ def get_sd(s, o, corr, net, _type, **kwargs):
             o_x_set.add(x)
             o_x_set.update(net.succ[x])
 
-    # Get intersection of each nodes 1st & 2nd layer neighbors
+    # Get intersection of each nodes' 1st & 2nd layer neighbors
     x_set = s_x_set & o_x_set
 
     if _type in {'signed', 'pybel'}:
         x_nodes = _get_signed_deep_interm(s, o, corr, net, x_set)
     else:
         x_nodes = x_set
+
+    # Filter ns
+    if kwargs.get('ns_set'):
+        x_nodes = {x for x in x_nodes if
+                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
