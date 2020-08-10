@@ -1,10 +1,13 @@
 """Explainer and helper functions for depmap_script2.py"""
+import logging
 from pybel.dsl import CentralDogma
 
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.net_functions import ns_id_from_name, \
     INT_PLUS, INT_MINUS
-from depmap_analysis.scripts.depmap_script2 import logger
+
+
+logger = logging.getLogger(__name__)
 
 
 def explained(s, o, corr, net, _type, **kwargs):
