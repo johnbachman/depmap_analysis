@@ -65,6 +65,7 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
 
     stats_dict = {k: [] for k in stats_columns}
     expl_dict = {k: [] for k in expl_columns}
+    options = {'ns_set': allowed_ns} if allowed_ns else {}
 
     for gA, gB, zsc in corr_iter:
         # Initialize current iteration stats
@@ -133,6 +134,11 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
         expl_iter = product(hgnc_node_mapping[gA], hgnc_node_mapping[gB]) \
             if _type == 'pybel' else [(gA, gB)]
 
+        # Add hgnc symbol name to expl kwargs if pybel
+        if _type == 'pybel':
+            options['s_name'] = gA
+            options['o_name'] = gB
+
         expl_iterations = defaultdict(list)
         for A, B in expl_iter:
             # Loop expl functions
@@ -144,14 +150,6 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 # Skip if 'explained set', which is caught above
                 if expl_type == 'explained set':
                     continue
-
-                # Add hgnc symbol name to kwargs if pybel
-                options = {}
-                if _type == 'pybel':
-                    options['s_name'] = gA
-                    options['o_name'] = gB
-                if allowed_ns:
-                    options['ns_set'] = allowed_ns
 
                 # Some functions reverses A, B hence the s, o assignment
                 s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
