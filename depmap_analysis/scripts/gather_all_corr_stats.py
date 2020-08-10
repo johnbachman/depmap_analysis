@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from depmap_analysis.util.io_functions import pickle_open, file_path, \
+from depmap_analysis.util.io_functions import file_opener, file_path, \
     is_dir_path
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         z_corr = pd.read_hdf(args.z_corr)
         if args.reactome:
             logger.info(f'Loading reactome file {args.reactome}')
-            reactome = pickle_open(args.reactome)
+            reactome = file_opener(args.reactome)
         else:
             reactome = None
     else:
@@ -104,7 +104,7 @@ if __name__ == '__main__':
         explainer_out = output_dir.joinpath(explainer_file.stem).as_posix()
         if not dry:
             # Load pickle
-            explainer = pickle_open(explainer_file)
+            explainer = file_opener(explainer_file)
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr,

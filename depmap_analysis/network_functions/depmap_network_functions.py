@@ -296,7 +296,7 @@ def nested_stmt_dict_to_nx_multidigraph(nest_d):
 
 def _merge_belief(sif_df, belief_dict):
     if isinstance(belief_dict, str):
-        belief_dict = io.pickle_open(belief_dict)
+        belief_dict = io.file_opener(belief_dict)
     elif isinstance(belief_dict, dict):
         belief_dict = belief_dict
 
@@ -339,7 +339,7 @@ def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
     """
 
     if isinstance(sif_df_in, str):
-        sif_df = io.pickle_open(sif_df_in)
+        sif_df = io.file_opener(sif_df_in)
     elif isinstance(sif_df_in, pd.DataFrame):
         sif_df = sif_df_in
     else:

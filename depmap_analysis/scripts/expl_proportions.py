@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from os import path
 from pathlib import Path
 
-from depmap_analysis.util.io_functions import is_dir_path, pickle_open
+from depmap_analysis.util.io_functions import is_dir_path, file_opener
 
 # Parameters to care about:
 # 1. Graph type
@@ -72,7 +72,7 @@ expl_by_type = {'pybel': [],
                 'signed': [],
                 'unsigned': []}
 for explainer_file in expl_dir.glob('*.pkl'):
-    expl = pickle_open(explainer_file)
+    expl = file_opener(explainer_file)
     expl_by_type[expl.script_settings['graph_type']].append(expl)
 
 # Per graph type, extract what the old code has

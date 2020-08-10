@@ -4,11 +4,12 @@ import pickle
 import logging
 from argparse import ArgumentError
 from pathlib import Path
+from functools import wraps
 from itertools import repeat, takewhile
 
 import numpy as np
 
-logger = logging.getLogger('dnf utils')
+logger = logging.getLogger(__name__)
 
 
 def file_opener(fname):
@@ -32,39 +33,102 @@ def file_opener(fname):
         raise ValueError(f'Unknown file extension for file {fname}')
 
 
-def dump_it_to_pickle(fname, pyobj):
+def file_dump_wrapper(f):
+    """Wrapper for any function that dumps a python object
+
+    The wrapped functions must contain at least the args "fname" and
+    "pyobj", the kwarg "overwrite" to flag for forcing overwriting of the
+    file is strongly encouraged
+
+    Parameters
+    ----------
+    f : function
+
+    Returns
+    -------
+    decorator
+    """
+
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        """Decorates file dumping functions
+
+        Parameters
+        ----------
+        *args
+            Must contain at least two arguments: a string for a filename and
+            the python object to write to a file
+        **kwargs
+            Can contain the flag "overwrite" that is used to raise an error
+            if the provided filepath already exists
+
+        Returns
+        -------
+        function
+        """
+        overwrite = kwargs.get('overwrite', False)
+        if len(args) == 0:
+            try:
+                fname = kwargs['fname']
+            except KeyError:
+                raise TypeError("f() missing a required positional argument: "
+                                "'fname'")
+            file = Path(fname)
+        else:
+            fname = args[0]
+            file = Path(fname)
+
+        # 1. Check if file exists if overwrite is False
+        if not overwrite and file.is_file():
+            raise FileExistsError(f'File {str(file)} already exists! Use '
+                                  f'overwrite=True to overwrite current file.')
+
+        # 2. Create parent directories if not present
+        if not file.parent.is_dir():
+            file.parent.mkdir(parents=True)
+
+        return f(*args, **kwargs)
+    return decorator
+
+
+@file_dump_wrapper
+def dump_it_to_pickle(fname, pyobj, overwrite=False):
     """Save pyobj to fname as pickle"""
     logger.info('Dumping to pickle file %s' % fname)
-    with open(fname, 'wb') as po:
+    with Path(fname).open('wb') as po:
         pickle.dump(obj=pyobj, file=po)
     logger.info('Finished dumping to pickle')
 
 
-def dump_it_to_json(fname, pyobj):
+@file_dump_wrapper
+def dump_it_to_json(fname, pyobj, overwrite=False):
     """Save pyobj to fname as json"""
     logger.info('Dumping to json file %s' % fname)
-    with open(fname, 'w') as json_out:
+    with Path(fname).open('w') as json_out:
         json.dump(pyobj, json_out)
     logger.info('Finished dumping to pickle')
 
 
-def dump_it_to_csv(fname, pyobj, separator=',', header=None):
+@file_dump_wrapper
+def dump_it_to_csv(fname, pyobj, separator=',', header=None, overwrite=False):
     """Save pyobj to fname as csv file"""
     logger.info('Dumping to csv file %s' % fname)
+    file = Path(fname)
     if header:
         logger.info('Writing csv header')
-        with open(fname, 'w') as fo:
+        with file.open('w') as fo:
             fo.write(','.join(header)+'\n')
-    with open(fname, 'a', newline='') as csvf:
+    with file.open('a', newline='') as csvf:
         wrtr = csv.writer(csvf, delimiter=separator)
         wrtr.writerows(pyobj)
     logger.info('Finished dumping to csv')
 
 
 def pickle_open(fname):
-    """Open pickle fname and return the contianed object"""
+    """Open pickle fname and return the contained object"""
     logger.info('Loading pickle file %s' % fname)
-    with open(fname, 'rb') as pi:
+    file = Path(fname)
+    with file.open('rb') as pi:
         pkl = pickle.load(file=pi)
     logger.info('Finished loading pickle file')
     return pkl
@@ -73,7 +137,8 @@ def pickle_open(fname):
 def json_open(fname):
     """Open json fname and return the object"""
     logger.info('Loading json file %s' % fname)
-    with open(fname, 'r') as jo:
+    file = Path(fname)
+    with file.open('r') as jo:
         js = json.load(fp=jo)
     logger.info('Finished loading json file')
     return js
@@ -90,8 +155,8 @@ def read_gene_set_file(gf, data):
     except AttributeError:
         # multi index
         dset = set([t[0] for t in data.columns])
-
-    with open(gf, 'rt') as f:
+    file = Path(gf)
+    with file.open('rt') as f:
         for g in f.readlines():
             gn = g.upper().strip()
             if gn in dset:
@@ -140,7 +205,8 @@ def histogram_for_large_files(fpath, number_of_bins, binsize, first):
         binsize and first.
     """
     home_brewed_histo = np.zeros(number_of_bins, dtype=int)
-    with open(file=fpath) as fo:
+    file = Path(fpath)
+    with file.open('r') as fo:
         for line in fo:
             flt = line.strip()
             home_brewed_histo[map2index(start=first, binsize=binsize,

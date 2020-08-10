@@ -103,7 +103,7 @@ else:
             seg_net = load_pickled_net_from_s3(INDRA_SEG)
             dump_it_to_pickle(INDRA_SEG_CACHE, seg_net)
         else:
-            seg_net = pickle_open(FILES['sign_edge_graph_path'])
+            seg_net = file_opener(FILES['sign_edge_graph_path'])
         if argv[0].split('/')[-1].lower() != 'api.py':
             indra_network = IndraNetwork(indra_dir_graph=dg_net,
                                          indra_sign_edge_graph=seg_net)

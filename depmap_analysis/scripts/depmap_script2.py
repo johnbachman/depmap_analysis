@@ -40,8 +40,8 @@ import pandas as pd
 import networkx as nx
 from pybel.dsl.node_classes import CentralDogma
 
-from depmap_analysis.util.io_functions import pickle_open, \
-    dump_it_to_pickle, json_open, graph_types, file_path
+from depmap_analysis.util.io_functions import file_opener, \
+    dump_it_to_pickle, graph_types, file_path
 from depmap_analysis.network_functions.net_functions import \
     INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
 from depmap_analysis.network_functions.famplex_functions import common_parent
@@ -589,9 +589,7 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
             hgnc_node_mapping = pb_node_mapping
         elif isinstance(pb_node_mapping, str) and \
                 Path(pb_node_mapping).is_file():
-            hgnc_node_mapping = pickle_open(pb_node_mapping) if \
-                pb_node_mapping.endswith('.pkl') else \
-                json_open(pb_node_mapping)
+            hgnc_node_mapping = file_opener(pb_node_mapping)
         else:
             raise ValueError('Could not load pybel node mapping')
 
@@ -801,7 +799,7 @@ if __name__ == '__main__':
     arg_dict = vars(args)
 
     # Load z_corr, indranet and optionally pybel_model
-    inet_graph = pickle_open(args.indranet)
+    inet_graph = file_opener(args.indranet)
     arg_dict['indra_net'] = inet_graph
     arg_dict['indra_net_file'] = args.indranet
     if arg_dict.get('z_score'):
@@ -831,17 +829,17 @@ if __name__ == '__main__':
     if arg_dict.get('pybel_model') and not arg_dict.get('pybel_node_mapping'):
         mapping = get_hgnc_node_mapping(
             hgnc_names=hgnc_names,
-            pb_model=pickle_open(arg_dict['pybel_model'])
+            pb_model=file_opener(arg_dict['pybel_model'])
         )
         arg_dict['pb_node_mapping'] = mapping
     # Mapping is provided: load the mapping
     elif arg_dict.get('pybel_node_mapping'):
         if arg_dict['pybel_node_mapping'].endswith('.pkl'):
             arg_dict['pb_node_mapping'] = \
-                pickle_open(arg_dict['pybel_node_mapping'])
+                file_opener(arg_dict['pybel_node_mapping'])
         elif arg_dict['pybel_node_mapping'].endswith('.json'):
             arg_dict['pb_node_mapping'] = \
-                json_open(arg_dict['pybel_node_mapping'])
+                file_opener(arg_dict['pybel_node_mapping'])
         else:
             raise ValueError('Unknown file type %s' %
                              arg_dict['pybel_node_mapping'].split('.')[-1])

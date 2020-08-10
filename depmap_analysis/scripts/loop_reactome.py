@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from matplotlib import pyplot as plt
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
-from depmap_analysis.util.io_functions import pickle_open, file_path
+from depmap_analysis.util.io_functions import file_opener, file_path
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, down_sampl_size
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     sd_ranges = [('rnd', None), (2, 3), (3, 4), (4, 5), (5, None)]
 
     # Only need first dict
-    reactome_mapping = pickle_open(reactome_file)[0]
+    reactome_mapping = file_opener(reactome_file)[0]
 
     # Load corr matrix
     z_sc_full = pd.read_hdf(z_sc_file)
