@@ -35,7 +35,7 @@ except KeyError:
                    'GILDA_URL to `indra/config.ini`')
 
 MAX_PATHS = 50
-TIMEOUT = 30  # Timeout in seconds
+TIMEOUT = 60  # Timeout in seconds
 MIN_TIMEOUT = 2
 MAX_TIMEOUT = 120
 MAX_SIGNED_PATH_LEN = 7
