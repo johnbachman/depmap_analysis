@@ -404,6 +404,8 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
     outpath = Path(outname)
+    if outpath.is_file():
+        raise FileExistsError(f'File {str(outpath)} already exists!')
 
     if z_score is not None:
         if isinstance(z_score, str) and Path(z_score).is_file():
