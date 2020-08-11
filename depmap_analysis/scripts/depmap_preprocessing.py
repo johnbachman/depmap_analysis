@@ -6,6 +6,7 @@ import pandas as pd
 
 from depmap_analysis.network_functions.depmap_network_functions import \
     merge_corr_df, raw_depmap_to_corr
+from depmap_analysis.network_functions.indra_network import get_top_ranked_name
 
 logger = logging.getLogger('DepMap PreProcessing')
 
@@ -125,6 +126,35 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         print(f'Correlation matrix is empty')
 
     return z_cm
+
+
+def get_drug_corr_matrix(drug_resp_file, drug_info_file):
+    def _get_drug_name(drug_id):
+        drug_rec = drug_info_df.loc[drug_id]
+        return drug_rec['name']
+    if isinstance(drug_resp_file, (str, Path)):
+        drug_resp_df = pd.read_csv(drug_resp_file, index_col=0)
+    elif isinstance(drug_resp_file, pd.DataFrame):
+        drug_resp_df = drug_resp_file
+    if isinstance(drug_info_file, (str, Path)):
+        drug_info_df = pd.read_csv(drug_info_file, index_col=0)
+    elif isinstance(drug_info_file, pd.DataFrame):
+        drug_info_df = drug_info_file
+
+    # Translate ids to names
+    col_names = [_get_drug_name(did) for did in drug_resp_df.columns]
+    # Gildaify?
+    col_names = [get_top_ranked_name(name)[-1] or name for name in col_names]
+    drug_resp_df.columns = col_names
+
+    # Drop duplicate columns
+    drug_resp_df = \
+        drug_resp_df.loc[:, ~drug_resp_df.columns.duplicated()]
+
+    # Make correlation matrix
+    corr_df = drug_resp_df.corr()
+
+    return corr_df
 
 
 if __name__ == '__main__':
