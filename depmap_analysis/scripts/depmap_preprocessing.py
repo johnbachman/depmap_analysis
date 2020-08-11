@@ -144,7 +144,7 @@ def get_drug_corr_matrix(drug_resp_file, drug_info_file):
     # Translate ids to names
     col_names = [_get_drug_name(did) for did in drug_resp_df.columns]
     # Gildaify?
-    col_names = [get_top_ranked_name(name)[-1] or name for name in col_names]
+    # col_names = [get_top_ranked_name(name)[-1] or name for name in col_names]
     drug_resp_df.columns = col_names
 
     # Drop duplicate columns
