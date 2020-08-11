@@ -224,7 +224,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                   'shared regulator': get_sr,
                   'shared target': get_st
                   }
-    if kwargs.get('shared_2neigh'):
+    if kwargs.get('shared_2neigh', False):
         expl_types['shared downstream']: get_sd
 
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
@@ -319,8 +319,8 @@ def error_callback(err):
 def main(indra_net, outname, graph_type, sd_range=None, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
-         indra_date=None, indra_net_file=None, depmap_date=None,
-         sample_size=None, shuffle=False):
+         shared_2neigh=False, indra_date=None, indra_net_file=None,
+         depmap_date=None, sample_size=None, shuffle=False):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -338,6 +338,9 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
     n_chunks : int
     ignore_list : list|str
     info : dict
+    shared_2neigh : bool
+        Add common next nearest downstream neighbors to the set of
+        explanations. Default: False.
     indra_date : str
     indra_net_file : str
     depmap_date : str
@@ -353,7 +356,7 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
     global indranet, hgnc_node_mapping, output_list
     indranet = indra_net
 
-    run_options = {'n-chunks': n_chunks}
+    run_options = {'n-chunks': n_chunks, 'shared_2neigh': shared_2neigh}
 
     # 1 Check options
     sd_l, sd_u = sd_range if sd_range and len(sd_range) == 2 else \
@@ -411,7 +414,6 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         }
         z_corr = run_corr_merge(**z_sc_options)
 
-    graph_type = graph_type
     run_options['graph_type'] = graph_type
 
     # Get mapping of correlation names to pybel nodes
@@ -615,6 +617,9 @@ if __name__ == '__main__':
     parser.add_argument('--shuffle', action='store_true',
                         help='Shuffle the correlation matrix before running '
                              'matching loop.')
+    parser.add_argument('--shared-2neigh', action='store_true',
+                        help='Also look for common downstream next nearest '
+                             'neighbors.')
 
     args = parser.parse_args()
     arg_dict = vars(args)
