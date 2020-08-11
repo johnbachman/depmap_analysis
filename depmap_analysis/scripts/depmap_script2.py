@@ -320,9 +320,10 @@ def error_callback(err):
 
 def main(indra_net, outname, graph_type, sd_range=None, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
-         pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
-         shared_2neigh=False, indra_date=None, indra_net_file=None,
-         depmap_date=None, sample_size=None, shuffle=False):
+         pb_node_mapping=None, n_chunks=256, ignore_list=None,
+         allowed_ns=None, info=None, shared_2neigh=False, indra_date=None,
+         indra_net_file=None, depmap_date=None, sample_size=None,
+         shuffle=False):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -339,6 +340,8 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
     pb_node_mapping : dict|str
     n_chunks : int
     ignore_list : list|str
+    allowed_ns : list
+        A list of allowed name spaces. Default: Any namespace.
     info : dict
     shared_2neigh : bool
         Add common next nearest downstream neighbors to the set of
@@ -417,6 +420,10 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         z_corr = run_corr_merge(**z_sc_options)
 
     run_options['graph_type'] = graph_type
+    if allowed_ns:
+        logger.info('Only allowing the following namespaces: %s' %
+                    ', '.join(allowed_ns))
+        run_options['allowed_ns'] = allowed_ns
 
     # Get mapping of correlation names to pybel nodes
     if graph_type == 'pybel':
