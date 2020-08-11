@@ -239,6 +239,9 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
 
     allowed_ns = set([n.lower() for n in kwargs['allowed_ns']]) if \
         kwargs.get('allowed_ns') else None
+    if allowed_ns:
+        logger.info('Only allowing the following namespaces: %s' %
+                    ', '.join(allowed_ns))
 
     ymd_now = datetime.now().strftime('%Y%m%d')
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
@@ -421,8 +424,6 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
 
     run_options['graph_type'] = graph_type
     if allowed_ns:
-        logger.info('Only allowing the following namespaces: %s' %
-                    ', '.join(allowed_ns))
         run_options['allowed_ns'] = allowed_ns
 
     # Get mapping of correlation names to pybel nodes
