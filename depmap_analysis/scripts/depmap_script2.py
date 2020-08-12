@@ -4,26 +4,26 @@ The script matches observed correlations with different graph
 representations if the IndraNetwork
 
 # Inputs:
-#   1. Pre-processed correlation matrix with only (gene, gene, z-score)
-#   2. nx.DiGraph (or nx.MultiDiGraph?) of IndraNetwork containing at least
-#      agA/B: (name, ns, id), hash, type, belief, sign
+1. Pre-processed correlation matrix with only (gene, gene, z-score)
+2. nx.DiGraph (or nx.MultiDiGraph?) of IndraNetwork containing at least
+   agA/B: (name, ns, id), hash, type, belief, sign
 
 # Processing:
-#   0a. If signed graph: match edge sign with correlation sign
-#   0b. If pybel graph: get node representation and match edge sign with
-#       correlation sign
-#   1. Find direct links both ways
-#   2. Find A-X-B links: both ways (2), common target, common regulator
-#   3. Find famplex links (have common parent)
+0a. If signed graph: match edge sign with correlation sign
+0b. If pybel graph: get node representation and match edge sign with
+    correlation sign
+1. Find direct links both ways
+2. Find A-X-B links: both ways (2), common target, common regulator
+3. Find famplex links (have common parent)
 
 # Questions:
-#   Q1. Where would the cutting down to specific SD ranges be done?
-#   A: Probably outside match correlations, somewhere inside or after
-#      preprocessing. Better to do it all at once for one dump of the data
+Q1. Where would the cutting down to specific SD ranges be done?
+A: Probably outside match correlations, somewhere inside or after
+   preprocessing. Better to do it all at once for one dump of the data
 
 # Output:
-#   An object of a new class that wraps a dataframe that can generate
-#   different explanations statistics
+An instance of the DepMapExplainer class that wraps dataframes that can
+generate different explanations statistics
 """
 import inspect
 import logging
