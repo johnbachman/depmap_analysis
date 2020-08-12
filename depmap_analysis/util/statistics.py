@@ -13,6 +13,10 @@ from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 logger = logging.getLogger(__name__)
 
+min_columns = ('agA', 'agB', 'z-score')
+id_columns = min_columns + ('agA_ns', 'agA_id', 'agB_ns', 'agB_id')
+
+
 
 class DepMapExplainer:
     """Contains the result of the matching of correlations and an indranet

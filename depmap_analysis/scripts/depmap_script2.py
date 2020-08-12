@@ -45,7 +45,8 @@ from depmap_analysis.network_functions.net_functions import \
     get_hgnc_node_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, iter_chunker, down_sampl_size
-from depmap_analysis.util.statistics import DepMapExplainer
+from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
+    id_columns
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 from depmap_analysis.scripts.depmap_script_expl_funcs import explained, \
     find_cp, expl_axb, expl_bxa, get_sr, get_st, get_sd, expl_ab, expl_ba, \
@@ -212,8 +213,6 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
         An instance of the DepMapExplainer class containing the explanations
         for the correlations.
     """
-    min_columns = ('agA', 'agB', 'z-score')
-    id_columns = min_columns + ('agA_ns', 'agA_id', 'agB_ns', 'agB_id')
     # Map each expl type to a function that handles that explanation
     expl_types = {'a-b': expl_ab,
                   'b-a': expl_ba,
