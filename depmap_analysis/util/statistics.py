@@ -65,7 +65,7 @@ class DepMapExplainer:
         self.corr_stats_axb = {}
 
     def __str__(self):
-        return self.get_summary_str() if self.has_data else \
+        return self.get_summary_str() if self.__len__() else \
             'DepMapExplainer is empty'
 
     def __len__(self):
