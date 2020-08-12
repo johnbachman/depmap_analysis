@@ -133,6 +133,7 @@ class DepMapExplainer:
         -------
         str
         """
+        # ToDo: Fix order of output
         if not self.summary_str:
             summary = self.get_summary()
             self.summary_str = \
