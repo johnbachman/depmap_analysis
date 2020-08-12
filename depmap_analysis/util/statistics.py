@@ -143,14 +143,13 @@ class DepMapExplainer:
         str
         """
         if not self.summary_str:
-            for expl in ['total checked', 'not in graph', 'explained',
-                         'explained (excl sr)', 'unexplained',
-                         'explained set', 'common parent',
-                         'complex or direct', 'x intermediate',
-                         'shared regulator', 'shared target', 'sr only']:
-                summary = self.get_summary()
+            summary = self.get_summary()
+            self.summary_str = \
+                'Explanation'.ljust(22) + 'count\n' + '-'*len('Explanation')\
+                + ' '*(22-len('Explanation')) + '-'*len('count')
+            for expl, count in summary.items():
                 self.summary_str +=\
-                    (expl + ": ").ljust(22) + str(summary[expl]) + '\n'
+                    (expl + ": ").ljust(22) + str(count) + '\n'
         return self.summary_str
 
     def save_summary(self, fname):
