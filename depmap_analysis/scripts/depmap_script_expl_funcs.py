@@ -35,7 +35,7 @@ def find_cp(s, o, corr, net, _type, **kwargs):
         parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
         if parents:
             if kwargs.get('ns_set'):
-                parents = {(ns, _id) for ns, _id in parents if ns in
+                parents = {(ns, _id) for ns, _id in parents if ns.lower() in
                            kwargs['ns_set']} or None
             return s, o, parents
 
@@ -52,7 +52,7 @@ def expl_axb(s, o, corr, net, _type, **kwargs):
     # Filter ns
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
+                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
@@ -82,7 +82,7 @@ def get_sr(s, o, corr, net, _type, **kwargs):
     # Filter ns
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
+                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
@@ -102,7 +102,7 @@ def get_st(s, o, corr, net, _type, **kwargs):
     # Filter ns
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
+                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
@@ -144,7 +144,7 @@ def get_sd(s, o, corr, net, _type, **kwargs):
     # Filter ns
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'] in kwargs['ns_set']} or None
+                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
