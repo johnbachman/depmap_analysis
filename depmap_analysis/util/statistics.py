@@ -58,6 +58,7 @@ class DepMapExplainer:
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
+        self.expl_cols = list(set(stats_columns).difference(id_columns))
         self._has_data = False
         self.is_signed = True if network_type in {'signed', 'pybel'} else False
         self.summary = {}
