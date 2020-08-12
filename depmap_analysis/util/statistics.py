@@ -93,40 +93,31 @@ class DepMapExplainer:
         print(self.summary_str)
 
     def get_summary(self):
-        """Calculate and return a dict with the summary counts per explanation
+        """Return a dict with the summary counts
 
         Returns
         -------
         dict
         """
         if not self.summary:
+            # Get explanation column counts
+            for expl_type in self.stats_df.columns:
+                if expl_type in id_columns:
+                    continue
+                self.summary[expl_type] = self.stats_df[expl_type].sum()
+
+            # Special Counts #
             # Total pairs checked
-            self.summary['total checked'] = len(self.stats_df)
-            # Not in graph
-            self.summary['not in graph'] = sum(self.stats_df['not in graph'])
-            # unexplained
+            self.summary['total checked'] = self.__len__()
+            # unexplained: can be NaN, True, False
             self.summary['unexplained'] = \
                 sum(self.stats_df['explained'] == False)
-            # explained
-            self.summary['explained'] = self.stats_df['explained'].sum()
-            # count common parent
-            self.summary['common parent'] = \
-                self.stats_df['common parent'].sum()
-            # count "explained set"
-            self.summary['explained set'] = \
-                self.stats_df['explained set'].sum()
             # count "complex or direct"
             self.summary['complex or direct'] = \
                 sum(self.stats_df['a-b'] | self.stats_df['b-a'])
             # count directed a-x-b: a->x->b or b->x->a
             self.summary['x intermediate'] = \
                 sum(self.stats_df['a-x-b'] | self.stats_df['b-x-a'])
-            # count shared target: a->x<-b
-            self.summary['shared regulator'] = \
-                self.stats_df['shared regulator'].sum()
-            # count shared regulator: a<-x->b
-            self.summary['shared target'] = \
-                self.stats_df['shared target'].sum()
             # count shared regulator as only expl
             self.summary['sr only'] = self._get_sr_only()
             # explained - (shared regulator as only expl)
