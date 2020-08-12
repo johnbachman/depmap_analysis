@@ -227,7 +227,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     if kwargs.get('shared_2neigh', False):
         logger.info('Adding shared next nearest neighbors as explanation '
                     'under column name "shared downstream"')
-        expl_types['shared downstream']: get_sd
+        expl_types['shared downstream'] = get_sd
 
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
