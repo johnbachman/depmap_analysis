@@ -17,7 +17,6 @@ min_columns = ('agA', 'agB', 'z-score')
 id_columns = min_columns + ('agA_ns', 'agA_id', 'agB_ns', 'agB_id')
 
 
-
 class DepMapExplainer:
     """Contains the result of the matching of correlations and an indranet
     graph
@@ -145,8 +144,8 @@ class DepMapExplainer:
         if not self.summary_str:
             summary = self.get_summary()
             self.summary_str = \
-                'Explanation'.ljust(22) + 'count\n' + '-'*len('Explanation')\
-                + ' '*(22-len('Explanation')) + '-'*len('count')
+                'Explanation'.ljust(22) + 'count\n' + '-'*len('Explanation') +\
+                ' '*(22-len('Explanation')) + '-'*len('count') + '\n'
             for expl, count in summary.items():
                 self.summary_str +=\
                     (expl + ": ").ljust(22) + str(count) + '\n'
