@@ -100,5 +100,3 @@ def has_common_parent(ontology=None, ns1='HGNC', id1=None,
     """
     ontology = bio_ontology if not ontology else ontology
     return bool(common_parent(ontology, ns1, id1, ns2, id2))
-
-
