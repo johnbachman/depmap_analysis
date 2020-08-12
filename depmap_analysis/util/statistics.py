@@ -161,19 +161,18 @@ class DepMapExplainer:
                 f.write(f'{e},{c}\n')
 
     def _get_sr_only(self):
-        # Select rows that match the following conditions
-        indices = self.stats_df[
-            (self.stats_df['shared regulator'] == True) &
-            (self.stats_df['a-b'] == False) &
-            (self.stats_df['b-a'] == False) &
-            (self.stats_df['common parent'] == False) &
-            (self.stats_df['explained set'] == False) &
-            (self.stats_df['a-x-b'] == False) &
-            (self.stats_df['b-x-a'] == False) &
-            (self.stats_df['shared target'] == False) &
-            (self.stats_df['not in graph'] == False)
-        ].index
-        return len(indices)
+        # Get indices where 'shared regulator' is True
+        sr_true = self.stats_df[
+                self.stats_df['shared regulator'] == True
+            ].index.values
+        # Exclude overall explained and shared regulator
+        other_cols = [col for col in self.expl_cols if col not in
+                      {'shared regulator', 'explained'}]
+        others_false = self.stats_df[
+                self.stats_df[other_cols] == False
+            ].index.values
+
+        return len(set(sr_true).intersection(others_false))
 
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True):
