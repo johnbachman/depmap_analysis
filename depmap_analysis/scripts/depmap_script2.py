@@ -237,7 +237,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
 
-    allowed_ns = set([n.lower() for n in kwargs['allowed_ns']]) if \
+    allowed_ns = {n.lower() for n in kwargs['allowed_ns']} if \
         kwargs.get('allowed_ns') else None
     if allowed_ns:
         logger.info('Only allowing the following namespaces: %s' %
