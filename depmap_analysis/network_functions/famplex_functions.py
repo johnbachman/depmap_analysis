@@ -29,7 +29,8 @@ def get_all_entities(ontology=None):
     return ent_list
 
 
-def find_parent(ontology=None, ns='HGNC', id_=None, immediate_only=False):
+def find_parent(ontology=None, ns='HGNC', id_=None, immediate_only=False,
+                is_a_part_of=None):
     """A wrapper function for IndraOntology.get_parents()
 
     Parameters
@@ -42,6 +43,8 @@ def find_parent(ontology=None, ns='HGNC', id_=None, immediate_only=False):
         id to check parents for. Default: None
     immediate_only : bool
         Determines if all or just the immediate parents should be returned
+    is_a_part_of : iterable
+        If provided, the parents must be in this set of ids
 
     Returns
     -------
@@ -49,13 +52,20 @@ def find_parent(ontology=None, ns='HGNC', id_=None, immediate_only=False):
         set of parents as (namespace, identifier) tuples
     """
     ontology = bio_ontology if not ontology else ontology
+
     if immediate_only:
-        return {p for p in ontology.child_rel(ns, id_, {'isa', 'partof'})}
-    return set(ontology.get_parents(ns, id_))
+        parents = {p for p in ontology.child_rel(ns, id_, {'isa', 'partof'})}
+    else:
+        parents = set(ontology.get_parents(ns, id_))
+
+    if is_a_part_of:
+        parents = {p for p in parents if p in is_a_part_of}
+
+    return parents
 
 
 def common_parent(ontology=None, ns1='HGNC', id1=None, ns2='HGNC', id2=None,
-                  immediate_only=False):
+                  immediate_only=False, is_a_part_of=None):
     """Returns the set of common parents.
 
     Parameters
@@ -71,7 +81,10 @@ def common_parent(ontology=None, ns1='HGNC', id1=None, ns2='HGNC', id2=None,
     id2 : str
         Second id to check parents for. Default: None
     immediate_only : bool
-        Determines if all or just the immediate parents should be returned
+        Determines if all or just the immediate parents should be returned.
+        Default: False, i.e. all parents.
+    is_a_part_of : iterable
+        If provided, the parents must be in this set of ids
 
     Returns
     -------
@@ -79,8 +92,8 @@ def common_parent(ontology=None, ns1='HGNC', id1=None, ns2='HGNC', id2=None,
         set of common parents as (namespace, identifier) tuples
     """
     ontology = bio_ontology if not ontology else ontology
-    return find_parent(ontology, ns1, id1, immediate_only) & \
-        find_parent(ontology, ns2, id2, immediate_only)
+    return find_parent(ontology, ns1, id1, immediate_only, is_a_part_of) & \
+        find_parent(ontology, ns2, id2, immediate_only, is_a_part_of)
 
 
 def has_common_parent(ontology=None, ns1='HGNC', id1=None,
