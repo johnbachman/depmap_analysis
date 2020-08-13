@@ -59,7 +59,7 @@ def find_parent(id_, ns='HGNC', ontology=None, immediate_only=False,
         parents = set(ontology.get_parents(ns, id_))
 
     if is_a_part_of:
-        parents = {p for p in parents if p in is_a_part_of}
+        parents = {p for p in parents if p[1] in is_a_part_of}
 
     return parents
 
