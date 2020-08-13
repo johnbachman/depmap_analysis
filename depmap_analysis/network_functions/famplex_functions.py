@@ -29,18 +29,18 @@ def get_all_entities(ontology=None):
     return ent_list
 
 
-def find_parent(ontology=None, ns='HGNC', id_=None, immediate_only=False,
+def find_parent(id_, ns='HGNC', ontology=None, immediate_only=False,
                 is_a_part_of=None):
     """A wrapper function for IndraOntology.get_parents()
 
     Parameters
     ----------
-    ontology : IndraOntology object
-        An IndraOntology object. Default: INDRA BioOntology
+    id_ : str
+        id to check parents for
     ns : str
         namespace id. Default: HGNC
-    id_ : str
-        id to check parents for. Default: None
+    ontology : IndraOntology object
+        An IndraOntology object. Default: INDRA BioOntology
     immediate_only : bool
         Determines if all or just the immediate parents should be returned
     is_a_part_of : iterable
@@ -64,22 +64,22 @@ def find_parent(ontology=None, ns='HGNC', id_=None, immediate_only=False,
     return parents
 
 
-def common_parent(ontology=None, ns1='HGNC', id1=None, ns2='HGNC', id2=None,
+def common_parent(id1, id2, ns1='HGNC', ns2='HGNC', ontology=None,
                   immediate_only=False, is_a_part_of=None):
     """Returns the set of common parents.
 
     Parameters
     ----------
-    ontology : IndraOntology object
-        An IndraOntology object. Default: INDRA BioOntology
+    id1 : str
+        First id to check parents for
+    id2 : str
+        Second id to check parents for
     ns1 : str
         namespace id. Default: HGNC
-    id1 : str
-        First id to check parents for. Default: None
     ns2 : str
         namespace id. Default: HGNC
-    id2 : str
-        Second id to check parents for. Default: None
+    ontology : IndraOntology object
+        An IndraOntology object. Default: INDRA BioOntology
     immediate_only : bool
         Determines if all or just the immediate parents should be returned.
         Default: False, i.e. all parents.
