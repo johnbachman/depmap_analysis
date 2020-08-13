@@ -44,7 +44,8 @@ def find_parent(id_, ns='HGNC', ontology=None, immediate_only=False,
     immediate_only : bool
         Determines if all or just the immediate parents should be returned
     is_a_part_of : iterable
-        If provided, the parents must be in this set of ids
+        If provided, the parents must be in this set of ids. The set is
+        assumed to be valid ontology labels (see ontology.label()).
 
     Returns
     -------
@@ -84,7 +85,8 @@ def common_parent(id1, id2, ns1='HGNC', ns2='HGNC', ontology=None,
         Determines if all or just the immediate parents should be returned.
         Default: False, i.e. all parents.
     is_a_part_of : iterable
-        If provided, the parents must be in this set of ids
+        If provided, the parents must be in this set of ids. The set is
+        assumed to be valid ontology labels (see ontology.label()).
 
     Returns
     -------
