@@ -96,27 +96,31 @@ def common_parent(ontology=None, ns1='HGNC', id1=None, ns2='HGNC', id2=None,
         find_parent(ontology, ns2, id2, immediate_only, is_a_part_of)
 
 
-def has_common_parent(ontology=None, ns1='HGNC', id1=None,
-                      ns2='HGNC', id2=None):
+def has_common_parent(id1, id2, ns1='HGNC', ns2='HGNC',
+                      ontology=None, immediate_only=False):
     """Returns True if id1 and id2 has at least one common parent.
 
     Parameters
     ----------
-    ontology : IndraOntology object
-        An IndraOntology object. Default: INDRA BioOntology
+    id1 : str
+        First id to check parents for
+    id2 : str
+        Second id to check parents for
     ns1 : str
         namespace id. Default: HGNC
-    id1 : str
-        First id to check parents for. Default: None
     ns2 : str
         namespace id. Default: HGNC
-    id2 : str
-        Second id to check parents for. Default: None
+    ontology : IndraOntology object
+        An IndraOntology object. Default: INDRA BioOntology
+    immediate_only : bool
+        Determines if all or just the immediate parents should be returned.
+        Default: False, i.e. all parents.
 
     Returns
     -------
     bool
-        True if hgnc1 and hgnc2 has one or more common parents.
+        True if id1 and id2 has one or more common parents.
     """
     ontology = bio_ontology if not ontology else ontology
-    return bool(common_parent(ontology, ns1, id1, ns2, id2))
+    return bool(common_parent(ontology, ns1, id1, ns2, id2,
+                              immediate_only=immediate_only))
