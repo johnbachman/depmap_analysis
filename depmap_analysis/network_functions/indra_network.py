@@ -17,7 +17,7 @@ from indra.explanation.pathfinding.util import signed_nodes_to_signed_edge, \
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from indra.explanation.pathfinding.pathfinding import shortest_simple_paths, \
-    bfs_search
+    bfs_search, open_dijkstra_search
 from depmap_analysis.network_functions import famplex_functions as ff
 from depmap_analysis.network_functions import net_functions as nf
 from depmap_analysis.network_functions.net_functions import \
@@ -630,20 +630,25 @@ class IndraNetwork:
                         self.signed_nodes.get(check_node):
                     raise NodeNotFound('Node %s not in graph' % start_node)
 
-                return self.open_bfs(start_node=start_node,
-                                     reverse=reverse,
-                                     **options)
+                if options['strict_mesh_id_filtering']:
+                    return self.open_bfs(start_node=start_node,
+                                         reverse=reverse,
+                                         **options)
+                else:
+                    return self.open_dijkstra(start_node=start_node,
+                                              reverse=reverse, **options)
             else:
                 logger.info('Doing simple %spath search' % ('weigthed '
                             if options['weight'] else ''))
             related_hashes = find_related_hashes(options['mesh_ids'])
+            strict = options.get('strict_mesh_id_filtering', False)
             if options['sign'] is None:
                 # Do unsigned path search
                 paths = shortest_simple_paths(self.nx_dir_graph_repr,
                                               source, target,
                                               options['weight'],
                                               hashes=related_hashes,
-                                              strict_mesh_id_filtering=options['strict_mesh_id_filtering'],
+                                              strict_mesh_id_filtering=strict,
                                               **blacklist_options)
                 subj = source
                 obj = target
@@ -676,7 +681,7 @@ class IndraNetwork:
 
     def open_bfs(self, start_node, reverse=False, depth_limit=2,
                  path_limit=None, terminal_ns=None, max_per_node=5,
-                 **options):
+                 strict_mesh_id_filtering=True, **options):
         """Return paths and their data starting from source
 
         Parameters
@@ -757,13 +762,60 @@ class IndraNetwork:
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         related_hashes = find_related_hashes(options['mesh_ids'])
+
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
                              path_limit=path_limit, max_per_node=max_per_node,
-                             terminal_ns=terminal_ns, hashes=related_hashes, **bfs_options)
+                             terminal_ns=terminal_ns, hashes=related_hashes, 
+                             strict_mesh_id_filtering=strict_mesh_id_filtering,
+                             **bfs_options)
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, hashes=related_hashes, 
                                     **options)
+
+    def open_dijkstra(self, start_node, reverse=False, **options):
+        """Do Dijkstra search from a given node and yield paths
+
+        Parameters
+        ----------
+        g : nx.Digraph
+            An nx.DiGraph to search in.
+        start : node
+            Node in the graph to start from.
+        reverse : bool
+            If True go upstream from source, otherwise go downstream. Default:
+            False.
+        depth_limit : int
+            Stop when all paths with this many edges have been found. Default: 2.
+        path_limit : int
+            The maximum number of paths to return. Default: no limit.
+        hashes : list
+            List of hashes used to set edge weights
+
+        Yields
+        ------
+        path : tuple(node)
+            Paths in the bfs search starting from `source`.
+        """
+        # Signed search
+        if options.get('sign') is not None:
+            graph = self.sign_node_graph_repr
+            signed_node_blacklist = []
+            for node in options.get('node_blacklist', []):
+                signed_node_blacklist.extend([(node, INT_MINUS),
+                                              (node, INT_PLUS)])
+            options['node_blacklist'] = signed_node_blacklist
+            starting_node = get_signed_node(start_node, options['sign'],
+                                            reverse)
+
+        # Normal search
+        else:
+            graph = self.nx_dir_graph_repr
+            starting_node = start_node
+        
+        related_hashes = find_related_hashes(options['mesh_ids'])
+
+        return open_dijkstra_search(graph, starting_node, reverse=reverse, hashes=related_hashes)
 
     def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
