@@ -62,12 +62,17 @@ output_list = None
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
                             expl_columns, bool_columns, min_columns,
-                            explained_set, _type, allowed_ns=None):
+                            explained_set, _type, allowed_ns=None,
+                            is_a_part_of=None, immediate_only=False):
     # Separate out this part
 
     stats_dict = {k: [] for k in stats_columns}
     expl_dict = {k: [] for k in expl_columns}
-    options = {'ns_set': allowed_ns} if allowed_ns else {}
+    options = {'immediate_only': immediate_only}
+    if is_a_part_of:
+        options['is_a_part_of'] = is_a_part_of
+    if allowed_ns:
+        options['ns_set'] = allowed_ns
 
     for gA, gB, zsc in corr_iter:
         # Initialize current iteration stats
@@ -236,11 +241,14 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
 
+    # Get options
     allowed_ns = {n.lower() for n in kwargs['allowed_ns']} if \
         kwargs.get('allowed_ns') else None
     if allowed_ns:
         logger.info('Only allowing the following namespaces: %s' %
                     ', '.join(allowed_ns))
+    is_a_part_of = kwargs.get('is_a_part_of')
+    immediate_only = kwargs.get('immediate_only', False)
 
     ymd_now = datetime.now().strftime('%Y%m%d')
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
@@ -274,7 +282,9 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                                  min_columns,
                                  explained_set,
                                  _type,
-                                 allowed_ns
+                                 allowed_ns,
+                                 is_a_part_of,
+                                 immediate_only
                              ),
                              callback=success_callback,
                              error_callback=error_callback)
@@ -323,7 +333,8 @@ def error_callback(err):
 def main(indra_net, outname, graph_type, sd_range, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None,
-         allowed_ns=None, info=None, shared_2neigh=False, indra_date=None,
+         is_a_part_of=None, immediate_only=False, allowed_ns=None,
+         info=None, shared_2neigh=False, indra_date=None,
          indra_net_file=None, depmap_date=None, sample_size=None,
          shuffle=False):
     """Set up correlation matching of depmap data with an indranet graph
@@ -342,8 +353,16 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     pb_node_mapping : dict|str
     n_chunks : int
     ignore_list : list|str
+        List of nodes in graph to ignore
+    is_a_part_of : iterable
+        A set of identifiers to look for when applying the common parent
+        explanation between a pair of correlating nodes.
+    immediate_only : bool
+        Only look for immediate parents. This option might limit the number
+        of results that are returned.
     allowed_ns : list
-        A list of allowed name spaces. Default: Any namespace.
+        A list of allowed name spaces for explanations involving
+        intermediary nodes. Default: Any namespace.
     info : dict
     shared_2neigh : bool
         Add common next nearest downstream neighbors to the set of
@@ -424,8 +443,12 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         z_corr = run_corr_merge(**z_sc_options)
 
     run_options['graph_type'] = graph_type
+    # Add optional options
+    run_options['immediate_only'] = immediate_only
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
+    if is_a_part_of:
+        run_options['is_a_part_of'] = is_a_part_of
 
     # Get mapping of correlation names to pybel nodes
     if graph_type == 'pybel':
@@ -631,6 +654,13 @@ if __name__ == '__main__':
     parser.add_argument('--shared-2neigh', action='store_true',
                         help='Also look for common downstream next nearest '
                              'neighbors.')
+    parser.add_argument('--is-a-part-of', nargs='+',
+                        help='Identifiers that are considered to explain '
+                             'pair connections in common parent search in '
+                             'ontology.')
+    parser.add_argument('--immediate-only', action='store_true',
+                        help='Only look in immediate parents in common '
+                             'parent search.')
 
     args = parser.parse_args()
     arg_dict = vars(args)

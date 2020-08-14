@@ -32,11 +32,20 @@ def find_cp(s, o, corr, net, _type, **kwargs):
             ns_id_from_name(o)
 
     if s_id and o_id:
-        parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
+        # Possible kwargs:
+        #   - immediate_only : bool
+        #         Determines if all or just the immediate parents should be
+        #         returned. Default: False.
+        #   - is_a_part_of : iterable
+        #         If provided, the parents must be in this set of ids. The
+        #         set is assumed to be valid ontology labels (see
+        #         ontology.label()).
+        parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id
+                                     **kwargs))
         if parents:
-            if kwargs.get('ns_set'):
-                parents = {(ns, _id) for ns, _id in parents if ns.lower() in
-                           kwargs['ns_set']} or None
+            # if kwargs.get('ns_set'):
+            #     parents = {(ns, _id) for ns, _id in parents if ns.lower() in
+            #                kwargs['ns_set']} or None
             return s, o, parents
 
     return s, o, None
