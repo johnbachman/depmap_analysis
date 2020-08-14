@@ -320,7 +320,7 @@ def error_callback(err):
     logger.exception(err)
 
 
-def main(indra_net, outname, graph_type, sd_range=None, random=False,
+def main(indra_net, outname, graph_type, sd_range, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
          pb_node_mapping=None, n_chunks=256, ignore_list=None,
          allowed_ns=None, info=None, shared_2neigh=False, indra_date=None,
