@@ -28,6 +28,20 @@ for (let n of nodeOptions) {
   });
 }
 
+let termNamespaces = [];
+for (let n of termNsOptions) {
+  let sel = false;
+  if (n === 'HGNC') {
+    sel = true;
+  }
+  termNamespaces.push({
+    value: n.toLowerCase(),
+    label: n,
+    selected: sel,
+    disabled: false
+  });
+}
+
 function submitQuery() {
   let beliefEntry = parseInRange(document.getElementById('belief-cutoff').value,
                                  document.getElementById('belief-cutoff').min,
@@ -52,6 +66,10 @@ function submitQuery() {
   let stmtFilterList = [];
   for (c of document.getElementById('stmt-filter').children) {
     stmtFilterList.push(c.value)
+  }
+  let termNsList = [];
+  for (c of document.getElementById('terminal-namespace').children) {
+    termNsList.push(c.value)
   }
   if (!document.getElementById('fplx-edges').checked) {
     stmtFilterList.push('fplx')
@@ -100,6 +118,7 @@ function submitQuery() {
     user_timeout: timeoutEntry,
     two_way: document.getElementById('two-ways').checked,
     shared_regulators: document.getElementById('shared-regulators').checked,
+    terminal_ns: termNsList,
     format: 'html'
   };
 
@@ -223,7 +242,19 @@ function fillOldQuery(oldQueryJson) {
       disabled: false
     })
   }
-  return [stmtItems, nodeItems]
+
+  let termNamespaces = [];
+  let selTermNs = oldQueryJson.terminal_ns;
+  for (let n of nodeOptions) {
+    let sel = selTermNs.includes(n.toLowerCase());
+    nodeItems.push({
+      value: n.toLowerCase(),
+      label: n,
+      selected: sel,
+      disabled: false
+    })
+  }
+  return [stmtItems, nodeItems, termNamespaces]
 }
 
 function fillResultsTable(data, source, target){
