@@ -185,6 +185,7 @@ def get_query_page():
                            query_hash=qh,
                            stmt_types=stmt_types,
                            node_name_spaces=list(NS_LIST_),
+                           terminal_name_spaces=list(NS_LIST),
                            has_signed_graph=has_signed_graph,
                            old_result=json.dumps(results_json),
                            old_query=json.dumps(query_json),
