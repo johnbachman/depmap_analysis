@@ -245,9 +245,9 @@ function fillOldQuery(oldQueryJson) {
 
   let termNamespaces = [];
   let selTermNs = oldQueryJson.terminal_ns;
-  for (let n of nodeOptions) {
+  for (let n of termNsOptions) {
     let sel = selTermNs.includes(n.toLowerCase());
-    nodeItems.push({
+    termNamespaces.push({
       value: n.toLowerCase(),
       label: n,
       selected: sel,
