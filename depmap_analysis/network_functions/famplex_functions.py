@@ -94,12 +94,15 @@ def common_parent(id1, id2, ns1='HGNC', ns2='HGNC', ontology=None,
         set of common parents as (namespace, identifier) tuples
     """
     ontology = bio_ontology if not ontology else ontology
-    return find_parent(ontology, ns1, id1, immediate_only, is_a_part_of) & \
-        find_parent(ontology, ns2, id2, immediate_only, is_a_part_of)
+    return find_parent(ns=ns1, id_=id1, ontology=ontology,
+                       immediate_only=immediate_only,
+                       is_a_part_of=is_a_part_of) & \
+        find_parent(ns=ns2, id_=id2, ontology=ontology,
+                    immediate_only=immediate_only, is_a_part_of=is_a_part_of)
 
 
 def has_common_parent(id1, id2, ns1='HGNC', ns2='HGNC',
-                      ontology=None, immediate_only=False):
+                      ontology=None, immediate_only=False, is_a_part_of=None):
     """Returns True if id1 and id2 has at least one common parent.
 
     Parameters
@@ -117,6 +120,9 @@ def has_common_parent(id1, id2, ns1='HGNC', ns2='HGNC',
     immediate_only : bool
         Determines if all or just the immediate parents should be returned.
         Default: False, i.e. all parents.
+    is_a_part_of : iterable
+        If provided, the parents must be in this set of ids. The set is
+        assumed to be valid ontology labels (see ontology.label()).
 
     Returns
     -------
@@ -124,5 +130,6 @@ def has_common_parent(id1, id2, ns1='HGNC', ns2='HGNC',
         True if id1 and id2 has one or more common parents.
     """
     ontology = bio_ontology if not ontology else ontology
-    return bool(common_parent(ontology, ns1, id1, ns2, id2,
-                              immediate_only=immediate_only))
+    return bool(common_parent(id1, id2, ns1=ns1, ns2=ns2, ontology=ontology,
+                              immediate_only=immediate_only,
+                              is_a_part_of=is_a_part_of))
