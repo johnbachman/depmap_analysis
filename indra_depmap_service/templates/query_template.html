@@ -38,11 +38,11 @@
         let [oldStmtItems, oldNodeItems, oldTermNamespaces] = fillOldQuery(oldQuery);
         const stmtFilter = new Choices('#stmt-filter', {choices: oldStmtItems});
         const nodeFilter = new Choices('#node-filter', {choices: oldNodeItems});
-        const terminalNamespace = new Choices('#terminal-namespace', {choices: oldTermNamespaces});
+        const terminalNamespaces = new Choices('#terminal-namespaces', {choices: oldTermNamespaces});
       } else {
         const stmtFilter = new Choices('#stmt-filter', {choices: stmtItems});
         const nodeFilter = new Choices('#node-filter', {choices: nodeItems});
-        const terminalNamespace = new Choices('#terminal-namespace', {choices: termNamespaces});
+        const terminalNamespaces = new Choices('#terminal-namespaces', {choices: termNamespaces});
       }
       resetCounters();
       clearAllTables();
@@ -131,6 +131,11 @@
         </div>
       </div>
       <div class="row">
+        <div class="col">Exclude statements:</div>
+        <div class="col">Node namespaces:</div>
+        <div class="col">Terminal namespaces:</div>
+      </div>
+      <div class="row">
         <div class="col">
           <div class="form-select" title="The path will not contain the selected statement types">
             <select name="stmt-filter" id="stmt-filter" placeholder="Statement types to exclude" multiple>
@@ -144,8 +149,8 @@
           </div>
         </div>
         <div class="col">
-          <div class="form-select" title="Terminal namespace">
-            <select name="terminal-namespace" id="terminal-namespace" placeholder="Terminal namespace" multiple>
+          <div class="form-select" title="Terminal namespaces">
+            <select name="terminal-namespaces" id="terminal-namespaces" placeholder="Terminal namespaces" multiple>
             </select>
           </div>
         </div>
@@ -166,8 +171,8 @@
         </div>
         <div class="col">
           <input type="text" id="cull-best-node" class="form-control"
-            title="Every x valid paths, cull the node with the highest (weighted) degree from the network. This increases the variety of paths found and reduces the impact of nodes with extremely high connectivity in the network."
-            placeholder="Cull highest degree node every # paths"
+          title="Every x valid paths, cull the node with the highest (weighted) degree from the network. This increases the variety of paths found and reduces the impact of nodes with extremely high connectivity in the network."
+          placeholder="Cull highest degree node every # paths"
           >
         </div>
       </div>
