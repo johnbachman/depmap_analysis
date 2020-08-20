@@ -755,7 +755,7 @@ class IndraNetwork:
         #   with no path limit and no max results limit
         if depth_limit is None and path_limit is None and options.get(
                 'max_results', 0) > 10000:
-            raise ValueError('Limitless search deteced: depth_limit is '
+            raise ValueError('Limitless deteced: depth_limit is '
                              'None, path_limit is None and max_results > '
                              '10000, aborting')
 
@@ -770,10 +770,9 @@ class IndraNetwork:
                              strict_mesh_id_filtering=strict_mesh_id_filtering,
                              **bfs_options)
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
-                                    reverse=reverse, hashes=related_hashes, 
-                                    **options)
+                                    reverse=reverse, **options)
 
-    def open_dijkstra(self, start_node, reverse=False, **options):
+    def open_dijkstra(self, start_node, reverse=Falsereturn self._loop_bfs_paths, **options):
         """Do Dijkstra search from a given node and yield paths
 
         Parameters
@@ -815,11 +814,12 @@ class IndraNetwork:
         
         related_hashes = find_related_hashes(options['mesh_ids'])
 
-        return open_dijkstra_search(graph, starting_node, reverse=reverse, hashes=related_hashes)
+        dijkstra_gen = open_dijkstra_search(graph, starting_node, reverse=reverse, hashes=related_hashes)
+        return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, reverse=reverse, **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
-        max_results = int(options['max_results']) \
+        max_results = int(options['max_results']) 
             if options.get('max_results') is not None else self.MAX_PATHS
         added_paths = 0
         _ = options.pop('source', None)
