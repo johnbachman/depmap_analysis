@@ -45,7 +45,7 @@ def find_cp(s, o, corr, net, _type, **kwargs):
         #         If provided, the parents must be in this set of ids. The
         #         set is assumed to be valid ontology labels (see
         #         ontology.label()).
-        parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id
+        parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id,
                                      **kwargs))
         if parents:
             # if kwargs.get('ns_set'):
