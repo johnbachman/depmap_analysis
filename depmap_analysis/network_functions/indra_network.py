@@ -630,7 +630,7 @@ class IndraNetwork:
                         self.signed_nodes.get(check_node):
                     raise NodeNotFound('Node %s not in graph' % start_node)
 
-                if options['strict_mesh_id_filtering']:
+                if options['strict_mesh_id_filtering'] or not options['mesh_ids']:
                     return self.open_bfs(start_node=start_node,
                                          reverse=reverse,
                                          **options)
@@ -641,7 +641,7 @@ class IndraNetwork:
                 logger.info('Doing simple %spath search' % ('weigthed '
                             if options['weight'] else ''))
             related_hashes = find_related_hashes(options['mesh_ids'])
-            strict = options.get('strict_mesh_id_filtering', False)
+            strict = options['strict_mesh_id_filtering'] 
             if options['sign'] is None:
                 # Do unsigned path search
                 paths = shortest_simple_paths(self.nx_dir_graph_repr,

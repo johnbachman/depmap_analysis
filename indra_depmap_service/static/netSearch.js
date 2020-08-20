@@ -68,7 +68,7 @@ function submitQuery() {
     stmtFilterList.push(c.value)
   }
   let termNsList = [];
-  for (c of document.getElementById('terminal-namespace').children) {
+  for (c of document.getElementById('terminal-namespaces').children) {
     termNsList.push(c.value)
   }
   if (!document.getElementById('fplx-edges').checked) {
