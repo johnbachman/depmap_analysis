@@ -62,7 +62,7 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                             expl_columns, bool_columns, min_columns,
                             explained_set, _type, allowed_ns=None,
                             is_a_part_of=None, immediate_only=False):
-    # Separate out this part
+    global indranet
 
     stats_dict = {k: [] for k in stats_columns}
     expl_dict = {k: [] for k in expl_columns}
