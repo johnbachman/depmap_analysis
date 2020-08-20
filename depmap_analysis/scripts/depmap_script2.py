@@ -336,7 +336,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
          is_a_part_of=None, immediate_only=False, allowed_ns=None,
          info=None, shared_2neigh=False, indra_date=None,
          indra_net_file=None, depmap_date=None, sample_size=None,
-         shuffle=False):
+         shuffle=False, overwrite=False):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -374,6 +374,8 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         Number of correlation pairs to approximately get out of the
         correlation matrix after down sampling it
     shuffle : bool
+    overwrite : bool
+        If True, overwrite any output files. Default: False
 
     Returns
     -------
@@ -422,7 +424,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
     outpath = Path(outname)
-    if outpath.is_file():
+    if not overwrite and outpath.is_file():
         raise FileExistsError(f'File {str(outpath)} already exists!')
 
     if z_score is not None:
@@ -542,7 +544,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     # mkdir in case it  doesn't exist
     outpath.parent.mkdir(parents=True, exist_ok=True)
     dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
-                      pyobj=explanations)
+                      pyobj=explanations, overwrite=overwrite)
 
 
 if __name__ == '__main__':
