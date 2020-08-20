@@ -39,6 +39,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
+from indra.util.multiprocessing_traceback import WrapException
 from depmap_analysis.util.io_functions import file_opener, \
     dump_it_to_pickle, allowed_types, file_path
 from depmap_analysis.network_functions.net_functions import \
@@ -62,132 +63,135 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                             expl_columns, bool_columns, min_columns,
                             explained_set, _type, allowed_ns=None,
                             is_a_part_of=None, immediate_only=False):
-    global indranet
+    try:
+        global indranet
 
-    stats_dict = {k: [] for k in stats_columns}
-    expl_dict = {k: [] for k in expl_columns}
-    options = {'immediate_only': immediate_only}
-    if is_a_part_of:
-        options['is_a_part_of'] = is_a_part_of
-    if allowed_ns:
-        options['ns_set'] = allowed_ns
+        stats_dict = {k: [] for k in stats_columns}
+        expl_dict = {k: [] for k in expl_columns}
+        options = {'immediate_only': immediate_only}
+        if is_a_part_of:
+            options['is_a_part_of'] = is_a_part_of
+        if allowed_ns:
+            options['ns_set'] = allowed_ns
 
-    for gA, gB, zsc in corr_iter:
-        # Initialize current iteration stats
-        stats = {k: False for k in bool_columns}
+        for gA, gB, zsc in corr_iter:
+            # Initialize current iteration stats
+            stats = {k: False for k in bool_columns}
 
-        # Append to stats_dict
-        stats_dict['agA'].append(gA)
-        stats_dict['agB'].append(gB)
-        stats_dict['z-score'].append(zsc)
+            # Append to stats_dict
+            stats_dict['agA'].append(gA)
+            stats_dict['agB'].append(gB)
+            stats_dict['z-score'].append(zsc)
 
-        # Skip if A or B not in graph or (if type is pybel) no node
-        # mapping exists for either A or B
-        if _type == 'pybel' and \
-                (gA not in hgnc_node_mapping or gB not in hgnc_node_mapping) \
-                or \
-                _type != 'pybel' and \
-                (gA not in indranet.nodes or gB not in indranet.nodes):
-            for k in set(stats_dict.keys()).difference(set(min_columns)):
-                if k == 'not in graph':
-                    # Flag not in graph
-                    stats_dict[k].append(True)
-                else:
-                    # All columns are NaN's
-                    stats_dict[k].append(np.nan)
-            continue
-
-        if _type == 'pybel':
-            # Get ns, id
-            a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
-            b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
-        else:
-            a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
-
-        # Append to stats dict
-        stats_dict['agA_ns'].append(a_ns)
-        stats_dict['agB_ns'].append(b_ns)
-        stats_dict['agA_id'].append(a_id)
-        stats_dict['agB_id'].append(b_id)
-
-        # If in expl set, skip other explanations
-        if explained_set:
-            if gA in explained_set and gB in explained_set:
-                # Set explained set = True
-                stats_dict['explained set'].append(True)
-
-                # Set overall explained = True
-                stats_dict['explained'].append(True)
-
-                # All other columns to False
-                for k in set(bool_columns).difference(
-                        {'explained set', 'explained'}):
-                    stats_dict[k].append(False)
-
-                # Set explanation type and data
-                # Append to expl_dict
-                expl_dict['agA'].append(gA)
-                expl_dict['agB'].append(gB)
-                expl_dict['z-score'].append(zsc)
-                expl_dict['expl type'].append('explained set')
-                expl_dict['expl data'].append(np.nan)
-
-                # And skip the rest of explanations
+            # Skip if A or B not in graph or (if type is pybel) no node
+            # mapping exists for either A or B
+            if _type == 'pybel' and \
+                    (gA not in hgnc_node_mapping or gB not in hgnc_node_mapping) \
+                    or \
+                    _type != 'pybel' and \
+                    (gA not in indranet.nodes or gB not in indranet.nodes):
+                for k in set(stats_dict.keys()).difference(set(min_columns)):
+                    if k == 'not in graph':
+                        # Flag not in graph
+                        stats_dict[k].append(True)
+                    else:
+                        # All columns are NaN's
+                        stats_dict[k].append(np.nan)
                 continue
 
-        # Create iterator for pairs
-        expl_iter = product(hgnc_node_mapping[gA], hgnc_node_mapping[gB]) \
-            if _type == 'pybel' else [(gA, gB)]
+            if _type == 'pybel':
+                # Get ns, id
+                a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
+                b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
+            else:
+                a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
 
-        # Add hgnc symbol name to expl kwargs if pybel
-        if _type == 'pybel':
-            options['s_name'] = gA
-            options['o_name'] = gB
+            # Append to stats dict
+            stats_dict['agA_ns'].append(a_ns)
+            stats_dict['agB_ns'].append(b_ns)
+            stats_dict['agA_id'].append(a_id)
+            stats_dict['agB_id'].append(b_id)
 
-        expl_iterations = defaultdict(list)
-        for A, B in expl_iter:
-            # Loop expl functions
-            for expl_type, expl_func in expl_types.items():
-                # Function signature: s, o, corr, net, graph_type, **kwargs
-                # Function should return what will be kept in the 'expl_data'
-                # column of the expl_df
+            # If in expl set, skip other explanations
+            if explained_set:
+                if gA in explained_set and gB in explained_set:
+                    # Set explained set = True
+                    stats_dict['explained set'].append(True)
 
-                # Skip if 'explained set', which is caught above
-                if expl_type == 'explained set':
+                    # Set overall explained = True
+                    stats_dict['explained'].append(True)
+
+                    # All other columns to False
+                    for k in set(bool_columns).difference(
+                            {'explained set', 'explained'}):
+                        stats_dict[k].append(False)
+
+                    # Set explanation type and data
+                    # Append to expl_dict
+                    expl_dict['agA'].append(gA)
+                    expl_dict['agB'].append(gB)
+                    expl_dict['z-score'].append(zsc)
+                    expl_dict['expl type'].append('explained set')
+                    expl_dict['expl data'].append(np.nan)
+
+                    # And skip the rest of explanations
                     continue
 
-                # Some functions reverses A, B hence the s, o assignment
-                s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
-                                            **options)
-                if expl_data:
-                    # Use original name
-                    s_name = s.name if _type == 'pybel' else s
-                    o_name = o.name if _type == 'pybel' else o
-                    expl_dict['agA'].append(s_name)
-                    expl_dict['agB'].append(o_name)
-                    expl_dict['z-score'].append(zsc)
-                    expl_dict['expl type'].append(expl_type)
-                    expl_dict['expl data'].append(expl_data)
+            # Create iterator for pairs
+            expl_iter = product(hgnc_node_mapping[gA], hgnc_node_mapping[gB]) \
+                if _type == 'pybel' else [(gA, gB)]
 
-                    # Append to expl_iterations
-                    expl_iterations[expl_type].append(expl_data)
+            # Add hgnc symbol name to expl kwargs if pybel
+            if _type == 'pybel':
+                options['s_name'] = gA
+                options['o_name'] = gB
 
-        # Check which ones got explained
-        for expl_type_, expl_data_ in expl_iterations.items():
-            stats[expl_type_] = bool(expl_data_)
+            expl_iterations = defaultdict(list)
+            for A, B in expl_iter:
+                # Loop expl functions
+                for expl_type, expl_func in expl_types.items():
+                    # Function signature: s, o, corr, net, graph_type, **kwargs
+                    # Function should return what will be kept in the 'expl_data'
+                    # column of the expl_df
 
-        # Set explained column
-        stats['explained'] = any([b for b in stats.values()])
+                    # Skip if 'explained set', which is caught above
+                    if expl_type == 'explained set':
+                        continue
 
-        # Add stats to stats_dict
-        for expl_tp in stats:
-            stats_dict[expl_tp].append(stats[expl_tp])
+                    # Some functions reverses A, B hence the s, o assignment
+                    s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
+                                                **options)
+                    if expl_data:
+                        # Use original name
+                        s_name = s.name if _type == 'pybel' else s
+                        o_name = o.name if _type == 'pybel' else o
+                        expl_dict['agA'].append(s_name)
+                        expl_dict['agB'].append(o_name)
+                        expl_dict['z-score'].append(zsc)
+                        expl_dict['expl type'].append(expl_type)
+                        expl_dict['expl data'].append(expl_data)
 
-        # Assert that all columns are the same length
-        if not all(len(ls) for ls in stats_dict.values()):
-            raise IndexError('Unequal column lengths in stats_dict after '
-                             'iteration')
-    return stats_dict, expl_dict
+                        # Append to expl_iterations
+                        expl_iterations[expl_type].append(expl_data)
+
+            # Check which ones got explained
+            for expl_type_, expl_data_ in expl_iterations.items():
+                stats[expl_type_] = bool(expl_data_)
+
+            # Set explained column
+            stats['explained'] = any([b for b in stats.values()])
+
+            # Add stats to stats_dict
+            for expl_tp in stats:
+                stats_dict[expl_tp].append(stats[expl_tp])
+
+            # Assert that all columns are the same length
+            if not all(len(ls) for ls in stats_dict.values()):
+                raise IndexError('Unequal column lengths in stats_dict after '
+                                 'iteration')
+        return stats_dict, expl_dict
+    except Exception as exc:
+        raise WrapException()
 
 
 def match_correlations(corr_z, sd_range, script_settings, **kwargs):
@@ -324,7 +328,8 @@ def success_callback(res):
 
 
 def error_callback(err):
-    logger.error('The following exception occurred (print of traceback):')
+    logger.error(f'The following exception occurred in process '
+                 f'{mp.current_process().pid} (print of traceback):')
     logger.exception(err)
 
 
