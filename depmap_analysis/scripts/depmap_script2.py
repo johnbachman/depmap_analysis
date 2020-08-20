@@ -643,7 +643,7 @@ if __name__ == '__main__':
              'pairs (approximately) are picked at random.'
     )
 
-    # 6 Extra info
+    # 6 Extra info and options
     parser.add_argument('--indra-date',
                         help='Provide a date for the dump from which the '
                              'indra network was created')
@@ -663,6 +663,8 @@ if __name__ == '__main__':
     parser.add_argument('--immediate-only', action='store_true',
                         help='Only look in immediate parents in common '
                              'parent search.')
+    parser.add_argument('--overwrite', action='store_true',
+                        help='Overwrite any output files that already exist.')
 
     args = parser.parse_args()
     arg_dict = vars(args)
