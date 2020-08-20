@@ -48,9 +48,7 @@ from depmap_analysis.network_functions.depmap_network_functions import \
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
-from depmap_analysis.scripts.depmap_script_expl_funcs import explained, \
-    find_cp, expl_axb, expl_bxa, get_sr, get_st, get_sd, expl_ab, expl_ba, \
-    get_ns_id, get_ns_id_pybel_node
+from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
 logger = logging.getLogger('DepMap Script')
 logger.setLevel(logging.DEBUG)

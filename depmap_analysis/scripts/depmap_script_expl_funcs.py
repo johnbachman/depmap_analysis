@@ -7,6 +7,11 @@ from depmap_analysis.network_functions.net_functions import ns_id_from_name, \
     INT_PLUS, INT_MINUS
 
 
+__all__ = ['explained', 'expl_ab', 'expl_ba', 'expl_axb', 'expl_bxa',
+           'find_cp', 'get_sd', 'get_sr', 'get_st', 'get_ns_id_pybel_node',
+           'get_ns_id']
+
+
 logger = logging.getLogger(__name__)
 
 
