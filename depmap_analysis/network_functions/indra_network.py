@@ -772,7 +772,7 @@ class IndraNetwork:
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
 
-    def open_dijkstra(self, start_node, reverse=Falsereturn self._loop_bfs_paths, **options):
+    def open_dijkstra(self, start_node, reverse=False, terminal_ns=None, **options):
         """Do Dijkstra search from a given node and yield paths
 
         Parameters
@@ -788,8 +788,10 @@ class IndraNetwork:
             Stop when all paths with this many edges have been found. Default: 2.
         path_limit : int
             The maximum number of paths to return. Default: no limit.
-        hashes : list
-            List of hashes used to set edge weights
+        terminal_ns : list[str]
+            Force a path to terminate when any of the namespaces in this list
+            are encountered and only yield paths that terminate at these
+            namepsaces
 
         Yields
         ------
@@ -814,7 +816,7 @@ class IndraNetwork:
         
         related_hashes = find_related_hashes(options['mesh_ids'])
 
-        dijkstra_gen = open_dijkstra_search(graph, starting_node, reverse=reverse, hashes=related_hashes)
+        dijkstra_gen = open_dijkstra_search(graph, starting_node, reverse=reverse, hashes=related_hashes, terminal_ns=terminal_ns)
         return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, reverse=reverse, **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
