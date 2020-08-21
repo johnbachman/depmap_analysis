@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from collections import Counter
 from depmap_analysis.util.io_functions import file_opener
+from depmap_analysis.util.statistics import DepMapExplainer
 
 
 def get_rankings(expl_df, sampl_size=None):
@@ -47,4 +48,5 @@ if __name__ == '__main__':
     except IndexError:
         sample_size = None
     drug_expl = file_opener(drug_file)
-    rankings = get_rankings(drug_expl)
+    assert isinstance(drug_expl, DepMapExplainer)
+    rankings = get_rankings(drug_expl.expl_df)
