@@ -1,8 +1,12 @@
 import sys
 import numpy as np
+import logging
 from collections import Counter
 from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.util.statistics import DepMapExplainer
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_rankings(expl_df, sampl_size=None):
@@ -27,6 +31,7 @@ def get_rankings(expl_df, sampl_size=None):
     )
     if sampl_size and sampl_size < len(all_agents_sampled):
         # Sample rows
+        logger.info(f'Downsizing to {sampl_size}')
         all_agents_sampled = np.random.choice(list(all_agents_sampled),
                                               sampl_size, replace=False)
 
