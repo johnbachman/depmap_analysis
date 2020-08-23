@@ -816,8 +816,13 @@ class IndraNetwork:
         
         related_hashes = find_related_hashes(options['mesh_ids'])
 
-        dijkstra_gen = open_dijkstra_search(graph, starting_node, reverse=reverse, hashes=related_hashes, terminal_ns=terminal_ns)
-        return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, reverse=reverse, **options)
+        dijkstra_gen = open_dijkstra_search(graph, starting_node, 
+                                            reverse=reverse, 
+                                            hashes=related_hashes, 
+                                            terminal_ns=terminal_ns,
+                                            weight=options['weight'])
+        return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, 
+                                    reverse=reverse, **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
