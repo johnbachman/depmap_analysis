@@ -767,6 +767,20 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     return get_gaussian_stats(bin_edges, interp_gaussian)
 
 
+def drugs_to_corr_matrix(raw_file, info_file):
+    """Preprocess and create a correlation matrix from raw drug data"""
+    def _get_drug_name(drug_id):
+        drug_rec = info_df.loc[drug_id]
+        return drug_rec['name']
+
+    raw_df = pd.read_csv(raw_file, index_col=0)
+    info_df = pd.read_csv(info_file, index_col=0)
+    col_names = [_get_drug_name(did) for did in raw_df.columns]
+    raw_df.columns = col_names
+
+    return raw_depmap_to_corr(raw_df)
+
+
 def raw_depmap_to_corr(depmap_raw_df, dropna=False):
     """Pre-process and create a correlation matrix
 
