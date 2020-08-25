@@ -800,8 +800,8 @@ def raw_depmap_to_corr(depmap_raw_df, dropna=False):
         depmap_raw_df = depmap_raw_df.dropna(axis=1)
 
     # Calculate correlation
-    logger.info('Calculating data correlation matrix. This will take '
-                    '10 - 50 min.')
+    logger.info('Calculating data correlation matrix. This can take up to '
+                '10 min depending on the size of the dataframe.')
     corr = depmap_raw_df.corr()
     logger.info('Done calculating data correlation matrix.')
     return corr
