@@ -35,15 +35,15 @@ def get_rankings(expl_df, sampl_size=None):
         all_agents_sampled = np.random.choice(list(all_agents_sampled),
                                               sampl_size, replace=False)
 
-    nnn_expl = {}
+    nnn_counters = {}
     expl_df = expl_df[expl_df['expl type'] == 'shared downstream']
     for ag_name in all_agents_sampled:
         ll = []
         for lk in expl_df['expl data'][(expl_df.agA == ag_name) |
                                        (expl_df.agB == ag_name)].values:
             ll += lk
-        nnn_expl[ag_name] = Counter(ll)
-    return nnn_expl
+        nnn_counters[ag_name] = Counter(ll)
+    return nnn_counters
 
 
 if __name__ == '__main__':
