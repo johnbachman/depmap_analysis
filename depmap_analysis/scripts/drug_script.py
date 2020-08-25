@@ -55,3 +55,8 @@ if __name__ == '__main__':
     drug_expl = file_opener(drug_file)
     assert isinstance(drug_expl, DepMapExplainer)
     rankings = get_rankings(drug_expl.expl_df)
+
+    # Sum up the counters to get a full counter
+    overall_ranking = Counter()
+    for c in rankings.values():
+        overall_ranking += c
