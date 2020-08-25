@@ -49,7 +49,8 @@ from depmap_analysis.util.io_functions import file_opener, \
 from depmap_analysis.network_functions.net_functions import \
     pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, iter_chunker, down_sampl_size
+    corr_matrix_to_generator, iter_chunker, down_sampl_size, \
+    drugs_to_corr_matrix
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
@@ -601,7 +602,14 @@ if __name__ == '__main__':
     corr_group.add_argument(
         '--z-score', type=file_path(),
         help='The file path to the fully merged correlation matrix '
-             'containing z-scores.')
+             'containing z-scores for gene-gene correlations.')
+    corr_group.add_argument(
+        '--raw-drugs', nargs=2, type=file_path(),
+        help='File paths to the raw drug data from the DepMap portal\'s '
+             'PRISM Repurposing data. The file names should match '
+             '`primary-screen-replicate-collapsed-logfold-change.csv` and '
+             '`primary-screen-replicate-collapsed-treatment-info.csv`'
+    )
 
     #   1b Load indranet
     parser.add_argument(
@@ -713,6 +721,9 @@ if __name__ == '__main__':
     if arg_dict.get('z_score'):
         corr_matrix = pd.read_hdf(arg_dict['z_score'])
         arg_dict['z_score_file'] = arg_dict['z_score']
+    elif arg_dict.get('raw_drugs'):
+        raw_drug_data, raw_drug_info = arg_dict['raw_drugs']
+        corr_matrix = drugs_to_corr_matrix(raw_drug_data, raw_drug_info)
     else:
         arg_dict['raw_data'] = arg_dict.get('raw_data')
         arg_dict['corr_data'] = arg_dict.get('corr_data')
