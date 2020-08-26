@@ -208,8 +208,12 @@ function fillOldQuery(oldQueryJson) {
   if (oldQueryJson.user_timeout) {
     document.getElementById('user_timeout').value = parseInRange(oldQueryJson.user_timeout, 0, 999, false)
   }
+  if (oldQueryJson.mesh_ids) document.getElementById('mesh-id-list').value = oldQueryJson.mesh_ids.join(', ');
   // Checkboxes
   if (oldQueryJson.shared_regulators) document.getElementById('shared-regulators').checked = oldQueryJson.shared_regulators;
+  if (oldQueryJson.strict_mesh_id_filtering) {
+    document.getElementById('strict-mesh-id-filtering').checked = oldQueryJson.strict_mesh_id_filtering
+  }
   if (oldQueryJson.weighted) document.getElementById('weighted-search').checked = oldQueryJson.weighted;
   // if (oldQueryJson.direct_only) document.getElementById('direct-only').checked = oldQueryJson.direct_only;
   if (oldQueryJson.curated_db_only) document.getElementById('curated-db-only').checked = oldQueryJson.curated_db_only;
