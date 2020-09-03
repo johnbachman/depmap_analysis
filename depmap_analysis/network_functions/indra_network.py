@@ -8,7 +8,9 @@ import requests
 import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
 
-from indra_depmap_service.util import find_related_hashes
+from indra_db import get_db
+from indra_db.client.readonly.mesh_ref_counts import get_mesh_ref_counts
+
 from indra.config import CONFIG_DICT
 from indra.databases import get_identifiers_url
 from indra.assemblers.indranet.net import default_sign_dict
@@ -640,7 +642,15 @@ class IndraNetwork:
             else:
                 logger.info('Doing simple %spath search' % ('weigthed '
                             if options['weight'] else ''))
-            related_hashes = find_related_hashes(options['mesh_ids'])
+            if options['mesh_ids']:
+                db = get_db('primary')
+                hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'], ro=db)
+                related_hashes = hash_mesh_dict.keys()
+                def ref_counts_from_hashes(hashes):
+                    return sum(sum(v for v in hash_mesh_dict.get(h, {'': 1}).values()) for h in hashes)
+            else:
+                related_hashes = None
+                ref_counts_from_hashes = None
             strict = options['strict_mesh_id_filtering'] 
             if options['sign'] is None:
                 # Do unsigned path search
@@ -648,6 +658,7 @@ class IndraNetwork:
                                               source, target,
                                               options['weight'],
                                               hashes=related_hashes,
+                                              ref_counts_function=ref_counts_from_hashes,
                                               strict_mesh_id_filtering=strict,
                                               **blacklist_options)
                 subj = source
@@ -761,7 +772,8 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        related_hashes = find_related_hashes(options['mesh_ids'])
+        db = get_db('primary')
+        related_hashes = get_mesh_ref_counts(options['mesh_ids'], ro=db).keys()
 
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
@@ -814,7 +826,15 @@ class IndraNetwork:
             graph = self.nx_dir_graph_repr
             starting_node = start_node
         
-        related_hashes = find_related_hashes(options['mesh_ids'])
+        if options['mesh_ids']:
+            db = get_db('primary')
+            hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'], ro=db)
+            related_hashes = hash_mesh_dict.keys()
+            def ref_counts_from_hashes(hashes):
+                return sum(sum(v for v in hash_mesh_dict.get(h, {'': 1}).values()) for h in hashes)
+        else:
+            related_hashes = None
+            ref_counts_from_hashes = None
 
         dijkstra_gen = open_dijkstra_search(graph, starting_node, 
                                             reverse=reverse, 
@@ -826,7 +846,7 @@ class IndraNetwork:
 
     def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
-        max_results = int(options['max_results']) 
+        max_results = int(options['max_results']) \
             if options.get('max_results') is not None else self.MAX_PATHS
         added_paths = 0
         _ = options.pop('source', None)
