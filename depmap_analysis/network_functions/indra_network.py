@@ -231,17 +231,27 @@ class IndraNetwork:
         boptions = options.copy()
         boptions['source'] = options.get('target')
         boptions['target'] = options.get('source')
+        try:
+            ckwargs = options.copy()
+            bckwargs = boptions.copy()
 
-        self.hashes_with_mesh_ids = find_related_hashes(options['mesh_ids']) 
-        # Special case: 1 or 2 unweighted, unsigned edges only
-        if not options['weight'] and options['path_length'] in [1, 2]:
-            ksp_forward = self._unweighted_direct(**options)
+            # Special case: 1 or 2 unweighted, unsigned edges only
+            if not options['weight'] and options['path_length'] in [1, 2]:
+                ksp_forward = self._unweighted_direct(**options)
+                if options['two_way']:
+                    ksp_backward = self._unweighted_direct(**boptions)
+            else:
+                ksp_forward = self.find_shortest_paths(**options)
+                if options['two_way']:
+                    ksp_backward = self.find_shortest_paths(**boptions)
+
+        except NodeNotFound as e:
+            logger.info('No paths found, trying to ground source and '
+                            'target')
+            ksp_forward = self.grounding_fallback(**ckwargs)
             if options['two_way']:
-                ksp_backward = self._unweighted_direct(**boptions)
-        else:
-            ksp_forward = self.find_shortest_paths(**options)
-            if options['two_way']:
-                ksp_backward = self.find_shortest_paths(**boptions)
+                ksp_backward = self.grounding_fallback(**bckwargs)
+            
         if options.get('source') and options.get('target'):
             ct = self.find_common_targets(**options)
             sr = self.find_shared_regulators(**options) if\
@@ -264,43 +274,10 @@ class IndraNetwork:
                             'target')
                 ksp_forward = self.try_parents(**ckwargs)
                 if options['two_way']:
-                    ksp_backward = self._unweighted_direct(**boptions)
-            else:
-                ksp_forward = self.find_shortest_paths(**options)
-                if options['two_way']:
-                    ksp_backward = self.find_shortest_paths(**boptions)
-            if options.get('source') and options.get('target'):
-                ct = self.find_common_targets(**options)
-                sr = self.find_shared_regulators(**options) if\
-                    options.get('shared_regulators', False) else []
-                cp = self.get_common_parents(**options)
-            else:
-                ct = EMPTY_RESULT['common_targets']
-                cp = EMPTY_RESULT['common_parents']
-                sr = EMPTY_RESULT['shared_regulators']
-
-            if not ksp_forward and not ksp_backward and not ct and not sr and\
-                    not cp.get('common_parents', []):
-                ckwargs = options.copy()
-                bckwargs = boptions.copy()
-                if kwargs['fplx_expand'] and options.get('source') and \
-                        options.get('target'):
-
-                    logger.info('No directed path found, looking for paths '
-                                'connected by common parents of source and/or '
-                                'target')
-                    ksp_forward = self.try_parents(**ckwargs)
-                    if options['two_way']:
-                        ksp_backward = self.try_parents(**bckwargs)
-                    if self.verbose > 2:
-                        logger.info('Parents search result: %s' %
-                                    repr(ksp_forward))
-        except NodeNotFound as e:
-            logger.info('No paths found, trying to ground source and '
-                            'target')
-            ksp_forward = self.grounding_fallback(**ckwargs)
-            if options['two_way']:
-                ksp_backward = self.grounding_fallback(**bckwargs)
+                    ksp_backward = self.try_parents(**bckwargs)
+                if self.verbose > 2:
+                    logger.info('Parents search result: %s' %
+                                repr(ksp_forward))
 
         if not ksp_forward and not ksp_backward:
             logger.info('No directed path found')
@@ -644,10 +621,16 @@ class IndraNetwork:
                             if options['weight'] else ''))
             if options['mesh_ids']:
                 db = get_db('primary')
-                hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'], ro=db)
+                hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
+                                                     ro=db, require_all=True)
                 related_hashes = hash_mesh_dict.keys()
                 def ref_counts_from_hashes(hashes):
-                    return sum(sum(v for v in hash_mesh_dict.get(h, {'': 1}).values()) for h in hashes)
+                    dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
+                             for h in hashes]
+                    ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
+                                     for d in dicts)
+                    total = sum(d['total'] for d in dicts)
+                    return ref_counts, total if total else 1
             else:
                 related_hashes = None
                 ref_counts_from_hashes = None
@@ -828,10 +811,16 @@ class IndraNetwork:
         
         if options['mesh_ids']:
             db = get_db('primary')
-            hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'], ro=db)
+            hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'], ro=db,
+                                                 require_all=True)
             related_hashes = hash_mesh_dict.keys()
             def ref_counts_from_hashes(hashes):
-                return sum(sum(v for v in hash_mesh_dict.get(h, {'': 1}).values()) for h in hashes)
+                dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
+                         for h in hashes]
+                ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
+                                     for d in dicts)
+                total = sum(d['total'] for d in dicts)
+                return ref_counts, total if total else 1
         else:
             related_hashes = None
             ref_counts_from_hashes = None
@@ -840,7 +829,9 @@ class IndraNetwork:
                                             reverse=reverse, 
                                             hashes=related_hashes, 
                                             terminal_ns=terminal_ns,
-                                            weight=options['weight'])
+                                            weight=options['weight'],
+                                            ref_counts_function=
+                                                ref_counts_from_hashes)
         return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, 
                                     reverse=reverse, **options)
 
