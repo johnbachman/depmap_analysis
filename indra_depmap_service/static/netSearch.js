@@ -279,6 +279,7 @@ function fillResultsTable(data, source, target){
       (data.result.paths_by_node_count && Object.keys(data.result.paths_by_node_count).length > 0)) {
     if (data.result.timeout) statusBox.innerHTML = 'Query timed out with' +
       ' results!' + downloadLink;
+    else if (data.result.node_not_found) statusBox.innerHTML = 'Node not found in the network';
     else statusBox.innerHTML = 'Query resolved!' + downloadLink;
     // for each path length:
     //   for each path:

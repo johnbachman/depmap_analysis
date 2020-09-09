@@ -46,7 +46,15 @@ EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {},
                 'common_targets': [],
                 'shared_regulators': [],
                 'common_parents': {},
-                'timeout': False}
+                'timeout': False,
+                'node_not_found': False}
+NODE_NOT_FOUND = {'paths_by_node_count': {'forward': {}, 'backward': {},
+                                        'path_hashes': []},
+                'common_targets': [],
+                'shared_regulators': [],
+                'common_parents': {},
+                'timeout': False,
+                'node_not_found': True}
 MANDATORY = ['stmt_filter', 'node_filter',
              'path_length', 'weighted', 'bsco', 'fplx_expand',
              'k_shortest', 'curated_db_only', 'two_way']
@@ -281,6 +289,7 @@ class IndraNetwork:
 
         if not ksp_forward and not ksp_backward:
             logger.info('No directed path found')
+            return NODE_NOT_FOUND
         if not options['weight']:
             if ksp_forward:
                 # Sort the results in ksp_forward if non-weighted search
@@ -297,7 +306,8 @@ class IndraNetwork:
                 'common_targets': ct,
                 'shared_regulators': sr,
                 'common_parents': cp,
-                'timeout': self.query_timed_out}
+                'timeout': self.query_timed_out,
+                'node_not_found': False}
 
     @staticmethod
     def sanity_check(**options):
