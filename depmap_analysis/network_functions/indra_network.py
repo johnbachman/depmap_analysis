@@ -48,13 +48,6 @@ EMPTY_RESULT = {'paths_by_node_count': {'forward': {}, 'backward': {},
                 'common_parents': {},
                 'timeout': False,
                 'node_not_found': False}
-NODE_NOT_FOUND = {'paths_by_node_count': {'forward': {}, 'backward': {},
-                                        'path_hashes': []},
-                'common_targets': [],
-                'shared_regulators': [],
-                'common_parents': {},
-                'timeout': False,
-                'node_not_found': True}
 MANDATORY = ['stmt_filter', 'node_filter',
              'path_length', 'weighted', 'bsco', 'fplx_expand',
              'k_shortest', 'curated_db_only', 'two_way']
@@ -239,6 +232,7 @@ class IndraNetwork:
         boptions = options.copy()
         boptions['source'] = options.get('target')
         boptions['target'] = options.get('source')
+        node_not_found = False
         try:
             ckwargs = options.copy()
             bckwargs = boptions.copy()
@@ -252,14 +246,14 @@ class IndraNetwork:
                 ksp_forward = self.find_shortest_paths(**options)
                 if options['two_way']:
                     ksp_backward = self.find_shortest_paths(**boptions)
-
         except NodeNotFound as e:
             logger.info('No paths found, trying to ground source and '
                             'target')
             ksp_forward = self.grounding_fallback(**ckwargs)
             if options['two_way']:
                 ksp_backward = self.grounding_fallback(**bckwargs)
-            
+            node_not_found = not bool(ksp_forward)
+
         if options.get('source') and options.get('target'):
             ct = self.find_common_targets(**options)
             sr = self.find_shared_regulators(**options) if\
@@ -289,7 +283,6 @@ class IndraNetwork:
 
         if not ksp_forward and not ksp_backward:
             logger.info('No directed path found')
-            return NODE_NOT_FOUND
         if not options['weight']:
             if ksp_forward:
                 # Sort the results in ksp_forward if non-weighted search
@@ -307,7 +300,7 @@ class IndraNetwork:
                 'shared_regulators': sr,
                 'common_parents': cp,
                 'timeout': self.query_timed_out,
-                'node_not_found': False}
+                'node_not_found': node_not_found}
 
     @staticmethod
     def sanity_check(**options):
