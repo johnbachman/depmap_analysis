@@ -759,7 +759,8 @@ class IndraNetwork:
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         db = get_db('primary')
-        related_hashes = get_mesh_ref_counts(options['mesh_ids'], ro=db).keys()
+        related_hashes = get_mesh_ref_counts(options['mesh_ids'], ro=db).keys()\
+                         if options['mesh_ids'] else []
 
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
