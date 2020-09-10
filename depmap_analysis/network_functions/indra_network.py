@@ -625,7 +625,7 @@ class IndraNetwork:
             if options['mesh_ids']:
                 db = get_db('primary')
                 hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
-                                                     ro=db, require_all=True)
+                                                     ro=db, require_all=False)
                 related_hashes = hash_mesh_dict.keys()
                 def ref_counts_from_hashes(hashes):
                     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
@@ -816,7 +816,7 @@ class IndraNetwork:
         if options['mesh_ids']:
             db = get_db('primary')
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'], ro=db,
-                                                 require_all=True)
+                                                 require_all=False)
             related_hashes = hash_mesh_dict.keys()
             def ref_counts_from_hashes(hashes):
                 dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
@@ -833,7 +833,7 @@ class IndraNetwork:
                                             reverse=reverse, 
                                             hashes=related_hashes, 
                                             terminal_ns=terminal_ns,
-                                            weight=options['weight'],
+                                            weight='context_weight',
                                             ref_counts_function=
                                                 ref_counts_from_hashes)
         return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, 
