@@ -17,9 +17,6 @@ for (s of stmtOptions) {
 let nodeItems = [];
 for (let n of nodeOptions) {
   let sel = false;
-  if (n === 'HGNC') {
-    sel = true;
-  }
   nodeItems.push({
     value: n.toLowerCase(),
     label: n,
