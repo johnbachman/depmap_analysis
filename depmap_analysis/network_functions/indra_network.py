@@ -160,7 +160,14 @@ class IndraNetwork:
         two_way: Bool
             If True, search path both ways, i.e. search A->B and B->A
         mesh_ids : list
-            List of mesh_ids related to the hashes used for filtering edges
+            List of MeSH IDs related to the hashes used for filtering edges
+        strict_mesh_id_filtering : Bool
+            If true, the provided MeSH IDs specify the edges used exclusively
+            in path finding; otherwise, they are used in weight calculation
+        const_c : int
+            Constant used in MeSH IDs-based weight calculation
+        const_tk : int
+            Constant used in MeSH IDs-based weight calculation
 
         Returns
         -------
@@ -646,6 +653,8 @@ class IndraNetwork:
                                               hashes=related_hashes,
                                               ref_counts_function=ref_counts_from_hashes,
                                               strict_mesh_id_filtering=strict,
+                                              const_c=options['const_c'],
+                                              const_tk=options['const_tk'],
                                               **blacklist_options)
                 subj = source
                 obj = target
@@ -667,7 +676,9 @@ class IndraNetwork:
                     search_graph, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes,
                     hashes=related_hashes,
-                    strict_mesh_id_filtering=options['strict_mesh_id_filtering'])
+                    strict_mesh_id_filtering=options['strict_mesh_id_filtering'],
+                    const_c=options['const_c'],
+                    const_tk=options['const_tk'])
 
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
@@ -835,7 +846,9 @@ class IndraNetwork:
                                             terminal_ns=terminal_ns,
                                             weight='context_weight',
                                             ref_counts_function=
-                                                ref_counts_from_hashes)
+                                                ref_counts_from_hashes,
+                                            const_c=options['const_c'],
+                                            const_tk=options['const_tk'])
         return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, 
                                     reverse=reverse, **options)
 

@@ -190,6 +190,18 @@
         </div>
       </div>
       <div class="row">
+        <div class="col">
+          <input class="form-control" type="number" step="1" name="const_c" id="const_c" placeholder="C = [1..120]"
+                 min="1" max="120"
+                 title="Constant C.">
+        </div>
+        <div class="col">
+          <input class="form-control" type="number" step="1" name="const_tk" id="const_tk" placeholder="Tk = [1..120]"
+                 min="1" max="120"
+                 title="Constant Tk.">
+        </div>
+      </div>
+      <div class="row">
         <div class="dropdown" style="padding-left: 15px; padding-right: 15px;">
           <label><select id="sign-dd" {% if not has_signed_graph %}disabled{% endif %}>
             <option selected="selected" value="no_sign">No sign</option>

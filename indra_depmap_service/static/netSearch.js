@@ -91,6 +91,14 @@ function submitQuery() {
     // Strip whitespace
     if (id.replace(/\s/g, ''))  meshIdList.push(id.replace(/\s/g, ''))
   }
+  let constC = parseInRange(document.getElementById('const_c').value,
+                            document.getElementById('const_c').min,
+                            document.getElementById('const_c').max,
+                            true);
+  let constTk = parseInRange(document.getElementById('const_tk').value,
+                             document.getElementById('const_tk').min,
+                             document.getElementById('const_tk').max,
+                             true);
   let statusBox = document.getElementById('query-status');
   let source = document.getElementById('source').value;
   let target = document.getElementById('target').value;
@@ -112,6 +120,8 @@ function submitQuery() {
     cull_best_node: cullBestNode,
     mesh_ids: meshIdList,
     strict_mesh_id_filtering: document.getElementById('strict-mesh-id-filtering').checked,
+    const_c: constC,
+    const_tk: constTk,
     user_timeout: timeoutEntry,
     two_way: document.getElementById('two-ways').checked,
     shared_regulators: document.getElementById('shared-regulators').checked,
