@@ -619,10 +619,11 @@ class IndraNetwork:
                         self.signed_nodes.get(check_node):
                     raise NodeNotFound('Node %s not in graph' % start_node)
 
-                if options['strict_mesh_id_filtering'] or not options['mesh_ids']:
-                    return self.open_bfs(start_node=start_node,
-                                         reverse=reverse,
-                                         **options)
+                if options['strict_mesh_id_filtering']\
+                    or not options['mesh_ids']:
+                        return self.open_bfs(start_node=start_node,
+                                            reverse=reverse,
+                                            **options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
                                               reverse=reverse, **options)
@@ -637,8 +638,9 @@ class IndraNetwork:
                 def ref_counts_from_hashes(hashes):
                     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
                              for h in hashes]
-                    ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
-                                     for d in dicts)
+                    ref_counts = sum(
+                        sum(v for k, v in d.items() if k != 'total')
+                        for d in dicts)
                     total = sum(d['total'] for d in dicts)
                     return ref_counts, total if total else 1
             else:
@@ -651,7 +653,8 @@ class IndraNetwork:
                                               source, target,
                                               options['weight'],
                                               hashes=related_hashes,
-                                              ref_counts_function=ref_counts_from_hashes,
+                                              ref_counts_function=
+                                                ref_counts_from_hashes,
                                               strict_mesh_id_filtering=strict,
                                               const_c=options['const_c'],
                                               const_tk=options['const_tk'],
@@ -676,7 +679,8 @@ class IndraNetwork:
                     search_graph, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes,
                     hashes=related_hashes,
-                    strict_mesh_id_filtering=options['strict_mesh_id_filtering'],
+                    strict_mesh_id_filtering=
+                        options['strict_mesh_id_filtering'],
                     const_c=options['const_c'],
                     const_tk=options['const_tk'])
 
@@ -770,7 +774,8 @@ class IndraNetwork:
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         db = get_db('primary')
-        related_hashes = get_mesh_ref_counts(options['mesh_ids'], ro=db).keys()\
+        related_hashes = get_mesh_ref_counts(
+            options['mesh_ids'], ro=db).keys()\
                          if options['mesh_ids'] else []
 
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
@@ -782,7 +787,8 @@ class IndraNetwork:
         return self._loop_bfs_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
 
-    def open_dijkstra(self, start_node, reverse=False, terminal_ns=None, **options):
+    def open_dijkstra(self, start_node, reverse=False, terminal_ns=None,
+                      **options):
         """Do Dijkstra search from a given node and yield paths
 
         Parameters
@@ -795,7 +801,8 @@ class IndraNetwork:
             If True go upstream from source, otherwise go downstream. Default:
             False.
         depth_limit : int
-            Stop when all paths with this many edges have been found. Default: 2.
+            Stop when all paths with this many edges have been found.
+            Default: 2.
         path_limit : int
             The maximum number of paths to return. Default: no limit.
         terminal_ns : list[str]
@@ -849,7 +856,7 @@ class IndraNetwork:
                                                 ref_counts_from_hashes,
                                             const_c=options['const_c'],
                                             const_tk=options['const_tk'])
-        return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node, 
+        return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node,
                                     reverse=reverse, **options)
 
     def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
