@@ -130,26 +130,26 @@
           </div>
         </div>
       </div>
-      <div class="row">
-        <div class="col">Exclude statements:</div>
-        <div class="col">Node namespaces:</div>
-        <div class="col">Terminal namespaces:</div>
-      </div>
+      <!--div class="row">
+      </div-->
       <div class="row">
         <div class="col">
           <div class="form-select" title="The path will not contain the selected statement types">
+            <label for="stmt-filter">Exclude statements:</label><br/>
             <select name="stmt-filter" id="stmt-filter" placeholder="Statement types to exclude" multiple>
             </select>
           </div>
         </div>
         <div class="col">
+          <label for="node-filter">Node namespaces:</label><br/>
           <div class="form-select" title="The path will only contain nodes from the selected namespaces">
             <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
         </div>
         <div class="col">
-          <div class="form-select" title="Terminal namespaces">
+          <div class="form-select" title="The path fill end on and will not expand from the nodes from the selected namespaces">
+            <label for="terminal-namespaces">Terminal namespaces:</label><br/>
             <select name="terminal-namespaces" id="terminal-namespaces" placeholder="Terminal namespaces" multiple>
             </select>
           </div>
@@ -200,12 +200,12 @@
           </div>
         </div>
         <div class="col">
-          <div class="container" style="width: 90px; float: left; padding: 0px;">Constant C</div>
+          <div class="container" style="width: 90px; float: left; padding: 0px;">Constant Tk</div>
           <div class="container" style="width: 90px; float: left; padding: 0px;">
             <input class="form-control" type="number" step="1" name="const_tk" id="const_tk" placeholder="Tk = [1..120]"
               min="1" max="120"
               title="Constant Tk."
-              value="1">
+              value="10">
           </div>
         </div>
       </div>
