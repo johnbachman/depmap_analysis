@@ -349,6 +349,10 @@ function fillResultsTable(data, source, target){
             newTargetCol.textContent = key;
             newRow.appendChild(newTargetCol);
 
+            // let newWeights = document.createElement('td');
+            // newWeights.innerHTML = generatePathWeights(pathArray.stmts);
+            // newRow.appendChild(newWeights)
+
             let newTargetPaths = document.createElement('td');
             newTargetPaths.innerHTML = generateTargetLinkout(targetDict[key]);
             newRow.appendChild(newTargetPaths);
@@ -407,6 +411,10 @@ function fillResultsTable(data, source, target){
           newPath.innerHTML = pathArray.path.join('&rarr;');
           newRow.appendChild(newPath);
 
+          let newWeights = document.createElement('td');
+          newWeights.innerHTML = generatePathWeights(pathArray.stmts);
+          newRow.appendChild(newWeights)
+
           let newSupport = document.createElement('td');
           newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
           newRow.appendChild(newSupport);
@@ -434,6 +442,10 @@ function fillResultsTable(data, source, target){
           let newPath = document.createElement('td');
           newPath.innerHTML = pathArray.path.join('&rarr;');
           newRow.appendChild(newPath);
+
+          let newWeights = document.createElement('td');
+          newWeights.innerHTML = generatePathWeights(pathArray.stmts);
+          newRow.appendChild(newWeights)
 
           let newSupport = document.createElement('td');
           newSupport.innerHTML = generatePathLinkout(pathArray.stmts);
@@ -522,6 +534,23 @@ function generatePathLinkout(pathArray) {
   return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
 }
 
+function generatePathWeights(pathArray) {
+  let htmlString = '';
+  for (let edgeDict of pathArray) {
+    if (Object.keys(edgeDict).length > 0) {
+      let subj = edgeDict.subj;
+      let obj = edgeDict.obj;
+      htmlString += `<h5>PATH WEIGHT</h5>`;
+      for (let stmt_type in edgeDict) {
+        if ((stmt_type !== 'subj') && (stmt_type !== 'obj')) {
+          htmlString += '<b>EDGE WEIGHT</b><br>'
+        }
+      }
+    }
+  }
+  return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
+}
+
 function generateSourceBadges(stmt_list) {
   // ToDo Add upp source counts in source dict
   let all_source_counts = {};
@@ -584,7 +613,7 @@ function generateCardTable(len, dir) {
     '<div id="object-placeholder-' + len + dir + '" class="placeholder object-placeholder">B</div>)</a><span ' +
     'id="npaths-' + len + dir + '" class="badge badge-primary badge-pill float-right path-count">Paths: ' +
     '0</span></h3></div><div id="collapse-paths-' + len + dir + '" class="collapse"><div class="card-body">' +
-    '<table class="table"><thead class="table-head"><th>Path</th><th>Support</th></thead><tbody ' +
+    '<table class="table"><thead class="table-head"><th>Path</th><th>Weight</th><th>Support</th></thead><tbody ' +
     'class="table-body" id="query-results-' + len + dir + '"></tbody></table></div></div>';
   return newCard;
 }
@@ -614,7 +643,7 @@ function generateCommonTargets() {
     'class="placholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
     'badge-pill float-right path-count">Targets: 0</span></h3></div><div id="collapse-common-targets" ' +
     'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
-    '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
+    '(Z)</th><th>Weight</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
     '</table></div></div>';
 
   return newCard;
