@@ -221,6 +221,9 @@ function fillOldQuery(oldQueryJson) {
   if (oldQueryJson.strict_mesh_id_filtering) {
     document.getElementById('strict-mesh-id-filtering').checked = oldQueryJson.strict_mesh_id_filtering
   }
+  document.getElementById('const_c').value = parseInRange(oldQueryJson.const_c, 1, 120, true);
+  document.getElementById('const_tk').value = parseInRange(oldQueryJson.const_tk, 1, 120, true);
+
   if (oldQueryJson.weighted) document.getElementById('weighted-search').checked = oldQueryJson.weighted;
   // if (oldQueryJson.direct_only) document.getElementById('direct-only').checked = oldQueryJson.direct_only;
   if (oldQueryJson.curated_db_only) document.getElementById('curated-db-only').checked = oldQueryJson.curated_db_only;
