@@ -637,7 +637,7 @@ function generateCommonTargets() {
     'class="placholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
     'badge-pill float-right path-count">Targets: 0</span></h3></div><div id="collapse-common-targets" ' +
     'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
-    '(Z)</th><th>Weight</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
+    '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
     '</table></div></div>';
 
   return newCard;
