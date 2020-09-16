@@ -349,10 +349,6 @@ function fillResultsTable(data, source, target){
             newTargetCol.textContent = key;
             newRow.appendChild(newTargetCol);
 
-            // let newWeights = document.createElement('td');
-            // newWeights.innerHTML = generatePathWeights(pathArray.stmts);
-            // newRow.appendChild(newWeights)
-
             let newTargetPaths = document.createElement('td');
             newTargetPaths.innerHTML = generateTargetLinkout(targetDict[key]);
             newRow.appendChild(newTargetPaths);
@@ -540,12 +536,10 @@ function generatePathWeights(pathArray) {
     if (Object.keys(edgeDict).length > 0) {
       let subj = edgeDict.subj;
       let obj = edgeDict.obj;
-      htmlString += `<h5>PATH WEIGHT</h5>`;
-      for (let stmt_type in edgeDict) {
-        if ((stmt_type !== 'subj') && (stmt_type !== 'obj')) {
-          htmlString += '<b>EDGE WEIGHT</b><br>'
-        }
-      }
+      htmlString += '<h5>' + edgeDict.weight_to_show + '</h5>';
+      for (let stmt_type in edgeDict)
+        if ((stmt_type !== 'subj') && (stmt_type !== 'obj'))
+          htmlString += '<a/><br>';
     }
   }
   return htmlString.substring(0, htmlString.length-4); // Cut out the last <br>
