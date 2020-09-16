@@ -1489,6 +1489,7 @@ class IndraNetwork:
                     except KeyError:
                         edges['subj'] = subj
                         edges['obj'] = obj
+                        edges['weight_to_show'] = str(w)
                         edges[edge_stmt['stmt_type']] = [edge_stmt]
                     if self.verbose > 3:
                         logger.info('edge stmt passed filter, appending to '
@@ -1710,7 +1711,7 @@ def list_all_hashes(ksp_results):
             stmt_dict_list = res['stmts']
             for stmt_dict in stmt_dict_list:
                 for stmt_type in stmt_dict:
-                    if stmt_type in ('subj', 'obj'):
+                    if stmt_type in ('subj', 'obj', 'weight_to_show'):
                         continue
                     meta_list = stmt_dict[stmt_type]
                     hash_set.update([item['stmt_hash'] for item in
