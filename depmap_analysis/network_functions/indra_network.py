@@ -300,6 +300,7 @@ class IndraNetwork:
         fwd_hshs = list_all_hashes(ksp_forward) if ksp_forward else []
         bwd_hshs = list_all_hashes(ksp_backward) if ksp_backward else []
         all_path_hashes = fwd_hshs + bwd_hshs
+        logger.info('KSP_FORWARD ' + str(ksp_forward))
         return {'paths_by_node_count': {'forward': ksp_forward,
                                         'backward': ksp_backward,
                                         'path_hashes': all_path_hashes},
@@ -350,6 +351,7 @@ class IndraNetwork:
 
         # Get groundings
         if org_source:
+            logger.info('REQUEST ' + GRND_URI + ' '  + org_source)
             src_groundings = requests.post(GRND_URI,
                                      json={'text': org_source}).json()
         else:
@@ -684,6 +686,7 @@ class IndraNetwork:
                     const_c=options['const_c'],
                     const_tk=options['const_tk'])
 
+            #print("PATHS " + str([p for p in paths]))
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
 
@@ -870,7 +873,7 @@ class IndraNetwork:
         # Loop paths
         while True:
             try:
-                path = next(bfs_path_gen)
+                path, weights = next(bfs_path_gen)
             except StopIteration:
                 logger.info('Reached StopIteration, all BFS paths found, '
                             'breaking')
@@ -878,7 +881,8 @@ class IndraNetwork:
 
             # Reverse path if reverse search
             path = path[::-1] if reverse else path
-
+            weights = weights[::-1] if reverse else weights
+            
             # Handle signed path
             if options.get('sign') is not None:
                 edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
@@ -889,6 +893,7 @@ class IndraNetwork:
                 edge_signs = None
                 graph_type = 'digraph'
             hash_path = self._get_hash_path(path=path, source=source_node,
+                                            weights=weights,
                                             edge_signs=edge_signs,
                                             graph_type=graph_type,
                                             **options)
@@ -1147,11 +1152,11 @@ class IndraNetwork:
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 paths1_stmts = []
                 for k, v in paths1[0].items():
-                    if k not in {'subj', 'obj'}:
+                    if k not in {'subj', 'obj', 'weight_to_show'}:
                         paths1_stmts.extend(v)
                 paths2_stmts = []
                 for k, v in paths2[0].items():
-                    if k not in {'subj', 'obj'}:
+                    if k not in {'subj', 'obj', 'weight_to_show'}:
                         paths2_stmts.extend(v)
                 max_belief1 = max([st['belief'] for st in paths1_stmts])
                 max_belief2 = max([st['belief'] for st in paths2_stmts])
@@ -1222,7 +1227,7 @@ class IndraNetwork:
                 else:
                     # Get next path and send culled nodes and edges info for
                     # the path in the following iteration
-                    path = paths_gen.send(send_values)
+                    path, weights = paths_gen.send(send_values)
                     edge_signs = None
             except StopIteration:
                 logger.info('Reached StopIteration: all paths found. '
@@ -1230,7 +1235,7 @@ class IndraNetwork:
                 break
             # Todo: skip to correct length here already
             hash_path = self._get_hash_path(source=source, target=target,
-                                            path=path, edge_signs=edge_signs,
+                                            path=path, weights=weights, edge_signs=edge_signs,
                                             graph_type=graph_type,
                                             **options)
 
@@ -1240,6 +1245,7 @@ class IndraNetwork:
                                 repr(hash_path))
                 pd = {'stmts': hash_path,
                       'path': path,
+                      'weight_to_show': weights,
                       #'cost': str(self._get_cost(path, edge_signs)),
                       'sort_key': str(self._get_sort_key(path, hash_path,
                                                          edge_signs))}
@@ -1437,16 +1443,17 @@ class IndraNetwork:
             except IndexError:
                 return
 
-    def _get_hash_path(self, path, source=None, target=None, edge_signs=None,
+    def _get_hash_path(self, path, weights=None, source=None, target=None, edge_signs=None,
                        graph_type='digraph', **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
         the n nodes in path. If simple_graph is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
         hash_path = []
         es = edge_signs if edge_signs else [None]*(len(path)-1)
+        weights = weights if weights else [None]*(len(path)-1)
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
-        for subj, obj, edge_sign in zip(path[:-1], path[1:], es):
+        for subj, obj, edge_sign, w in zip(path[:-1], path[1:], es, weights):
             # Check node filter, but ignore source or target nodes
             # e.g., check node_filter IFF source != subj AND target != obj
             if (source != subj and target != subj and
