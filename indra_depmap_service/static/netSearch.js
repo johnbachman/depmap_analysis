@@ -48,6 +48,10 @@ function submitQuery() {
                                     document.getElementById('k-shortest').min,
                                     document.getElementById('k-shortest').max,
                                     true);
+  let maxPerNode = parseInRange(document.getElementById('max-per-node').value,
+                                    document.getElementById('max-per-node').min,
+                                    document.getElementById('max-per-node').max,
+                                    true)
   let timeoutEntry = parseInRange(document.getElementById('user_timeout').value,
                                   document.getElementById('user_timeout').min,
                                   document.getElementById('user_timeout').max,
@@ -117,6 +121,7 @@ function submitQuery() {
     curated_db_only: document.getElementById('curated-db-only').checked,
     fplx_expand: document.getElementById('fplx-expand').checked,
     k_shortest: kShortestEntry,
+    max_per_node: maxPerNode,
     cull_best_node: cullBestNode,
     mesh_ids: meshIdList,
     strict_mesh_id_filtering: document.getElementById('strict-mesh-id-filtering').checked,
