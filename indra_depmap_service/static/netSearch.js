@@ -49,9 +49,9 @@ function submitQuery() {
                                     document.getElementById('k-shortest').max,
                                     true);
   let maxPerNode = parseInRange(document.getElementById('max-per-node').value,
-                                    document.getElementById('max-per-node').min,
-                                    document.getElementById('max-per-node').max,
-                                    true)
+                                document.getElementById('max-per-node').min,
+                                document.getElementById('max-per-node').max,
+                                true)
   let timeoutEntry = parseInRange(document.getElementById('user_timeout').value,
                                   document.getElementById('user_timeout').min,
                                   document.getElementById('user_timeout').max,
@@ -517,7 +517,7 @@ function generatePathLinkout(pathArray) {
       let obj = edgeDict.obj;
       htmlString += `<h5><b>${subj} &rarr; ${obj}</b><span class="float-right">Statement types: ${(Object.keys(edgeDict).length-2).toString()}</span></h5>`;
       for (let stmt_type in edgeDict) {
-        if ((stmt_type !== 'subj') && (stmt_type !== 'obj')) {
+        if ((stmt_type !== 'subj') && (stmt_type !== 'obj') && (stmt_type !== 'weight_to_show')) {
           // let dbLink = '';
           // if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
           // ?subject=BRCA1&object=BRCA2&type=activation&ev_limit=1
