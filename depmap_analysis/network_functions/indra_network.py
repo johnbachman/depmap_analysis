@@ -625,7 +625,6 @@ class IndraNetwork:
                     or not options['mesh_ids']:
                         return self.open_bfs(start_node=start_node,
                                             reverse=reverse,
-                                            max_per_node=options['max_per_node'],
                                             **options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
