@@ -622,7 +622,7 @@ class IndraNetwork:
                     raise NodeNotFound('Node %s not in graph' % start_node)
 
                 if options['strict_mesh_id_filtering']\
-                    or not options['mesh_ids']:
+                    or (not options['mesh_ids'] and not options['weight']):
                         return self.open_bfs(start_node=start_node,
                                             reverse=reverse,
                                             **options, **blacklist_options)
