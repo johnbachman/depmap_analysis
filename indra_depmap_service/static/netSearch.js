@@ -214,6 +214,7 @@ function fillOldQuery(oldQueryJson) {
   if (oldQueryJson.sign) document.getElementById('sign-dd').value = oldQueryJson.sign;
   if (oldQueryJson.bsco) document.getElementById('belief-cutoff').value = parseInRange(oldQueryJson.bsco, 0, 1, false);
   if (oldQueryJson.k_shortest) document.getElementById('k-shortest').value = parseInt(oldQueryJson.k_shortest);
+  if (oldQueryJson.max_per_node) document.getElementById('max-per-node').value = parseInt(oldQueryJson.max_per_node);
   if (oldQueryJson.cull_best_node) {
     document.getElementById('cull-best-node').value = parseInt(oldQueryJson.cull_best_node)
   }
