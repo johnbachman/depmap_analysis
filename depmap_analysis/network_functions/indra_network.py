@@ -625,10 +625,11 @@ class IndraNetwork:
                     or not options['mesh_ids']:
                         return self.open_bfs(start_node=start_node,
                                             reverse=reverse,
-                                            **options)
+                                            **options, **blacklist_options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
-                                              reverse=reverse, **options)
+                                              reverse=reverse, **options,
+                                              **blacklist_options)
             else:
                 logger.info('Doing simple %spath search' % ('weigthed '
                             if options['weight'] else ''))
@@ -791,7 +792,7 @@ class IndraNetwork:
                                     reverse=reverse, **options)
 
     def open_dijkstra(self, start_node, reverse=False, terminal_ns=None,
-                      **options):
+                      ignore_nodes=None, **options):
         """Do Dijkstra search from a given node and yield paths
 
         Parameters
@@ -812,7 +813,9 @@ class IndraNetwork:
             Force a path to terminate when any of the namespaces in this list
             are encountered and only yield paths that terminate at these
             namepsaces
-
+        ignore_nodes : list[str]
+            Paths containing nodes from this list are excluded
+        
         Yields
         ------
         path : tuple(node)
@@ -857,6 +860,7 @@ class IndraNetwork:
                                             weight='context_weight',
                                             ref_counts_function=
                                                 ref_counts_from_hashes,
+                                            ignore_nodes=ignore_nodes,
                                             const_c=options['const_c'],
                                             const_tk=options['const_tk'])
         return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node,
