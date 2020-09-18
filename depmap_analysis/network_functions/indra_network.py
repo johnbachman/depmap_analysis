@@ -77,7 +77,8 @@ class IndraNetwork:
         self.signed_node_edges = self.sign_node_graph_repr.edges
         self.signed_edges = indra_sign_edge_graph.edges
         # FIXME: THIS SHOULD PROBABLY BE CALLED 'ontology'
-        self.ontology = indra_dir_graph.graph.get('entity_hierarchy_manager', None)
+        self.ontology = indra_dir_graph.graph.get('entity_hierarchy_manager',
+                                                  None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.node_by_ns_id = indra_dir_graph.graph.get('node_by_ns_id', None)
         self.MAX_PATHS = MAX_PATHS
@@ -1239,7 +1240,8 @@ class IndraNetwork:
                 break
             # Todo: skip to correct length here already
             hash_path = self._get_hash_path(source=source, target=target,
-                                            path=path, weights=weights, edge_signs=edge_signs,
+                                            path=path, weights=weights,
+                                            edge_signs=edge_signs,
                                             graph_type=graph_type,
                                             **options)
 
@@ -1447,8 +1449,8 @@ class IndraNetwork:
             except IndexError:
                 return
 
-    def _get_hash_path(self, path, weights=None, source=None, target=None, edge_signs=None,
-                       graph_type='digraph', **options):
+    def _get_hash_path(self, path, weights=None, source=None, target=None,
+                       edge_signs=None, graph_type='digraph', **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
         the n nodes in path. If simple_graph is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
