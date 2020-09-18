@@ -290,7 +290,7 @@ class IndraNetwork:
 
         if not ksp_forward and not ksp_backward:
             logger.info('No directed path found')
-        if not options['weight']:
+        if not options['weight'] and not options['mesh_ids']:
             if ksp_forward:
                 # Sort the results in ksp_forward if non-weighted search
                 ksp_forward = self._sort_stmts(ksp_forward)
