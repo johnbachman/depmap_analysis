@@ -260,7 +260,7 @@ class IndraNetwork:
             ksp_forward = self.grounding_fallback(**ckwargs)
             if options['two_way']:
                 ksp_backward = self.grounding_fallback(**bckwargs)
-            node_not_found = not bool(ksp_forward)
+            node_not_found = str(e)
 
         if options.get('source') and options.get('target'):
             ct = self.find_common_targets(**options)
@@ -664,7 +664,7 @@ class IndraNetwork:
                             return []
 
                 def ref_counts_from_hashes(u, v):
-                    hashes = get_hashes
+                    hashes = get_hashes(u, v)
                     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
                              for h in hashes]
                     ref_counts = sum(
