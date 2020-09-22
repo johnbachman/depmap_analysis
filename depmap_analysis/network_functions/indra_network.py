@@ -635,11 +635,26 @@ class IndraNetwork:
                 logger.info('Doing simple %spath search' % ('weigthed '
                             if options['weight'] else ''))
             if options['mesh_ids']:
-                db = get_db('primary')
                 hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
-                                                     ro=db, require_all=False)
+                                                     require_all=False)
                 related_hashes = hash_mesh_dict.keys()
-                def ref_counts_from_hashes(hashes):
+                if options['sign'] is None:
+                    get_hashes = lambda u, v: [d['stmt_hash'] 
+                                               for d in 
+                                               self.nx_dir_graph_repr\
+                                                   [u][v]['statements']]
+                else:
+                    def get_hashes(u, v):
+                        try:
+                            return [d['stmt_hash'] 
+                                    for d in 
+                                    self.sign_edge_graph_repr\
+                                        [u[0]][v[0]][u[1]]['statements']]
+                        except KeyError:
+                            return []
+
+                def ref_counts_from_hashes(u, v):
+                    hashes = get_hashes
                     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
                              for h in hashes]
                     ref_counts = sum(
@@ -683,6 +698,7 @@ class IndraNetwork:
                     search_graph, subj, obj, options['weight'],
                     ignore_nodes=signed_blacklisted_nodes,
                     hashes=related_hashes,
+                    ref_counts_function=ref_counts_from_hashes,
                     strict_mesh_id_filtering=
                         options['strict_mesh_id_filtering'],
                     const_c=options['const_c'],
@@ -779,7 +795,7 @@ class IndraNetwork:
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         db = get_db('primary')
         related_hashes = get_mesh_ref_counts(
-            options['mesh_ids'], ro=db).keys()\
+            options['mesh_ids']).keys()\
                          if options['mesh_ids'] else []
 
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
@@ -1223,7 +1239,7 @@ class IndraNetwork:
                     logger.info('Culled nodes: %s' % repr(culled_nodes))
             try:
                 if sign is not None:
-                    signed_path_nodes = next(paths_gen)
+                    signed_path_nodes, weights = next(paths_gen)
                     path = [n[0] for n in signed_path_nodes]
                     edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                                   for s, t in zip(signed_path_nodes[:-1],
