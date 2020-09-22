@@ -7,7 +7,7 @@ import requests
 from flask import Flask, request, abort, Response, render_template, jsonify, \
     session, url_for
 
-from indra_db.util.dump_sif import NS_PRIORITY_LIST as NS_LIST_
+from indra.statements.agent import default_ns_order as NS_LIST_
 from indra.config import CONFIG_DICT
 from indra.util.aws import get_s3_client
 from indralab_web_templates.path_templates import path_temps
