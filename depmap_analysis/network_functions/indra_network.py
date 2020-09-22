@@ -616,11 +616,21 @@ class IndraNetwork:
 
                 check_node = get_signed_node(start_node, options['sign'],
                                              reverse)
-                if options['sign'] is None and not self.nodes.get(check_node):
-                    raise NodeNotFound('Node %s not in graph' % start_node)
-                elif options['sign'] is not None and not \
-                        self.signed_nodes.get(check_node):
-                    raise NodeNotFound('Node %s not in graph' % start_node)
+                if options['sign'] is None:
+                    if not self.nodes.get(check_node):
+                        raise NodeNotFound('Node %s not in graph' % start_node)
+                    get_hashes = lambda u, v: [d['stmt_hash'] 
+                        for d in self.nx_dir_graph_repr[u][v]['statements']]
+                else:
+                    if not self.signed_nodes.get(check_node):
+                        raise NodeNotFound('Node %s not in graph' % start_node)
+                    def get_hashes(u, v):
+                        try:
+                            return [d['stmt_hash'] for d in
+                                self.sign_edge_graph_repr\
+                                    [u[0]][v[0]][u[1]]['statements']]
+                        except KeyError:
+                            return []
 
                 if options['strict_mesh_id_filtering']\
                     or (not options['mesh_ids'] and not options['weight']):
@@ -629,7 +639,7 @@ class IndraNetwork:
                                             **options, **blacklist_options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
-                                              reverse=reverse, **options,
+                                              reverse=reverse, get_hashes=get_hashes, **options,
                                               **blacklist_options)
             else:
                 logger.info('Doing simple %spath search' % ('weigthed '
@@ -808,7 +818,7 @@ class IndraNetwork:
                                     reverse=reverse, **options)
 
     def open_dijkstra(self, start_node, reverse=False, terminal_ns=None,
-                      ignore_nodes=None, **options):
+                      get_hashes=None, ignore_nodes=None, **options):
         """Do Dijkstra search from a given node and yield paths
 
         Parameters
@@ -855,10 +865,11 @@ class IndraNetwork:
         
         if options['mesh_ids']:
             db = get_db('primary')
-            hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'], ro=db,
+            hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
             related_hashes = hash_mesh_dict.keys()
-            def ref_counts_from_hashes(hashes):
+            def ref_counts_from_hashes(u, v):
+                hashes = get_hashes(u, v)
                 dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
                          for h in hashes]
                 ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
@@ -1117,11 +1128,11 @@ class IndraNetwork:
             if paths1 and paths2 and paths1[0] and paths2[0]:
                 paths1_stmts = []
                 for k, v in paths1[0].items():
-                    if k not in {'subj', 'obj'}:
+                    if k not in {'subj', 'obj', 'weight_to_show'}:
                         paths1_stmts.extend(v)
                 paths2_stmts = []
                 for k, v in paths2[0].items():
-                    if k not in {'subj', 'obj'}:
+                    if k not in {'subj', 'obj', 'weight_to_show'}:
                         paths2_stmts.extend(v)
                 max_belief1 = max([st['belief'] for st in paths1_stmts])
                 max_belief2 = max([st['belief'] for st in paths2_stmts])
