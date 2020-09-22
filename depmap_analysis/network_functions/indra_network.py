@@ -688,7 +688,6 @@ class IndraNetwork:
                     const_c=options['const_c'],
                     const_tk=options['const_tk'])
 
-            #print("PATHS " + str([p for p in paths]))
             return self._loop_paths(source=subj, target=obj, paths_gen=paths,
                                     **options)
 
