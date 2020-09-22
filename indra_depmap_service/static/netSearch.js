@@ -544,7 +544,7 @@ function generatePathWeights(pathArray) {
       let obj = edgeDict.obj;
       htmlString += '<h5>' + edgeDict.weight_to_show + '</h5>';
       for (let stmt_type in edgeDict)
-        if ((stmt_type !== 'subj') && (stmt_type !== 'obj'))
+        if ((stmt_type !== 'subj') && (stmt_type !== 'obj') && (stmt_type !== 'weight_to_show'))
           htmlString += '<a/><br>';
     }
   }
@@ -578,7 +578,7 @@ function generateTargetLinkout(pathPair) {
       let obj = path.obj;
       htmlString += `<h5><b>${subj} &rarr; ${obj}</b><span class="float-right">Support: ${(Object.keys(path).length-2).toString()}</span></h5>`;
       for (let stmt_type in path) {
-        if ((stmt_type !== 'subj') && (stmt_type !== 'obj')) {
+        if ((stmt_type !== 'subj') && (stmt_type !== 'obj') && (stmt_type !== 'weight_to_show')) {
           // let dbLink = '';
           // if (stmt.stmt_hash.startsWith('http')) dbLink = stmt.stmt_hash;
           // else dbLink = INDRA_DB_URL_HASH + stmt.stmt_hash + '?format=html';
