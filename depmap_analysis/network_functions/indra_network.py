@@ -194,6 +194,9 @@ class IndraNetwork:
                     the ns:id pairs used to resolve the query
                 timeout : Bool
                     True if the query timed out
+                node_not_found: Bool | str
+                    An error message if a queried node is not present in the
+                    network, otherwise False
         """
         self.query_recieve_time = time()
         self.query_timed_out = False
@@ -745,6 +748,8 @@ class IndraNetwork:
         max_per_node : int
             The maximum number of times a node can be a parent to leaf
             nodes. Default: 5
+        strict_mesh_id_filtering : bool
+            If True, only consider edges relevant to provided hashes
         options : kwargs
             For a full list of options see
             depmap_analysis.network_functions.net_functions::bfs_search
@@ -755,6 +760,9 @@ class IndraNetwork:
                     If sign is present as a kwarg, it specifies the sign of
                     leaf node in the path, i.e. wether the leaf node is up-
                     or downregulated.
+                -mesh_ids : list[str]
+                    List of MeSH IDs relevance to which is considered if strict
+                    filtering by statement hashes is required
 
         Returns
         -------
@@ -814,7 +822,7 @@ class IndraNetwork:
                              terminal_ns=terminal_ns, hashes=related_hashes, 
                              strict_mesh_id_filtering=strict_mesh_id_filtering,
                              **bfs_options)
-        return self._loop_bfs_paths(bfs_gen, source_node=start_node,
+        return self._loop_open_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
 
     def open_dijkstra(self, start_node, reverse=False, terminal_ns=None,
@@ -825,22 +833,25 @@ class IndraNetwork:
         ----------
         g : nx.Digraph
             An nx.DiGraph to search in.
-        start : node
+        start_node : node
             Node in the graph to start from.
         reverse : bool
             If True go upstream from source, otherwise go downstream. Default:
             False.
-        depth_limit : int
-            Stop when all paths with this many edges have been found.
-            Default: 2.
-        path_limit : int
-            The maximum number of paths to return. Default: no limit.
         terminal_ns : list[str]
             Force a path to terminate when any of the namespaces in this list
             are encountered and only yield paths that terminate at these
             namepsaces
+        get_hashes : function(str, str): list[str]
+            For given nodes u and v, returns a list of hashes in the edge
+            (u, v)
+        depth_limit : int
+            Stop when all paths with this many edges have been found.
+            Default: 2.
         ignore_nodes : list[str]
             Paths containing nodes from this list are excluded
+        path_limit : int
+            The maximum number of paths to return. Default: no limit.
         
         Yields
         ------
@@ -890,10 +901,10 @@ class IndraNetwork:
                                             ignore_nodes=ignore_nodes,
                                             const_c=options['const_c'],
                                             const_tk=options['const_tk'])
-        return self._loop_bfs_paths(dijkstra_gen, source_node=starting_node,
+        return self._loop_open_paths(dijkstra_gen, source_node=starting_node,
                                     reverse=reverse, **options)
 
-    def _loop_bfs_paths(self, bfs_path_gen, source_node, reverse, **options):
+    def _loop_open_paths(self, open_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
         max_results = int(options['max_results']) \
             if options.get('max_results') is not None else self.MAX_PATHS
@@ -904,7 +915,7 @@ class IndraNetwork:
         # Loop paths
         while True:
             try:
-                path, weights = next(bfs_path_gen)
+                path, weights = next(open_path_gen)
             except StopIteration:
                 logger.info('Reached StopIteration, all BFS paths found, '
                             'breaking')
