@@ -46,6 +46,7 @@ def get_latest_sif_s3(get_mesh_ids=False):
                 # Save and continue to next file in necc_files
                 necc_keys[n] = k
                 break
+    logger.info(f'Latest files: {", ".join([f for f in necc_keys.values()])}')
     df = load_pickle_from_s3(s3, key=necc_keys[Sif.name],
                              bucket=DUMPS_BUCKET)
     sev = load_pickle_from_s3(s3, key=necc_keys[SourceCount.name],
