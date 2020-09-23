@@ -3,6 +3,7 @@ import logging
 from itertools import product
 from collections import defaultdict
 from time import time, gmtime, strftime
+from math import trunc
 
 import requests
 import networkx as nx
@@ -52,6 +53,10 @@ MANDATORY = ['stmt_filter', 'node_filter',
              'path_length', 'weighted', 'bsco', 'fplx_expand',
              'k_shortest', 'curated_db_only', 'two_way']
 USER_OVERRIDE = False
+
+
+def truncate(path):
+    return [(trunc(p * 100) / 100) for p in path]
 
 
 class MissingParametersError(Exception):
@@ -681,7 +686,8 @@ class IndraNetwork:
             strict = options['strict_mesh_id_filtering'] 
             if options['sign'] is None:
                 # Do unsigned path search
-                paths = shortest_simple_paths(self.nx_dir_graph_repr,
+                search_graph = self.nx_dir_graph_repr
+                paths = shortest_simple_paths(search_graph,
                                               source, target,
                                               options['weight'],
                                               hashes=related_hashes,
@@ -717,7 +723,7 @@ class IndraNetwork:
                     const_c=options['const_c'],
                     const_tk=options['const_tk'])
 
-            return self._loop_paths(source=subj, target=obj, paths_gen=paths,
+            return self._loop_paths(graph=search_graph, source=subj, target=obj, paths_gen=paths,
                                     **options)
 
         except NetworkXNoPath as err1:
@@ -726,7 +732,7 @@ class IndraNetwork:
 
     def open_bfs(self, start_node, reverse=False, depth_limit=2,
                  path_limit=None, terminal_ns=None, max_per_node=5,
-                 strict_mesh_id_filtering=True, **options):
+                 **options):
         """Return paths and their data starting from source
 
         Parameters
@@ -748,8 +754,6 @@ class IndraNetwork:
         max_per_node : int
             The maximum number of times a node can be a parent to leaf
             nodes. Default: 5
-        strict_mesh_id_filtering : bool
-            If True, only consider edges relevant to provided hashes
         options : kwargs
             For a full list of options see
             depmap_analysis.network_functions.net_functions::bfs_search
@@ -763,6 +767,8 @@ class IndraNetwork:
                 -mesh_ids : list[str]
                     List of MeSH IDs relevance to which is considered if strict
                     filtering by statement hashes is required
+                -strict_mesh_id_filtering : bool
+                    If True, only consider edges relevant to provided hashes
 
         Returns
         -------
@@ -819,8 +825,7 @@ class IndraNetwork:
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
                              path_limit=path_limit, max_per_node=max_per_node,
-                             terminal_ns=terminal_ns, hashes=related_hashes, 
-                             strict_mesh_id_filtering=strict_mesh_id_filtering,
+                             terminal_ns=terminal_ns, hashes=related_hashes,
                              **bfs_options)
         return self._loop_open_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
@@ -901,10 +906,10 @@ class IndraNetwork:
                                             ignore_nodes=ignore_nodes,
                                             const_c=options['const_c'],
                                             const_tk=options['const_tk'])
-        return self._loop_open_paths(dijkstra_gen, source_node=starting_node,
+        return self._loop_open_paths(graph, dijkstra_gen, source_node=starting_node,
                                     reverse=reverse, **options)
 
-    def _loop_open_paths(self, open_path_gen, source_node, reverse, **options):
+    def _loop_open_paths(self, graph, open_path_gen, source_node, reverse, **options):
         result = defaultdict(list)
         max_results = int(options['max_results']) \
             if options.get('max_results') is not None else self.MAX_PATHS
@@ -912,10 +917,36 @@ class IndraNetwork:
         _ = options.pop('source', None)
         _ = options.pop('target', None)
 
+        if reverse:
+            def edge(u, v):
+                return graph[u][v]
+        else:
+            def edge(u, v):
+                return graph[v][u]
+        logger.info('OPTIONS ' + str(options))
+
+        if options['mesh_ids']:
+            if options['strict_mesh_id_filtering']:
+                def collect_weights(path):
+                    return ['N/A'] * (len(path) - 1)
+            else:
+                def collect_weights(path):
+                    return [truncate(graph[u][v]['context_weight'])
+                            for u, v in zip(path[:-1], path[1:])]
+        else:
+            if options.get('weight', None):
+                def collect_weights(path):
+                    return [truncate(graph[u][v][options['weight']])
+                            for u, v in zip(path[:-1], path[1:])]
+            else:
+                def collect_weights(path):
+                    return ['N/A'] * (len(path) - 1)
+
         # Loop paths
         while True:
             try:
-                path, weights = next(open_path_gen)
+                path = next(open_path_gen)
+                weights = collect_weights(path)
             except StopIteration:
                 logger.info('Reached StopIteration, all BFS paths found, '
                             'breaking')
@@ -1219,7 +1250,7 @@ class IndraNetwork:
         else:
             return []
 
-    def _loop_paths(self, source, target, paths_gen, **options):
+    def _loop_paths(self, graph, source, target, paths_gen, **options):
         # len(path) = edge count + 1
         sign = options['sign']
         graph_type = 'digraph' if sign is None else 'signed'
@@ -1233,6 +1264,24 @@ class IndraNetwork:
         skipped_paths = 0
         culled_nodes = set()
         culled_edges = set()  # Currently unused, only operate on node level
+
+        if options['mesh_ids']:
+            if options['strict_mesh_id_filtering']:
+                def collect_weights(path):
+                    return ['N/A'] * (len(path) - 1)
+            else:
+                def collect_weights(path):
+                    return [truncate(graph[u][v]['context_weight'])
+                            for u, v in zip(path[:-1], path[1:])]
+        else:
+            if options.get('weight', None):
+                def collect_weights(path):
+                    return [truncate(graph[u][v][options['weight']])
+                            for u, v in zip(path[:-1], path[1:])]
+            else:
+                def collect_weights(path):
+                    return ['N/A'] * (len(path) - 1)
+
         while True:
             # Check if we found k paths
             if added_paths >= self.MAX_PATHS:
@@ -1269,7 +1318,8 @@ class IndraNetwork:
                 else:
                     # Get next path and send culled nodes and edges info for
                     # the path in the following iteration
-                    path, weights = paths_gen.send(send_values)
+                    path = paths_gen.send(send_values)
+                    weights = collect_weights(path)
                     edge_signs = None
             except StopIteration:
                 logger.info('Reached StopIteration: all paths found. '
@@ -1493,7 +1543,7 @@ class IndraNetwork:
         and not from MultiDiGraph representation"""
         hash_path = []
         es = edge_signs if edge_signs else [None]*(len(path)-1)
-        weights = weights if weights else [None]*(len(path)-1)
+        weights = weights if weights else ['N/A']*(len(path)-1)
         if self.verbose:
             logger.info('Building evidence for path %s' % str(path))
         for subj, obj, edge_sign, w in zip(path[:-1], path[1:], es, weights):
@@ -1581,13 +1631,6 @@ class IndraNetwork:
             if self.verbose > 3:
                 logger.info('hash %s is blacklisted, skipping' %
                             edge_stmt['stmt_hash'])
-            return False
-
-        # Filter based on mesh ids
-        if self.hashes_with_mesh_ids and \
-                edge_stmt['stmt_hash'] not in self.hashes_with_mesh_ids:
-            if self.verbose > 3:
-                logger.info('hash %s is not related to supplied mesh ids')
             return False
 
         # Return True is all filters were passed
