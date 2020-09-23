@@ -77,7 +77,7 @@ class IndraNetwork:
         self.sign_edge_graph_repr = indra_sign_edge_graph
         self.nodes = indra_dir_graph.nodes \
             if not nx.is_empty(indra_dir_graph) \
-                else (indra_sign_edge_graph \
+                else (indra_sign_edge_graph.nodes \
                       if not nx.is_empty(indra_sign_edge_graph) \
                         else dict())
         self.signed_nodes = self.sign_node_graph_repr.nodes
