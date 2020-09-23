@@ -55,8 +55,8 @@ MANDATORY = ['stmt_filter', 'node_filter',
 USER_OVERRIDE = False
 
 
-def truncate(path):
-    return [(trunc(p * 100) / 100) for p in path]
+def truncate(n):
+    return trunc(n * 100) / 100
 
 
 class MissingParametersError(Exception):
@@ -841,7 +841,7 @@ class IndraNetwork:
                              path_limit=path_limit, max_per_node=max_per_node,
                              terminal_ns=terminal_ns, hashes=related_hashes,
                              allow_edge=allow_edge, **bfs_options)
-        return self._loop_open_paths(bfs_gen, source_node=start_node,
+        return self._loop_open_paths(graph, bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
 
     def open_dijkstra(self, start_node, reverse=False, terminal_ns=None,
@@ -896,6 +896,7 @@ class IndraNetwork:
         if options['mesh_ids']:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
+            related_hashes = hash_mesh_dict.keys()
             def ref_counts_from_hashes(u, v):
                 hashes = get_hashes(u, v)
                 dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
