@@ -82,9 +82,12 @@ def _is_empty_result(res):
 
 if API_DEBUG:
     logger.info('Debugging API, no network will be loaded...')
-elif path.isfile(INDRA_DG_CACHE):
-    INDRANET_DATE = datetime.utcfromtimestamp(get_earliest_date(
-        INDRA_DG_CACHE))
+elif any([path.isfile(INDRA_DG_CACHE), path.isfile(INDRA_SNG_CACHE),
+          path.isfile(INDRA_SEG_CACHE)]):
+    for file in [INDRA_DG_CACHE, INDRA_SNG_CACHE, INDRA_SEG_CACHE]:
+        if path.isfile(file):
+            INDRANET_DATE = datetime.utcfromtimestamp(get_earliest_date(file))
+            break
     if argv[0].split('/')[-1].lower() != 'api.py':
         indra_network = IndraNetwork(*load_indra_graph(**FILES))
     else:
