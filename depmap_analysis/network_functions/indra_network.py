@@ -263,7 +263,7 @@ class IndraNetwork:
                 if options['two_way']:
                     ksp_backward = self.find_shortest_paths(**boptions)
         except NodeNotFound as e:
-            logger.info('No paths found, trying to ground source and '
+            logger.info('No paths found, trying to ground source and target'
                             'target')
             ksp_forward = self.grounding_fallback(**ckwargs)
             if options['two_way']:
