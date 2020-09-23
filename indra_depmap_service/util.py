@@ -237,7 +237,8 @@ def load_indra_graph(dir_graph_path=None, multi_digraph_path=None,
                 nf.sif_dump_df_to_digraph(graph_type='signed', **options)
     else:
         logger.info('Loading indra network representations from pickles')
-        indra_dir_graph = file_opener(dir_graph_path)
+        if dir_graph_path:
+            indra_dir_graph = file_opener(dir_graph_path)
         if multi_digraph_path:
             indra_multi_digraph = file_opener(multi_digraph_path)
         if sign_edge_graph_path:
