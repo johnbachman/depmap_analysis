@@ -75,7 +75,11 @@ class IndraNetwork:
             indra_sign_edge_graph) if indra_sign_node_graph\
             is None else indra_sign_node_graph
         self.sign_edge_graph_repr = indra_sign_edge_graph
-        self.nodes = indra_dir_graph.nodes
+        self.nodes = indra_dir_graph.nodes \
+            if not nx.is_empty(indra_dir_graph) \
+                else (indra_sign_edge_graph \
+                      if not nx.is_empty(indra_sign_edge_graph) \
+                        else dict())
         self.signed_nodes = self.sign_node_graph_repr.nodes
         self.dir_edges = indra_dir_graph.edges
         self.mdg_edges = indra_multi_dir_graph.edges
@@ -309,7 +313,6 @@ class IndraNetwork:
         fwd_hshs = list_all_hashes(ksp_forward) if ksp_forward else []
         bwd_hshs = list_all_hashes(ksp_backward) if ksp_backward else []
         all_path_hashes = fwd_hshs + bwd_hshs
-        logger.info('KSP_FORWARD ' + str(ksp_forward))
         return {'paths_by_node_count': {'forward': ksp_forward,
                                         'backward': ksp_backward,
                                         'path_hashes': all_path_hashes},
@@ -1323,7 +1326,8 @@ class IndraNetwork:
                     logger.info('Culled nodes: %s' % repr(culled_nodes))
             try:
                 if sign is not None:
-                    signed_path_nodes, weights = next(paths_gen)
+                    signed_path_nodes = next(paths_gen)
+                    weights = collect_weights(signed_path_nodes)
                     path = [n[0] for n in signed_path_nodes]
                     edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
                                   for s, t in zip(signed_path_nodes[:-1],
@@ -1549,8 +1553,8 @@ class IndraNetwork:
             except IndexError:
                 return
 
-    def _get_hash_path(self, path, weights=None, source=None, target=None,
-                       edge_signs=None, graph_type='digraph', **options):
+    def _get_hash_path(self, path, source=None, target=None,
+                       edge_signs=None, graph_type='digraph', weights=None, **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
         the n nodes in path. If simple_graph is True, query edges from DiGraph
         and not from MultiDiGraph representation"""
