@@ -643,7 +643,7 @@ class IndraNetwork:
                 if options['strict_mesh_id_filtering']\
                     or (not options['mesh_ids'] and not options['weight']):
                         return self.open_bfs(start_node=start_node,
-                                            reverse=reverse,
+                                            reverse=reverse, get_hashes=get_hashes,
                                             **options, **blacklist_options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
@@ -730,7 +730,7 @@ class IndraNetwork:
             logger.warning(repr(err1))
             return {}
 
-    def open_bfs(self, start_node, reverse=False, depth_limit=2,
+    def open_bfs(self, start_node, reverse=False, get_hashes=None, depth_limit=2,
                  path_limit=None, terminal_ns=None, max_per_node=5,
                  **options):
         """Return paths and their data starting from source
@@ -742,6 +742,9 @@ class IndraNetwork:
         reverse : bool
             If True, let source be the start of an upstream search.
             Default: False
+        get_hashes : function(str, str): list[str]
+            For given nodes u and v, returns a list of hashes in the edge
+            (u, v)
         depth_limit : int
             The maximum allowed depth (number of edges). Default: 2
         path_limit : int
@@ -818,15 +821,26 @@ class IndraNetwork:
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
         db = get_db('primary')
-        related_hashes = get_mesh_ref_counts(
-            options['mesh_ids']).keys()\
-                         if options['mesh_ids'] else []
+
+        if options['mesh_ids']:
+            hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
+                                                        require_all=False)
+            related_hashes = hash_mesh_dict.keys()
+            def allow_edge(u, v):
+                hashes = get_hashes(u, v)
+                dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
+                            for h in hashes]
+                ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
+                                        for d in dicts)
+        else:
+            related_hashes = []
+            def allow_edge(u, v): return True
 
         bfs_gen = bfs_search(g=graph, source_node=starting_node,
                              reverse=reverse, depth_limit=depth_limit,
                              path_limit=path_limit, max_per_node=max_per_node,
                              terminal_ns=terminal_ns, hashes=related_hashes,
-                             **bfs_options)
+                             allow_edge=allow_edge, **bfs_options)
         return self._loop_open_paths(bfs_gen, source_node=start_node,
                                     reverse=reverse, **options)
 
@@ -880,10 +894,8 @@ class IndraNetwork:
             starting_node = start_node
         
         if options['mesh_ids']:
-            db = get_db('primary')
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
-            related_hashes = hash_mesh_dict.keys()
             def ref_counts_from_hashes(u, v):
                 hashes = get_hashes(u, v)
                 dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
