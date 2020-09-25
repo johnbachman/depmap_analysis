@@ -944,30 +944,23 @@ class IndraNetwork:
         _ = options.pop('source', None)
         _ = options.pop('target', None)
 
-        if reverse:
-            def edge(u, v):
-                return graph[u][v]
-        else:
-            def edge(u, v):
-                return graph[v][u]
-        logger.info('OPTIONS ' + str(options))
-
-        if options['mesh_ids']:
-            if options['strict_mesh_id_filtering']:
-                def collect_weights(path):
-                    return ['N/A'] * (len(path) - 1)
-            else:
-                def collect_weights(path):
-                    return [truncate(graph[u][v]['context_weight'])
-                            for u, v in zip(path[:-1], path[1:])]
-        else:
-            if options.get('weight', None):
-                def collect_weights(path):
-                    return [truncate(graph[u][v][options['weight']])
-                            for u, v in zip(path[:-1], path[1:])]
-            else:
-                def collect_weights(path):
-                    return ['N/A'] * (len(path) - 1)
+        # if options['mesh_ids']:
+        #     if options['strict_mesh_id_filtering']:
+        #         def collect_weights(path):
+        #             return ['N/A'] * (len(path) - 1)
+        #     else:
+        #         def collect_weights(path):
+        #             return [truncate(graph[u][v]['context_weight'])
+        #                     for u, v in zip(path[:-1], path[1:])]
+        # else:
+        #     if options.get('weight', None):
+        #         def collect_weights(path):
+        #             return [truncate(graph[u][v][options['weight']])
+        #                     for u, v in zip(path[:-1], path[1:])]
+        #     else:
+        #         def collect_weights(path):
+        #             return ['N/A'] * (len(path) - 1)
+        collect_weights = _get_collect_weigths_func(graph, **options)
 
         # Loop paths
         while True:
@@ -1292,22 +1285,23 @@ class IndraNetwork:
         culled_nodes = set()
         culled_edges = set()  # Currently unused, only operate on node level
 
-        if options['mesh_ids']:
-            if options['strict_mesh_id_filtering']:
-                def collect_weights(path):
-                    return ['N/A'] * (len(path) - 1)
-            else:
-                def collect_weights(path):
-                    return [truncate(graph[u][v]['context_weight'])
-                            for u, v in zip(path[:-1], path[1:])]
-        else:
-            if options.get('weight', None):
-                def collect_weights(path):
-                    return [truncate(graph[u][v][options['weight']])
-                            for u, v in zip(path[:-1], path[1:])]
-            else:
-                def collect_weights(path):
-                    return ['N/A'] * (len(path) - 1)
+        # if options['mesh_ids']:
+        #     if options['strict_mesh_id_filtering']:
+        #         def collect_weights(path):
+        #             return ['N/A'] * (len(path) - 1)
+        #     else:
+        #         def collect_weights(path):
+        #             return [truncate(graph[u][v]['context_weight'])
+        #                     for u, v in zip(path[:-1], path[1:])]
+        # else:
+        #     if options.get('weight', None):
+        #         def collect_weights(path):
+        #             return [truncate(graph[u][v][options['weight']])
+        #                     for u, v in zip(path[:-1], path[1:])]
+        #     else:
+        #         def collect_weights(path):
+        #             return ['N/A'] * (len(path) - 1)
+        collect_weights = _get_collect_weigths_func(graph, **options)
 
         while True:
             # Check if we found k paths
@@ -1738,6 +1732,26 @@ class IndraNetwork:
                     self.sign_edge_graph_repr[u[0]][v[0]][u[1]]['statements']]
         except KeyError:
             return []
+
+
+def _get_collect_weigths_func(graph, **options):
+    if options['mesh_ids']:
+        if options['strict_mesh_id_filtering']:
+            def _f(path):
+                return ['N/A'] * (len(path) - 1)
+        else:
+            def _f(path):
+                return [truncate(graph[u][v]['context_weight'])
+                        for u, v in zip(path[:-1], path[1:])]
+    else:
+        if options.get('weight', None):
+            def _f(path):
+                return [truncate(graph[u][v][options['weight']])
+                        for u, v in zip(path[:-1], path[1:])]
+        else:
+            def _f(path):
+                return ['N/A'] * (len(path) - 1)
+    return _f
 
 
 def _get_ref_counts_func(hash_mesh_dict, get_hashes_f):
