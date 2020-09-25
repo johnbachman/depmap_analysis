@@ -8,6 +8,7 @@ from math import trunc
 import requests
 import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
+from typing import Tuple
 
 from indra_db import get_db
 from indra_db.client.readonly.mesh_ref_counts import get_mesh_ref_counts
@@ -60,6 +61,7 @@ def truncate(n):
 
 
 class MissingParametersError(Exception):
+    """Raise for missing query parameters"""
     pass
 
 
@@ -77,9 +79,9 @@ class IndraNetwork:
         self.sign_edge_graph_repr = indra_sign_edge_graph
         self.nodes = indra_dir_graph.nodes \
             if not nx.is_empty(indra_dir_graph) \
-                else (indra_sign_edge_graph.nodes \
-                      if not nx.is_empty(indra_sign_edge_graph) \
-                        else dict())
+            else (indra_sign_edge_graph.nodes
+                  if not nx.is_empty(indra_sign_edge_graph)
+                  else dict())
         self.signed_nodes = self.sign_node_graph_repr.nodes
         self.dir_edges = indra_dir_graph.edges
         self.mdg_edges = indra_multi_dir_graph.edges
@@ -360,14 +362,13 @@ class IndraNetwork:
 
         # Get groundings
         if org_source:
-            logger.info('REQUEST ' + GRND_URI + ' '  + org_source)
             src_groundings = requests.post(GRND_URI,
-                                     json={'text': org_source}).json()
+                                           json={'text': org_source}).json()
         else:
             src_groundings = {}
         if org_target:
             trgt_groundings = requests.post(GRND_URI,
-                                     json={'text': org_target}).json()
+                                            json={'text': org_target}).json()
         else:
             trgt_groundings = {}
 
@@ -612,7 +613,7 @@ class IndraNetwork:
             if bool(source) ^ bool(target):
                 logger.info('Doing open ended %sbreadth first search' %
                             ('signed ' if options.get('sign') is not None
-                            else ''))
+                             else ''))
                 if source:
                     # Open downstream search
                     start_node = source
@@ -655,11 +656,12 @@ class IndraNetwork:
                                          **blacklist_options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
-                                              reverse=reverse, get_hashes=get_hashes, **options,
+                                              reverse=reverse,
+                                              get_hashes=get_hashes, **options,
                                               **blacklist_options)
             else:
-                logger.info('Doing simple %spath search' % ('weigthed '
-                            if options['weight'] else ''))
+                logger.info('Doing simple %spath search' %
+                            ('weighted ' if options['weight'] else ''))
             if options['mesh_ids']:
                 hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                      require_all=False)
@@ -742,9 +744,9 @@ class IndraNetwork:
             logger.warning(repr(err1))
             return {}
 
-    def open_bfs(self, start_node, reverse=False, get_hashes=None, depth_limit=2,
-                 path_limit=None, terminal_ns=None, max_per_node=5,
-                 **options):
+    def open_bfs(self, start_node, reverse=False, get_hashes=None,
+                 depth_limit=2, path_limit=None, terminal_ns=None,
+                 max_per_node=5, **options):
         """Return paths and their data starting from source
 
         Parameters
@@ -769,15 +771,15 @@ class IndraNetwork:
         max_per_node : int
             The maximum number of times a node can be a parent to leaf
             nodes. Default: 5
-        options : kwargs
+        options : **kwargs
             For a full list of options see
-            depmap_analysis.network_functions.net_functions::bfs_search
+            indra.explanation.pathfinding::bfs_search
             Notable options:
                 -max_results : int
                     The maximum number of results to return. Default: 50.
                 -sign : int
                     If sign is present as a kwarg, it specifies the sign of
-                    leaf node in the path, i.e. wether the leaf node is up-
+                    leaf node in the path, i.e. whether the leaf node is up-
                     or downregulated.
                 -mesh_ids : list[str]
                     List of MeSH IDs relevance to which is considered if strict
@@ -836,7 +838,7 @@ class IndraNetwork:
 
         if options['mesh_ids']:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
-                                                        require_all=False)
+                                                 require_all=False)
             related_hashes = hash_mesh_dict.keys()
             def allow_edge(u, v):
                 hashes = get_hashes(u, v)
@@ -854,7 +856,7 @@ class IndraNetwork:
                              terminal_ns=terminal_ns, hashes=related_hashes,
                              allow_edge=allow_edge, **bfs_options)
         return self._loop_open_paths(graph, bfs_gen, source_node=start_node,
-                                    reverse=reverse, **options)
+                                     reverse=reverse, **options)
 
     def open_dijkstra(self, start_node, reverse=False, terminal_ns=None,
                       get_hashes=None, ignore_nodes=None, **options):
@@ -862,8 +864,6 @@ class IndraNetwork:
 
         Parameters
         ----------
-        g : nx.Digraph
-            An nx.DiGraph to search in.
         start_node : node
             Node in the graph to start from.
         reverse : bool
@@ -933,10 +933,12 @@ class IndraNetwork:
                                             ignore_nodes=ignore_nodes,
                                             const_c=options['const_c'],
                                             const_tk=options['const_tk'])
-        return self._loop_open_paths(graph, dijkstra_gen, source_node=starting_node,
-                                    reverse=reverse, **options)
+        return self._loop_open_paths(graph, dijkstra_gen,
+                                     source_node=starting_node,
+                                     reverse=reverse, **options)
 
-    def _loop_open_paths(self, graph, open_path_gen, source_node, reverse, **options):
+    def _loop_open_paths(self, graph, open_path_gen, source_node, reverse,
+                         **options):
         result = defaultdict(list)
         max_results = int(options['max_results']) \
             if options.get('max_results') is not None else self.MAX_PATHS
