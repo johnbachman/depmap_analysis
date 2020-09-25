@@ -681,15 +681,17 @@ class IndraNetwork:
                     #         return []
                     get_hashes = self._get_hashes_signed
 
-                def ref_counts_from_hashes(u, v):
-                    hashes = get_hashes(u, v)
-                    dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
-                             for h in hashes]
-                    ref_counts = sum(
-                        sum(v for k, v in d.items() if k != 'total')
-                        for d in dicts)
-                    total = sum(d['total'] for d in dicts)
-                    return ref_counts, total if total else 1
+                # def ref_counts_from_hashes(u, v):
+                #     hashes = get_hashes(u, v)
+                #     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
+                #              for h in hashes]
+                #     ref_counts = sum(
+                #         sum(v for k, v in d.items() if k != 'total')
+                #         for d in dicts)
+                #     total = sum(d['total'] for d in dicts)
+                #     return ref_counts, total if total else 1
+                ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict,
+                                                              get_hashes)
             else:
                 related_hashes = None
                 ref_counts_from_hashes = None
@@ -907,14 +909,16 @@ class IndraNetwork:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
             related_hashes = hash_mesh_dict.keys()
-            def ref_counts_from_hashes(u, v):
-                hashes = get_hashes(u, v)
-                dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
-                         for h in hashes]
-                ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
-                                     for d in dicts)
-                total = sum(d['total'] for d in dicts)
-                return ref_counts, total if total else 1
+            # def ref_counts_from_hashes(u, v):
+            #     hashes = get_hashes(u, v)
+            #     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
+            #              for h in hashes]
+            #     ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
+            #                          for d in dicts)
+            #     total = sum(d['total'] for d in dicts)
+            #     return ref_counts, total if total else 1
+            ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict,
+                                                          get_hashes)
         else:
             related_hashes = None
             ref_counts_from_hashes = None
@@ -1734,6 +1738,18 @@ class IndraNetwork:
                     self.sign_edge_graph_repr[u[0]][v[0]][u[1]]['statements']]
         except KeyError:
             return []
+
+
+def _get_ref_counts_func(hash_mesh_dict, get_hashes_f):
+    def func(u, v):
+        hashes = get_hashes_f(u, v)
+        dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
+                 for h in hashes]
+        ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
+                         for d in dicts)
+        total = sum(d['total'] for d in dicts)
+        return ref_counts, total if total else 1
+    return func
 
 
 def get_top_ranked_name(name, context=None):
