@@ -1068,7 +1068,7 @@ class IndraNetwork:
                     if name is None:
                         # abort if one of the targets is ungroundable
                         logger.warning('Target %s is ungroundable' % trgt)
-                        return {}
+                        return []
                     if name not in self.nodes:
                         logger.warning(
                             'Target %s (grounded to %s) is not a node '
