@@ -85,9 +85,6 @@ class IndraNetwork:
         self.mdg_edges = indra_multi_dir_graph.edges
         self.signed_node_edges = self.sign_node_graph_repr.edges
         self.signed_edges = indra_sign_edge_graph.edges
-        # FIXME: THIS SHOULD PROBABLY BE CALLED 'ontology'
-        self.ontology = indra_dir_graph.graph.get('entity_hierarchy_manager',
-                                                  None)
         self.node_by_uri = indra_dir_graph.graph.get('node_by_uri', None)
         self.node_by_ns_id = indra_dir_graph.graph.get('node_by_ns_id', None)
         self.MAX_PATHS = MAX_PATHS
@@ -1712,7 +1709,7 @@ class IndraNetwork:
             true_ns, true_id = nf.ns_id_from_name(db_id)
             if true_ns and true_id:
                 ns, db_id = true_ns, true_id
-            parents = self.ontology.get_parents(ns, db_id)
+            parents = nf.bio_ontology.get_parents(ns, db_id)
             return {get_identifiers_url(*p) for p in parents}
         else:
             return set()
