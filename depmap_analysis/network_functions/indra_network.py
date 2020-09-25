@@ -627,24 +627,32 @@ class IndraNetwork:
                 if options['sign'] is None:
                     if not self.nodes.get(check_node):
                         raise NodeNotFound('Node %s not in graph' % start_node)
-                    get_hashes = lambda u, v: [d['stmt_hash'] 
-                        for d in self.nx_dir_graph_repr[u][v]['statements']]
+
+                    # def get_hashes_unsigned(u, v):
+                    #     return [d['stmt_hash'] for d in
+                    #             self.nx_dir_graph_repr[u][v]['statements']]
+
+                    get_hashes = self._get_hashes_unsigned
                 else:
                     if not self.signed_nodes.get(check_node):
                         raise NodeNotFound('Node %s not in graph' % start_node)
-                    def get_hashes(u, v):
-                        try:
-                            return [d['stmt_hash'] for d in
-                                self.sign_edge_graph_repr\
-                                    [u[0]][v[0]][u[1]]['statements']]
-                        except KeyError:
-                            return []
 
-                if options['strict_mesh_id_filtering']\
-                    or (not options['mesh_ids'] and not options['weight']):
-                        return self.open_bfs(start_node=start_node,
-                                            reverse=reverse, get_hashes=get_hashes,
-                                            **options, **blacklist_options)
+                    # def get_hashes_signed(u, v):
+                    #     try:
+                    #         return [d['stmt_hash'] for d in
+                    #                 self.sign_edge_graph_repr
+                    #                 [u[0]][v[0]][u[1]]['statements']]
+                    #     except KeyError:
+                    #         return []
+
+                    get_hashes = self._get_hashes_signed
+
+                if options['strict_mesh_id_filtering'] or \
+                        (not options['mesh_ids'] and not options['weight']):
+                    return self.open_bfs(start_node=start_node,
+                                         reverse=reverse,
+                                         get_hashes=get_hashes, **options,
+                                         **blacklist_options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
                                               reverse=reverse, get_hashes=get_hashes, **options,
@@ -657,19 +665,21 @@ class IndraNetwork:
                                                      require_all=False)
                 related_hashes = hash_mesh_dict.keys()
                 if options['sign'] is None:
-                    get_hashes = lambda u, v: [d['stmt_hash'] 
-                                               for d in 
-                                               self.nx_dir_graph_repr\
-                                                   [u][v]['statements']]
+                    # get_hashes = lambda u, v: [d['stmt_hash']
+                    #                            for d in
+                    #                            self.nx_dir_graph_repr\
+                    #                                [u][v]['statements']]
+                    get_hashes = self._get_hashes_unsigned
                 else:
-                    def get_hashes(u, v):
-                        try:
-                            return [d['stmt_hash'] 
-                                    for d in 
-                                    self.sign_edge_graph_repr\
-                                        [u[0]][v[0]][u[1]]['statements']]
-                        except KeyError:
-                            return []
+                    # def get_hashes(u, v):
+                    #     try:
+                    #         return [d['stmt_hash']
+                    #                 for d in
+                    #                 self.sign_edge_graph_repr\
+                    #                     [u[0]][v[0]][u[1]]['statements']]
+                    #     except KeyError:
+                    #         return []
+                    get_hashes = self._get_hashes_signed
 
                 def ref_counts_from_hashes(u, v):
                     hashes = get_hashes(u, v)
@@ -1713,6 +1723,17 @@ class IndraNetwork:
             return {get_identifiers_url(*p) for p in parents}
         else:
             return set()
+
+    def _get_hashes_unsigned(self, u: str, v: str):
+        return [d['stmt_hash'] for d in
+                self.nx_dir_graph_repr[u][v]['statements']]
+
+    def _get_hashes_signed(self, u: Tuple[str], v: Tuple[str]):
+        try:
+            return [d['stmt_hash'] for d in
+                    self.sign_edge_graph_repr[u[0]][v[0]][u[1]]['statements']]
+        except KeyError:
+            return []
 
 
 def get_top_ranked_name(name, context=None):
