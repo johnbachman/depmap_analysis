@@ -968,15 +968,17 @@ class IndraNetwork:
         while True:
             try:
                 path = next(open_path_gen)
+
+                # Reverse path if reverse search
+                path = path[::-1] if reverse else path
+
+                # Collect weights
                 weights = collect_weights(path)
             except StopIteration:
                 logger.info('Reached StopIteration, all BFS paths found, '
                             'breaking')
                 break
 
-            # Reverse path if reverse search
-            path = path[::-1] if reverse else path
-            weights = weights[::-1] if reverse else weights
             
             # Handle signed path
             if options.get('sign') is not None:
