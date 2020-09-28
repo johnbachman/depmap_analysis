@@ -94,7 +94,7 @@ class IndraNetwork:
         self.MANDATORY = MANDATORY
         self.small = False
         self.verbose = 0
-        self.query_recieve_time = 0.0
+        self.query_receive_time = 0.0
         self.query_timed_out = False
 
     def handle_query(self, **kwargs):
@@ -105,9 +105,9 @@ class IndraNetwork:
               mandatory and have no effect on the path search if provided
             - Parameter combinations that will trigger some default responses:
                 * 'path_length' AND 'weighted':
-                    Defaults to unrestriced weighted search, i.e.
+                    Defaults to unrestricted weighted search, i.e.
                     path_length'=False and 'weighted'=True. Placing
-                    the path length constrain on top of the wigthed search
+                    the path length constrain on top of the weigthed search
                     can take a substantial amount of time
 
         The query is a json-friendly key-value structure contained in kwargs
@@ -195,7 +195,7 @@ class IndraNetwork:
                     List of dicts keyed by common target name, sorted on
                     highest lowest belief score
                 sr : list[dict('regulator')]
-                    List of dicts keyed byshared regulator name, sorted on
+                    List of dicts keyed by shared regulator name, sorted on
                     highest lowest belief score
                 cp : dict
                     Dict with result of common parents search together with
@@ -206,14 +206,14 @@ class IndraNetwork:
                     An error message if a queried node is not present in the
                     network, otherwise False
         """
-        self.query_recieve_time = time()
+        self.query_receive_time = time()
         self.query_timed_out = False
         logger.info('Query received at %s' %
                     strftime('%Y-%m-%d %H:%M:%S (UTC)',
-                             gmtime(self.query_recieve_time)))
+                             gmtime(self.query_receive_time)))
 
         if not self.sanity_check(**kwargs):
-            # todo Add detailed test with info of netork stats like number
+            # todo Add detailed test with info of network stats like number
             #  of nodes, edges, last updated, available network types
             return EMPTY_RESULT
         if not (kwargs.get('source', False) or kwargs.get('target', False)):
@@ -564,7 +564,7 @@ class IndraNetwork:
                 logger.info('Found all %d shortest paths, returning results.' %
                             self.MAX_PATHS)
                 return res
-            if time() - self.query_recieve_time > self.TIMEOUT:
+            if time() - self.query_receive_time > self.TIMEOUT:
                 logger.info('Reached timeout (%d s) before finding all %d '
                             'paths. Returning search.' % (self.TIMEOUT,
                                                           MAX_PATHS))
@@ -671,7 +671,7 @@ class IndraNetwork:
                                               options['weight'],
                                               hashes=related_hashes,
                                               ref_counts_function=
-                                                ref_counts_from_hashes,
+                                              ref_counts_from_hashes,
                                               strict_mesh_id_filtering=strict,
                                               const_c=options['const_c'],
                                               const_tk=options['const_tk'],
@@ -697,8 +697,8 @@ class IndraNetwork:
                     ignore_nodes=signed_blacklisted_nodes,
                     hashes=related_hashes,
                     ref_counts_function=ref_counts_from_hashes,
-                    strict_mesh_id_filtering=
-                        options['strict_mesh_id_filtering'],
+                    strict_mesh_id_filtering=options[
+                        'strict_mesh_id_filtering'],
                     const_c=options['const_c'],
                     const_tk=options['const_tk'])
 
@@ -793,7 +793,7 @@ class IndraNetwork:
         #   with no path limit and no max results limit
         if depth_limit is None and path_limit is None and options.get(
                 'max_results', 0) > 10000:
-            raise ValueError('Limitless deteced: depth_limit is '
+            raise ValueError('Limitless search detected: depth_limit is '
                              'None, path_limit is None and max_results > '
                              '10000, aborting')
 
@@ -886,7 +886,7 @@ class IndraNetwork:
                                             terminal_ns=terminal_ns,
                                             weight='context_weight',
                                             ref_counts_function=
-                                                ref_counts_from_hashes,
+                                            ref_counts_from_hashes,
                                             ignore_nodes=ignore_nodes,
                                             const_c=options['const_c'],
                                             const_tk=options['const_tk'])
@@ -903,7 +903,7 @@ class IndraNetwork:
         _ = options.pop('source', None)
         _ = options.pop('target', None)
 
-        collect_weights = _get_collect_weigths_func(graph, **options)
+        collect_weights = _get_collect_weights_func(graph, **options)
 
         # Loop paths
         while True:
@@ -1230,7 +1230,7 @@ class IndraNetwork:
         culled_nodes = set()
         culled_edges = set()  # Currently unused, only operate on node level
 
-        collect_weights = _get_collect_weigths_func(graph, **options)
+        collect_weights = _get_collect_weights_func(graph, **options)
 
         while True:
             # Check if we found k paths
@@ -1238,7 +1238,7 @@ class IndraNetwork:
                 logger.info('Found all %d shortest paths, returning results.'
                             % self.MAX_PATHS)
                 return result
-            if time() - self.query_recieve_time > self.TIMEOUT:
+            if time() - self.query_receive_time > self.TIMEOUT:
                 logger.info('Reached timeout (%d s) before finding all %d '
                             'shortest paths. Returning search.' %
                             (self.TIMEOUT, MAX_PATHS))
@@ -1525,7 +1525,7 @@ class IndraNetwork:
             for edge_stmt in edge_stmts:
                 # If edge statement passes, append to edges list
                 if self._pass_stmt(edge_stmt, **options):
-                    # convert hash to string for javascript compatability
+                    # convert hash to string for javascript compatibility
                     edge_stmt['stmt_hash'] = str(edge_stmt['stmt_hash'])
                     # ToDo english assemble statements per type
                     try:
@@ -1624,9 +1624,9 @@ class IndraNetwork:
 
     @staticmethod
     def _sort_stmts(ksp):
-        for l in ksp:
-            res_list = ksp[l]
-            ksp[l] = sorted(res_list,
+        for pl in ksp:
+            res_list = ksp[pl]
+            ksp[pl] = sorted(res_list,
                             key=lambda pd: pd['sort_key'],
                             reverse=True)
         return ksp
@@ -1663,7 +1663,7 @@ class IndraNetwork:
             return []
 
 
-def _get_collect_weigths_func(graph, **options):
+def _get_collect_weights_func(graph, **options):
     if options['mesh_ids']:
         if options['strict_mesh_id_filtering']:
             def _f(path):
