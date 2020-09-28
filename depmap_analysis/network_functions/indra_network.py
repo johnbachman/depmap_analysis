@@ -974,12 +974,12 @@ class IndraNetwork:
 
                 # Collect weights
                 weights = collect_weights(path)
+
             except StopIteration:
                 logger.info('Reached StopIteration, all BFS paths found, '
                             'breaking')
                 break
 
-            
             # Handle signed path
             if options.get('sign') is not None:
                 edge_signs = [signed_nodes_to_signed_edge(s, t)[2]
