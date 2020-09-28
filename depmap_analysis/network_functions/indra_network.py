@@ -667,31 +667,10 @@ class IndraNetwork:
                                                      require_all=False)
                 related_hashes = hash_mesh_dict.keys()
                 if options['sign'] is None:
-                    # get_hashes = lambda u, v: [d['stmt_hash']
-                    #                            for d in
-                    #                            self.nx_dir_graph_repr\
-                    #                                [u][v]['statements']]
                     get_hashes = self._get_hashes_unsigned
                 else:
-                    # def get_hashes(u, v):
-                    #     try:
-                    #         return [d['stmt_hash']
-                    #                 for d in
-                    #                 self.sign_edge_graph_repr\
-                    #                     [u[0]][v[0]][u[1]]['statements']]
-                    #     except KeyError:
-                    #         return []
                     get_hashes = self._get_hashes_signed
 
-                # def ref_counts_from_hashes(u, v):
-                #     hashes = get_hashes(u, v)
-                #     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
-                #              for h in hashes]
-                #     ref_counts = sum(
-                #         sum(v for k, v in d.items() if k != 'total')
-                #         for d in dicts)
-                #     total = sum(d['total'] for d in dicts)
-                #     return ref_counts, total if total else 1
                 ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict,
                                                               get_hashes)
             else:
@@ -909,14 +888,6 @@ class IndraNetwork:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
             related_hashes = hash_mesh_dict.keys()
-            # def ref_counts_from_hashes(u, v):
-            #     hashes = get_hashes(u, v)
-            #     dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
-            #              for h in hashes]
-            #     ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
-            #                          for d in dicts)
-            #     total = sum(d['total'] for d in dicts)
-            #     return ref_counts, total if total else 1
             ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict,
                                                           get_hashes)
         else:
@@ -946,22 +917,6 @@ class IndraNetwork:
         _ = options.pop('source', None)
         _ = options.pop('target', None)
 
-        # if options['mesh_ids']:
-        #     if options['strict_mesh_id_filtering']:
-        #         def collect_weights(path):
-        #             return ['N/A'] * (len(path) - 1)
-        #     else:
-        #         def collect_weights(path):
-        #             return [truncate(graph[u][v]['context_weight'])
-        #                     for u, v in zip(path[:-1], path[1:])]
-        # else:
-        #     if options.get('weight', None):
-        #         def collect_weights(path):
-        #             return [truncate(graph[u][v][options['weight']])
-        #                     for u, v in zip(path[:-1], path[1:])]
-        #     else:
-        #         def collect_weights(path):
-        #             return ['N/A'] * (len(path) - 1)
         collect_weights = _get_collect_weigths_func(graph, **options)
 
         # Loop paths
@@ -1289,22 +1244,6 @@ class IndraNetwork:
         culled_nodes = set()
         culled_edges = set()  # Currently unused, only operate on node level
 
-        # if options['mesh_ids']:
-        #     if options['strict_mesh_id_filtering']:
-        #         def collect_weights(path):
-        #             return ['N/A'] * (len(path) - 1)
-        #     else:
-        #         def collect_weights(path):
-        #             return [truncate(graph[u][v]['context_weight'])
-        #                     for u, v in zip(path[:-1], path[1:])]
-        # else:
-        #     if options.get('weight', None):
-        #         def collect_weights(path):
-        #             return [truncate(graph[u][v][options['weight']])
-        #                     for u, v in zip(path[:-1], path[1:])]
-        #     else:
-        #         def collect_weights(path):
-        #             return ['N/A'] * (len(path) - 1)
         collect_weights = _get_collect_weigths_func(graph, **options)
 
         while True:
