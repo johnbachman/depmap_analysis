@@ -806,11 +806,10 @@ class IndraNetwork:
                                                  require_all=False)
             related_hashes = hash_mesh_dict.keys()
             def allow_edge(u, v):
-                hashes = get_hashes(u, v)
-                dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
-                            for h in hashes]
-                ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
-                                        for d in dicts)
+                # If the edge contains any hashes that are among the
+                # relevant hashes, it should be allowed
+                edge_hashes = set(get_hashes(u, v))
+                return bool(edge_hashes.intersection(hash_mesh_dict.keys()))
         else:
             related_hashes = []
             def allow_edge(u, v): return True
