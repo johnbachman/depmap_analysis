@@ -805,11 +805,11 @@ class IndraNetwork:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
             related_hashes = hash_mesh_dict.keys()
+            allowed_edges = \
+                {graph.graph['edge_by_hash'][h] for h in
+                 related_hashes if h in graph.graph['edge_by_hash']}
             def allow_edge(u, v):
-                # If the edge contains any hashes that are among the
-                # relevant hashes, it should be allowed
-                edge_hashes = set(get_hashes(u, v))
-                return bool(edge_hashes.intersection(hash_mesh_dict.keys()))
+                return (u, v) in allowed_edges
         else:
             related_hashes = []
             def allow_edge(u, v): return True
