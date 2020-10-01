@@ -1656,8 +1656,10 @@ class IndraNetwork:
 
     def _get_hashes_signed(self, u: Tuple[str], v: Tuple[str]):
         try:
+            x, y, sign = signed_nodes_to_signed_edge(u, v)
+            assert x is not None
             return [d['stmt_hash'] for d in
-                    self.sign_edge_graph_repr[u[0]][v[0]][u[1]]['statements']]
+                    self.sign_edge_graph_repr[x][y][sign]['statements']]
         except KeyError:
             return []
 
