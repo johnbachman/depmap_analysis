@@ -644,8 +644,7 @@ class IndraNetwork:
                 else:
                     get_hashes = self._get_hashes_signed
 
-                ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict,
-                                                              get_hashes)
+                ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict)
             else:
                 related_hashes = None
                 ref_counts_from_hashes = None
