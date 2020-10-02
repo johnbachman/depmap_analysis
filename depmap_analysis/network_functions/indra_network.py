@@ -10,7 +10,6 @@ import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
 from typing import Tuple
 
-from indra_db import get_db
 from indra_db.client.readonly.mesh_ref_counts import get_mesh_ref_counts
 
 from indra.config import CONFIG_DICT
@@ -648,7 +647,7 @@ class IndraNetwork:
             else:
                 related_hashes = None
                 ref_counts_from_hashes = None
-            strict = options['strict_mesh_id_filtering'] 
+            strict = options['strict_mesh_id_filtering']
             if options['sign'] is None:
                 # Do unsigned path search
                 search_graph = self.nx_dir_graph_repr
@@ -688,8 +687,8 @@ class IndraNetwork:
                     const_c=options['const_c'],
                     const_tk=options['const_tk'])
 
-            return self._loop_paths(graph=search_graph, source=subj, target=obj, paths_gen=paths,
-                                    **options)
+            return self._loop_paths(graph=search_graph, source=subj,
+                                    target=obj, paths_gen=paths, **options)
 
         except NetworkXNoPath as err1:
             logger.warning(repr(err1))
@@ -781,7 +780,6 @@ class IndraNetwork:
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
-        db = get_db('primary')
 
         if options['mesh_ids']:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
@@ -849,7 +847,7 @@ class IndraNetwork:
         else:
             graph = self.nx_dir_graph_repr
             starting_node = start_node
-        
+
         if options['mesh_ids']:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
@@ -859,16 +857,15 @@ class IndraNetwork:
             related_hashes = None
             ref_counts_from_hashes = None
 
-        dijkstra_gen = open_dijkstra_search(graph, starting_node, 
-                                            reverse=reverse, 
-                                            hashes=related_hashes, 
+        dijkstra_gen = open_dijkstra_search(graph, starting_node,
+                                            reverse=reverse,
+                                            hashes=related_hashes,
                                             terminal_ns=terminal_ns,
                                             weight='context_weight',
                                             ref_counts_function=
                                             ref_counts_from_hashes,
                                             ignore_nodes=ignore_nodes,
-                                            const_c=options['const_c'],
-                                            const_tk=options['const_tk'])
+                                            **options)
         return self._loop_open_paths(graph, dijkstra_gen,
                                      source_node=starting_node,
                                      reverse=reverse, **options)
