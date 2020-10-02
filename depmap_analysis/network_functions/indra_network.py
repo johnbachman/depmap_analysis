@@ -1651,25 +1651,16 @@ def _get_collect_weights_func(graph, **options):
     return _f
 
 
-def _get_edge_hashes(graph, u, v):
-    try:
-        if isinstance(u, tuple):
-            x, y, sign = signed_nodes_to_signed_edge(u, v)
-            assert x is not None
-            return [d['stmt_hash'] for d in graph[x][y][sign]['statements']]
-
-        else:
-            return [d['stmt_hash'] for d in graph[u][v]['statements']]
-    except (KeyError, AssertionError):
-        return []
-
-
 def _get_ref_counts_func(hash_mesh_dict):
     def func(graph, u, v):
-        # Gets edge hashes
-        hashes = _get_edge_hashes(graph, u, v)
+        # Get hashes for edge
+        hashes = [d['stmt_hash'] for d in graph[u][v]['statements']]
+
+        # Get all relevant mesh counts
         dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
                  for h in hashes]
+
+        # Count references
         ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
                          for d in dicts)
         total = sum(d['total'] for d in dicts)
