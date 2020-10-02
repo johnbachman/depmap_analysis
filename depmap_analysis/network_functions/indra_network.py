@@ -865,7 +865,8 @@ class IndraNetwork:
                                             ref_counts_function=
                                             ref_counts_from_hashes,
                                             ignore_nodes=ignore_nodes,
-                                            **options)
+                                            const_c=options['const_c'],
+                                            const_tk=options['const_tk'])
         return self._loop_open_paths(graph, dijkstra_gen,
                                      source_node=starting_node,
                                      reverse=reverse, **options)
