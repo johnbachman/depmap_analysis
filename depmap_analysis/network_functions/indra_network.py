@@ -623,27 +623,14 @@ class IndraNetwork:
                     start_node = target
                     reverse = True
 
-                check_node = get_signed_node(start_node, options['sign'],
-                                             reverse)
-                if options['sign'] is None:
-                    if not self.nodes.get(check_node):
-                        raise NodeNotFound('Node %s not in graph' % start_node)
-                    get_hashes = self._get_hashes_unsigned
-                else:
-                    if not self.signed_nodes.get(check_node):
-                        raise NodeNotFound('Node %s not in graph' % start_node)
-                    get_hashes = self._get_hashes_signed
-
                 if options['strict_mesh_id_filtering'] or \
                         (not options['mesh_ids'] and not options['weight']):
                     return self.open_bfs(start_node=start_node,
-                                         reverse=reverse,
-                                         get_hashes=get_hashes, **options,
+                                         reverse=reverse, **options,
                                          **blacklist_options)
                 else:
                     return self.open_dijkstra(start_node=start_node,
-                                              reverse=reverse,
-                                              get_hashes=get_hashes, **options,
+                                              reverse=reverse, **options,
                                               **blacklist_options)
             else:
                 logger.info('Doing simple %spath search' %
@@ -709,9 +696,8 @@ class IndraNetwork:
             logger.warning(repr(err1))
             return {}
 
-    def open_bfs(self, start_node, reverse=False, get_hashes=None,
-                 depth_limit=2, path_limit=None, terminal_ns=None,
-                 max_per_node=5, **options):
+    def open_bfs(self, start_node, reverse=False, depth_limit=2,
+                 path_limit=None, terminal_ns=None, max_per_node=5, **options):
         """Return paths and their data starting from source
 
         Parameters
@@ -721,9 +707,6 @@ class IndraNetwork:
         reverse : bool
             If True, let source be the start of an upstream search.
             Default: False
-        get_hashes : function(str, str): list[str]
-            For given nodes u and v, returns a list of hashes in the edge
-            (u, v)
         depth_limit : int
             The maximum allowed depth (number of edges). Default: 2
         path_limit : int
@@ -822,8 +805,8 @@ class IndraNetwork:
         return self._loop_open_paths(graph, bfs_gen, source_node=start_node,
                                      reverse=reverse, **options)
 
-    def open_dijkstra(self, start_node, reverse=False, terminal_ns=None,
-                      get_hashes=None, ignore_nodes=None, **options):
+    def open_dijkstra(self, start_node, reverse=False,
+                      terminal_ns=None, ignore_nodes=None, **options):
         """Do Dijkstra search from a given node and yield paths
 
         Parameters
@@ -837,17 +820,16 @@ class IndraNetwork:
             Force a path to terminate when any of the namespaces in this list
             are encountered and only yield paths that terminate at these
             namepsaces
-        get_hashes : function(str, str): list[str]
-            For given nodes u and v, returns a list of hashes in the edge
-            (u, v)
-        depth_limit : int
-            Stop when all paths with this many edges have been found.
-            Default: 2.
         ignore_nodes : list[str]
             Paths containing nodes from this list are excluded
-        path_limit : int
-            The maximum number of paths to return. Default: no limit.
-        
+        **options: **kwargs
+            Options to pass along to open_dijkstra_search. Notable options:
+                depth_limit : int
+                    Stop when all paths with this many edges have been found.
+                    Default: 2.
+                path_limit : int
+                    The maximum number of paths to return. Default: no limit.
+
         Yields
         ------
         path : tuple(node)
@@ -873,8 +855,7 @@ class IndraNetwork:
             hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                  require_all=False)
             related_hashes = hash_mesh_dict.keys()
-            ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict,
-                                                          get_hashes)
+            ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict)
         else:
             related_hashes = None
             ref_counts_from_hashes = None
@@ -1650,19 +1631,6 @@ class IndraNetwork:
         else:
             return set()
 
-    def _get_hashes_unsigned(self, u: str, v: str):
-        return [d['stmt_hash'] for d in
-                self.nx_dir_graph_repr[u][v]['statements']]
-
-    def _get_hashes_signed(self, u: Tuple[str], v: Tuple[str]):
-        try:
-            x, y, sign = signed_nodes_to_signed_edge(u, v)
-            assert x is not None
-            return [d['stmt_hash'] for d in
-                    self.sign_edge_graph_repr[x][y][sign]['statements']]
-        except KeyError:
-            return []
-
 
 def _get_collect_weights_func(graph, **options):
     if options['mesh_ids']:
@@ -1684,9 +1652,23 @@ def _get_collect_weights_func(graph, **options):
     return _f
 
 
-def _get_ref_counts_func(hash_mesh_dict, get_hashes_f):
-    def func(u, v):
-        hashes = get_hashes_f(u, v)
+def _get_edge_hashes(graph, u, v):
+    try:
+        if isinstance(u, tuple):
+            x, y, sign = signed_nodes_to_signed_edge(u, v)
+            assert x is not None
+            return [d['stmt_hash'] for d in graph[x][y][sign]['statements']]
+
+        else:
+            return [d['stmt_hash'] for d in graph[u][v]['statements']]
+    except (KeyError, AssertionError):
+        return []
+
+
+def _get_ref_counts_func(hash_mesh_dict):
+    def func(graph, u, v):
+        # Gets edge hashes
+        hashes = _get_edge_hashes(graph, u, v)
         dicts = [hash_mesh_dict.get(h, {'': 0, 'total': 1})
                  for h in hashes]
         ref_counts = sum(sum(v for k, v in d.items() if k != 'total')
