@@ -8,7 +8,6 @@ from math import trunc
 import requests
 import networkx as nx
 from networkx import NodeNotFound, NetworkXNoPath
-from typing import Tuple
 
 from indra_db.client.readonly.mesh_ref_counts import get_mesh_ref_counts
 
@@ -55,7 +54,7 @@ MANDATORY = ['stmt_filter', 'node_filter',
 USER_OVERRIDE = False
 
 
-def truncate(n):
+def _truncate(n):
     return trunc(n * 100) / 100
 
 
@@ -252,9 +251,6 @@ class IndraNetwork:
         boptions['target'] = options.get('source')
         node_not_found = False
         try:
-            ckwargs = options.copy()
-            bckwargs = boptions.copy()
-
             # Special case: 1 or 2 unweighted, unsigned edges only
             if not options['weight'] and options['path_length'] in [1, 2]:
                 ksp_forward = self._unweighted_direct(**options)
@@ -265,11 +261,10 @@ class IndraNetwork:
                 if options['two_way']:
                     ksp_backward = self.find_shortest_paths(**boptions)
         except NodeNotFound as e:
-            logger.info('No paths found, trying to ground source and target'
-                            'target')
-            ksp_forward = self.grounding_fallback(**ckwargs)
+            logger.info('No paths found, trying to ground source and target')
+            ksp_forward = self.grounding_fallback(**options)
             if options['two_way']:
-                ksp_backward = self.grounding_fallback(**bckwargs)
+                ksp_backward = self.grounding_fallback(**boptions)
             node_not_found = str(e)
 
         if options.get('source') and options.get('target'):
@@ -638,11 +633,6 @@ class IndraNetwork:
                 hash_mesh_dict = get_mesh_ref_counts(options['mesh_ids'],
                                                      require_all=False)
                 related_hashes = hash_mesh_dict.keys()
-                if options['sign'] is None:
-                    get_hashes = self._get_hashes_unsigned
-                else:
-                    get_hashes = self._get_hashes_signed
-
                 ref_counts_from_hashes = _get_ref_counts_func(hash_mesh_dict)
             else:
                 related_hashes = None
@@ -726,7 +716,7 @@ class IndraNetwork:
                 -sign : int
                     If sign is present as a kwarg, it specifies the sign of
                     leaf node in the path, i.e. whether the leaf node is up-
-                    or downregulated.
+                    or down regulated.
                 -mesh_ids : list[str]
                     List of MeSH IDs relevance to which is considered if strict
                     filtering by statement hashes is required
@@ -756,9 +746,8 @@ class IndraNetwork:
             # determined by the requested sign.
             # If reversed search, the source is the last node and can have
             # + or - as node sign depending on the requested sign.
-            starting_node = (start_node, INT_PLUS) if not reverse \
-                else ((start_node, INT_MINUS) if options['sign'] == INT_MINUS
-                      else (start_node, INT_PLUS))
+            starting_node = get_signed_node(start_node, options['sign'] or
+                                            None, reverse)
 
         # Normal search
         else:
@@ -1267,7 +1256,7 @@ class IndraNetwork:
                 pd = {'stmts': hash_path,
                       'path': path,
                       'weight_to_show': weights,
-                      #'cost': str(self._get_cost(path, edge_signs)),
+                      'cost': str(self._get_cost(path, edge_signs)),
                       'sort_key': str(self._get_sort_key(path, hash_path,
                                                          edge_signs))}
                 if not path_len or (path_len and path_len == len(path)):
@@ -1498,7 +1487,7 @@ class IndraNetwork:
             if self.verbose > 3:
                 logger.info('First edge stmt %s' % repr(next(edge_stmts)))
 
-            # Exhaustively loop through all edge statments
+            # Exhaustively loop through all edge statements
             for edge_stmt in edge_stmts:
                 # If edge statement passes, append to edges list
                 if self._pass_stmt(edge_stmt, **options):
@@ -1603,9 +1592,8 @@ class IndraNetwork:
     def _sort_stmts(ksp):
         for pl in ksp:
             res_list = ksp[pl]
-            ksp[pl] = sorted(res_list,
-                            key=lambda pd: pd['sort_key'],
-                            reverse=True)
+            ksp[pl] = sorted(res_list, key=lambda pd: pd['sort_key'],
+                             reverse=True)
         return ksp
 
     def _uri_by_node(self, node):
@@ -1636,12 +1624,12 @@ def _get_collect_weights_func(graph, **options):
                 return ['N/A'] * (len(path) - 1)
         else:
             def _f(path):
-                return [truncate(graph[u][v]['context_weight'])
+                return [_truncate(graph[u][v]['context_weight'])
                         for u, v in zip(path[:-1], path[1:])]
     else:
         if options.get('weight', None):
             def _f(path):
-                return [truncate(graph[u][v][options['weight']])
+                return [_truncate(graph[u][v][options['weight']])
                         for u, v in zip(path[:-1], path[1:])]
         else:
             def _f(path):
@@ -1650,7 +1638,7 @@ def _get_collect_weights_func(graph, **options):
 
 
 def _get_ref_counts_func(hash_mesh_dict):
-    def func(graph, u, v):
+    def _func(graph, u, v):
         # Get hashes for edge
         hashes = [d['stmt_hash'] for d in graph[u][v]['statements']]
 
@@ -1663,7 +1651,7 @@ def _get_ref_counts_func(hash_mesh_dict):
                          for d in dicts)
         total = sum(d['total'] for d in dicts)
         return ref_counts, total if total else 1
-    return func
+    return _func
 
 
 def get_top_ranked_name(name, context=None):
