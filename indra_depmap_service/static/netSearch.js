@@ -290,6 +290,8 @@ function fillResultsTable(data, source, target){
   if (downloadURL) {
     downloadLink = ` Click <a href="${downloadURL}" download>here</a> to download the results as a json`
   }
+  let idCounter = 0;
+  let currentURL = window.location.href.split('#')[0]
   if ((data.result.common_targets && data.result.common_targets.length > 0) ||
       (data.result.common_parents && Object.keys(data.result.common_parents).length > 0) ||
       (data.result.paths_by_node_count && Object.keys(data.result.paths_by_node_count).length > 0)) {
@@ -312,7 +314,8 @@ function fillResultsTable(data, source, target){
     if (commonParents &&
         commonParents.common_parents &&
         commonParents.common_parents.length > 0) {
-      let cardHtml = generateCommonParents();
+      let cardHtml = generateCommonParents(currentURL);
+      idCounter += 1;
       tableArea.appendChild(cardHtml);
       document.getElementById('subject-placeholder-cp').textContent =
         `${commonParents.source_id}@${commonParents.source_ns}`;
@@ -352,7 +355,10 @@ function fillResultsTable(data, source, target){
             let newRow = document.createElement('tr');
 
             let newTargetCol = document.createElement('td');
-            newTargetCol.textContent = key;
+            let linkId = `linkout${idCounter}`;
+            newTargetCol.id = linkId;
+            idCounter += 1;
+            newTargetCol.innerHTML = `<a href="${currentURL}#${linkId}">${key}</a>`;
             newRow.appendChild(newTargetCol);
 
             let newTargetPaths = document.createElement('td');
@@ -378,13 +384,16 @@ function fillResultsTable(data, source, target){
           if (key !== 'lowest_highest_belief') {
             let newRow = document.createElement('tr');
 
-            let newRegulatorCol = document.createElement('td')
-            newRegulatorCol.textContent = key;
-            newRow.appendChild(newRegulatorCol)
+            let newRegulatorCol = document.createElement('td');
+            let linkId = `linkout${idCounter}`;
+            idCounter += 1;
+            newRegulatorCol.id = linkId;
+            newRegulatorCol.innerHTML = `<a href="${currentURL}#${linkId}">${key}</a>`;
+            newRow.appendChild(newRegulatorCol);
 
             let newRegulatorPaths = document.createElement('td');
             newRegulatorPaths.innerHTML = generateTargetLinkout(regulatorDict[key]);
-            newRow.appendChild(newRegulatorPaths)
+            newRow.appendChild(newRegulatorPaths);
 
             srTableBody.appendChild(newRow)
           }
@@ -410,7 +419,10 @@ function fillResultsTable(data, source, target){
           let newRow = document.createElement('tr');
           // Add current path
           let newPath = document.createElement('td');
-          newPath.innerHTML = pathArray.path.join('&rarr;');
+          let linkId = `linkout${idCounter}`;
+          newPath.id = linkId;
+          idCounter += 1;
+          newPath.innerHTML = `<a href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
           newRow.appendChild(newPath);
 
           let newWeights = document.createElement('td');
@@ -442,7 +454,10 @@ function fillResultsTable(data, source, target){
           let newRow = document.createElement('tr');
           // Add current path
           let newPath = document.createElement('td');
-          newPath.innerHTML = pathArray.path.join('&rarr;');
+          let linkId = `linkout${idCounter}`;
+          newPath.id = linkId;
+          idCounter += 1;
+          newPath.innerHTML = `<a href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
           newRow.appendChild(newPath);
 
           let newWeights = document.createElement('td');
@@ -619,7 +634,7 @@ function generateCardTable(len, dir) {
   return newCard;
 }
 
-function generateCommonParents() {
+function generateCommonParents(linkURL) {
   let newCard = document.createElement('div');
   newCard.className = 'card';
   newCard.innerHTML = '<div class="card-header" data-toggle="collapse" ' +
@@ -628,7 +643,8 @@ function generateCommonParents() {
     'class="placeholder subject-placeholder">A</span> - <span id="object-placeholder-cp" class="placeholder ' +
     'object-placeholder">B</span>)</a><span id="npaths-cp" class="badge badge-primary badge-pill float-right ' +
     'path-count">Entities: 0</span></h3></div><div id="collapse-paths-cp" class="collapse show">' +
-    '<div class="card-body"><table class="table"><thead class="table-head"><th>Family/Complex</th>' +
+    '<div class="card-body"><table class="table"><thead' +
+    ` class="table-head"><th id="linkout0"><a href="${linkURL}#linkout0">Family/Complex</a></th>` +
     '<th>Namespace</th></thead><tbody class="table-body" id="query-results-cp"></tbody></table></div></div>';
 
   return newCard;
