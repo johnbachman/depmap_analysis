@@ -358,7 +358,7 @@ function fillResultsTable(data, source, target){
             let linkId = `linkout${idCounter}`;
             newTargetCol.id = linkId;
             idCounter += 1;
-            newTargetCol.innerHTML = `<a href="${currentURL}#${linkId}">${key}</a>`;
+            newTargetCol.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${key}</a>`;
             newRow.appendChild(newTargetCol);
 
             let newTargetPaths = document.createElement('td');
@@ -388,7 +388,7 @@ function fillResultsTable(data, source, target){
             let linkId = `linkout${idCounter}`;
             idCounter += 1;
             newRegulatorCol.id = linkId;
-            newRegulatorCol.innerHTML = `<a href="${currentURL}#${linkId}">${key}</a>`;
+            newRegulatorCol.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${key}</a>`;
             newRow.appendChild(newRegulatorCol);
 
             let newRegulatorPaths = document.createElement('td');
@@ -422,7 +422,7 @@ function fillResultsTable(data, source, target){
           let linkId = `linkout${idCounter}`;
           newPath.id = linkId;
           idCounter += 1;
-          newPath.innerHTML = `<a href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
+          newPath.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
           newRow.appendChild(newPath);
 
           let newWeights = document.createElement('td');
@@ -457,7 +457,7 @@ function fillResultsTable(data, source, target){
           let linkId = `linkout${idCounter}`;
           newPath.id = linkId;
           idCounter += 1;
-          newPath.innerHTML = `<a href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
+          newPath.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
           newRow.appendChild(newPath);
 
           let newWeights = document.createElement('td');
