@@ -49,7 +49,7 @@ else:
 
 if not STMTS_FROM_HSH_URL:
     if API_DEBUG:
-        logger.error('No URL for statement download set')
+        logger.warning('No URL for statement download set')
     else:
         raise ValueError('No URL for statement download set. Set it '
                          '"INDRA_DB_HASHES_URL" ')
