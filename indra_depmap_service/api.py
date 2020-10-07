@@ -152,7 +152,7 @@ def health():
 @app.route('/')
 def redirect_to_query():
     """Redirects to query page"""
-    return redirect(url_for(query_page), code=302)
+    return redirect(url_for('query_page'), code=302)
 
 
 @app.route('/query')
