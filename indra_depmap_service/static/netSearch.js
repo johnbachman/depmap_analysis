@@ -606,9 +606,10 @@ function generateCardTable(len, dir) {
 
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-paths-' + len + dir + ' " aria-expanded="false" ' +
-    'aria-controls="collapse-paths-' + len + dir + '"> ' + len + ' Edge Paths (<div id="subject-placeholder-' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" ' +
+    'data-target="#collapse-paths-' + len + dir + ' " aria-expanded="false"' +
+    ' aria-controls="collapse-paths-' + len + dir + '"><h3 class="display-7">' +
+    '<a href="#" class="stmt_toggle"> ' + len + ' Edge Paths (<div id="subject-placeholder-' +
     len + dir + '" class="placeholder subject-placeholder">A</div>&rarr;' + intermArrows +
     '<div id="object-placeholder-' + len + dir + '" class="placeholder object-placeholder">B</div>)</a><span ' +
     'id="npaths-' + len + dir + '" class="badge badge-primary badge-pill float-right path-count">Paths: ' +
@@ -621,9 +622,9 @@ function generateCardTable(len, dir) {
 function generateCommonParents() {
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-paths-cp" aria-expanded="false" ' +
-    'aria-controls="collapse-paths-cp">Complexes and Families (<span id="subject-placeholder-cp" ' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" ' +
+    'data-target="#collapse-paths-cp" aria-expanded="false" aria-controls="collapse-paths-cp">' +
+    '<h3 class="display-7"><a href="#" class="stmt_toggle">Complexes and Families (<span id="subject-placeholder-cp" ' +
     'class="placholder subject-placeholder">A</span> - <span id="object-placeholder-cp" class="placholder ' +
     'object-placeholder">B</span>)</a><span id="npaths-cp" class="badge badge-primary badge-pill float-right ' +
     'path-count">Entities: 0</span></h3></div><div id="collapse-paths-cp" class="collapse">' +
@@ -636,9 +637,9 @@ function generateCommonParents() {
 function generateCommonTargets() {
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-common-targets" aria-expanded="false" ' +
-    'aria-controls="collapse-common-targets"> Common Targets (<span id="subject-placeholder-ct" ' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" data-target="#collapse-common-targets" ' +
+    'aria-expanded="false" aria-controls="collapse-common-targets"><h3 class="display-7">' +
+    '<a href="#" class="stmt_toggle">Common Targets (<span id="subject-placeholder-ct" ' +
     'class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-ct" '+
     'class="placholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
     'badge-pill float-right path-count">Targets: 0</span></h3></div><div id="collapse-common-targets" ' +
@@ -652,9 +653,9 @@ function generateCommonTargets() {
 function generateSharedRegulators() {
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-shared-regulators" aria-expanded="false" ' +
-    'aria-controls="collapse-shared-regulators"> Shared Regulators (<span id="subject-placeholder-sr" ' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" data-target="#collapse-shared-regulators" ' +
+    'aria-expanded="false" aria-controls="collapse-shared-regulators"><h3 class="display-7">' +
+    '<a href="#" class="stmt_toggle"> Shared Regulators (<span id="subject-placeholder-sr" ' +
     'class="placholder subject-placeholder">A</span>&larr;Z&rarr;<span id="object-placeholder-sr" '+
     'class="placholder object-placeholder">B</span>)</a><span id="shared-regulators-span" class="badge badge-primary ' +
     'badge-pill float-right path-count">Regulators: 0</span></h3></div><div id="collapse-shared-regulators" ' +
