@@ -138,46 +138,47 @@
       </div>
       <div class="row">
         <div class="col">
-          <div class="card-header" data-toggle="collapse" data-target="#collapse-open-search" aria-expanded="false" aria-controls="collapse-paths-5f">
-            <h3 class="display-7">
-              <a href="#" class="stmt_toggle">
-                Open Search Options</a>
-            </h3>
-            <i>Click to see detailed options</i>
-          </div>
-          <div id="collapse-open-search" class="collapse">
-            <div class="card-body">
-              <div class="row">
-                <div class="col">
-                  <div class="form-select" title="The path fill end on and will not expand from the nodes from the selected namespaces">
-                    <label for="terminal-namespaces">Terminal namespaces:</label><br/>
-                    <select name="terminal-namespaces" id="terminal-namespaces" placeholder="Terminal namespaces" multiple>
-                    </select>
-                  </div>
-                </div>
-                <div class="col">
-                  <div>Maximum number of children to consider during
-                    unweighted breadth first search</div>
-                  <div class="container" style="width: 160px; float: left; padding: 0px;">
-                    <input class="form-control" type="number" step="1" name="max-per-node" id="max-per-node" min="1" max="50"
-                          placeholder="Max per node"
-                          title="The maximum number of times a node can be a parent to leaf nodes for open unweighted search.">
-                  </div>
-                </div>
-              </div>
-            </div>
+          <label for="node-filter">Node namespaces:</label><br/>
+          <div class="form-select" title="The path will only contain nodes from the selected namespaces">
+            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
+            </select>
           </div>
         </div>
       </div>
+      <div class="card-header" data-toggle="collapse" data-target="#detailed-options" aria-expanded="false" aria-controls="collapse-paths-5f">
+        <h3 class="display-7">
+          <a href="#" class="stmt_toggle">
+            Detailed Search Options</a>
+        </h3>
+        <i>Click to see detailed options</i>
+      </div>
+      <div id="detailed-options" class="collapse">
+        <div class="card-body">
+          <div class="row">
+            <div class="col">
+              <div class="form-select" title="The path will end on and not expand from the nodes from the selected namespaces">
+                <label for="terminal-namespaces">Terminal namespaces:</label><br/>
+                <select name="terminal-namespaces" id="terminal-namespaces" placeholder="Terminal namespaces" multiple>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div>Maximum number of children to consider during
+                unweighted breadth first search</div>
+              <div class="container" style="width: 160px; float: left; padding: 0px;">
+                <input class="form-control" type="number" step="1" name="max-per-node" id="max-per-node" min="1" max="50"
+                      placeholder="Max per node"
+                      title="The maximum number of times a node can be a parent to leaf nodes for open unweighted search.">
+              </div>
+            </div>
+          </div>
+
       <div class="row">
         <div class="col">
-          <div class="card-header" data-toggle="collapse" data-target="#collapse-context" aria-expanded="false" aria-controls="collapse-paths-5f">
             <h3 class="display-7">
               <a href="#" class="stmt_toggle">Context Options</a>
             </h3>
-            <i>Click to see detailed options</i>
-          </div>
-          <div id="collapse-context" class="collapse">
+
             <div class="card-body">
               {# 2-by-2 grid #}
               <div class="row">
@@ -213,7 +214,7 @@
                 </div>
               </div>
             </div>
-          </div>
+
         </div>
       </div>
       <div class="row">
@@ -221,13 +222,6 @@
           <div class="form-select" title="The path will not contain the selected statement types">
             <label for="stmt-filter">Exclude statements:</label><br/>
             <select name="stmt-filter" id="stmt-filter" placeholder="Statement types to exclude" multiple>
-            </select>
-          </div>
-        </div>
-        <div class="col">
-          <label for="node-filter">Node namespaces:</label><br/>
-          <div class="form-select" title="The path will only contain nodes from the selected namespaces">
-            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
         </div>
@@ -285,6 +279,8 @@
       <div class="custom-control custom-checkbox">
         <input type="checkbox" class="custom-control-input" id="fplx-expand">
         <label class="custom-control-label" for="fplx-expand">Expand search to FamPlex families and complexes when paths are not found</label>
+      </div>
+        </div>
       </div>
       <div class="row" style="margin-top: 16px; margin-bottom: 16px">
         <div class="col-2">
