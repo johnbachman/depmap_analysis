@@ -52,6 +52,12 @@
         console.log(oldResults);
         fillResultsTable(oldResults, "{{ source }}", "{{ target }}")
       }
+
+      // Finally send user to the linked loction if any
+      let detailedLink = window.location.href.split('#')[1];
+      if (detailedLink) {
+        window.location.href = `${window.location.href.split('#')[0]}#${detailedLink}`
+      }
     });
   </script>
   <style>
