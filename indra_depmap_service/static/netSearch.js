@@ -625,7 +625,7 @@ function generateCommonParents() {
   newCard.innerHTML = '<div class="card-header" data-toggle="collapse" ' +
     'data-target="#collapse-paths-cp" aria-expanded="true" aria-controls="collapse-paths-cp">' +
     '<h3 class="display-7"><a href="#" class="stmt_toggle">Complexes and Families (<span id="subject-placeholder-cp" ' +
-    'class="placholder subject-placeholder">A</span> - <span id="object-placeholder-cp" class="placholder ' +
+    'class="placeholder subject-placeholder">A</span> - <span id="object-placeholder-cp" class="placeholder ' +
     'object-placeholder">B</span>)</a><span id="npaths-cp" class="badge badge-primary badge-pill float-right ' +
     'path-count">Entities: 0</span></h3></div><div id="collapse-paths-cp" class="collapse show">' +
     '<div class="card-body"><table class="table"><thead class="table-head"><th>Family/Complex</th>' +
@@ -640,8 +640,8 @@ function generateCommonTargets() {
   newCard.innerHTML = '<div class="card-header" data-toggle="collapse" data-target="#collapse-common-targets" ' +
     'aria-expanded="true" aria-controls="collapse-common-targets"><h3 class="display-7">' +
     '<a href="#" class="stmt_toggle">Common Targets (<span id="subject-placeholder-ct" ' +
-    'class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-ct" '+
-    'class="placholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
+    'class="placeholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-ct" '+
+    'class="placeholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
     'badge-pill float-right path-count">Targets: 0</span></h3></div><div id="collapse-common-targets" ' +
     'class="collapse show"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
     '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
@@ -656,8 +656,8 @@ function generateSharedRegulators() {
   newCard.innerHTML = '<div class="card-header" data-toggle="collapse" data-target="#collapse-shared-regulators" ' +
     'aria-expanded="true" aria-controls="collapse-shared-regulators"><h3 class="display-7">' +
     '<a href="#" class="stmt_toggle"> Shared Regulators (<span id="subject-placeholder-sr" ' +
-    'class="placholder subject-placeholder">A</span>&larr;Z&rarr;<span id="object-placeholder-sr" '+
-    'class="placholder object-placeholder">B</span>)</a><span id="shared-regulators-span" class="badge badge-primary ' +
+    'class="placeholder subject-placeholder">A</span>&larr;Z&rarr;<span id="object-placeholder-sr" '+
+    'class="placeholder object-placeholder">B</span>)</a><span id="shared-regulators-span" class="badge badge-primary ' +
     'badge-pill float-right path-count">Regulators: 0</span></h3></div><div id="collapse-shared-regulators" ' +
     'class="collapse show"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
     '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-shared-regulators"></tbody>' +
