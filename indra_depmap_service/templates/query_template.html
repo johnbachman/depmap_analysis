@@ -170,9 +170,20 @@
           </div>
           <div id="collapse-context" class="collapse">
             <div class="card-body">
+              {# 2-by-2 grid #}
               <div class="row">
                 <div class="col">
+                  <div>Provide MeSH IDs for context based search</div>
                   <input type="text" id="mesh-id-list" class="form-control" title="The path will only contain edges with provided MeSH IDs (all if left empty)." placeholder="MeSH IDs (comma separated)">
+                </div>
+                <div class="col">
+                  <div class="container" style="float: left; padding: 0px;">Path weight/length tradeoff</div>
+                  <div class="container" style="width: 90px; float: left; padding: 0px;">
+                    <input class="form-control" type="number" step="1" name="const_c" id="const_c" placeholder="C = [1..120]"
+                      min="1" max="120"
+                      title="Constant used in edge weight calculation based on MeSH IDs. Constant C in the formula -C * ln(ref_counts / (total + Tk))"
+                      value="1">
+                  </div>
                 </div>
               </div>
               <div class="row">
@@ -183,16 +194,7 @@
                   </div>
                 </div>
                 <div class="col">
-                  <div class="container" style="width: 90px; float: left; padding: 0px;">Path weight/length tradeoff</div>
-                  <div class="container" style="width: 90px; float: left; padding: 0px;">
-                    <input class="form-control" type="number" step="1" name="const_c" id="const_c" placeholder="C = [1..120]"
-                      min="1" max="120"
-                      title="Constant used in edge weight calculation based on MeSH IDs. Constant C in the formula -C * ln(ref_counts / (total + Tk))"
-                      value="1">
-                  </div>
-                </div>
-                <div class="col">
-                  <div class="container" style="width: 90px; float: left; padding: 0px;">Evidence threshold</div>
+                  <div class="container" style="float: left; padding: 0px;">Evidence threshold</div>
                   <div class="container" style="width: 90px; float: left; padding: 0px;">
                     <input class="form-control" type="number" step="1" name="const_tk" id="const_tk" placeholder="Tk = [1..120]"
                       min="1" max="120"
