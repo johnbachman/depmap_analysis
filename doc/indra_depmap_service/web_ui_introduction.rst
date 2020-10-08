@@ -79,7 +79,8 @@ searches. In order to perform an open ended search, only a source or a
 target must be given.
 
 - **Terminal Namespaces:** Namespaces selected here restrict the search to
-  only return paths that end or start on the given namespaces.
+  only return paths that end (open search from source) or start (open
+  search from target) on the given namespaces.
 - **Max per node:** The integer provided here gives a maximum for the number
   of children to continue to open search from. This option is only applied
   during *unweighted* searches.
@@ -97,14 +98,14 @@ given as MeSH terms.
   weighted.
 - **Constants** :math:`C` **and** :math:`T_k`: These two constant allow for
   changing the importance of the context in a weighted context based search.
-  The edge weights for context based search are calculated in the following
-  way:
+  For any edge :math:`e`, the weight :math:`w_e` for context based search is
+  calculated in the following way:
 
 .. math::
     w_e = -C \cdot \log\left(\frac{\text{refcount}}{\text{total} + T_k}\right)
 
-where :math:`refcount` is the number of references with the associated MeSH
-ID(s) that are supporting edge :math:`e` and total is the total number of
+where `refcount` is the number of references with the associated MeSH
+ID(s) that are supporting edge :math:`e` and `total` is the total number of
 references supporting edge :math:`e`.
 
 Statement Types to *Exclude*
