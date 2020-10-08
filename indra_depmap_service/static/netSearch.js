@@ -158,10 +158,17 @@ function submitQuery() {
             window.location.replace(xhr.responseText)
           }
           break;
+        case 202:
+          if (xhr.responseText) {
+            console.log(xhr.responseText)
+          }
+          statusBox.textContent = xhr.responseText;
+          break;
         case 504:
           // Server timeout
           statusBox.textContent = 'Error: 504: Gateway Time-out';
-        // ToDo Add more messages for different HTML errors
+          // ToDo Add more messages for different HTML errors
+          break;
         default:
           console.log('Submission error: check ajax response');
           statusBox.textContent = 'Error: ' + xhr.status + ': ' + xhr.responseText;

@@ -228,11 +228,17 @@ def process_query():
         qh = get_query_hash(qc)
 
         cached_files = check_existence_and_date_s3(query_hash=qh)
-        if cached_files.get('result_json_key'):
+        if not API_DEBUG and cached_files.get('result_json_key'):
             qjs3_key = cached_files['result_json_key']
             logger.info('Result found on s3: %s' % qjs3_key)
             result = read_query_json_from_s3(qjs3_key)
         # Files not cached on s3, run new query
+        elif API_DEBUG:
+            logger.info('API_DEBUG is set to "True" so no network is '
+                        'loaded, perhaps you meant to turn it off? '
+                        'Run "export API_DEBUG=0" in your terminal '
+                        'to do so and then restart the flask service')
+            return Response(json.dumps({'status': 'API debug'}), 202)
         else:
             # Do new query
             # JS expects the following json for result:
@@ -242,13 +248,7 @@ def process_query():
 
             # Empty result
             if _is_empty_result(result['result']):
-                if API_DEBUG:
-                    logger.info('API_DEBUG is set to "True" so no network is '
-                                'loaded, perhaps you meant to turn it off? '
-                                'Run "export API_DEBUG=0" in your terminal '
-                                'to do so and then restart the flask service')
-                else:
-                    logger.info('Query returned with no path found')
+                logger.info('Query returned with no path found')
                 s3_query = ''
                 result['query_hash'] = qh
                 result['path_hashes'] = []
