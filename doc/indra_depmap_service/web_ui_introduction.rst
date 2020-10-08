@@ -63,20 +63,55 @@ Max # Paths
 The maximum number of results to return per category in the results. The
 default and the maximum allowed is 50 results.
 
-Statement Types to *Exclude*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This is a multiselect dropdown which contains multiple statement type names
-to exclude from the results. If an edge of a path only contain statement
-types that are excluded, the whole path will be skipped from the result.
-
-Node Namespaces to *Include*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Allowed Node Namespaces
+~~~~~~~~~~~~~~~~~~~~~~~
 The namespaces included here are the ones that are allowed on any node
 visited in the path search. The namespace of the source and target are
 excluded from this restriction. A namespace in INDRA is the type of
 identifier used to uniquely identify an entity. For example, a chemical can
 be identified using a `CHEBI` identifier and would then be identified in the
 `CHEBI` namespace.
+
+Open Search Options
+~~~~~~~~~~~~~~~~~~~
+Options under the Open Search Options are only applied during open ended
+searches. In order to perform an open ended search, only a source or a
+target must be given.
+
+- **Terminal Namespaces:** Namespaces selected here restrict the search to
+  only return paths that end or start on the given namespaces.
+- **Max per node:** The integer provided here gives a maximum for the number
+  of children to continue to open search from. This option is only applied
+  during *unweighted* searches.
+
+Context Options
+~~~~~~~~~~~~~~~
+The context based search allows a search to prioritize or only include
+connections that are relevant to the provided context. The context is
+given as MeSH terms.
+
+- **MeSH IDs:** Enter a comma separated list of MeSH IDs that should be
+  prioritized in the search.
+- **Strict Filtering on MeSH IDs:** Tick this box to *only* allow edges with
+  associated with the provided MeSH IDs. If left unticked, the search is
+  weighted.
+- **Constants** :math:`C` **and** :math:`T_k`: These two constant allow for
+  changing the importance of the context in a weighted context based search.
+  The edge weights for context based search are calculated in the following
+  way:
+
+.. math::
+    w_e = -C \cdot \log\left(\frac{refcount}{total + T_k}\right)
+
+where :math:`refcount` is the number of references with the associated MeSH
+ID(s) that are supporting edge :math:`e` and total is the total number of
+references supporting edge :math:`e`.
+
+Statement Types to *Exclude*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This is a multiselect dropdown which contains multiple statement type names
+to exclude from the results. If an edge of a path only contain statement
+types that are excluded, the whole path will be skipped from the result.
 
 Node Name Blacklist
 ~~~~~~~~~~~~~~~~~~~
