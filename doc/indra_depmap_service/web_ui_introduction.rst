@@ -104,7 +104,7 @@ given as MeSH terms.
 .. math::
     w_e = -C \cdot \log\left(\frac{\text{refcount}}{\text{total} + T_k}\right)
 
-where `refcount` is the number of references with the associated MeSH
+Here, `refcount` is the number of references with the associated MeSH
 ID(s) that are supporting edge :math:`e` and `total` is the total number of
 references supporting edge :math:`e`.
 
