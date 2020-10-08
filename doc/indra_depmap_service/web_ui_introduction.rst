@@ -116,7 +116,7 @@ types that are excluded, the whole path will be skipped from the result.
 Node Name Blacklist
 ~~~~~~~~~~~~~~~~~~~
 Node names entered here are skipped in the path search. This is a good way
-to avoid nodes of extremely high degree that overwhelmes the results and
+to avoid nodes of extremely high degree that overwhelms the results and
 effectively blocks out results including lower degree nodes. *See also Cull
 Highest Degree Node below.*
 
@@ -170,16 +170,15 @@ Weighted Search
 ~~~~~~~~~~~~~~~
 When performing a weighted search, the cost along every path encountered is
 calculated as the sum of the weights along the path. The paths are then
-returned in ascending order of cost. The cost of a path is defined as the
-sum of the weights of all the edges along the paths. The weigthed search
-uses a slightly modified version of the Djikstra weighted search empolyed in
-Networkx. *Note:* A weighted search is costly and usually takes longer than
-a normal search. It is common that a very heavy weigthed search times out,
+returned in ascending order of cost. The weighted search uses a slightly
+modified version of the Djikstra weighted search employed in Networkx.
+*Note:* A weighted search is costly and usually takes longer than
+a normal search. It is common that a very heavy weighted search times out,
 especially for a *signed* weighted search.
 
 The code implemented for the weighted search is available on `github
-<../../master/depmap_analysis/network_functions/net_functions.py>`_ in the
-function `shortest_simple_paths()`.
+<https://github.com/sorgerlab/indra/blob/master/indra/explanation/pathfinding/pathfinding.py>`_
+in the function `shortest_simple_paths()`.
 
 Databases Only
 ~~~~~~~~~~~~~~
@@ -190,7 +189,7 @@ returned paths.
 Include Famplex Families and Complexes in Path Search
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This option allows for edges to be between a gene and its family or
-beteween a gene and a complex formed by its encoded protein. For example: an
+betewen a gene and a complex formed by its encoded protein. For example: an
 edge between `BRCA1` and its family `BRCA` would be allowed.
 
 Expand search to FamPlex
@@ -207,7 +206,7 @@ default 30 seconds timeout. The time since the path search was started is
 checked after each path has been checked during the search. If the time
 passed is larger than the allowed timeout, the search is interrupted and
 returns as fast as possible. The timeout provided has to be a decimal number
-smaller than or equeal to 120 seconds.
+smaller than or equal to 120 seconds.
 
 Result Categories
 -----------------
@@ -228,7 +227,7 @@ family.
   :figwidth: 100 %
 
   *The result of a search with `BRCA1` and `BRCA2` as source and target,
-  respectively for Complexes and Famlilies.*
+  respectively for Complexes and Families.*
 
 
 Common Targets
