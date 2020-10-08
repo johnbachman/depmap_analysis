@@ -651,7 +651,7 @@ function generateCommonParents(linkURL) {
     'object-placeholder">B</span>)</a><span id="npaths-cp" class="badge badge-primary badge-pill float-right ' +
     'path-count">Entities: 0</span></h3></div><div id="collapse-paths-cp" class="collapse show">' +
     '<div class="card-body"><table class="table"><thead' +
-    ` class="table-head"><th id="linkout0"><a href="${linkURL}#linkout0">Family/Complex</a></th>` +
+    ` class="table-head"><th id="linkout0"><a title="Right click and copy link to link to this result" class="stmt_toggle" href="${linkURL}#linkout0">Family/Complex</a></th>` +
     '<th>Namespace</th></thead><tbody class="table-body" id="query-results-cp"></tbody></table></div></div>';
 
   return newCard;
