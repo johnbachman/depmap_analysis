@@ -138,7 +138,9 @@
       </div>
       <div class="row">
         <div class="col">
-          <label for="node-filter">Node namespaces:</label><br/>
+          <label for="node-filter">Allowed node namespaces (does not affect
+            source or target).
+            :</label><br/>
           <div class="form-select" title="The path will only contain nodes from the selected namespaces">
             <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
@@ -154,6 +156,9 @@
       </div>
       <div id="detailed-options" class="collapse">
         <div class="card-body">
+          <h5 class="display-5">
+            <a href="#" class="stmt_toggle">Open Search Options</a>
+          </h5>
           <div class="row">
             <div class="col">
               <div class="form-select" title="The path will end on and not expand from the nodes from the selected namespaces">
@@ -173,50 +178,45 @@
             </div>
           </div>
 
-      <div class="row">
-        <div class="col">
-            <h3 class="display-7">
-              <a href="#" class="stmt_toggle">Context Options</a>
-            </h3>
-
-            <div class="card-body">
-              {# 2-by-2 grid #}
-              <div class="row">
-                <div class="col">
-                  <div>Provide MeSH IDs for context based search</div>
-                  <input type="text" id="mesh-id-list" class="form-control" title="The path will only contain edges with provided MeSH IDs (all if left empty)." placeholder="MeSH IDs (comma separated)">
-                </div>
-                <div class="col">
-                  <div class="container" style="float: left; padding: 0px;">Path weight/length tradeoff</div>
-                  <div class="container" style="width: 90px; float: left; padding: 0px;">
-                    <input class="form-control" type="number" step="1" name="const_c" id="const_c" placeholder="C = [1..120]"
-                      min="1" max="120"
-                      title="Constant used in edge weight calculation based on MeSH IDs. Constant C in the formula -C * ln(ref_counts / (total + Tk))"
-                      value="1">
-                  </div>
-                </div>
+          <h5 class="display-5">
+            <a href="#" class="stmt_toggle">Context Options</a>
+          </h5>
+            {# 2-by-2 grid #}
+            <div class="row">
+              <div class="col">
+                <div>Provide MeSH IDs for context based search</div>
+                <input type="text" id="mesh-id-list" class="form-control" title="The path will only contain edges with provided MeSH IDs (all if left empty)." placeholder="MeSH IDs (comma separated)">
               </div>
-              <div class="row">
-                <div class="col">
-                  <div class="custom-control custom-checkbox">
-                    <input type="checkbox" class="custom-control-input" id="strict-mesh-id-filtering">
-                    <label class="custom-control-label" for="strict-mesh-id-filtering">Strict filtering on MeSH IDs</label>
-                  </div>
-                </div>
-                <div class="col">
-                  <div class="container" style="float: left; padding: 0px;">Evidence threshold</div>
-                  <div class="container" style="width: 90px; float: left; padding: 0px;">
-                    <input class="form-control" type="number" step="1" name="const_tk" id="const_tk" placeholder="Tk = [1..120]"
-                      min="1" max="120"
-                      title="Constant used in edge weight calculation based on MeSH IDs. Constant Tk in the formula -C * ln(ref_counts / (total + Tk))"
-                      value="10">
-                  </div>
+              <div class="col">
+                <div class="container" style="float: left; padding: 0px;">Path weight/length tradeoff</div>
+                <div class="container" style="width: 90px; float: left; padding: 0px;">
+                  <input class="form-control" type="number" step="1" name="const_c" id="const_c" placeholder="C = [1..120]"
+                    min="1" max="120"
+                    title="Constant used in edge weight calculation based on MeSH IDs. Constant C in the formula -C * ln(ref_counts / (total + Tk))"
+                    value="1">
                 </div>
               </div>
             </div>
-
-        </div>
-      </div>
+            <div class="row">
+              <div class="col">
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" class="custom-control-input" id="strict-mesh-id-filtering">
+                  <label class="custom-control-label" for="strict-mesh-id-filtering">Strict filtering on MeSH IDs</label>
+                </div>
+              </div>
+              <div class="col">
+                <div class="container" style="float: left; padding: 0px;">Evidence threshold</div>
+                <div class="container" style="width: 90px; float: left; padding: 0px;">
+                  <input class="form-control" type="number" step="1" name="const_tk" id="const_tk" placeholder="Tk = [1..120]"
+                    min="1" max="120"
+                    title="Constant used in edge weight calculation based on MeSH IDs. Constant Tk in the formula -C * ln(ref_counts / (total + Tk))"
+                    value="10">
+                </div>
+              </div>
+            </div>
+          <h5 class="display-5">
+            <a href="#" class="stmt_toggle">General Options</a>
+          </h5>
       <div class="row">
         <div class="col">
           <div class="form-select" title="The path will not contain the selected statement types">
