@@ -5,7 +5,7 @@ from time import time, gmtime, strftime
 
 import requests
 from flask import Flask, request, abort, Response, render_template, jsonify, \
-    session, url_for
+    session, url_for, redirect
 
 from indra.statements.agent import default_ns_order as NS_LIST_
 from indra.config import CONFIG_DICT
@@ -49,7 +49,7 @@ else:
 
 if not STMTS_FROM_HSH_URL:
     if API_DEBUG:
-        logger.error('No URL for statement download set')
+        logger.warning('No URL for statement download set')
     else:
         raise ValueError('No URL for statement download set. Set it '
                          '"INDRA_DB_HASHES_URL" ')
@@ -150,8 +150,13 @@ def health():
 
 
 @app.route('/')
+def redirect_to_query():
+    """Redirects to query page"""
+    return redirect(url_for('query_page'), code=302)
+
+
 @app.route('/query')
-def get_query_page():
+def query_page():
     """Loads or responds to queries submitted on the query page"""
     logger.info('Got query')
     logger.info('Incoming Args -----------')
@@ -223,11 +228,17 @@ def process_query():
         qh = get_query_hash(qc)
 
         cached_files = check_existence_and_date_s3(query_hash=qh)
-        if cached_files.get('result_json_key'):
+        if not API_DEBUG and cached_files.get('result_json_key'):
             qjs3_key = cached_files['result_json_key']
             logger.info('Result found on s3: %s' % qjs3_key)
             result = read_query_json_from_s3(qjs3_key)
         # Files not cached on s3, run new query
+        elif API_DEBUG:
+            logger.info('API_DEBUG is set to "True" so no network is '
+                        'loaded, perhaps you meant to turn it off? '
+                        'Run "export API_DEBUG=0" in your terminal '
+                        'to do so and then restart the flask service')
+            return Response(json.dumps({'status': 'API debug'}), 202)
         else:
             # Do new query
             # JS expects the following json for result:
@@ -237,13 +248,7 @@ def process_query():
 
             # Empty result
             if _is_empty_result(result['result']):
-                if API_DEBUG:
-                    logger.info('API_DEBUG is set to "True" so no network is '
-                                'loaded, perhaps you meant to turn it off? '
-                                'Run "export API_DEBUG=0" in your terminal '
-                                'to do so and then restart the flask service')
-                else:
-                    logger.info('Query returned with no path found')
+                logger.info('Query returned with no path found')
                 s3_query = ''
                 result['query_hash'] = qh
                 result['path_hashes'] = []
@@ -279,11 +284,11 @@ def process_query():
                 )
                 logger.info('Uploaded query and results to %s and %s' %
                             (s3_query, s3_query_res))
-        result['redirURL'] = url_for('get_query_page', query=qh)
+        result['redirURL'] = url_for('query_page', query=qh)
         if request.json.get('format') and \
                 request.json['format'].lower() == 'html':
             logger.info('HTML requested, sending redirect url')
-            return url_for('get_query_page', query=qh)
+            return url_for('query_page', query=qh)
         else:
             logger.info('Regular POST detected, sedning json back')
             return Response(json.dumps(result), mimetype='application/json')
@@ -369,7 +374,7 @@ def multi_interactors():
             result = indra_network.multi_regulators_targets(**options)
             result['query_hash'] = query_hash
             result['ui_link'] = \
-                SERVICE_BASE_URL + url_for('get_query_page', query=query_hash)
+                SERVICE_BASE_URL + url_for('query_page', query=query_hash)
             # Upload the query
             dump_query_json_to_s3(query_hash=query_hash, json_obj=options,
                                   get_url=False)
@@ -476,7 +481,7 @@ def breadth_search():
                     },
                 },
                 'query_hash': query_hash,
-                'ui_link': SERVICE_BASE_URL + url_for('get_query_page',
+                'ui_link': SERVICE_BASE_URL + url_for('query_page',
                                                       query=query_hash)
             }
 

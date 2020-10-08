@@ -158,10 +158,17 @@ function submitQuery() {
             window.location.replace(xhr.responseText)
           }
           break;
+        case 202:
+          if (xhr.responseText) {
+            console.log(xhr.responseText)
+          }
+          statusBox.textContent = xhr.responseText;
+          break;
         case 504:
           // Server timeout
           statusBox.textContent = 'Error: 504: Gateway Time-out';
-        // ToDo Add more messages for different HTML errors
+          // ToDo Add more messages for different HTML errors
+          break;
         default:
           console.log('Submission error: check ajax response');
           statusBox.textContent = 'Error: ' + xhr.status + ': ' + xhr.responseText;
@@ -290,6 +297,8 @@ function fillResultsTable(data, source, target){
   if (downloadURL) {
     downloadLink = ` Click <a href="${downloadURL}" download>here</a> to download the results as a json`
   }
+  let idCounter = 0;
+  let currentURL = window.location.href.split('#')[0]
   if ((data.result.common_targets && data.result.common_targets.length > 0) ||
       (data.result.common_parents && Object.keys(data.result.common_parents).length > 0) ||
       (data.result.paths_by_node_count && Object.keys(data.result.paths_by_node_count).length > 0)) {
@@ -312,7 +321,8 @@ function fillResultsTable(data, source, target){
     if (commonParents &&
         commonParents.common_parents &&
         commonParents.common_parents.length > 0) {
-      let cardHtml = generateCommonParents();
+      let cardHtml = generateCommonParents(currentURL);
+      idCounter += 1;
       tableArea.appendChild(cardHtml);
       document.getElementById('subject-placeholder-cp').textContent =
         `${commonParents.source_id}@${commonParents.source_ns}`;
@@ -352,7 +362,10 @@ function fillResultsTable(data, source, target){
             let newRow = document.createElement('tr');
 
             let newTargetCol = document.createElement('td');
-            newTargetCol.textContent = key;
+            let linkId = `linkout${idCounter}`;
+            newTargetCol.id = linkId;
+            idCounter += 1;
+            newTargetCol.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${key}</a>`;
             newRow.appendChild(newTargetCol);
 
             let newTargetPaths = document.createElement('td');
@@ -378,13 +391,16 @@ function fillResultsTable(data, source, target){
           if (key !== 'lowest_highest_belief') {
             let newRow = document.createElement('tr');
 
-            let newRegulatorCol = document.createElement('td')
-            newRegulatorCol.textContent = key;
-            newRow.appendChild(newRegulatorCol)
+            let newRegulatorCol = document.createElement('td');
+            let linkId = `linkout${idCounter}`;
+            idCounter += 1;
+            newRegulatorCol.id = linkId;
+            newRegulatorCol.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${key}</a>`;
+            newRow.appendChild(newRegulatorCol);
 
             let newRegulatorPaths = document.createElement('td');
             newRegulatorPaths.innerHTML = generateTargetLinkout(regulatorDict[key]);
-            newRow.appendChild(newRegulatorPaths)
+            newRow.appendChild(newRegulatorPaths);
 
             srTableBody.appendChild(newRow)
           }
@@ -410,7 +426,10 @@ function fillResultsTable(data, source, target){
           let newRow = document.createElement('tr');
           // Add current path
           let newPath = document.createElement('td');
-          newPath.innerHTML = pathArray.path.join('&rarr;');
+          let linkId = `linkout${idCounter}`;
+          newPath.id = linkId;
+          idCounter += 1;
+          newPath.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
           newRow.appendChild(newPath);
 
           let newWeights = document.createElement('td');
@@ -442,7 +461,10 @@ function fillResultsTable(data, source, target){
           let newRow = document.createElement('tr');
           // Add current path
           let newPath = document.createElement('td');
-          newPath.innerHTML = pathArray.path.join('&rarr;');
+          let linkId = `linkout${idCounter}`;
+          newPath.id = linkId;
+          idCounter += 1;
+          newPath.innerHTML = `<a class="stmt_toggle" title="Right click and copy link to link to this result" href="${currentURL}#${linkId}">${pathArray.path.join('&rarr;')}</a>`;
           newRow.appendChild(newPath);
 
           let newWeights = document.createElement('td');
@@ -606,28 +628,30 @@ function generateCardTable(len, dir) {
 
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-paths-' + len + dir + ' " aria-expanded="false" ' +
-    'aria-controls="collapse-paths-' + len + dir + '"> ' + len + ' Edge Paths (<div id="subject-placeholder-' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" ' +
+    'data-target="#collapse-paths-' + len + dir + ' " aria-expanded="true"' +
+    ' aria-controls="collapse-paths-' + len + dir + '"><h3 class="display-7">' +
+    '<a href="#" class="stmt_toggle"> ' + len + ' Edge Paths (<div id="subject-placeholder-' +
     len + dir + '" class="placeholder subject-placeholder">A</div>&rarr;' + intermArrows +
     '<div id="object-placeholder-' + len + dir + '" class="placeholder object-placeholder">B</div>)</a><span ' +
     'id="npaths-' + len + dir + '" class="badge badge-primary badge-pill float-right path-count">Paths: ' +
-    '0</span></h3></div><div id="collapse-paths-' + len + dir + '" class="collapse"><div class="card-body">' +
+    '0</span></h3></div><div id="collapse-paths-' + len + dir + '" class="collapse show"><div class="card-body">' +
     '<table class="table"><thead class="table-head"><th>Path</th><th>Weight</th><th>Support</th></thead><tbody ' +
     'class="table-body" id="query-results-' + len + dir + '"></tbody></table></div></div>';
   return newCard;
 }
 
-function generateCommonParents() {
+function generateCommonParents(linkURL) {
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-paths-cp" aria-expanded="false" ' +
-    'aria-controls="collapse-paths-cp">Complexes and Families (<span id="subject-placeholder-cp" ' +
-    'class="placholder subject-placeholder">A</span> - <span id="object-placeholder-cp" class="placholder ' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" ' +
+    'data-target="#collapse-paths-cp" aria-expanded="true" aria-controls="collapse-paths-cp">' +
+    '<h3 class="display-7"><a href="#" class="stmt_toggle">Complexes and Families (<span id="subject-placeholder-cp" ' +
+    'class="placeholder subject-placeholder">A</span> - <span id="object-placeholder-cp" class="placeholder ' +
     'object-placeholder">B</span>)</a><span id="npaths-cp" class="badge badge-primary badge-pill float-right ' +
-    'path-count">Entities: 0</span></h3></div><div id="collapse-paths-cp" class="collapse">' +
-    '<div class="card-body"><table class="table"><thead class="table-head"><th>Family/Complex</th>' +
+    'path-count">Entities: 0</span></h3></div><div id="collapse-paths-cp" class="collapse show">' +
+    '<div class="card-body"><table class="table"><thead' +
+    ` class="table-head"><th id="linkout0"><a title="Right click and copy link to link to this result" class="stmt_toggle" href="${linkURL}#linkout0">Family/Complex</a></th>` +
     '<th>Namespace</th></thead><tbody class="table-body" id="query-results-cp"></tbody></table></div></div>';
 
   return newCard;
@@ -636,13 +660,13 @@ function generateCommonParents() {
 function generateCommonTargets() {
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-common-targets" aria-expanded="false" ' +
-    'aria-controls="collapse-common-targets"> Common Targets (<span id="subject-placeholder-ct" ' +
-    'class="placholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-ct" '+
-    'class="placholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" data-target="#collapse-common-targets" ' +
+    'aria-expanded="true" aria-controls="collapse-common-targets"><h3 class="display-7">' +
+    '<a href="#" class="stmt_toggle">Common Targets (<span id="subject-placeholder-ct" ' +
+    'class="placeholder subject-placeholder">A</span>&rarr;Z&larr;<span id="object-placeholder-ct" '+
+    'class="placeholder object-placeholder">B</span>)</a><span id="common-targets" class="badge badge-primary ' +
     'badge-pill float-right path-count">Targets: 0</span></h3></div><div id="collapse-common-targets" ' +
-    'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
+    'class="collapse show"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
     '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-common-targets"></tbody>' +
     '</table></div></div>';
 
@@ -652,13 +676,13 @@ function generateCommonTargets() {
 function generateSharedRegulators() {
   let newCard = document.createElement('div');
   newCard.className = 'card';
-  newCard.innerHTML = '<div class="card-header"><h3 class="display-7"><a href="#" class="stmt_toggle" ' +
-    'data-toggle="collapse" data-target="#collapse-shared-regulators" aria-expanded="false" ' +
-    'aria-controls="collapse-shared-regulators"> Shared Regulators (<span id="subject-placeholder-sr" ' +
-    'class="placholder subject-placeholder">A</span>&larr;Z&rarr;<span id="object-placeholder-sr" '+
-    'class="placholder object-placeholder">B</span>)</a><span id="shared-regulators-span" class="badge badge-primary ' +
+  newCard.innerHTML = '<div class="card-header" data-toggle="collapse" data-target="#collapse-shared-regulators" ' +
+    'aria-expanded="true" aria-controls="collapse-shared-regulators"><h3 class="display-7">' +
+    '<a href="#" class="stmt_toggle"> Shared Regulators (<span id="subject-placeholder-sr" ' +
+    'class="placeholder subject-placeholder">A</span>&larr;Z&rarr;<span id="object-placeholder-sr" '+
+    'class="placeholder object-placeholder">B</span>)</a><span id="shared-regulators-span" class="badge badge-primary ' +
     'badge-pill float-right path-count">Regulators: 0</span></h3></div><div id="collapse-shared-regulators" ' +
-    'class="collapse"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
+    'class="collapse show"><div class="card-body"><table class="table"><thead class="table-head"><th>Target ' +
     '(Z)</th><th>Support</th></thead><tbody class="table-body" id="query-results-shared-regulators"></tbody>' +
     '</table></div></div>';
 
