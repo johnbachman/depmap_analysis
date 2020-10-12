@@ -201,7 +201,7 @@ def get_queryable_stmt_types():
     return stmt_types
 
 
-def load_indra_graph(dir_graph_path, multi_digraph_path=None,
+def load_indra_graph(dir_graph_path=None, multi_digraph_path=None,
                      sign_node_graph_path=None, sign_edge_graph_path=None,
                      update=False, belief_dict=None, strat_ev_dict=None,
                      include_entity_hierarchies=True, verbosity=0):
@@ -212,6 +212,7 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
     system significantly.
     """
     global INDRA_DG_CACHE, INDRA_MDG_CACHE, INDRA_SNG_CACHE, INDRA_SEG_CACHE
+    indra_dir_graph = nx.DiGraph()
     indra_multi_digraph = nx.MultiDiGraph()
     indra_signed_edge_graph = nx.MultiDiGraph()
     indra_signed_node_graph = nx.DiGraph()
@@ -236,7 +237,8 @@ def load_indra_graph(dir_graph_path, multi_digraph_path=None,
                 nf.sif_dump_df_to_digraph(graph_type='signed', **options)
     else:
         logger.info('Loading indra network representations from pickles')
-        indra_dir_graph = file_opener(dir_graph_path)
+        if dir_graph_path:
+            indra_dir_graph = file_opener(dir_graph_path)
         if multi_digraph_path:
             indra_multi_digraph = file_opener(multi_digraph_path)
         if sign_edge_graph_path:

@@ -25,6 +25,7 @@
   <script>
     const stmtOptions = {{ stmt_types|safe }};
     const nodeOptions = {{ node_name_spaces|safe }};
+    const termNsOptions = {{ terminal_name_spaces|safe }};
     let query_hash = '{{ query_hash }}';
   </script>
   <script src="{{ url_for('static', filename='netSearch.js') }}"></script>
@@ -34,12 +35,14 @@
       if (oldQuery && !($.isEmptyObject(oldQuery))) {
         console.log('Filling results for old query:');
         console.log(oldQuery);
-        let [oldStmtItems, oldNodeItems] = fillOldQuery(oldQuery);
+        let [oldStmtItems, oldNodeItems, oldTermNamespaces] = fillOldQuery(oldQuery);
         const stmtFilter = new Choices('#stmt-filter', {choices: oldStmtItems});
         const nodeFilter = new Choices('#node-filter', {choices: oldNodeItems});
+        const terminalNamespaces = new Choices('#terminal-namespaces', {choices: oldTermNamespaces});
       } else {
         const stmtFilter = new Choices('#stmt-filter', {choices: stmtItems});
         const nodeFilter = new Choices('#node-filter', {choices: nodeItems});
+        const terminalNamespaces = new Choices('#terminal-namespaces', {choices: termNamespaces});
       }
       resetCounters();
       clearAllTables();
@@ -49,10 +52,16 @@
         console.log(oldResults);
         fillResultsTable(oldResults, "{{ source }}", "{{ target }}")
       }
+
+      // Finally send user to the linked loction if any
+      let detailedLink = window.location.href.split('#')[1];
+      if (detailedLink) {
+        window.location.href = `${window.location.href.split('#')[0]}#${detailedLink}`
+      }
     });
   </script>
   <style>
-    h3 a.stmt_toggle {
+    a.stmt_toggle {
       cursor: pointer;
       color: #000000;
     }
@@ -98,7 +107,7 @@
 <body>
   <div class="container">
     <h1 class="display-5" style="padding-top: 15px; padding-bottom: 15px;">INDRA Network Search</h1>
-    <p>Read the documentation <a href="https://github.com/indralab/depmap_analysis/blob/master/doc/indra_depmap_service/web_ui_introduction.rst">here</a>.</p>
+    <p>Read the documentation <a href="https://depmap-analysis.readthedocs.io/en/latest/indra_depmap_service/web_ui_introduction.html">here</a>.</p>
   </div>
   <div class="container">
     <h2 class="display-6">Enter search</h2>
@@ -123,20 +132,96 @@
           <div class="container" style="width: 160px; float: left; padding: 0px;">
             <input class="form-control" type="number" step="1" name="k_shortest" id="k-shortest" min="1" max="50"
                    placeholder="Max # Paths"
-                   title="The maximum number of paths per catergory to return. Default is 50.">
+                   title="The maximum number of paths per category to return. Default is 50.">
           </div>
         </div>
       </div>
       <div class="row">
         <div class="col">
-          <div class="form-select" title="The path will not contain the selected statement types">
-            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types to exclude" multiple>
+          <label for="node-filter">Allowed node namespaces (does not affect
+            source or target).
+            :</label><br/>
+          <div class="form-select" title="The path will only contain nodes from the selected namespaces">
+            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
             </select>
           </div>
         </div>
+      </div>
+      <div class="card-header" data-toggle="collapse" data-target="#detailed-options" aria-expanded="false" aria-controls="collapse-paths-5f">
+        <h3 class="display-7">
+          <a href="#" class="stmt_toggle">
+            Detailed Search Options</a>
+        </h3>
+        <i>Click to see detailed options</i>
+      </div>
+      <div id="detailed-options" class="collapse">
+        <div class="card-body">
+          <h5 class="display-5">
+            <a href="#" class="stmt_toggle">Open Search Options</a>
+          </h5>
+          <div class="row">
+            <div class="col">
+              <div class="form-select" title="The path will end on and not expand from the nodes from the selected namespaces">
+                <label for="terminal-namespaces">Terminal namespaces:</label><br/>
+                <select name="terminal-namespaces" id="terminal-namespaces" placeholder="Terminal namespaces" multiple>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div>Maximum number of children to consider during
+                unweighted breadth first search</div>
+              <div class="container" style="width: 160px; float: left; padding: 0px;">
+                <input class="form-control" type="number" step="1" name="max-per-node" id="max-per-node" min="1" max="50"
+                      placeholder="Max per node"
+                      title="The maximum number of times a node can be a parent to leaf nodes for open unweighted search.">
+              </div>
+            </div>
+          </div>
+
+          <h5 class="display-5">
+            <a href="#" class="stmt_toggle">Context Options</a>
+          </h5>
+            {# 2-by-2 grid #}
+            <div class="row">
+              <div class="col">
+                <div>Provide MeSH IDs for context based search</div>
+                <input type="text" id="mesh-id-list" class="form-control" title="The path will only contain edges with provided MeSH IDs (all if left empty)." placeholder="MeSH IDs (comma separated)">
+              </div>
+              <div class="col">
+                <div class="container" style="float: left; padding: 0px;">Path weight/length tradeoff</div>
+                <div class="container" style="width: 90px; float: left; padding: 0px;">
+                  <input class="form-control" type="number" step="1" name="const_c" id="const_c" placeholder="C = [1..120]"
+                    min="1" max="120"
+                    title="Constant used in edge weight calculation based on MeSH IDs. Constant C in the formula -C * ln(ref_counts / (total + Tk))"
+                    value="1">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" class="custom-control-input" id="strict-mesh-id-filtering">
+                  <label class="custom-control-label" for="strict-mesh-id-filtering">Strict filtering on MeSH IDs</label>
+                </div>
+              </div>
+              <div class="col">
+                <div class="container" style="float: left; padding: 0px;">Evidence threshold</div>
+                <div class="container" style="width: 90px; float: left; padding: 0px;">
+                  <input class="form-control" type="number" step="1" name="const_tk" id="const_tk" placeholder="Tk = [1..120]"
+                    min="1" max="120"
+                    title="Constant used in edge weight calculation based on MeSH IDs. Constant Tk in the formula -C * ln(ref_counts / (total + Tk))"
+                    value="10">
+                </div>
+              </div>
+            </div>
+          <h5 class="display-5">
+            <a href="#" class="stmt_toggle">General Options</a>
+          </h5>
+      <div class="row">
         <div class="col">
-          <div class="form-select" title="The path will only contain nodes from the selected namespaces">
-            <select name="node-filter" id="node-filter" placeholder="Node namespaces included in path" multiple>
+          <div class="form-select" title="The path will not contain the selected statement types">
+            <label for="stmt-filter">Exclude statements:</label><br/>
+            <select name="stmt-filter" id="stmt-filter" placeholder="Statement types to exclude" multiple>
             </select>
           </div>
         </div>
@@ -157,8 +242,8 @@
         </div>
         <div class="col">
           <input type="text" id="cull-best-node" class="form-control"
-            title="Every x valid paths, cull the node with the highest (weighted) degree from the network. This increases the variety of paths found and reduces the impact of nodes with extremely high connectivity in the network."
-            placeholder="Cull highest degree node every # paths"
+          title="Every x valid paths, cull the node with the highest (weighted) degree from the network. This increases the variety of paths found and reduces the impact of nodes with extremely high connectivity in the network."
+          placeholder="Cull highest degree node every # paths"
           >
         </div>
       </div>
@@ -195,6 +280,8 @@
         <input type="checkbox" class="custom-control-input" id="fplx-expand">
         <label class="custom-control-label" for="fplx-expand">Expand search to FamPlex families and complexes when paths are not found</label>
       </div>
+        </div>
+      </div>
       <div class="row" style="margin-top: 16px; margin-bottom: 16px">
         <div class="col-2">
           <button type="button" class="btn btn-primary" onclick="submitQuery()">Submit query</button>
@@ -218,6 +305,7 @@
 
   <div id="table-area" class="container">
     <h2 class="display-6">Search Results</h2>
+    <p>Click on the headers to expand/collapse detailed results</p>
     <!-- Dynamic tables -->
   </div>
 

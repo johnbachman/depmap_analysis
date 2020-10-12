@@ -63,14 +63,8 @@ Max # Paths
 The maximum number of results to return per category in the results. The
 default and the maximum allowed is 50 results.
 
-Statement Types to *Exclude*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This is a multiselect dropdown which contains multiple statement type names
-to exclude from the results. If an edge of a path only contain statement
-types that are excluded, the whole path will be skipped from the result.
-
-Node Namespaces to *Include*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Allowed Node Namespaces
+~~~~~~~~~~~~~~~~~~~~~~~
 The namespaces included here are the ones that are allowed on any node
 visited in the path search. The namespace of the source and target are
 excluded from this restriction. A namespace in INDRA is the type of
@@ -78,10 +72,52 @@ identifier used to uniquely identify an entity. For example, a chemical can
 be identified using a `CHEBI` identifier and would then be identified in the
 `CHEBI` namespace.
 
+Open Search Options
+~~~~~~~~~~~~~~~~~~~
+Options under the Open Search Options are only applied during open ended
+searches. In order to perform an open ended search, only a source or a
+target must be given.
+
+- **Terminal Namespaces:** Namespaces selected here restrict the search to
+  only return paths that end (open search from source) or start (open
+  search from target) on the given namespaces.
+- **Max per node:** The integer provided here gives a maximum for the number
+  of children to continue to open search from. This option is only applied
+  during *unweighted* searches.
+
+Context Options
+~~~~~~~~~~~~~~~
+The context based search allows a search to prioritize or only include
+connections that are relevant to the provided context. The context is
+given as MeSH terms.
+
+- **MeSH IDs:** Enter a comma separated list of MeSH IDs that should be
+  prioritized in the search.
+- **Strict Filtering on MeSH IDs:** Tick this box to *only* allow edges with
+  associated with the provided MeSH IDs. If left unticked, the search is
+  weighted.
+- **Constants** :math:`C` **and** :math:`T_k`: These two constant allow for
+  changing the importance of the context in a weighted context based search.
+  For any edge :math:`e`, the weight :math:`w_e` for context based search is
+  calculated in the following way:
+
+.. math::
+    w_e = -C \cdot \log\left(\frac{\text{refcount}}{\text{total} + T_k}\right)
+
+Here, `refcount` is the number of references with the associated MeSH
+ID(s) that are supporting edge :math:`e` and `total` is the total number of
+references supporting edge :math:`e`.
+
+Statement Types to *Exclude*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This is a multiselect dropdown which contains multiple statement type names
+to exclude from the results. If an edge of a path only contain statement
+types that are excluded, the whole path will be skipped from the result.
+
 Node Name Blacklist
 ~~~~~~~~~~~~~~~~~~~
 Node names entered here are skipped in the path search. This is a good way
-to avoid nodes of extremely high degree that overwhelmes the results and
+to avoid nodes of extremely high degree that overwhelms the results and
 effectively blocks out results including lower degree nodes. *See also Cull
 Highest Degree Node below.*
 
@@ -135,16 +171,15 @@ Weighted Search
 ~~~~~~~~~~~~~~~
 When performing a weighted search, the cost along every path encountered is
 calculated as the sum of the weights along the path. The paths are then
-returned in ascending order of cost. The cost of a path is defined as the
-sum of the weights of all the edges along the paths. The weigthed search
-uses a slightly modified version of the Djikstra weighted search empolyed in
-Networkx. *Note:* A weighted search is costly and usually takes longer than
-a normal search. It is common that a very heavy weigthed search times out,
+returned in ascending order of cost. The weighted search uses a slightly
+modified version of the Djikstra weighted search employed in Networkx.
+*Note:* A weighted search is costly and usually takes longer than
+a normal search. It is common that a very heavy weighted search times out,
 especially for a *signed* weighted search.
 
 The code implemented for the weighted search is available on `github
-<../../master/depmap_analysis/network_functions/net_functions.py>`_ in the
-function `shortest_simple_paths()`.
+<https://github.com/sorgerlab/indra/blob/master/indra/explanation/pathfinding/pathfinding.py>`_
+in the function `shortest_simple_paths()`.
 
 Databases Only
 ~~~~~~~~~~~~~~
@@ -155,7 +190,7 @@ returned paths.
 Include Famplex Families and Complexes in Path Search
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This option allows for edges to be between a gene and its family or
-beteween a gene and a complex formed by its encoded protein. For example: an
+betewen a gene and a complex formed by its encoded protein. For example: an
 edge between `BRCA1` and its family `BRCA` would be allowed.
 
 Expand search to FamPlex
@@ -172,7 +207,7 @@ default 30 seconds timeout. The time since the path search was started is
 checked after each path has been checked during the search. If the time
 passed is larger than the allowed timeout, the search is interrupted and
 returns as fast as possible. The timeout provided has to be a decimal number
-smaller than or equeal to 120 seconds.
+smaller than or equal to 120 seconds.
 
 Result Categories
 -----------------
@@ -193,7 +228,7 @@ family.
   :figwidth: 100 %
 
   *The result of a search with `BRCA1` and `BRCA2` as source and target,
-  respectively for Complexes and Famlilies.*
+  respectively for Complexes and Families.*
 
 
 Common Targets
