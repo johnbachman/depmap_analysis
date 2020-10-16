@@ -55,7 +55,7 @@ USER_OVERRIDE = False
 
 
 def _truncate(n):
-    return trunc(n * 100) / 100
+    return float(trunc(n * 100) / 100)
 
 
 class MissingParametersError(Exception):
