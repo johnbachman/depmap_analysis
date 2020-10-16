@@ -3,7 +3,7 @@ import logging
 from itertools import product
 from collections import defaultdict
 from time import time, gmtime, strftime
-from math import trunc
+from numpy import trunc
 
 import requests
 import networkx as nx
