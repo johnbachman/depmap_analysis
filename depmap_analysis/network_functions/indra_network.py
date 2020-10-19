@@ -3,7 +3,7 @@ import logging
 from itertools import product
 from collections import defaultdict
 from time import time, gmtime, strftime
-from math import trunc
+from numpy import trunc
 
 import requests
 import networkx as nx
@@ -55,7 +55,7 @@ USER_OVERRIDE = False
 
 
 def _truncate(n):
-    return trunc(n * 100) / 100
+    return float(trunc(n * 100) / 100)
 
 
 class MissingParametersError(Exception):
