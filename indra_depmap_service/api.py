@@ -37,7 +37,7 @@ FILES = {
     'sign_node_graph_path': INDRA_SNG_CACHE if path.isfile(INDRA_SNG_CACHE)
     else None
 }
-
+INDRA_DB_FROMAGENTS = 'https://db.indra.bio/statements/from_agents'
 STMTS_FROM_HSH_URL = environ.get('INDRA_DB_HASHES_URL')
 VERBOSITY = int(environ.get('VERBOSITY', 0))
 API_DEBUG = int(environ.get('API_DEBUG', 0))
@@ -198,7 +198,8 @@ def query_page():
                            old_result=json.dumps(results_json),
                            old_query=json.dumps(query_json),
                            source=source,
-                           target=target)
+                           target=target,
+                           indra_db_url_fromagents=INDRA_DB_FROMAGENTS)
 
 
 @app.route('/query/submit', methods=['POST'])
