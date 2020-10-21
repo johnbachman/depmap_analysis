@@ -26,6 +26,7 @@
     const stmtOptions = {{ stmt_types|safe }};
     const nodeOptions = {{ node_name_spaces|safe }};
     const termNsOptions = {{ terminal_name_spaces|safe }};
+    const INDRA_DB_URL_AGENTS = '{{ indra_db_url_fromagents }}?format=html&';
     let query_hash = '{{ query_hash }}';
   </script>
   <script src="{{ url_for('static', filename='netSearch.js') }}"></script>
