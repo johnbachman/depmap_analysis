@@ -736,30 +736,33 @@ def ns_id_from_name(name, gilda_retry=False):
     return None, None
 
 
-def get_hgnc_node_mapping(hgnc_names, pb_model):
+def get_hgnc_node_mapping(pb_model, hgnc_names=None):
     """Generate a mapping of HGNC symbols to pybel nodes
 
     Parameters
     ----------
     hgnc_names : iterable[str]
-        An iterable containing HGNC names to be mapped to pybel nodes
+        Optional. An iterable containing HGNC names to be mapped to pybel
+        nodes. If not provided, all HGNC nodes will be added.
     pb_model : PyBEL.Model
         An assembled pybel model
 
     Returns
     -------
     dict
-        A dictionary mapping names (HGNC symbols) to a sets of pybel nodes
+        A dictionary mapping names (HGNC symbols) to sets of pybel nodes
     """
 
     # Get existing node mappings
-    corr_names = set(hgnc_names)
+    corr_names = set(hgnc_names) if hgnc_names else set()
     pb_model_mapping = {}
     for node in pb_model.nodes:
         try:
             # Only consider HGNC nodes and if node name is in provided set
             # of HGNC symbol names
-            if node.name in corr_names and node.namespace == 'HGNC':
+            if node.namespace == 'HGNC' and \
+                    ((corr_names and node.name in corr_names) or
+                     not corr_names):
                 if pb_model_mapping.get(node.name):
                     pb_model_mapping[node.name].add(node)
                 else:
