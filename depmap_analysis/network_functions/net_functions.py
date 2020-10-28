@@ -466,27 +466,13 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     return indranet_graph
 
 
-def db_dump_to_pybel_sg(stmts_list=None):
-    """Create a signed pybel graph from an evidenceless dump from the db
-
-    Parameters
-    ----------
-    stmts_list : list[indrs.statements.Statement]
-        Provide a list of statements if they are already loaded. By default
-        the latest available pa statements dump is downloaded from s3.
-        Default: None.
-
-    Returns
-    -------
-    tuple(nx.DiGraph, nx.MultiDiGraph)
-    """
-    # Get statement dump:
-    # Look for latest file on S3 and pickle.loads it
+def _custom_pb_assembly(stmts_list=None):
     if stmts_list is None:
+        logger.info('No statements provided, downloading latest pa stmt dump')
         stmts_list = get_latest_pa_stmt_dump()
 
     # Filter bad statements
-    logger.info('Fltering out statements with bad position attribute')
+    logger.info('Filtering out statements with bad position attribute')
     filtered_stmts = []
     for st in stmts_list:
         try:
@@ -507,12 +493,51 @@ def db_dump_to_pybel_sg(stmts_list=None):
     logger.info('Assembling PyBEL model')
     pb = PybelAssembler(stmts=filtered_stmts)
     pb_model = pb.make_model()
+    return pb_model
+
+
+def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
+                        default_belief=0.1):
+    """Create a signed pybel graph from an evidenceless dump from the db
+
+    Parameters
+    ----------
+    stmts_list : list[indra.statements.Statement]
+        Provide a list of statements if they are already loaded. By default
+        the latest available pa statements dump is downloaded from s3.
+        Default: None.
+    pybel_model : pybel.BELGraph
+    belief_dump : dict
+    default_belief : float
+
+    Returns
+    -------
+    tuple(nx.DiGraph, nx.MultiDiGraph)
+    """
+    # Get statement dump:
+    # Look for latest file on S3 and pickle.loads it
+    if pybel_model is None:
+        pb_model = _custom_pb_assembly(stmts_list)
+    else:
+        logger.info('Pybel model provided')
+        pb_model = pybel_model
+
+    # If belief dump is provided, reset beliefs to the entries in it
+    if belief_dump:
+        logger.info('Belief dump provided, resetting belief scores')
+        for edge in pb_model.edges:
+            ed = pb_model.edges[edge]
+            if ed and ed.get('stmt_hash'):
+                if ed['hash'] in belief_dump:
+                    ed['belief'] = belief_dump[ed['hash']]
+                else:
+                    logger.warning(f'No belief found for {ed["hash"]}')
+                    ed['belief'] = default_belief
 
     # Get a signed edge graph
     logger.info('Getting a PyBEL signed edge graph')
     pb_signed_edge_graph = belgraph_to_signed_graph(
-        pb_model, include_variants=True, symmetric_variant_links=True,
-        include_components=True, symmetric_component_links=True,
+        pb_model, symmetric_variant_links=True, symmetric_component_links=True,
         propagate_annotations=True
     )
 
