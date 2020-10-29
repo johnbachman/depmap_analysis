@@ -525,15 +525,27 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
     # If belief dump is provided, reset beliefs to the entries in it
     if belief_dump:
         logger.info('Belief dump provided, resetting belief scores')
+        missing_hash = 0
+        changed_belief = 0
+        no_hash = 0
+        logger.info(f'Looking for belief scores among {len(pb_model.edges)} '
+                    f'edges')
         for edge in pb_model.edges:
             ed = pb_model.edges[edge]
             if ed and ed.get('stmt_hash'):
                 h = ed['stmt_hash']
                 if h in belief_dump:
                     ed['belief'] = belief_dump[h]
+                    changed_belief += 1
                 else:
                     logger.warning(f'No belief found for {h}')
                     ed['belief'] = default_belief
+                    missing_hash += 1
+            else:
+                no_hash += 1
+        logger.info(f'{no_hash} edges did not have hashes')
+        logger.info(f'{changed_belief} belief scores were changed')
+        logger.info(f'{missing_hash} edges did not have a belief entry')
 
     # Get a signed edge graph
     logger.info('Getting a PyBEL signed edge graph')
