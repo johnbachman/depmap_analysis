@@ -64,7 +64,7 @@ def get_latest_sif_s3(get_mesh_ids=False):
 
 def load_pickled_net_from_s3(name):
     s3_cli = get_s3_client(False)
-    key = NETS_PREFIX + '/' + name
+    key = NETS_PREFIX + name
     return load_pickle_from_s3(s3_cli, key=key, bucket=NET_BUCKET)
 
 
