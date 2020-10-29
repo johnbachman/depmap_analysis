@@ -736,14 +736,14 @@ def ns_id_from_name(name, gilda_retry=False):
     return None, None
 
 
-def get_hgnc_node_mapping(pb_model, node_names=None, node_ns='HGNC'):
+def pybel_node_name_mapping(pb_model, node_names=None, node_ns='HGNC'):
     """Generate a mapping of HGNC symbols to pybel nodes
 
     Parameters
     ----------
     node_names : iterable[str]
         Optional. An iterable containing the node names to be mapped to pybel
-        nodes. If not provided, all nodes from the provided namepsace will be
+        nodes. If not provided, all nodes from the provided name space will be
         added.
     pb_model : PyBEL.Model
         An assembled pybel model

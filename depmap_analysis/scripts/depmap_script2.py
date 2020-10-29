@@ -43,7 +43,7 @@ from indra.util.multiprocessing_traceback import WrapException
 from depmap_analysis.util.io_functions import file_opener, \
     dump_it_to_pickle, allowed_types, file_path
 from depmap_analysis.network_functions.net_functions import \
-    get_hgnc_node_mapping
+    pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, iter_chunker, down_sampl_size
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
@@ -701,8 +701,8 @@ if __name__ == '__main__':
                          'if graph type is pybel')
     # Only model provided: create mapping
     if arg_dict.get('pybel_model') and not arg_dict.get('pybel_node_mapping'):
-        mapping = get_hgnc_node_mapping(
-            hgnc_names=hgnc_names,
+        mapping = pybel_node_name_mapping(
+            node_names=hgnc_names, node_ns='HGNC',
             pb_model=file_opener(arg_dict['pybel_model'])
         )
         arg_dict['pb_node_mapping'] = mapping
