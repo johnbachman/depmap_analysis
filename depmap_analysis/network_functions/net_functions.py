@@ -528,10 +528,11 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
         for edge in pb_model.edges:
             ed = pb_model.edges[edge]
             if ed and ed.get('stmt_hash'):
-                if ed['hash'] in belief_dump:
-                    ed['belief'] = belief_dump[ed['hash']]
+                h = ed['stmt_hash']
+                if h in belief_dump:
+                    ed['belief'] = belief_dump[h]
                 else:
-                    logger.warning(f'No belief found for {ed["hash"]}')
+                    logger.warning(f'No belief found for {h}')
                     ed['belief'] = default_belief
 
     # Get a signed edge graph
