@@ -560,7 +560,7 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
     if sign_in_edges:
         for u, v, ix in pb_signed_edge_graph.edges:
             ed = pb_signed_edge_graph.edges[(u, v, ix)]
-            if ix != ed['sign']:
+            if 'sign' in ed and ix != ed['sign']:
                 pb_signed_edge_graph.add_edge(u, v, ed['sign'], **ed)
                 pb_signed_edge_graph.remove_edge(u, v, ix, **ed)
 
