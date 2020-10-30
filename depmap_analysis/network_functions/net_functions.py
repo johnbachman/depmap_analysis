@@ -497,7 +497,7 @@ def _custom_pb_assembly(stmts_list=None):
 
 
 def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
-                        default_belief=0.1):
+                        default_belief=0.1, sign_in_edges=False):
     """Create a signed pybel graph from an evidenceless dump from the db
 
     Parameters
@@ -509,6 +509,9 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
     pybel_model : pybel.BELGraph
     belief_dump : dict
     default_belief : float
+    sign_in_edges : bool
+        If True, check that all edges are stored with an index corresponding
+        to the sign of the edge
 
     Returns
     -------
@@ -553,6 +556,13 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
         pb_model, symmetric_variant_links=True, symmetric_component_links=True,
         propagate_annotations=True
     )
+
+    if sign_in_edges:
+        for u, v, ix in pb_signed_edge_graph.edges:
+            ed = pb_signed_edge_graph.edges[(u, v, ix)]
+            if ix != ed['sign']:
+                pb_signed_edge_graph.add_edge(u, v, ed['sign'], **ed)
+                pb_signed_edge_graph.remove_edge(u, v, ix, **ed)
 
     # Map hashes to edges
     logger.info('Getting hash to signed edge mapping')
