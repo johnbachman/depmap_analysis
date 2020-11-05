@@ -770,7 +770,7 @@ class IndraNetwork:
             raise ValueError('Limitless search detected: depth_limit is '
                              'None, path_limit is None and max_results > '
                              '10000, aborting')
-        depth_limit = options['path_length'] if options.get('path_length') \
+        depth_limit = options['path_length'] - 1 if options.get('path_length')\
             else depth_limit
 
         # Get the bfs options from options
