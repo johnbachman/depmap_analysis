@@ -5,7 +5,7 @@ from time import time, gmtime, strftime
 
 import requests
 from flask import Flask, request, abort, Response, render_template, jsonify, \
-    session, url_for, redirect
+    url_for, redirect
 
 from indra.statements.agent import default_ns_order as NS_LIST_
 from indra.config import CONFIG_DICT
@@ -20,8 +20,7 @@ from .util import *
 
 app = Flask(__name__)
 app.register_blueprint(path_temps)
-app.config['DEBUG'] = False
-app.config['SECRET_KEY'] = environ['SESSION_KEY']
+app.config['DEBUG'] = bool(environ.get('APP_DEBUG'))
 STMT_HASH_CACHE = {}
 
 logger = logging.getLogger('INDRA Network Search API')
@@ -165,8 +164,8 @@ def query_page():
     stmt_types = get_queryable_stmt_types()
     has_signed_graph = bool(len(indra_network.signed_nodes))
 
-    # Get query hash from parameters or session
-    qh = request.args.get('query') or session.get('query_hash') or ''
+    # Get query hash from parameters
+    qh = request.args.get('query') or ''
     if qh:
         # Get query hash
         logger.info('Got query hash %s' % str(qh))

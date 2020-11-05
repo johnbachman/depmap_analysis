@@ -251,8 +251,12 @@ class IndraNetwork:
         boptions['target'] = options.get('source')
         node_not_found = False
         try:
-            # Special case: 1 or 2 unweighted, unsigned edges only
-            if not options['weight'] and options['path_length'] in [1, 2]:
+            # Special case: 1 or 2 unweighted, unsigned edges only, non-open
+            # search
+            if not options['weight'] and \
+                    not (bool(options.get('target')) ^
+                         bool(options.get('source'))) and \
+                    options['path_length'] in [1, 2]:
                 ksp_forward = self._unweighted_direct(**options)
                 if options['two_way']:
                     ksp_backward = self._unweighted_direct(**boptions)
@@ -767,6 +771,11 @@ class IndraNetwork:
                              'None, path_limit is None and max_results > '
                              '10000, aborting')
 
+        depth_limit = options['path_length'] - 1 if options.get('path_length')\
+            else depth_limit
+        if self.verbose > 1:
+            logger.info(f'Depth limit set to {depth_limit}')
+
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
 
@@ -875,6 +884,15 @@ class IndraNetwork:
         while True:
             try:
                 path = next(open_path_gen)
+                # Skip to specific length if requested; does not apply if
+                # doing regular weighted or context weighted search
+                if options['path_length'] and \
+                        not _is_weighted(weight=options['weight'],
+                                         mesh_ids=options['mesh_ids'],
+                                         strict_mesh_id_filtering=options[
+                                             'strict_mesh_id_filtering']):
+                    while len(path) != options['path_length']:
+                        path = next(open_path_gen)
 
                 # Reverse path if reverse search
                 path = path[::-1] if reverse else path
@@ -1454,10 +1472,10 @@ class IndraNetwork:
                 return
 
     def _get_hash_path(self, path, source=None, target=None,
-                       edge_signs=None, graph_type='digraph', weights=None, **options):
+                       edge_signs=None, graph_type='digraph', weights=None,
+                       **options):
         """Return a list of n-1 lists of dicts containing of stmts connecting
-        the n nodes in path. If simple_graph is True, query edges from DiGraph
-        and not from MultiDiGraph representation"""
+        the n nodes in path"""
         hash_path = []
         es = edge_signs if edge_signs else [None]*(len(path)-1)
         weights = weights if weights else ['N/A']*(len(path)-1)
@@ -1741,6 +1759,21 @@ def translate_query(query_json):
         if k == "cull_best_node":
             options[k] = int(v) if v >= 1 else float('NaN')
     return options
+
+
+def _is_context_weighted(mesh_id_list, strict_filtering):
+    if mesh_id_list and not strict_filtering:
+        return True
+    return False
+
+
+def _is_weighted(weight, mesh_ids, strict_mesh_id_filtering, **kwargs):
+    if mesh_ids:
+        ctx_w = _is_context_weighted(mesh_id_list=mesh_ids,
+                                     strict_filtering=strict_mesh_id_filtering)
+        return bool(weight) or ctx_w
+    else:
+        return bool(weight)
 
 
 def list_all_hashes(ksp_results):
