@@ -770,8 +770,11 @@ class IndraNetwork:
             raise ValueError('Limitless search detected: depth_limit is '
                              'None, path_limit is None and max_results > '
                              '10000, aborting')
+
         depth_limit = options['path_length'] - 1 if options.get('path_length')\
             else depth_limit
+        if self.verbose > 1:
+            logger.info(f'Depth limit set to {depth_limit}')
 
         # Get the bfs options from options
         bfs_options = {k: v for k, v in options.items() if k in bfs_kwargs}
@@ -888,7 +891,7 @@ class IndraNetwork:
                                          mesh_ids=options['mesh_ids'],
                                          strict_mesh_id_filtering=options[
                                              'strict_mesh_id_filtering']):
-                    while len(path)-1 != options['path_length']:
+                    while len(path) != options['path_length']:
                         path = next(open_path_gen)
 
                 # Reverse path if reverse search
