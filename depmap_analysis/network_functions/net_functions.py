@@ -507,11 +507,16 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
         the latest available pa statements dump is downloaded from s3.
         Default: None.
     pybel_model : pybel.BELGraph
+        If provided, skip generating a new pybel model from scratch
     belief_dump : dict
+        If provided, reset the belief scores associated with the statements
+        supporting the edges.
     default_belief : float
+        Only used if belief_dump is provided. When no belief score is
+        available, reset to this belief score. Default: 0.1.
     sign_in_edges : bool
         If True, check that all edges are stored with an index corresponding
-        to the sign of the edge
+        to the sign of the edge. Default: False.
 
     Returns
     -------
