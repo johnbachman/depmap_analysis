@@ -407,7 +407,7 @@ class DepMapExplainer:
         plt.title(title)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
-        plt.legend()
+        plt.legend(legend)
         name = '%s_%s_axb_hist_comparison.pdf' % \
                (sd_str, self.script_settings['graph_type'])
 
