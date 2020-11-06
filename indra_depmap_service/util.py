@@ -306,8 +306,7 @@ def dump_new_nets(mdg=False, dg=False, sg=False, spbg=False, dump_to_s3=False,
             dump_pickle_to_s3(INDRA_SNG, isng, prefix=NEW_NETS_PREFIX)
 
     if spbg:
-        pb_seg, pb_sng = nf.sif_dump_df_to_digraph(graph_type='pybel',
-                                                   **options)
+        pb_seg, pb_sng = nf.db_dump_to_pybel_sg()
         dump_it_to_pickle(INDRA_PBSNG_CACHE, pb_sng, overwrite=overwrite)
         dump_it_to_pickle(INDRA_PBSEG_CACHE, pb_seg, overwrite=overwrite)
         if dump_to_s3:
