@@ -106,7 +106,7 @@ def dump_it_to_json(fname, pyobj, overwrite=False):
     logger.info('Dumping to json file %s' % fname)
     with Path(fname).open('w') as json_out:
         json.dump(pyobj, json_out)
-    logger.info('Finished dumping to pickle')
+    logger.info('Finished dumping to json')
 
 
 @file_dump_wrapper
