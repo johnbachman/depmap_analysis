@@ -54,9 +54,9 @@ from depmap_analysis.scripts.depmap_script_expl_funcs import *
 logger = logging.getLogger('DepMap Script')
 logger.setLevel(logging.DEBUG)
 
-indranet = None
-hgnc_node_mapping = None
-output_list = None
+indranet = nx.DiGraph()
+hgnc_node_mapping = dict()
+output_list = []
 
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
