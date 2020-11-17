@@ -567,7 +567,7 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
             ed = pb_signed_edge_graph.edges[(u, v, ix)]
             if 'sign' in ed and ix != ed['sign']:
                 pb_signed_edge_graph.add_edge(u, v, ed['sign'], **ed)
-                pb_signed_edge_graph.remove_edge(u, v, ix, **ed)
+                pb_signed_edge_graph.remove_edge(u, v, ix)
 
     # Map hashes to edges
     logger.info('Getting hash to signed edge mapping')

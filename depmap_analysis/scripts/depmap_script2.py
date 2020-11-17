@@ -78,18 +78,18 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
             # Initialize current iteration stats
             stats = {k: False for k in bool_columns}
 
-            # Append to stats_dict
+            # Append to stats_dict; These assignments need to be before the
+            # checks that will skip current iteration
             stats_dict['agA'].append(gA)
             stats_dict['agB'].append(gB)
             stats_dict['z-score'].append(zsc)
 
             # Skip if A or B not in graph or (if type is pybel) no node
             # mapping exists for either A or B
-            if _type == 'pybel' and \
-                    (gA not in hgnc_node_mapping or gB not in hgnc_node_mapping) \
-                    or \
-                    _type != 'pybel' and \
-                    (gA not in indranet.nodes or gB not in indranet.nodes):
+            if _type == 'pybel' and (gA not in hgnc_node_mapping or
+                                     gB not in hgnc_node_mapping) or \
+                    _type != 'pybel' and (gA not in indranet.nodes or
+                                          gB not in indranet.nodes):
                 for k in set(stats_dict.keys()).difference(set(min_columns)):
                     if k == 'not in graph':
                         # Flag not in graph
@@ -339,7 +339,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
          is_a_part_of=None, immediate_only=False, allowed_ns=None,
          info=None, shared_2neigh=False, indra_date=None,
          indra_net_file=None, depmap_date=None, sample_size=None,
-         shuffle=False, overwrite=False):
+         shuffle=False, overwrite=False) -> DepMapExplainer:
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -382,7 +382,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
 
     Returns
     -------
-    depmap_analysis.util.statistics.DepMapExplainer
+    DepMapExplainer
     """
     global indranet, hgnc_node_mapping, output_list
     indranet = indra_net
