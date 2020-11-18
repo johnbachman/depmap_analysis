@@ -1,7 +1,9 @@
+import re
 import csv
 import json
 import pickle
 import logging
+from typing import Union, BinaryIO
 from argparse import ArgumentError
 from pathlib import Path
 from functools import wraps
@@ -12,25 +14,58 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def file_opener(fname):
+def file_opener(fname: str) -> object:
     """Open file based on file extension
 
     Parameters
     ----------
     fname : str
-        The filename
+        The filename. If an s3 url, load object directly from s3.
 
     Returns
     -------
     object
         Object stored in file fname
     """
+    if fname.startswith('s3://'):
+        return s3_file_opener(fname)
     if fname.endswith('pkl'):
         return pickle_open(fname)
     elif fname.endswith('json'):
         return json_open(fname)
     else:
         raise ValueError(f'Unknown file extension for file {fname}')
+
+
+def s3_file_opener(s3_url: str, unsigned: bool = False) \
+        -> Union[object, BinaryIO]:
+    """Open a file from s3 given a standard s3-path
+
+    Parameters
+    ----------
+    s3_url : str
+        S3 url of the format 's3://<bucket>/<key>'. The key is assumed to
+        also contain a file ending
+    unsigned :
+
+    Returns
+    -------
+
+    """
+    from indra_db.util.s3_path import S3Path
+    from .aws import load_pickle_from_s3, read_json_from_s3, get_s3_client
+    patt = re.compile('s3://([a-z0-9\-.]+)/(.*)')
+    m = patt.match(s3_url)
+    if m is None:
+        raise ValueError(f'Invalid format for s3 path: {s3_url}')
+    bucket, key = m.groups()
+    s3 = get_s3_client(unsigned=unsigned)
+    if key.endswith('.json'):
+        return read_json_from_s3(s3=s3, key=key, bucket=bucket)
+    elif key.endswith('.pkl'):
+        return load_pickle_from_s3(s3=s3, key=key, bucket=bucket)
+    else:
+        return S3Path.from_string(s3_url).get(s3=s3)
 
 
 def file_dump_wrapper(f):
