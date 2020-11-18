@@ -28,10 +28,9 @@ def get_rankings(expl_df: DataFrame, sampl_size: int = None)\
         A dict of Counters for each examined agent
     """
     # Get the agents that have any shared downstream explanations
-    all_agents_sampled = set(
-        set(expl_df[expl_df['expl type'] == 'shared downstream'].agA.values) &
+    all_agents_sampled = \
+        set(expl_df[expl_df['expl type'] == 'shared downstream'].agA.values) |\
         set(expl_df[expl_df['expl type'] == 'shared downstream'].agB.values)
-    )
     if sampl_size and sampl_size < len(all_agents_sampled):
         # Sample rows
         logger.info(f'Downsizing to {sampl_size}')
