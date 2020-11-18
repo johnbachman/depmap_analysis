@@ -278,6 +278,13 @@ def allowed_types(types):
 def file_path(file_ending=None):
     """Checks if file at provided path exists"""
     def check_path(fpath):
+        if fpath.startswith('s3://'):
+            if file_ending and not fpath.endswith(file_ending):
+                return False
+            from indra_db.util.s3_path import S3Path
+            from .aws import get_s3_client
+            s3p = S3Path.from_string(fpath)
+            return s3p.exists(s3=get_s3_client(False))
         p = Path(fpath)
         if not p.is_file():
             raise ArgumentError(f'File {fpath} does not exist')
