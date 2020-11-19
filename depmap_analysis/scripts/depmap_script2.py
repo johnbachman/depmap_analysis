@@ -25,6 +25,7 @@ A: Probably outside match correlations, somewhere inside or after
 An instance of the DepMapExplainer class that wraps dataframes that can
 generate different explanations statistics
 """
+import pickle
 import inspect
 import logging
 import argparse
@@ -40,6 +41,8 @@ import pandas as pd
 import networkx as nx
 
 from indra.util.multiprocessing_traceback import WrapException
+from indra_db.util.s3_path import S3Path
+from depmap_analysis.util.aws import get_s3_client
 from depmap_analysis.util.io_functions import file_opener, \
     dump_it_to_pickle, allowed_types, file_path, strip_out_date
 from depmap_analysis.network_functions.net_functions import \
@@ -548,11 +551,24 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     # Create output list in global scope
     output_list = []
     explanations = match_correlations(**run_options)
+    if outpath.name.startswith('s3://'):
+        try:
+            s3 = get_s3_client(unsigned=False)
+            s3outpath = S3Path.from_string(outpath.name)
+            s3outpath.upload(s3=s3, body=pickle.dumps(explanations))
+        except Exception:
+            new_path = Path(outpath.name.replace('s3://', ''))
+            logger.warning(f'Something went wrong in s3 upload, trying to '
+                           f'save locally instead to {new_path}')
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            dump_it_to_pickle(fname=new_path.absolute().resolve().as_posix(),
+                              pyobj=explanations, overwrite=overwrite)
 
-    # mkdir in case it  doesn't exist
-    outpath.parent.mkdir(parents=True, exist_ok=True)
-    dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
-                      pyobj=explanations, overwrite=overwrite)
+    else:
+        # mkdir in case it doesn't exist
+        outpath.parent.mkdir(parents=True, exist_ok=True)
+        dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
+                          pyobj=explanations, overwrite=overwrite)
 
 
 if __name__ == '__main__':
