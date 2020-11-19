@@ -4,6 +4,7 @@ import sys
 import math
 import logging
 import itertools as itt
+from typing import Iterable
 from random import choices
 from math import ceil, log10
 from itertools import islice
@@ -191,7 +192,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             if not np.isnan(corr_value_matrix[i, j]))
 
 
-def iter_chunker(n, iterable):
+def iter_chunker(n: int, iterable: Iterable):
     """Generator of chunks from a generator
 
     Parameters
@@ -199,7 +200,7 @@ def iter_chunker(n, iterable):
     n : int
         Chunk size. Each chunk of the input iterator will be of this size
         except for the last one that will contain the remainder.
-    iterable : iterable
+    iterable : Iterable
         An iterable or a generator
 
     Returns
@@ -211,7 +212,10 @@ def iter_chunker(n, iterable):
     # stackoverflow.com/questions/1915170/
     # split-a-generator-iterable-every-n-items-in-python-splitevery
     iterable = iter(iterable)
-    yield from iter(lambda: list(islice(iterable, n)), [])
+    try:
+        yield from iter(lambda: list(islice(iterable, n)), [])
+    except ValueError as err:
+        raise ValueError(f'An error occurred with chunk size {n}') from err
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
