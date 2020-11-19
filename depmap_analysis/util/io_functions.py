@@ -293,8 +293,9 @@ def file_path(file_ending: str = None):
                                  f'{fpath.split("/")[-1]}')
             from indra_db.util.s3_path import S3Path
             from .aws import get_s3_client
-            s3p = S3Path.from_string(fpath)
-            return s3p.exists(s3=get_s3_client(False))
+            if not S3Path.from_string(fpath).exists(s3=get_s3_client(False)):
+                raise ValueError(f'File {fpath} does not exist')
+            return fpath
         p = Path(fpath)
         if not p.is_file():
             raise ArgumentError(f'File {fpath} does not exist')
