@@ -284,12 +284,13 @@ def allowed_types(types: Iterable):
     return types_check
 
 
-def file_path(file_ending=None):
+def file_path(file_ending: str = None):
     """Checks if file at provided path exists"""
-    def check_path(fpath):
+    def check_path(fpath: str):
         if fpath.startswith('s3://'):
             if file_ending and not fpath.endswith(file_ending):
-                return False
+                raise ValueError(f'Unrecognized file type '
+                                 f'{fpath.split("/")[-1]}')
             from indra_db.util.s3_path import S3Path
             from .aws import get_s3_client
             s3p = S3Path.from_string(fpath)
