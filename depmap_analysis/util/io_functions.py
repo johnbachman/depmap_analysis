@@ -64,8 +64,7 @@ def s3_file_opener(s3_url: str, unsigned: bool = False) \
     from indra_db.util.s3_path import S3Path
     from .aws import load_pickle_from_s3, read_json_from_s3, get_s3_client
     logger.info(f'Loading {s3_url} from s3')
-    # fixme When using the class method, no bucket should be needed
-    s3_path = S3Path('not-a-bucket').from_string(s3_url)
+    s3_path = S3Path.from_string(s3_url)
     s3 = get_s3_client(unsigned=unsigned)
     bucket, key = s3_path.bucket, s3_path.key
     if key.endswith('.json'):
