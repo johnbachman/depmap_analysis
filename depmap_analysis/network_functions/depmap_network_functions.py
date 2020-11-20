@@ -28,8 +28,8 @@ import depmap_analysis.util.io_functions as io
 import depmap_analysis.network_functions.famplex_functions as ff
 
 db_prim = dbu.get_primary_db()
-dnf_logger = logging.getLogger('DepMap Functions')
-dnf_logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def entry_exist_dict(nest_dict, outer_key, inner_key):
@@ -145,13 +145,13 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     # enough non-nan values to exhaustively generate at least max_pair
     all_pairs = corrrelation_df_matrix.notna().sum().sum()
     if all_pairs == 0:
-        dnf_logger.warning('Correlation matrix is empty')
+        logger.warning('Correlation matrix is empty')
         raise ValueError('Script aborted due to empty correlation matrix')
 
     corr_df_sample = pd.DataFrame()
     if max_pairs:
         if max_pairs >= all_pairs:
-            dnf_logger.info('The requested number of correlation pairs is '
+            logger.info('The requested number of correlation pairs is '
                             'larger than the available number of pairs. '
                             'Resetting `max_pairs` to %i' % all_pairs)
             corr_df_sample = corrrelation_df_matrix
@@ -168,9 +168,9 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
                 corr_df_sample = corrrelation_df_matrix.sample(
                     n, axis=0).sample(n, axis=1)
 
-        dnf_logger.info('Created a random sample of the correlation matrix '
+        logger.info('Created a random sample of the correlation matrix '
                         'with %i extractable correlation pairs.'
-                        % corr_df_sample.notna().sum().sum())
+                    % corr_df_sample.notna().sum().sum())
 
     # max_pairs == None: no sampling, get all non-NaN correlations;
     else:
@@ -215,7 +215,7 @@ def iter_chunker(n, iterable):
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
-    dnf_logger.info('Dumping master dict to pairs in %s' % fname)
+    logger.info('Dumping master dict to pairs in %s' % fname)
     pairs = 0
     with open(fname, 'w') as fo:
         fo.write('gene1,gene2,correlation_list\n')
@@ -245,11 +245,11 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
     if '/' == path[0]:
         path = path[1:]
     if not os.path.isdir(path):
-        dnf_logger.info('Could not find path "%s", creating new directory.' %
-                        path)
+        logger.info('Could not find path "%s", creating new directory.' %
+                    path)
         os.makedirs(path)
 
-    dnf_logger.info('Dumping node neighbor dicts to "%s'
+    logger.info('Dumping node neighbor dicts to "%s'
                     '/neighbors_to_NODENAME.json"' % path)
     for node in expl_undir_graph.nodes:
         nnnl = []
@@ -258,7 +258,7 @@ def nx_undir_to_neighbor_lookup_json(expl_undir_graph, outbasename,
             nnnl.append([other_node, inner_dict['attr_dict']['correlation']])
         io.dump_it_to_json(fname=path + '/neighbors_to_%s.json' % node,
                         pyobj=nnnl)
-    dnf_logger.info('Finished dumping node neighbor dicts to %s' % path)
+    logger.info('Finished dumping node neighbor dicts to %s' % path)
 
 
 def nested_stmt_dict_to_nx_multidigraph(nest_d):
@@ -274,7 +274,7 @@ def nested_stmt_dict_to_nx_multidigraph(nest_d):
         An nx directed multigraph linking agents with statements
     """
 
-    dnf_logger.info('Building directed multigraph from nested dict of '
+    logger.info('Building directed multigraph from nested dict of '
                     'statements')
     nx_muldir = nx.MultiDiGraph()
 
@@ -313,9 +313,9 @@ def _merge_belief(sif_df, belief_dict):
     )
     # Check for missing hashes
     if sif_df['belief'].isna().sum() > 0:
-        dnf_logger.warning('%d rows with missing belief score found' %
+        logger.warning('%d rows with missing belief score found' %
                        sif_df['belief'].isna().sum())
-        dnf_logger.info('Setting missing belief scores to 1/evidence count')
+        logger.info('Setting missing belief scores to 1/evidence count')
     return sif_df
 
 
@@ -353,7 +353,7 @@ def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
     if belief_dict:
         sif_df = _merge_belief(sif_df, belief_dict)
 
-    dnf_logger.info('Producing nested dict of stmts from sif dump df')
+    logger.info('Producing nested dict of stmts from sif dump df')
     nest_d = {}
     for index, row in sif_df.iterrows():
         rd = row.to_dict()
@@ -366,12 +366,12 @@ def sif_dump_df_to_nest_d(sif_df_in, belief_dict=None):
                 try:
                     nest_d[a_name][b_name].append(rd)
                 except KeyError:
-                    dnf_logger.error('KeyError when trying to append new '
+                    logger.error('KeyError when trying to append new '
                                      'statement for relation %s %s relation'
-                                     % (a_name, b_name))
+                                 % (a_name, b_name))
                 except AttributeError:
-                    dnf_logger.error('AttributeError for %s %s' %
-                                     (a_name, b_name))
+                    logger.error('AttributeError for %s %s' %
+                                 (a_name, b_name))
             else:
                 # First a-b relation, add inner dict as list
                 nest_d[a_name][b_name] = [rd]
@@ -399,13 +399,13 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
         An nx directed graph with statements
     """
 
-    dnf_logger.info('Building directed simple graph from two layered nested '
+    logger.info('Building directed simple graph from two layered nested '
                     'dict.')
     nx_dir_g = nx.DiGraph()
 
     if not belief_dict:
-        dnf_logger.info('No Belief Score dictionary provided')
-        dnf_logger.warning('API belief score checkup is not implemented yet')
+        logger.info('No Belief Score dictionary provided')
+        logger.warning('API belief score checkup is not implemented yet')
         pass  # ToDo Download from sif dump on s3
 
     else:
@@ -414,7 +414,7 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
         elif isinstance(next(iter(belief_dict)), int):
             k_int = True
         else:
-            dnf_logger.warning('Belief dict seems to have keys that are not '
+            logger.warning('Belief dict seems to have keys that are not '
                                'str or int.')
             k_int = None
 
@@ -447,11 +447,11 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
                                 bs = 0.1  # Todo get min belief for any stmt
                                 error_count += 1
                                 if error_count < 10:
-                                    dnf_logger.warning('No entry found in '
+                                    logger.warning('No entry found in '
                                                        'belief dict for hash '
                                                        '%s' % str(hsh))
                                 if error_count == 10:
-                                    dnf_logger.warning('Muting belief dict '
+                                    logger.warning('Muting belief dict '
                                                        'KeyError...')
                             t = (typ, hsh, bs)
                             inner_obj_b.append(t)
@@ -461,7 +461,7 @@ def nested_stmt_dict_to_nx_digraph(nest_d, belief_dict=None):
                                       v_of_edge=obj,
                                       attr_dict={'stmts': inner_obj_b})
     if error_count > 100:
-        dnf_logger.warning('%i hashes did not have a mathcing key in belief '
+        logger.warning('%i hashes did not have a mathcing key in belief '
                            'dict' % error_count)
     return nx_dir_g
 
@@ -487,7 +487,7 @@ def nested_stmt_explained_dict_nx_digraph(nest_d):
         An nx directed graph with statements and/or connecting nodes as edges
     """
 
-    dnf_logger.info('Building directed simple graph from three layered nested '
+    logger.info('Building directed simple graph from three layered nested '
                     'dict.')
     nx_dir_g = nx.DiGraph()
 
@@ -524,7 +524,7 @@ def nested_stmt_dict_to_nx_graph(nest_d):
     # Create queue from nested dict
     ndq = list(nest_d.items())
 
-    dnf_logger.info('Building undirected graph from nested dict of statements')
+    logger.info('Building undirected graph from nested dict of statements')
     # Run until queue is empty
     while ndq:
         # get node u and dict d from top of queue
@@ -567,7 +567,7 @@ def pd_to_nx_graph(corr_sr, source='id1', target='id2',
 
     # check if corr_sr is series or dataframe
     if type(corr_sr) == pd_Series_class:
-        dnf_logger.info('Converting Pandas Series to Pandas DataFrame')
+        logger.info('Converting Pandas Series to Pandas DataFrame')
         corr_df = pd.DataFrame(corr_sr).reset_index()
     else:
         corr_df = corr_sr
@@ -576,15 +576,15 @@ def pd_to_nx_graph(corr_sr, source='id1', target='id2',
         columns={'level_0': source, 'level_1': target, 0: edge_attr})
 
     if use_abs_corr:
-        dnf_logger.info('Using absolute correlation values')
+        logger.info('Using absolute correlation values')
         corr_df = corr_df.apply(lambda c: c.abs() if np.issubdtype(
             c.dtype, np.number) else c)
 
     if type(edge_attr) is list or type(edge_attr) is bool:
-        dnf_logger.warning('More than one attribute might be added to edges. '
+        logger.warning('More than one attribute might be added to edges. '
                            'Resulting networkx graph might not be usable as '
                            'simple weighted graph.')
-    dnf_logger.info('Creating weighted undirected graph from network data')
+    logger.info('Creating weighted undirected graph from network data')
     corr_weight_graph = nx.from_pandas_dataframe(df=corr_df,
                                                  source=source,
                                                  target=target,
@@ -610,13 +610,13 @@ def nx_graph_from_corr_tuple_list(corr_list, use_abs_corr=False):
     corr_weight_graph = nx.Graph()
 
     if use_abs_corr:
-        dnf_logger.info('Using absolute correlation values')
+        logger.info('Using absolute correlation values')
         corr_list = map(lambda t: (t[0], t[1], abs(t[2])), corr_list)
 
-    dnf_logger.info('Converting tuples to an edge bunch')
+    logger.info('Converting tuples to an edge bunch')
     edge_bunch = map(lambda t: (t[0], t[1], {'weight': t[2]}), corr_list)
 
-    dnf_logger.info('Creating weighted undirected graph from network data')
+    logger.info('Creating weighted undirected graph from network data')
     corr_weight_graph.add_edges_from(ebunch_to_add=edge_bunch)
 
     return corr_weight_graph
@@ -784,7 +784,7 @@ def raw_depmap_to_corr(depmap_raw_df, dropna=False):
     """
     # Rename
     if len(depmap_raw_df.columns[0].split()) > 1:
-        dnf_logger.info('renaming columns to contain only gene names')
+        logger.info('renaming columns to contain only gene names')
         gene_names = [n.split()[0] for n in depmap_raw_df.columns]
         depmap_raw_df.columns = gene_names
 
@@ -793,14 +793,14 @@ def raw_depmap_to_corr(depmap_raw_df, dropna=False):
 
     # Drop nan's
     if dropna:
-        dnf_logger.info('Dropping nan columns (axis=1)')
+        logger.info('Dropping nan columns (axis=1)')
         depmap_raw_df = depmap_raw_df.dropna(axis=1)
 
     # Calculate correlation
-    dnf_logger.info('Calculating data correlation matrix. This will take '
+    logger.info('Calculating data correlation matrix. This will take '
                     '10 - 50 min.')
     corr = depmap_raw_df.corr()
-    dnf_logger.info('Done calculating data correlation matrix.')
+    logger.info('Done calculating data correlation matrix.')
     return corr
 
 
@@ -838,7 +838,7 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
     def _z_scored(corr):
         mean = corr.values.mean()
         sd = corr.values.std()
-        dnf_logger.info('Mean value: %f; St dev: %f' % (mean, sd))
+        logger.info('Mean value: %f; St dev: %f' % (mean, sd))
         return (corr - mean) / sd
 
     # Rename columns/indices to gene name only
@@ -848,9 +848,9 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
         other_corr_df = _rename(other_corr_df)
 
     # Get corresponding z-score matrices
-    dnf_logger.info('Getting z-score matrix of first data frame.')
+    logger.info('Getting z-score matrix of first data frame.')
     corr_z = _z_scored(corr_df)
-    dnf_logger.info('Getting z-score matrix of second data frame.')
+    logger.info('Getting z-score matrix of second data frame.')
     other_z = _z_scored(other_corr_df)
 
     # Merge
@@ -878,7 +878,7 @@ def get_gene_gene_corr_dict(tuple_generator):
         Dict with gene-gene-correlation
     """
     corr_nest_dict = create_nested_dict()
-    dnf_logger.info('Generating correlation lookup')
+    logger.info('Generating correlation lookup')
     skip = 0
     doublets = 0
     for count, (gene1, gene2, c) in enumerate(tuple_generator):
@@ -892,7 +892,7 @@ def get_gene_gene_corr_dict(tuple_generator):
                 doublets += 1
             corr_nest_dict[gene1][gene2] = corr
     count += 1
-    dnf_logger.info('Created correlation dictionary of length %i, skipped %i, '
+    logger.info('Created correlation dictionary of length %i, skipped %i, '
                     'found %i doublets' % (count, skip, doublets))
     corr_nest_dict.default_factory = None
     return corr_nest_dict
@@ -951,8 +951,8 @@ def merge_correlation_data(correlation_dicts_list, settings):
         set_name, shortest_dict, sigma_dict = name_dict_sigma_tuple
         # Pop the list to get the oter tuple to merge with
         other_name, other_dict, other_sigma_dict = correlation_dicts_list.pop()
-        dnf_logger.info('Merging correlation dicts %s and %s' %
-                        (set_name, other_name))
+        logger.info('Merging correlation dicts %s and %s' %
+                    (set_name, other_name))
 
         # Loop shortest correlation lookup dict
         npairs = 0
@@ -1096,14 +1096,14 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
     outbasename = output_settings['outbasename']
 
     for gene_set_name, dataset_dict in dict_of_data_sets.items():
-        dnf_logger.info('-' * 37)
-        dnf_logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
-        dnf_logger.info('-' * 37)
-        dnf_logger.info('Loading gene data...')
+        logger.info('-' * 37)
+        logger.info(' > > > Processing set "%s" < < < ' % gene_set_name)
+        logger.info('-' * 37)
+        logger.info('Loading gene data...')
         gene_data = pd.read_csv(dataset_dict['data'], index_col=0, header=0)
         rows, cols = gene_data.shape
         if rows > cols:
-            dnf_logger.info('Transposing data...')
+            logger.info('Transposing data...')
             gene_data = gene_data.T
 
         # If filtering on cell lines, check if cell line IDs need to be
@@ -1112,18 +1112,18 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
                 re.match('ACH-[0-9][0-9][0-9][0-9][0-9][0-9]',
                          gene_data.index.values[0]):
             assert filter_settings['cell_line_translation_dict'] is not None
-            dnf_logger.info('Translating cell line names to DepMap ID')
+            logger.info('Translating cell line names to DepMap ID')
             gene_data.rename(
                 filter_settings['cell_line_translation_dict']['CCLE_Name'],
                 inplace=True
             )
 
         if filter_settings.get('cell_line_filter'):
-            dnf_logger.info('Filtering to provided cell lines')
+            logger.info('Filtering to provided cell lines')
             gene_data = gene_data[gene_data.index.isin(
                 filter_settings['cell_line_filter'])]
             assert len(gene_data) > 0
-            dnf_logger.info('Calculating Pearson correlation matrix from '
+            logger.info('Calculating Pearson correlation matrix from '
                             'cell line filtered data')
             full_corr_matrix = gene_data.corr()
             full_corr_matrix.to_hdf(outbasename +
@@ -1131,36 +1131,36 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
                 % gene_set_name, 'correlations')
         else:
             if dataset_dict.get('corr'):
-                dnf_logger.info('Reading pre-calculated correlation file.')
+                logger.info('Reading pre-calculated correlation file.')
                 full_corr_matrix = pd.read_hdf(
                     dataset_dict['corr'], 'correlations'
                 )
             else:
-                dnf_logger.info('No correlation file provided calculating '
+                logger.info('No correlation file provided calculating '
                                 'new Pearson correlation matrix...'
-                                )
+                            )
                 full_corr_matrix = gene_data.corr()
                 full_corr_matrix.to_hdf(outbasename +
                     '_%s_all_correlations.h5' % gene_set_name, 'correlations')
 
-        dnf_logger.info('Removing self correlations for set %s' % gene_set_name)
+        logger.info('Removing self correlations for set %s' % gene_set_name)
         full_corr_matrix = full_corr_matrix[full_corr_matrix != 1.0]
 
         if full_corr_matrix.notna().sum().sum() == 0:
-            dnf_logger.warning('Correlation matrix is empty')
+            logger.warning('Correlation matrix is empty')
             sys.exit('Script aborted due to empty correlation matrix')
 
         if dataset_dict.get('sigma'):
-            dnf_logger.info('Using provided sigma of %f for set %s' %
-                            (dataset_dict['sigma'], gene_set_name))
+            logger.info('Using provided sigma of %f for set %s' %
+                        (dataset_dict['sigma'], gene_set_name))
             sigma_dict = {'mean': dataset_dict['mean'],
                           'sigma': dataset_dict['sigma']}
         else:
-            dnf_logger.info('Calculating mean and standard deviation for set %s'
+            logger.info('Calculating mean and standard deviation for set %s'
                             ' from %s' % (gene_set_name, dataset_dict['data']))
             mu, si = get_stats(corr_matrix_to_generator(full_corr_matrix))
-            dnf_logger.info('Set %s mean: %f, st dev: %f' %
-                            (gene_set_name, mu, si))
+            logger.info('Set %s mean: %f, st dev: %f' %
+                        (gene_set_name, mu, si))
             sigma_dict = {'mean': mu, 'sigma': si}
 
         # Get corr matrix and the accompanied set of genes
@@ -1176,13 +1176,13 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
                 lower_limit=dataset_dict['ll'],
                 upper_limit=dataset_dict['ul']
             )
-        dnf_logger.info('Created tuple generator with %i unique genes from '
+        logger.info('Created tuple generator with %i unique genes from '
                         'set "%s"' % (len(set_hgnc_syms), gene_set_name))
         if filtered_corr_matrix.notna().sum().sum() == 0:
-            dnf_logger.warning('Correlation matrix is empty')
+            logger.warning('Correlation matrix is empty')
             sys.exit('Script aborted due to empty correlation matrix')
 
-        dnf_logger.info('Dumping json HGNC symbol/id dictionaries...')
+        logger.info('Dumping json HGNC symbol/id dictionaries...')
         io.dump_it_to_json(outbasename + '_%s_sym2id_dict.json' % gene_set_name,
                         sym2id_dict)
         io.dump_it_to_json(outbasename + '_%s_id2sym_dict.json' % gene_set_name,
@@ -1205,17 +1205,17 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
             gene_set_intersection.intersection_update(set_hgnc_syms)
 
     if len(name_dict_stats_list) > 1:
-        dnf_logger.info('---------------------')
-        dnf_logger.info('Merging the data sets')
-        dnf_logger.info('---------------------')
+        logger.info('---------------------')
+        logger.info('Merging the data sets')
+        logger.info('---------------------')
 
     # Merge the dictionaries
     master_corr_dict, npairs = merge_correlation_data(
         correlation_dicts_list=name_dict_stats_list,
         settings=filter_settings
     )
-    dnf_logger.info('Created gene correlation master dictionary of length %i' %
-                    npairs)
+    logger.info('Created gene correlation master dictionary of length %i' %
+                npairs)
 
     return master_corr_dict, gene_set_intersection, stats_dict
 
@@ -1272,7 +1272,7 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
     )
 
     if filtered_correlation_matrix.notna().sum().sum() == 0:
-        dnf_logger.warning('Correlation matrix is empty')
+        logger.warning('Correlation matrix is empty')
         raise ValueError('Script aborted due to empty correlation matrix')
 
     all_hgnc_symb = set(t[0] for t in filtered_correlation_matrix.index.values)
@@ -1291,7 +1291,7 @@ def get_correlations(depmap_data, filter_gene_set, pd_corr_matrix,
             fname = outbasename + '_unique_correlation_pairs_ll%s_ul%s.csv' % \
                     (str(lower_limit).replace('.', ''),
                      str(upper_limit).replace('.', ''))
-        dnf_logger.info('Saving unique correlation pairs to %s. '
+        logger.info('Saving unique correlation pairs to %s. '
                         '(May take a while)' % fname)
         io.dump_it_to_csv(fname, corr_matrix_to_generator(
             filtered_correlation_matrix))
@@ -1316,7 +1316,7 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
     if len(corr_matrix.index.values[0].split()) == 2:
         # split 'HGNCsymb (HGNCid)' to 'HGNCsymb' '(HGNCid)' multiindexing:
         # pandas.pydata.org/pandas-docs/stable/advanced.html
-        dnf_logger.info('Performing multi indexing of correlation matrix')
+        logger.info('Performing multi indexing of correlation matrix')
 
         # Get new indices
         hgnc_sym2id, hgnc_id2sym = {}, {}
@@ -1340,10 +1340,10 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
     elif len(corr_matrix.index.values[0].split()) == 1:
         # leave intact? Check if there are IDs? Warning that you don't
         # have IDs/symbols but proceed?
-        dnf_logger.warning('Only one identifier found in index column. '
+        logger.warning('Only one identifier found in index column. '
                            'Assuming it is HGNC symbol.')
     else:
-        dnf_logger.warning('Uknown index column. Output dictionaries will '
+        logger.warning('Uknown index column. Output dictionaries will '
                            'likely be affected.')
 
     if filter_gene_set:
@@ -1352,7 +1352,7 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
             gf=filter_gene_set, data=depmap_data
         )
         if len(gene_filter_list) == 0:
-            dnf_logger.warning('Gene filter empty, continuing without filter')
+            logger.warning('Gene filter empty, continuing without filter')
             gene_filter_list = []
     else:
         gene_filter_list = []  # Evaluates to False
@@ -1363,7 +1363,7 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
     corr_matrix_df = None
     # 1. No gene set file, leave 'corr_matrix' intact
     if not filter_gene_set:
-        dnf_logger.info('No gene filtering')
+        logger.info('No gene filtering')
         corr_matrix_df = corr_matrix
 
     # 2. loaded gene list but not strict: filter correlation matrix to one of
@@ -1373,9 +1373,9 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
             # Try to split first item: raises AttributeError if tuple
             corr_matrix.index.values[0].split()
             corr_matrix_df = corr_matrix[gene_filter_list]
-            dnf_logger.info('Non-strict gene filtering')
+            logger.info('Non-strict gene filtering')
         except AttributeError:
-            dnf_logger.info('Non-strict multi index gene filtering')
+            logger.info('Non-strict multi index gene filtering')
             corr_matrix_df = corr_matrix[np.in1d(
                 corr_matrix.index.get_level_values(0),
                 gene_filter_list)]
@@ -1383,19 +1383,19 @@ def _get_corr_df(depmap_data, corr_matrix, filter_gene_set,
     # 3. Strict: both genes in interaction must be from loaded set;
     #    Filter data, then calculate correlations and then unstack
     elif filter_gene_set and strict:
-        dnf_logger.info('Strict gene filtering')
+        logger.info('Strict gene filtering')
         corr_matrix_df = corr_matrix_df[np.in1d(
             corr_matrix_df.index.get_level_values(0),
             gene_filter_list)]
 
     if corr_matrix_df is None or corr_matrix_df.notna().sum().sum() == 0:
-        dnf_logger.warning('Correlation matrix is empty')
+        logger.warning('Correlation matrix is empty')
         sys.exit('Script aborted due to empty correlation matrix')
 
     # No filtering
     if lower_limit == 0.0 and (upper_limit is None or upper_limit >= (1.0 -
             sigma_dict['mean']) / sigma_dict['sigma']):
-        dnf_logger.warning('No correlation filtering is performed. Be aware '
+        logger.warning('No correlation filtering is performed. Be aware '
                            'of large RAM '
                           'usage.')
         return corr_matrix_df, hgnc_sym2id, hgnc_id2sym
@@ -1429,7 +1429,7 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
     """
     # Filter by number of SD from mean
     if lower_limit > 0.0 and upper_limit and upper_limit < (1.0 - mu) / sigma:
-        dnf_logger.info('Filtering correlations to range %.2f < abs(C-mu)/SD < '
+        logger.info('Filtering correlations to range %.2f < abs(C-mu)/SD < '
                         '%.2f' % (lower_limit, upper_limit))
         corr_matrix_df = corr_matrix_df[
             abs(corr_matrix_df - mu) / sigma > lower_limit
@@ -1439,19 +1439,19 @@ def corr_limit_filtering(corr_matrix_df, lower_limit, upper_limit, mu, sigma):
         ]
     elif lower_limit == 0.0 and upper_limit and upper_limit < (1.0 - mu) / \
             sigma:
-        dnf_logger.info('Filtering correlations to range 0.0 <= abs(C-mu)/SD < '
+        logger.info('Filtering correlations to range 0.0 <= abs(C-mu)/SD < '
                         '%.2f' % upper_limit)
         corr_matrix_df = corr_matrix_df[
             abs(corr_matrix_df - mu) / sigma < upper_limit
         ]
     elif lower_limit > 0.0 and not upper_limit:
-        dnf_logger.info('Filtering correlations to range %.2f < abs(C-mu)/SD'
-                        % lower_limit)
+        logger.info('Filtering correlations to range %.2f < abs(C-mu)/SD'
+                    % lower_limit)
         corr_matrix_df = corr_matrix_df[
             abs(corr_matrix_df - mu) / sigma > lower_limit
         ]
     elif lower_limit == 0.0 and not upper_limit:
-        dnf_logger.info('Not filtering correlations.')
+        logger.info('Not filtering correlations.')
 
     return corr_matrix_df
 
@@ -1543,7 +1543,7 @@ def get_sign(num):
         try:
             num = float(num)
         except ValueError as err:
-            dnf_logger.warning('object is not recognized as a number')
+            logger.warning('object is not recognized as a number')
             raise err
     return math.copysign(1, num)
 
@@ -1568,13 +1568,13 @@ def same_sign(n1, n2):
         if isinstance(n2, str):
             n2 = float(n2)
     except ValueError:
-        dnf_logger.warning('Correlation could not be interpreted as numeric. '
+        logger.warning('Correlation could not be interpreted as numeric. '
                            'Skipping...')
         return False
 
     # Catch nan and inf
     if not math.isfinite(n1) or not math.isfinite(n2):
-        dnf_logger.warning('Correlation is undefined. Skipping...')
+        logger.warning('Correlation is undefined. Skipping...')
         return False
 
     # Both zero
@@ -1784,7 +1784,7 @@ def nested_dict_of_stmts(stmts, belief_dict=None):
     """
 
     if belief_dict is None:
-        dnf_logger.warning('No belief score dict is provided! Please provide a '
+        logger.warning('No belief score dict is provided! Please provide a '
                            'belief score dict through the `-b ('
                            '--belief-score-dict)` argument.')
         raise ValueError
@@ -1837,8 +1837,8 @@ def nested_dict_of_stmts(stmts, belief_dict=None):
         else:
             continue
 
-    dnf_logger.info('Created nested dict of length %i from %i statements.' %
-                    (len(nested_stmt_dicts), len(stmts)))
+    logger.info('Created nested dict of length %i from %i statements.' %
+                (len(nested_stmt_dicts), len(stmts)))
     return nested_stmt_dicts
 
 
@@ -1877,7 +1877,7 @@ def deduplicate_stmt_list(stmts, ignore_str):
     # subjects should be the outer keys and objects should be the inner
 
     if ignore_str in stmts:
-        dnf_logger.info('Deduplicating statements and accounting for custom '
+        logger.info('Deduplicating statements and accounting for custom '
                         'string %s' % ignore_str)
         only_stmt_list = [s for s in stmts if type(s) is not str]
         stmts = pa_filter_unique_evidence(only_stmt_list)
@@ -2046,7 +2046,7 @@ def dbc_load_statements(hgnc_syms):
                                                               fix_refs=False))
             counter += 1
             if counter % max([10, 10 ** ceil(log10(n_hgnc_ids)) // 100]) == 0:
-                dnf_logger.info(' : : : Finished %i queries out of %i '
+                logger.info(' : : : Finished %i queries out of %i '
                                 ': : :' % (counter, n_hgnc_ids))
 
     except KeyboardInterrupt as e:
