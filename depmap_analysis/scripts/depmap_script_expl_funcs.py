@@ -1,4 +1,5 @@
-"""Explainer and helper functions for depmap_script2.py"""
+"""Explainer and helper functions for depmap_script2.py When adding new
+explanation functions, please also add them to the mapping at the end"""
 import logging
 from typing import Union, Tuple
 
@@ -13,9 +14,8 @@ from depmap_analysis.network_functions.net_functions import gilda_normalization,
 
 __all__ = ['explained', 'expl_ab', 'expl_ba', 'expl_axb', 'expl_bxa',
            'find_cp', 'get_sd', 'get_sr', 'get_st', 'get_ns_id_pybel_node',
-           'get_ns_id', 'normalize_corr_names']
-
-
+           'get_ns_id', 'normalize_corr_names', 'expl_functions',
+           'funcname_to_colname']
 logger = logging.getLogger(__name__)
 
 
@@ -375,3 +375,22 @@ def normalize_corr_names(corr_m: pd.DataFrame,
     corr_m.index = normalized_names
 
     return corr_m
+
+
+# Add new function to the tuple
+expl_func_list = (explained, expl_ab, expl_ba, expl_axb, expl_bxa, find_cp,
+                  get_sr, get_st, get_sd)
+# Map the name of the function to a more human friendly column name
+funcname_to_colname = {
+    'explained': 'explained set',
+    'expl_ab': 'a-b',
+    'expl_ba': 'b-a',
+    'expl_axb': 'a-x-b',
+    'expl_bxa': 'b-x-a',
+    'find_cp': 'common parent',
+    'get_sr': 'shared regulator',
+    'get_st': 'shared target',
+    'get_sd': 'shared downstream'
+}
+expl_functions = {f.__name__: f for f in expl_func_list}
+assert len(expl_func_list) == len(funcname_to_colname)

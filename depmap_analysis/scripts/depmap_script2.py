@@ -156,8 +156,8 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
                 # Loop expl functions
                 for expl_type, expl_func in expl_types.items():
                     # Function signature: s, o, corr, net, graph_type, **kwargs
-                    # Function should return what will be kept in the 'expl_data'
-                    # column of the expl_df
+                    # Function should return what will be kept in the
+                    # 'expl_data' column of the expl_df
 
                     # Skip if 'explained set', which is caught above
                     if expl_type == 'explained set':
@@ -226,19 +226,25 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
         for the correlations.
     """
     # Map each expl type to a function that handles that explanation
-    expl_types = {'a-b': expl_ab,
-                  'b-a': expl_ba,
-                  'common parent': find_cp,
-                  'explained set': explained,  # a priori explained
-                  'a-x-b': expl_axb,
-                  'b-x-a': expl_bxa,
-                  'shared regulator': get_sr,
-                  'shared target': get_st
-                  }
-    if kwargs.get('shared_2neigh', False):
-        logger.info('Adding shared next nearest neighbors as explanation '
-                    'under column name "shared downstream"')
-        expl_types['shared downstream'] = get_sd
+    if not kwargs.get('expl_funcs'):
+        # No function names provided, use all explanation functions
+        logger.info('All explanation types used')
+        expl_types = {funcname_to_colname[func_name]: func
+                      for func_name, func in expl_functions}
+    else:
+        # Map function names to functions, check if
+        expl_types = {}
+        for func_name in kwargs['expl_funcs']:
+            if func_name not in expl_functions:
+                logger.warning(f'{func_name} does not map to a registered '
+                               f'explanation function. Allowed functions '
+                               f'{", ".join(expl_functions.keys())}')
+            else:
+                expl_types[funcname_to_colname[func_name]] = \
+                    expl_functions[func_name]
+
+    if not len(expl_types):
+        raise ValueError('No explanation functions provided')
 
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
@@ -345,12 +351,11 @@ def error_callback(err):
 
 def main(indra_net, outname, graph_type, sd_range, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
-         pb_node_mapping=None, n_chunks=256, ignore_list=None,
+         expl_funcs=None, pb_node_mapping=None, n_chunks=256, ignore_list=None,
          is_a_part_of=None, immediate_only=False, allowed_ns=None,
-         info=None, shared_2neigh=False, indra_date=None,
-         indra_net_file=None, depmap_date=None, sample_size=None,
-         shuffle=False, overwrite=False, normalize_names=False) -> \
-        DepMapExplainer:
+         info=None, indra_date=None, indra_net_file=None, depmap_date=None,
+         sample_size=None, shuffle=False, overwrite=False,
+         normalize_names=False):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -364,6 +369,9 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     z_score_file : str
     raw_data : str
     raw_corr : str
+    expl_funcs : Iterable[str]
+        Provide a list of explanation functions to apply. Default: All
+        functions are applied.
     pb_node_mapping : Union[Dict, str]
     n_chunks : int
     ignore_list : Union[List, str]
@@ -378,9 +386,6 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
     info : dict
-    shared_2neigh : bool
-        Add common next nearest downstream neighbors to the set of
-        explanations. Default: False.
     indra_date : str
     indra_net_file : str
     depmap_date : str
@@ -393,15 +398,12 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     normalize_names : bool
         If True, try to normalize the names in the correlation matrix that
         are not found in the provided graph
-
-    Returns
-    -------
-    DepMapExplainer
     """
     global indranet, hgnc_node_mapping, output_list
     indranet = indra_net
 
-    run_options = {'n-chunks': n_chunks, 'shared_2neigh': shared_2neigh}
+    assert expl_funcs is None or isinstance(expl_funcs, (list, tuple, set))
+    run_options = {'n-chunks': n_chunks, 'expl_funcs': expl_funcs or None}
 
     # 1 Check options
     sd_l, sd_u = sd_range if sd_range and len(sd_range) == 2 else \
@@ -649,6 +651,13 @@ if __name__ == '__main__':
              'intermediate nodes. Default: all namespaces are allowed.'
     )
 
+    #   1f Provide expl function names
+    parser.add_argument(
+        '--expl-funcs', type=allowed_types(set(expl_functions.keys())),
+        help='Provide explainer function names to be used in the explanation '
+             'loop'
+    )
+
     #   2a. Filter to SD range
     range_group.add_argument('--sd-range', nargs='+', type=float,
                              help='SD range to filter to')
@@ -694,9 +703,6 @@ if __name__ == '__main__':
     parser.add_argument('--shuffle', action='store_true',
                         help='Shuffle the correlation matrix before running '
                              'matching loop.')
-    parser.add_argument('--shared-2neigh', action='store_true',
-                        help='Also look for common downstream next nearest '
-                             'neighbors.')
     parser.add_argument('--is-a-part-of', nargs='+',
                         help='Identifiers that are considered to explain '
                              'pair connections in common parent search in '
