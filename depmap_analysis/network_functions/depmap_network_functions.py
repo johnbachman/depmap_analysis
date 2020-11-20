@@ -7,6 +7,7 @@ import itertools as itt
 from typing import Iterable
 from random import choices
 from math import ceil, log10
+from typing import Iterable
 from itertools import islice
 from collections import Mapping, OrderedDict, defaultdict
 
@@ -212,10 +213,8 @@ def iter_chunker(n: int, iterable: Iterable):
     # stackoverflow.com/questions/1915170/
     # split-a-generator-iterable-every-n-items-in-python-splitevery
     iterable = iter(iterable)
-    try:
-        yield from iter(lambda: list(islice(iterable, n)), [])
-    except ValueError as err:
-        raise ValueError(f'An error occurred with chunk size {n}') from err
+    n = int(n)
+    yield from iter(lambda: list(islice(iterable, n)), [])
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
