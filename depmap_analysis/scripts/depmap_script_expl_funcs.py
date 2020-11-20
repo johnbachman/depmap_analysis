@@ -220,7 +220,9 @@ def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
     return x_approved
 
 
-def _get_signed_deep_interm(s, o, corr, sign_edge_net, xy_set):
+def _get_signed_deep_interm(
+        s: str, o: str, corr: float, sign_edge_net: nx.MultiDiGraph,
+        xy_set: Set[Tuple[str, str]], union: bool) -> Set[str]:
     # Make sure we have the right sign type
     path_sign = INT_PLUS if corr >= 0 else INT_MINUS
 
@@ -234,17 +236,33 @@ def _get_signed_deep_interm(s, o, corr, sign_edge_net, xy_set):
         ox_minus = (o, x, INT_MINUS) in sign_edge_net.edges
         xy_minus = (x, y, INT_MINUS) in sign_edge_net.edges
 
-        # Add nodes that form paths with the correct sign
-        if path_sign == INT_PLUS:
-            if (sx_plus and xy_plus or sx_minus and xy_minus) and \
-                    (ox_plus and xy_plus or ox_minus and xy_minus):
-                x_approved.update({x, y})
-        else:
-            if (sx_plus and xy_minus or sx_minus and xy_plus) and \
-                    (ox_plus and xy_minus or ox_minus and xy_plus):
-                x_approved.update({x, y})
+        # Match args for _approve_signed_paths
+        args = (sx_minus, sx_plus, ox_minus, ox_plus, xy_minus, xy_plus,
+                path_sign, union)
 
+        # Add nodes that form paths with the correct sign
+        if _approve_signed_paths(*args):
+            x_approved.update({x, y})
     return x_approved
+
+
+def _approve_signed_paths(sxm: bool, sxp: bool, oxm: bool, oxp: bool,
+                          xym: bool, xyp: bool, sign: int, union: bool) \
+        -> bool:
+    def _asp(n1: bool, n2: bool, p1: bool, p2: bool, s: int) -> bool:
+        # Approve Signed Path
+        if s == INT_PLUS:
+            return p1 and p2 or n1 and n2
+        else:
+            return p1 and n2 or n1 and p2
+
+    # Match args for _asp
+    sargs = (sxm, xym, sxp, xyp, sign)
+    oargs = (oxm, xym, oxp, xyp, sign)
+    if union:
+        return _asp(*sargs) or _asp(*oargs)
+    else:
+        return _asp(*sargs) and _asp(*oargs)
 
 
 def get_ns_id(subj, obj, net):
