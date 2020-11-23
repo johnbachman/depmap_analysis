@@ -321,6 +321,8 @@ def todays_date(dt_fmt=DT_Ymd):
 def get_earliest_date(file):
     """Returns creation or modification timestamp of file
 
+    # todo: Add s3 option
+
     Parameters
     ----------
     file : str
@@ -353,6 +355,6 @@ def strip_out_date(keystring, re_format):
     try:
         return re.search(re_format, keystring).group()
     except AttributeError:
-        logger.warning('Can\'t parse string %s for date using regex pattern '
-                       '%s' % (keystring, re_format))
+        logger.warning('Can\'t parse string "%s" for date using regex pattern '
+                       'r"%s"' % (keystring, re_format))
         return None
