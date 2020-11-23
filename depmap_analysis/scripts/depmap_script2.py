@@ -647,6 +647,7 @@ if __name__ == '__main__':
     #   1e Provide allowed_ns
     parser.add_argument(
         '--allowed-ns', nargs='+',
+        type=allowed_types(set(expl_functions.keys())),
         help='Specify the allowed namespaces to be used in the graph for '
              'intermediate nodes. Default: all namespaces are allowed.'
     )
