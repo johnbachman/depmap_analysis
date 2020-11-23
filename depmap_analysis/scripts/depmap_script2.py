@@ -559,6 +559,22 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         raise ValueError('Must provide either z_score XOR either of raw_data '
                          'or raw_corr')
 
+    # Get ignore list
+    if ignore_list and isinstance(ignore_list, (set, list, tuple)):
+        run_options['explained_set'] = set(ignore_list)
+    elif ignore_list and isinstance(ignore_list, str):
+        expl_df = pd.read_csv(ignore_list)
+        try:
+            expl_set = set(expl_df['Approved symbol'])
+        except KeyError as err:
+            raise KeyError('Ignored entities must be in CSV file with column '
+                           'name "Approved symbol"') from err
+        run_options['explained_set'] = expl_set
+
+    if run_options.get('explained_set'):
+        logger.info(f'Using explained set with '
+                    f'{len(run_options["explained_set"])} genes')
+
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
     outpath = Path(outname)
@@ -637,22 +653,6 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
     run_options['corr_z'] = z_corr
-
-    # 3. Ignore list as file
-    if ignore_list and isinstance(ignore_list, (set, list, tuple)):
-        run_options['explained_set'] = set(ignore_list)
-    elif ignore_list and isinstance(ignore_list, str):
-        with Path(ignore_list).open('r') as fh:
-            expl_set = set(fh.read().split())
-            try:
-                expl_set.remove('')  # If there are empty lines
-            except KeyError:
-                pass  # Handle '' not existing
-            run_options['explained_set'] = expl_set
-
-    if run_options.get('explained_set'):
-        logger.info(f'Using explained set with '
-                    f'{len(run_options["explained_set"])} genes')
 
     # 4. Add meta data
     info_dict = {}
@@ -761,8 +761,8 @@ if __name__ == '__main__':
     #   3. Ignore list as file
     parser.add_argument(
         '--ignore-list', type=str,
-        help='Provide a text file with one gene name per line to skip in the'
-             'explanations')
+        help='Provide a csv file with a column named "Approved symbol" '
+             'containing genes (or other entities) to ignore in explanations.')
 
     # 4 output
     parser.add_argument(
