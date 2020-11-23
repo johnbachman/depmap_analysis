@@ -1,6 +1,7 @@
 import logging
 from math import floor
 from io import BytesIO
+from typing import Tuple, Dict, Union, Hashable
 from pathlib import Path
 from datetime import datetime
 
@@ -26,15 +27,36 @@ class DepMapExplainer:
     tag : str
     indra_network_date : str
     depmap_date : str
-    sd_range : tuple(float|None)
-    info : dict
+    sd_range : Tuple[float, Union[float, None]]
+    info : Dict[str, Any]
     network_type : str
     stats_df : pd.DataFrame
     expl_df : pd.DataFrame
-    is_signed : Bool
-    summary : dict
+    is_signed : bool
+    summary : Dict[str, int]
     summary_str : str
-    corr_stats_axb : dict
+    corr_stats_axb : Dict[Dict[str, int]]
+
+    Methods
+    -------
+    has_data : bool
+        Checks and returns whether there is any data in any of the
+        associated data frames
+    summarize
+        Prints a human readable summary of the results for a quick overview
+    get_summary : Dict
+        Generates counts of explanations and returns a dict
+    get_summary_str : str
+        Generates a string of the results from the dict returned from
+        get_summary
+    save_summary
+        Save the summary dict from get_summary to a csv file
+    get_corr_stats_axb : Dict
+        Get correlation statistics
+    plot_corr_stats
+        Plot the results of get_corr_stats_axb
+    plot_dists
+        Compare the distributions of differently sampled A-X-B correlations
     """
 
     def __init__(self, stats_columns, expl_columns, info, script_settings,
@@ -42,10 +64,10 @@ class DepMapExplainer:
         """
         Parameters
         ----------
-        stats_columns : list[str]|tuple[str]
-        expl_columns : list[str]|tuple[str]
-        info : dict
-        script_settings : dict
+        stats_columns : Union[List[str], Tuple[str]]
+        expl_columns : Union[List[str], Tuple[str]]
+        info : Dict[Hashable, Any]
+        script_settings : Dict[str, Union[str, float, int, List[str]]
         tag : str
         network_type : str
         """
@@ -97,7 +119,7 @@ class DepMapExplainer:
 
         Returns
         -------
-        dict
+        Dict
         """
         if not self.summary:
             # Get explanation column counts
@@ -145,7 +167,12 @@ class DepMapExplainer:
         return self.summary_str
 
     def save_summary(self, fname):
-        """Save summary to a file"""
+        """Save summary to a file
+
+        Parameters
+        ----------
+        fname : str
+        """
         summary = self.get_summary()
         with open(fname, 'w') as f:
             f.write('explanation,count\n')
