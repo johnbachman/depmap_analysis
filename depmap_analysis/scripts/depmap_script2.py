@@ -56,7 +56,7 @@ from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
 from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
-logger = logging.getLogger('DepMap Script')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 indranet = nx.DiGraph()
@@ -230,7 +230,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
         # No function names provided, use all explanation functions
         logger.info('All explanation types used')
         expl_types = {funcname_to_colname[func_name]: func
-                      for func_name, func in expl_functions}
+                      for func_name, func in expl_functions.items()}
     else:
         # Map function names to functions, check if
         expl_types = {}
@@ -412,7 +412,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
 
     if not random and not sd_l and not sd_u:
         raise ValueError('Must specify at least a lower bound for the SD '
-                         'range')
+                         'range or flag run for random explanation')
 
     if graph_type == 'pybel' and not pb_node_mapping:
         raise ValueError('Must provide PyBEL node mapping with option '
