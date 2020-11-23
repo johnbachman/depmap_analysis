@@ -3,15 +3,24 @@ import csv
 import json
 import pickle
 import logging
+import platform
+from os import path, stat
 from typing import Union, BinaryIO, Iterable
-from argparse import ArgumentError
 from pathlib import Path
+from datetime import datetime
+from argparse import ArgumentError
 from functools import wraps
 from itertools import repeat, takewhile
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
+DT_YmdHMS = '%Y%m%d%H%M%S'
+DT_Ymd = '%Y%m%d'
+RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
+RE_YYYYMMDD = r'\d{8}'
 
 
 def file_opener(fname: str) -> object:
@@ -303,3 +312,47 @@ def is_dir_path():
             raise ArgumentError(f'Path {path} does not exist')
         return path
     return is_dir
+
+
+def todays_date(dt_fmt=DT_Ymd):
+    return datetime.now().strftime(dt_fmt)
+
+
+def get_earliest_date(file):
+    """Returns creation or modification timestamp of file
+
+    Parameters
+    ----------
+    file : str
+        File path
+
+    Returns
+    -------
+    float
+        Timestamp in seconds with microseconds as a float
+    """
+    # https://stackoverflow.com/questions/237079/
+    # how-to-get-file-creation-modification-date-times-in-python
+    if platform.system().lower() == 'windows':
+        return path.getctime(file)
+    else:
+        st = stat(file)
+        try:
+            return st.st_birthtime
+        except AttributeError:
+            return st.st_mtime
+
+
+def get_date_from_str(date_str, dt_format):
+    """Returns a datetime object from a datestring of format FORMAT"""
+    return datetime.strptime(date_str, dt_format)
+
+
+def strip_out_date(keystring, re_format):
+    """Strips out datestring of format re_format from a keystring"""
+    try:
+        return re.search(re_format, keystring).group()
+    except AttributeError:
+        logger.warning('Can\'t parse string %s for date using regex pattern '
+                       '%s' % (keystring, re_format))
+        return None

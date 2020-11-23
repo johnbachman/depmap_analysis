@@ -1,11 +1,9 @@
 """Utility functions for the INDRA Causal Network Search API in api.py"""
-import re
 import json
 import logging
 import argparse
-import platform
 
-from os import path, stat
+from os import path
 from datetime import datetime
 
 import networkx as nx
@@ -17,7 +15,9 @@ from indra.statements import get_all_descendants, Activation, Inhibition, \
     IncreaseAmount, DecreaseAmount, AddModification, RemoveModification, \
     Complex
 from depmap_analysis.network_functions import net_functions as nf
-from depmap_analysis.util.io_functions import file_opener, dump_it_to_pickle
+from depmap_analysis.util.io_functions import file_opener, dump_it_to_pickle, \
+    DT_YmdHMS, RE_YmdHMS_, RE_YYYYMMDD, get_earliest_date, get_date_from_str, \
+    strip_out_date
 from depmap_analysis.util.aws import get_latest_sif_s3, dump_json_to_s3, \
     dump_pickle_to_s3, NEW_NETS_PREFIX
 
@@ -27,11 +27,6 @@ API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
 STATIC = path.join(API_PATH, 'static')
 JSON_CACHE = path.join(API_PATH, '_json_res')
-DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
-DT_YmdHMS = '%Y%m%d%H%M%S'
-DT_Ymd = '%Y%m%d'
-RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
-RE_YYYYMMDD = r'\d{8}'
 
 INDRA_MDG = 'indranet_multi_digraph_latest.pkl'
 INDRA_DG = 'indranet_dir_graph_latest.pkl'
@@ -48,50 +43,6 @@ INDRA_SNG_CACHE = path.join(CACHE, INDRA_SNG)
 INDRA_SEG_CACHE = path.join(CACHE, INDRA_SEG)
 INDRA_PBSNG_CACHE = path.join(CACHE, INDRA_PBSNG)
 INDRA_PBSEG_CACHE = path.join(CACHE, INDRA_PBSEG)
-
-
-def todays_date():
-    return datetime.now().strftime(DT_Ymd)
-
-
-def get_earliest_date(file):
-    """Returns creation or modification timestamp of file
-
-    Parameters
-    ----------
-    file : str
-        File path
-
-    Returns
-    -------
-    float
-        Timestamp in seconds with microseconds as a float
-    """
-    # https://stackoverflow.com/questions/237079/
-    # how-to-get-file-creation-modification-date-times-in-python
-    if platform.system().lower() == 'windows':
-        return path.getctime(file)
-    else:
-        st = stat(file)
-        try:
-            return st.st_birthtime
-        except AttributeError:
-            return st.st_mtime
-
-
-def get_date_from_str(date_str, dt_format):
-    """Returns a datetime object from a datestring of format FORMAT"""
-    return datetime.strptime(date_str, dt_format)
-
-
-def strip_out_date(keystring, re_format):
-    """Strips out datestring of format re_format from a keystring"""
-    try:
-        return re.search(re_format, keystring).group()
-    except AttributeError:
-        logger.warning('Can\'t parse string %s for date using regex pattern '
-                       '%s' % (keystring, re_format))
-        return None
 
 
 def get_query_resp_fstr(query_hash):
