@@ -653,7 +653,7 @@ if __name__ == '__main__':
 
     #   1f Provide expl function names
     parser.add_argument(
-        '--expl-funcs', type=allowed_types(set(expl_functions.keys())),
+        '--expl-funcs', nargs='+',
         help='Provide explainer function names to be used in the explanation '
              'loop'
     )
