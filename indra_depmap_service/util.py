@@ -21,7 +21,7 @@ from depmap_analysis.util.io_functions import file_opener, dump_it_to_pickle, \
 from depmap_analysis.util.aws import get_latest_sif_s3, dump_json_to_s3, \
     dump_pickle_to_s3, NEW_NETS_PREFIX
 
-logger = logging.getLogger('INDRA Network Search util')
+logger = logging.getLogger(__name__)
 
 API_PATH = path.dirname(path.abspath(__file__))
 CACHE = path.join(API_PATH, '_cache')
