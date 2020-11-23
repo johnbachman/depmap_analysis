@@ -1,7 +1,8 @@
 """Explainer and helper functions for depmap_script2.py When adding new
 explanation functions, please also add them to the mapping at the end"""
 import logging
-from typing import Union, Tuple
+import networkx as nx
+from typing import Set, Union, Tuple
 
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
@@ -31,14 +32,14 @@ def find_cp(s, o, corr, net, _type, **kwargs):
         o_name = kwargs['o_name']
         o_ns, o_id = get_ns_id_pybel_node(o_name, o)
     else:
+        s_name = s
+        o_name = o
         s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
 
     if not s_id:
-        s_ns, s_id, s_norm_name = gilda_normalization(s_name) \
-            if _type == 'pybel' else gilda_normalization(s)
+        s_ns, s_id, s_norm_name = gilda_normalization(s_name)
     if not o_id:
-        o_ns, o_id, o_norm_name = gilda_normalization(o_name) \
-            if _type == 'pybel' else gilda_normalization(o)
+        o_ns, o_id, o_norm_name = gilda_normalization(o_name)
 
     if s_id and o_id:
         # Possible kwargs:
@@ -132,43 +133,45 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
 
 def get_sd(s, o, corr, net, _type, **kwargs):
+    def get_nnn_set(n: str, g: nx.MultiDiGraph, signed: bool) \
+            -> Set[Union[str, Tuple[str, str]]]:
+        n_x_set = set()
+        for x in g.succ[n]:
+            # If signed, add edges instead and match sign in helper
+            if signed:
+                for y in g.succ[x]:
+                    n_x_set.add((x, y))
+            # Just add nodes for unsigned
+            else:
+                n_x_set.add(x)
+                n_x_set.update(g.succ[x])
+        return n_x_set
+
     # Get next-nearest-neighborhood for subject
-    s_x_set = set()
-    for x in net.succ[s]:
-        # If signed, add edges instead and match sign in helper
-        if _type in {'signed', 'pybel'}:
-            for y in net.succ[x]:
-                s_x_set.add((x, y))
-        # Just add nodes
-        else:
-            s_x_set.add(x)
-            s_x_set.update(net.succ[x])
-    # Get next-nearest-neighborhood for object
-    o_x_set = set()
-    for x in net.succ[o]:
-        # If signed, add edges instead and match sign in helper
-        if _type in {'signed', 'pybel'}:
-            for y in net.succ[x]:
-                o_x_set.add((x, y))
-        else:
-            o_x_set.add(x)
-            o_x_set.update(net.succ[x])
+    s_x_set = get_nnn_set(s, net, _type in {'signed', 'pybel'})
+    o_x_set = get_nnn_set(o, net, _type in {'signed', 'pybel'})
 
     # Get intersection of each nodes' 1st & 2nd layer neighbors
     x_set = s_x_set & o_x_set
+    x_set_union = s_x_set | o_x_set
 
     if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_deep_interm(s, o, corr, net, x_set)
+        x_nodes = _get_signed_deep_interm(s, o, corr, net, x_set, False)
+        x_nodes_union = _get_signed_deep_interm(s, o, corr, net, x_set_union,
+                                                True)
     else:
         x_nodes = x_set
+        x_nodes_union = x_set_union
 
     # Filter ns
     if kwargs.get('ns_set'):
-        x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
+        x_nodes = {x for x in x_nodes if net.nodes[x]['ns'].lower() in
+                   kwargs['ns_set']} or None
+        x_nodes_union = {x for x in x_nodes_union if net.nodes[x][
+            'ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes:
-        return s, o, list(x_nodes)
+        return s, o, (list(x_nodes), list(x_nodes_union))
     else:
         return s, o, None
 
