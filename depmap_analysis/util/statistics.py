@@ -135,16 +135,21 @@ class DepMapExplainer:
             self.summary['unexplained'] = \
                 sum(self.stats_df['explained'] == False)
             # count "complex or direct"
-            self.summary['complex or direct'] = \
-                sum(self.stats_df['a-b'] | self.stats_df['b-a'])
+            if 'a-b' in self.stats_df.columns and \
+                    'b-a' in self.stats_df.columns:
+                self.summary['complex or direct'] = \
+                    sum(self.stats_df['a-b'] | self.stats_df['b-a'])
             # count directed a-x-b: a->x->b or b->x->a
-            self.summary['x intermediate'] = \
-                sum(self.stats_df['a-x-b'] | self.stats_df['b-x-a'])
+            if 'a-x-b' in self.stats_df.columns and \
+                    'b-x-a' in self.stats_df.columns:
+                self.summary['x intermediate'] = \
+                    sum(self.stats_df['a-x-b'] | self.stats_df['b-x-a'])
             # count shared regulator as only expl
-            self.summary['sr only'] = self._get_sr_only()
-            # explained - (shared regulator as only expl)
-            self.summary['explained (excl sr)'] = \
-                self.summary['explained'] - self.summary['sr only']
+            if 'shared regulator' in self.stats_df.columns:
+                self.summary['sr only'] = self._get_sr_only()
+                # explained - (shared regulator as only expl)
+                self.summary['explained (excl sr)'] = \
+                    self.summary['explained'] - self.summary['sr only']
 
         return self.summary
 
