@@ -670,7 +670,7 @@ if __name__ == '__main__':
                                   'correlation matrix')
     #   3. Ignore list as file
     parser.add_argument(
-        '--ignore-list', type=str,
+        '--ignore-list', type=file_path(),
         help='Provide a csv file with a column named "Approved symbol" '
              'containing genes (or other entities) to ignore in explanations.')
 
