@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_all_entities(ontology=None):
-    """Get a list of all entities included in HierarchyManager['entity']
+    """Get a list of all entities included in an IndraOntology
 
     Parameters
     ----------
@@ -21,7 +21,7 @@ def get_all_entities(ontology=None):
     """
     ontology = bio_ontology if not ontology else ontology
     ent_list = []
-    bio_ontology.initialize()
+    ontology.initialize()
     for node in ontology.nodes:
         db_ns, db_id = ontology.get_ns_id(node)
         if db_ns in {'FPLX', 'HGNC'}:
@@ -45,7 +45,7 @@ def find_parent(id_, ns='HGNC', ontology=None, immediate_only=False,
         Determines if all or just the immediate parents should be returned
     is_a_part_of : iterable
         If provided, the parents must be in this set of ids. The set is
-        assumed to be valid ontology labels (see ontology.label()).
+        assumed to contain valid ontology labels (see ontology.label()).
 
     Returns
     -------
