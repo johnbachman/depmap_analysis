@@ -3,7 +3,7 @@ import csv
 import json
 import pickle
 import logging
-from typing import Union, BinaryIO
+from typing import Union, BinaryIO, Iterable
 from argparse import ArgumentError
 from pathlib import Path
 from functools import wraps
@@ -253,9 +253,9 @@ def _manually_add_to_histo(hist, start, binsize, value):
     hist[map2index(start, binsize, value)] += 1
 
 
-def allowed_types(types):
+def allowed_types(types: Iterable):
     """Types is a set of strings with names of the allowed types"""
-    def types_check(_type):
+    def types_check(_type: str) -> str:
         """Check the input type
 
         Parameters
