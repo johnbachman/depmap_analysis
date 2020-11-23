@@ -41,7 +41,7 @@ import networkx as nx
 
 from indra.util.multiprocessing_traceback import WrapException
 from depmap_analysis.util.io_functions import file_opener, \
-    dump_it_to_pickle, allowed_types, file_path
+    dump_it_to_pickle, allowed_types, file_path, strip_out_date
 from depmap_analysis.network_functions.net_functions import \
     pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
@@ -252,11 +252,16 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     is_a_part_of = kwargs.get('is_a_part_of')
     immediate_only = kwargs.get('immediate_only', False)
 
+    # Try to get dates of files from file names and file info
     ymd_now = datetime.now().strftime('%Y%m%d')
+    inet_file = script_settings['indranet']
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
-        else ymd_now
+        else (strip_out_date(inet_file, r'\d{8}')
+              if strip_out_date(inet_file, r'\d{8}') else ymd_now)
+    dm_file = script_settings['z_score']
     depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
-        else ymd_now
+        else (strip_out_date(dm_file, r'\d{8}')
+              if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
     estim_pairs = corr_z.notna().sum().sum()
     print(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} with '
