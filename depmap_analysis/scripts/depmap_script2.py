@@ -522,6 +522,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
     if normalize_names:
+        logger.info('Normalizing correlation matrix names')
         z_corr = normalize_corr_names(z_corr, indra_net)
 
     run_options['corr_z'] = z_corr
