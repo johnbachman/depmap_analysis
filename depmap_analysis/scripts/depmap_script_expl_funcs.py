@@ -1,5 +1,9 @@
 """Explainer and helper functions for depmap_script2.py"""
 import logging
+from typing import Union, Tuple
+
+import pandas as pd
+from networkx import DiGraph, MultiDiGraph
 from pybel.dsl import CentralDogma
 
 from depmap_analysis.network_functions.famplex_functions import common_parent
@@ -9,7 +13,7 @@ from depmap_analysis.network_functions.net_functions import gilda_normalization,
 
 __all__ = ['explained', 'expl_ab', 'expl_ba', 'expl_axb', 'expl_bxa',
            'find_cp', 'get_sd', 'get_sr', 'get_st', 'get_ns_id_pybel_node',
-           'get_ns_id']
+           'get_ns_id', 'normalize_corr_names']
 
 
 logger = logging.getLogger(__name__)
@@ -306,3 +310,50 @@ def get_ns_id_pybel_node(hgnc_sym, node):
     else:
         logger.warning(f'Type {node.__class__} not recognized')
         return None, None
+
+
+def normalize_corr_names(corr_m: pd.DataFrame,
+                         graph: Union[DiGraph, MultiDiGraph],
+                         ns: str = None) -> pd.DataFrame:
+    # todo:
+    #  1. Move this function, together with get_ns_id,
+    #     get_ns_id_pybel_node, normalize_entitites to net_functions
+    #  2. Provide ns and id to the correlation matrix here too (requires
+    #     overhaul of depmap script)
+    #  3. Add support for pybel
+    """
+
+    Parameters
+    ----------
+    corr_m : pd.DataFrame
+        A square pandas dataframe representing a correlation matrix. It is
+        assumed that columns and indices are identical.
+    graph : Union[DiGraph, MultiDiGraph]
+        A graph to look in to see if the names are there
+    ns : str
+        The assumed namespace of the names in corr_m
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    def _get_ns_id(n: str, g: Union[DiGraph, MultiDiGraph]) -> Tuple[str, str]:
+        return g.nodes[n]['ns'], g.nodes[n]['id']
+
+    col_names = corr_m.columns.values
+    normalized_names = []
+    for name in col_names:
+        if name in graph.nodes:
+            normalized_names.append(name)
+        else:
+            ns, _id, nn = gilda_normalization(name)
+            if nn:
+                normalized_names.append(nn)
+            else:
+                normalized_names.append(name)
+
+    # Reset the normalized names
+    corr_m.columns = normalized_names
+    corr_m.index = normalized_names
+
+    return corr_m
