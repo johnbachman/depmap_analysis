@@ -721,8 +721,8 @@ def ag_belief_score(belief_list):
     return ag_belief
 
 
-def gilda_normalization(name: str, gilda_retry: bool = False) \
-        -> Tuple[str, str, str]:
+def gilda_normalization(name: str, gilda_retry: bool = False) -> \
+        Tuple[Union[None, str], Union[None, str], Union[None, str]]:
     """Query the grounding service for the most likely ns, id, name tuple
 
     Parameters
@@ -764,7 +764,7 @@ def gilda_normalization(name: str, gilda_retry: bool = False) \
         else:
             logger.warning('Indra Grounding service not available. Add '
                            'GILDA_URL to `indra/config.ini`')
-    return None, None
+    return None, None, None
 
 
 def pybel_node_name_mapping(pb_model, node_names=None, node_ns='HGNC'):
