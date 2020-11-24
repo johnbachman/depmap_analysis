@@ -521,6 +521,9 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         z_corr = z_corr.sample(frac=1, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
+    if normalize_names:
+        z_corr = normalize_corr_names(z_corr, indra_net)
+
     run_options['corr_z'] = z_corr
 
     # 4. Add meta data
@@ -694,6 +697,10 @@ if __name__ == '__main__':
                              'parent search.')
     parser.add_argument('--overwrite', action='store_true',
                         help='Overwrite any output files that already exist.')
+    parser.add_argument('--normalize-names', action='store_true',
+                        help='Try to normalize the names in the correlation '
+                             'matrix if they are not found in the provided '
+                             'graph')
 
     args = parser.parse_args()
     arg_dict = vars(args)
