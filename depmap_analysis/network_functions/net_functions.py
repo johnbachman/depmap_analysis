@@ -7,6 +7,7 @@ import subprocess
 import requests
 import numpy as np
 import pandas as pd
+from typing import Tuple
 from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
@@ -720,8 +721,23 @@ def ag_belief_score(belief_list):
     return ag_belief
 
 
-def ns_id_from_name(name, gilda_retry=False):
-    """Query the grounding service for the most likely ns:id pair for name"""
+def gilda_normalization(name: str, gilda_retry: bool = False) \
+        -> Tuple[str, str, str]:
+    """Query the grounding service for the most likely ns, id, name tuple
+
+    Parameters
+    ----------
+    name: str
+        Search gilda with this string
+    gilda_retry: bool
+        If True, try to reach gilda again after a previous perceived outage
+
+    Returns
+    -------
+    Tuple[str, str, str]
+        A 3-tuple containing the namespace, id, and normalized name of the
+        search
+    """
     global GILDA_TIMEOUT
     if gilda_retry and GILDA_TIMEOUT and gilda_pinger():
         logger.info('GILDA is responding again!')
@@ -731,8 +747,8 @@ def ns_id_from_name(name, gilda_retry=False):
         try:
             res = requests.post(GRND_URI, json={'text': name})
             if res.status_code == 200:
-                rj = res.json()[0]
-                return rj['term']['db'], rj['term']['id']
+                rj = res.json()[0]['term']
+                return rj['db'], rj['id'], rj['entry_name']
             else:
                 logger.warning('Grounding service responded with code %d, '
                                'check your query format and URL' %

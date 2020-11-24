@@ -3,7 +3,7 @@ import logging
 from pybel.dsl import CentralDogma
 
 from depmap_analysis.network_functions.famplex_functions import common_parent
-from depmap_analysis.network_functions.net_functions import ns_id_from_name, \
+from depmap_analysis.network_functions.net_functions import gilda_normalization, \
     INT_PLUS, INT_MINUS
 
 
@@ -30,11 +30,11 @@ def find_cp(s, o, corr, net, _type, **kwargs):
         s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
 
     if not s_id:
-        s_ns, s_id = ns_id_from_name(s_name) if _type == 'pybel' else \
-            ns_id_from_name(s)
+        s_ns, s_id, s_norm_name = gilda_normalization(s_name) \
+            if _type == 'pybel' else gilda_normalization(s)
     if not o_id:
-        o_ns, o_id = ns_id_from_name(o_name) if _type == 'pybel' else \
-            ns_id_from_name(o)
+        o_ns, o_id, o_norm_name = gilda_normalization(o_name) \
+            if _type == 'pybel' else gilda_normalization(o)
 
     if s_id and o_id:
         # Possible kwargs:
