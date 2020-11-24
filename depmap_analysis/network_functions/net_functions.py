@@ -7,7 +7,7 @@ import subprocess
 import requests
 import numpy as np
 import pandas as pd
-from typing import Tuple, List, Union
+from typing import Tuple, Union
 from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
@@ -807,29 +807,6 @@ def pybel_node_name_mapping(pb_model, node_names=None, node_ns='HGNC'):
         except AttributeError:
             continue
     return pb_model_mapping
-
-
-def normalize_entities(names: List[str]) -> \
-        List[Tuple[str, Tuple[Union[None, str],
-                              Union[None, str],
-                              Union[None, str]]]]:
-    """Given a list of entity names, normalize the names and return old/new
-    names
-
-    Parameters
-    ----------
-    names : List[str]
-        The list of entity names to normalize
-
-    Returns
-    -------
-
-    """
-    normalizes_names = []
-    for name in names:
-        ns, _id, nn = gilda_normalization(name)
-        normalizes_names.append((name, (ns, _id, nn)))
-    return normalizes_names
 
 
 def yield_multiple_paths(g, sources, path_len=None, **kwargs):
