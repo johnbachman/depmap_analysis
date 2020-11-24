@@ -31,6 +31,7 @@ import logging
 import argparse
 import multiprocessing as mp
 from time import time
+from typing import Union, List, Dict, Iterable
 from pathlib import Path
 from itertools import product
 from collections import defaultdict
@@ -347,31 +348,32 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
          is_a_part_of=None, immediate_only=False, allowed_ns=None,
          info=None, shared_2neigh=False, indra_date=None,
          indra_net_file=None, depmap_date=None, sample_size=None,
-         shuffle=False, overwrite=False) -> DepMapExplainer:
+         shuffle=False, overwrite=False, normalize_names=False) -> \
+        DepMapExplainer:
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
     ----------
-    indra_net : nx.DiGraph|nx.MultiDiGraph
+    indra_net : Union[nx.DiGraph, nx.MultiDiGraph]
     outname : str
     graph_type : str
-    sd_range : tuple(float|None)
+    sd_range : Tuple[float, Union[float, None]]
     random : bool
-    z_score : pd.DataFrame|str
+    z_score : Union[pd.DataFrame, str]
     z_score_file : str
     raw_data : str
     raw_corr : str
-    pb_node_mapping : dict|str
+    pb_node_mapping : Union[Dict, str]
     n_chunks : int
-    ignore_list : list|str
+    ignore_list : Union[List, str]
         List of nodes in graph to ignore
-    is_a_part_of : iterable
+    is_a_part_of : Iterable
         A set of identifiers to look for when applying the common parent
         explanation between a pair of correlating nodes.
     immediate_only : bool
         Only look for immediate parents. This option might limit the number
         of results that are returned.
-    allowed_ns : list
+    allowed_ns : List
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
     info : dict
@@ -387,6 +389,9 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     shuffle : bool
     overwrite : bool
         If True, overwrite any output files. Default: False
+    normalize_names : bool
+        If True, try to normalize the names in the correlation matrix that
+        are not found in the provided graph
 
     Returns
     -------
