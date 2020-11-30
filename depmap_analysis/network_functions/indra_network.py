@@ -1,3 +1,4 @@
+import re
 import inspect
 import logging
 from itertools import product
@@ -7,7 +8,7 @@ from numpy import trunc
 
 import requests
 import networkx as nx
-from networkx import NodeNotFound, NetworkXNoPath
+from networkx import NodeNotFound, NetworkXNoPath, NetworkXError
 
 from indra_db.client.readonly.mesh_ref_counts import get_mesh_ref_counts
 
@@ -264,7 +265,13 @@ class IndraNetwork:
                 ksp_forward = self.find_shortest_paths(**options)
                 if options['two_way']:
                     ksp_backward = self.find_shortest_paths(**boptions)
-        except NodeNotFound as e:
+        except (NodeNotFound, NetworkXError) as e:
+            # Make sure we're catching the correct NetworkXError
+            if isinstance(e, NetworkXError):
+                patt = r'The node (.*) is not in the digraph.'
+                m = re.search(patt, str(e))
+                if m is None:
+                    raise e
             logger.info('No paths found, trying to ground source and target')
             ksp_forward = self.grounding_fallback(**options)
             if options['two_way']:
@@ -684,8 +691,8 @@ class IndraNetwork:
             return self._loop_paths(graph=search_graph, source=subj,
                                     target=obj, paths_gen=paths, **options)
 
-        except NetworkXNoPath as err1:
-            logger.warning(repr(err1))
+        except NetworkXNoPath as err:
+            logger.warning(repr(err))
             return {}
 
     def open_bfs(self, start_node, reverse=False, depth_limit=2,
