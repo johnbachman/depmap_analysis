@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_rankings(expl_df: DataFrame, sampl_size: int = None)\
-        -> Tuple[Dict[str, Counter], Dict[str, List[float]]]:
+        -> Tuple[Dict[str, Counter], Dict[str, List[Tuple[int, int, float]]]]:
     """Get the count of next nearest neighborhood
 
     Parameters
@@ -45,7 +45,8 @@ def get_rankings(expl_df: DataFrame, sampl_size: int = None)\
         for ins, uni in expl_df['expl data'][(expl_df.agA == ag_name) |
                                              (expl_df.agB == ag_name)].values:
             ll += ins
-            jaccard_index[ag_name].append((len(ins)/len(uni)))
+            jaccard_index[ag_name].append((len(ins), len(uni),
+                                           len(ins)/len(uni)))
         nnn_counters[ag_name] = Counter(ll)
     return nnn_counters, jaccard_index
 
@@ -66,5 +67,15 @@ if __name__ == '__main__':
         overall_ranking += c
 
     # Get average Jaccard index per drug
-    jaccard_ranking = [(name, sum(jvs)/len(jvs)) for name, jvs in ji.items()]
+    jaccard_ranking = []
+    for name, jvs in ji.items():
+        li, lu, ljr = list(zip(*jvs))
+        jaccard_ranking.append((name,
+                                sum(ljr)/len(ljr),
+                                sum(li)/len(li),
+                                sum(lu)/len(lu)))
     jaccard_ranking.sort(key=lambda t: t[1], reverse=True)
+    jaccard_df = DataFrame(
+        data=jaccard_ranking,
+        columns=['drug', 'jaccard_index', 'n_intersection', 'n_union']
+    )
