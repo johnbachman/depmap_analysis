@@ -170,7 +170,7 @@ def get_sd(s, o, corr, net, _type, **kwargs):
         x_nodes_union = {x for x in x_nodes_union if net.nodes[x][
             'ns'].lower() in kwargs['ns_set']} or None
 
-    if x_nodes:
+    if x_nodes_union:
         return s, o, (list(x_nodes), list(x_nodes_union))
     else:
         return s, o, None
