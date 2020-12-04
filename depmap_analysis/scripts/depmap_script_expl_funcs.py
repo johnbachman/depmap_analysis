@@ -171,7 +171,19 @@ def get_sd(s, o, corr, net, _type, **kwargs):
             'ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes_union:
-        return s, o, (list(x_nodes), list(x_nodes_union))
+        s_x_list = set()
+        o_x_list = set()
+        if _type in {'signed', 'pybel'}:
+            for xy in s_x_set:
+                s_x_list.update(xy)
+            for xy in o_x_set:
+                o_x_list.update(xy)
+        else:
+            s_x_list = s_x_set
+            o_x_list = o_x_set
+
+        return s, o, (list(s_x_list), list(o_x_list),
+                      list(x_nodes), list(x_nodes_union))
     else:
         return s, o, None
 
