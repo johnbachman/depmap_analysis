@@ -220,6 +220,7 @@ def get_edge_statements(s, o, corr, net, _type, **kwargs):
 
 
 def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
+    # Used for a->x->b and b->x->a relations
     # Make sure we have the right sign type
     int_sign = INT_PLUS if corr >= 0 else INT_MINUS
 
