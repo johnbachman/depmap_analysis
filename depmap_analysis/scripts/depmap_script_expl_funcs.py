@@ -115,11 +115,15 @@ def get_sr(s, o, corr, net, _type, **kwargs):
 # Shared target: A->X<-B
 def get_st(s, o, corr, net, _type, **kwargs):
     x_set = set(net.succ[s]) & set(net.succ[o])
+    x_set_union = set(net.succ[s]) | set(net.succ[o])
 
     if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
+        x_nodes = _get_signed_shared_targets(s, o, corr, net, x_set, False)
+        x_nodes_union = _get_signed_shared_targets(s, o, corr, net,
+                                                   x_set_union, True)
     else:
         x_nodes = x_set
+        x_nodes_union = x_set_union
 
     # Filter ns
     if kwargs.get('ns_set'):
@@ -127,7 +131,8 @@ def get_st(s, o, corr, net, _type, **kwargs):
                    net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes:
-        return s, o, list(x_nodes)
+        return s, o, (list(net.succ[s]), list(net.succ[o]), list(x_nodes),
+                      list(x_nodes_union))
     else:
         return s, o, None
 
@@ -232,6 +237,33 @@ def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
         if int_sign == INT_MINUS:
             if ax_plus and xb_minus or ax_minus and xb_plus:
                 x_approved.add(x)
+    return x_approved
+
+
+def _get_signed_shared_targets(s: str, o: str, corr: float,
+                               sign_edge_net: nx.MultiDiGraph,
+                               x_set: Set, union: bool) -> Set[str]:
+    x_approved = set()
+
+    for x in x_set:
+        sx_plus = (s, x, INT_PLUS) in sign_edge_net.edges
+        ox_plus = (o, x, INT_PLUS) in sign_edge_net.edges
+        sx_minus = (s, x, INT_MINUS) in sign_edge_net.edges
+        ox_minus = (s, x, INT_MINUS) in sign_edge_net.edges
+
+        if union:
+            if any([sx_plus, ox_plus, sx_minus, ox_minus]):
+                x_approved.add(x)
+            else:
+                pass
+        else:
+            if corr > 0:
+                if sx_plus and ox_plus or sx_minus and ox_minus:
+                    x_approved.add(x)
+            else:
+                if sx_plus and ox_minus or sx_minus and ox_plus:
+                    x_approved.add(x)
+
     return x_approved
 
 
