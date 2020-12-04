@@ -355,7 +355,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
          is_a_part_of=None, immediate_only=False, allowed_ns=None,
          info=None, indra_date=None, indra_net_file=None, depmap_date=None,
          sample_size=None, shuffle=False, overwrite=False,
-         normalize_names=False):
+         normalize_names=False, argpargse_dict=None):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -398,6 +398,8 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     normalize_names : bool
         If True, try to normalize the names in the correlation matrix that
         are not found in the provided graph
+    argpargse_dict : dict
+        Provide the argparse options from running this file as a script
     """
     global indranet, hgnc_node_mapping, output_list
     indranet = indra_net
@@ -541,24 +543,24 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     run_options['info'] = info_dict
 
     # Set the script_settings
-    run_options['script_settings'] = {'raw_data': raw_data,
-                                      'raw_corr': raw_corr,
-                                      'z_score': z_score if isinstance(
-                                          z_score, str) else
-                                      (z_score_file or 'no info'),
-                                      'random': random,
-                                      'indranet': indra_net_file or 'no info',
-                                      'shuffle': shuffle,
-                                      'sample_size': sample_size,
-                                      'n_chunks': n_chunks,
-                                      'outname': outname,
-                                      'ignore_list': ignore_list if
-                                      isinstance(ignore_list, str) else
-                                      'no info',
-                                      'graph_type': graph_type,
-                                      'pybel_node_mapping': pb_node_mapping
-                                      if isinstance(pb_node_mapping, str) else
-                                      'no info'}
+    run_options['script_settings'] = {
+        'raw_data': raw_data,
+        'raw_corr': raw_corr,
+        'z_score': z_score if isinstance(z_score, str) else (z_score_file or
+                                                             'no info'),
+        'random': random,
+        'indranet': indra_net_file or 'no info',
+        'shuffle': shuffle,
+        'sample_size': sample_size,
+        'n_chunks': n_chunks,
+        'outname': outname,
+        'ignore_list': ignore_list if isinstance(ignore_list,
+                                                 str) else 'no info',
+        'graph_type': graph_type,
+        'pybel_node_mapping': pb_node_mapping if isinstance(
+            pb_node_mapping, str) else 'no info',
+        'argparse_info': argpargse_dict
+    }
 
     # Create output list in global scope
     output_list = []
@@ -769,6 +771,7 @@ if __name__ == '__main__':
         else:
             raise ValueError('Unknown file type %s' %
                              arg_dict['pybel_node_mapping'].split('.')[-1])
+    arg_dict['argparse_dict'] = vars(args)
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
