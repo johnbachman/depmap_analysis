@@ -444,9 +444,9 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
 
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
-    outpath = Path(outname)
-    if not overwrite and outpath.is_file():
-        raise FileExistsError(f'File {str(outpath)} already exists!')
+    if not overwrite and not outname.startswith('s3://') and\
+            Path(outname).is_file():
+        raise FileExistsError(f'File {str(outname)} already exists!')
 
     if z_score is not None:
         if isinstance(z_score, str) and Path(z_score).is_file():
@@ -565,13 +565,13 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     # Create output list in global scope
     output_list = []
     explanations = match_correlations(**run_options)
-    if outpath.name.startswith('s3://'):
+    if outname.startswith('s3://'):
         try:
             s3 = get_s3_client(unsigned=False)
-            s3outpath = S3Path.from_string(outpath.name)
+            s3outpath = S3Path.from_string(outname)
             s3outpath.upload(s3=s3, body=pickle.dumps(explanations))
         except Exception:
-            new_path = Path(outpath.name.replace('s3://', ''))
+            new_path = Path(outname.replace('s3://', ''))
             logger.warning(f'Something went wrong in s3 upload, trying to '
                            f'save locally instead to {new_path}')
             new_path.parent.mkdir(parents=True, exist_ok=True)
@@ -580,6 +580,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
 
     else:
         # mkdir in case it doesn't exist
+        outpath = Path(outname)
         outpath.parent.mkdir(parents=True, exist_ok=True)
         dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
                           pyobj=explanations, overwrite=overwrite)
