@@ -444,9 +444,13 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
 
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
-    if not overwrite and not outname.startswith('s3://') and\
-            Path(outname).is_file():
-        raise FileExistsError(f'File {str(outname)} already exists!')
+    if not overwrite:
+        if outname.startswith('s3://'):
+            s3 = get_s3_client(unsigned=False)
+            if S3Path.from_string(outname).exists(s3):
+                raise FileExistsError(f'File {str(outname)} already exists!')
+        elif Path(outname).is_file():
+            raise FileExistsError(f'File {str(outname)} already exists!')
 
     if z_score is not None:
         if isinstance(z_score, str) and Path(z_score).is_file():
