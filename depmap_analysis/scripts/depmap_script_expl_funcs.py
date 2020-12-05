@@ -187,8 +187,8 @@ def get_sd(s, o, corr, net, _type, **kwargs):
             s_x_list = s_x_set
             o_x_list = o_x_set
 
-        return s, o, (list(s_x_list), list(o_x_list),
-                      list(x_nodes), list(x_nodes_union))
+        return s, o, (list(s_x_list or []), list(o_x_list or []),
+                      list(x_nodes or []), list(x_nodes_union))
     else:
         return s, o, None
 
