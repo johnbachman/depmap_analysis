@@ -531,8 +531,10 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
     if normalize_names:
-        logger.info('Normalizing correlation matrix names')
+        logger.info('Normalizing correlation matrix column names')
         z_corr = normalize_corr_names(z_corr, indra_net)
+    else:
+        logger.info('Leaving correlation matrix column names as is')
 
     run_options['corr_z'] = z_corr
 
@@ -571,9 +573,11 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     explanations = match_correlations(**run_options)
     if outname.startswith('s3://'):
         try:
+            logger.info(f'Uploading results to s3: {outname}')
             s3 = get_s3_client(unsigned=False)
             s3outpath = S3Path.from_string(outname)
             s3outpath.upload(s3=s3, body=pickle.dumps(explanations))
+            logger.info('Finished uploading results to s3')
         except Exception:
             new_path = Path(outname.replace('s3://', ''))
             logger.warning(f'Something went wrong in s3 upload, trying to '
@@ -585,6 +589,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     else:
         # mkdir in case it doesn't exist
         outpath = Path(outname)
+        logger.info(f'Dumping results to {outpath}')
         outpath.parent.mkdir(parents=True, exist_ok=True)
         dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
                           pyobj=explanations, overwrite=overwrite)
