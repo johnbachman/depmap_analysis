@@ -31,6 +31,7 @@ import logging
 import argparse
 import multiprocessing as mp
 from time import time
+from copy import deepcopy
 from typing import Union, List, Dict, Iterable
 from pathlib import Path
 from itertools import product
@@ -732,6 +733,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     arg_dict = vars(args)
+    arg_dict['argparse_dict'] = deepcopy(arg_dict)
 
     # Load z_corr, indranet and optionally pybel_model
     inet_graph = file_opener(args.indranet)
@@ -781,7 +783,6 @@ if __name__ == '__main__':
         else:
             raise ValueError('Unknown file type %s' %
                              arg_dict['pybel_node_mapping'].split('.')[-1])
-    arg_dict['argparse_dict'] = vars(args)
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
