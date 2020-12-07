@@ -355,7 +355,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
          is_a_part_of=None, immediate_only=False, allowed_ns=None,
          info=None, indra_date=None, indra_net_file=None, depmap_date=None,
          sample_size=None, shuffle=False, overwrite=False,
-         normalize_names=False, argpargse_dict=None):
+         normalize_names=False, argparse_dict=None):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -398,7 +398,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     normalize_names : bool
         If True, try to normalize the names in the correlation matrix that
         are not found in the provided graph
-    argpargse_dict : dict
+    argparse_dict : dict
         Provide the argparse options from running this file as a script
     """
     global indranet, hgnc_node_mapping, output_list
@@ -565,7 +565,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         'graph_type': graph_type,
         'pybel_node_mapping': pb_node_mapping if isinstance(
             pb_node_mapping, str) else 'no info',
-        'argparse_info': argpargse_dict
+        'argparse_info': argparse_dict
     }
 
     # Create output list in global scope
