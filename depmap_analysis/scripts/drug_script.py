@@ -15,7 +15,9 @@ def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
                  sampl_size: int = None) -> \
         Tuple[Dict[str, Counter],
               Dict[str, List[Tuple[int, int, float]]],
-              List[Tuple[str, str, float, float, int, int]]]:
+              List[Tuple[str, str, float, float, float, int,
+                         int, int, int, int, int, int, int]
+              ]]:
     """Get the count of next nearest neighborhood
 
     Parameters
@@ -32,19 +34,45 @@ def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
     dict
         A dict of Counters for each examined agent
     """
-    jaccard_ranks = [
-        (agA, agB, corr, len(ins)/len(uni), len(ins), len(uni))
-        for agA, agB, corr, expl_type, (ins, uni) in
-        expl_df[expl_df['expl type'] ==
-                'shared downstream'].itertuples(index=False) if agA != agB
-    ]
+    jaccard_ranks = []
 
     # agA, agB, z-score, agA_ns, agA_id, agB_ns, agB_id, not in graph,
-    # explained, shared downstream
-    for (agA, agB, corr, _, _, _, _, _, _, _) in \
-            stats_df[stats_df.explained == False].itertuples(index=False):
+    # explained, shared downstream, shared target
+    for (agA, agB, corr, _, _, _, _, _, _, _, _) in \
+            stats_df[stats_df.explained == True].itertuples(index=False):
         if agA != agB:
-            jaccard_ranks.append((agA, agB, corr, 0, 0, float('nan')))
+            st_a_succ, st_b_succ, st_int, st_uni = ([],)*4
+            sd_a_succ, sd_b_succ, sd_int, sd_uni = ([],)*4
+
+            for n, (expl_type, expl_data) in enumerate(
+                    expl_df[['expl type', 'expl data']][
+                        ((expl_df.agA == agA) & (expl_df.agB == agB) |
+                         (expl_df.agA == agB) & (expl_df.agB == agA))
+                    ].itertuples(index=False)):
+                if expl_data is not None:
+                    if expl_type == 'shared target':
+                        st_a_succ, st_b_succ, st_int, st_uni = expl_data
+                    elif expl_type == 'shared downstream':
+                        sd_a_succ, sd_b_succ, sd_int, sd_uni = expl_data
+                    else:
+                        continue
+                if n > 1:
+                    raise IndexError('Should not have more than one '
+                                     'explanation per (A,B) pair per '
+                                     'category ("shared downstream" and '
+                                     '"shared target" should be only '
+                                     'explanations)')
+            # Save:
+            # A, B, corr, st JI, sd JI,
+            # n_a_st, n_b_st, st_int, st_uni,
+            # n_a_sd, n_b_sd, sd_int, sd_uni
+            st_ji = len(st_int)/len(st_uni) if len(st_uni) else 0
+            sd_ji = len(sd_int)/len(sd_uni) if len(sd_uni) else 0
+            jaccard_ranks.append(
+                (agA, agB, corr, st_ji, sd_ji,
+                 len(st_a_succ), len(st_b_succ), len(st_int), len(st_uni),
+                 len(sd_a_succ), len(sd_b_succ), len(sd_int), len(sd_uni))
+            )
 
     # Get the agents that have any shared downstream explanations
     all_agents_sampled = \
@@ -100,8 +128,14 @@ if __name__ == '__main__':
     )
     jaccard_df_per_pair = DataFrame(
         data=jr,
-        columns=['drugA', 'drugB', 'corr', 'jaccard_index',
-                 'n_intersection', 'n_union']
+        # A, B, corr, st JI, sd JI,
+        # n_a_st, n_b_st, st_int, st_uni,
+        # n_a_sd, n_b_sd, sd_int, sd_uni
+        columns=[
+            'drugA', 'drugB', 'corr', 'st_jaccard_index', 'sd_jaccard_index',
+            'succ_a_st', 'succ_b_st', 'n_st_intersection', 'n_st_union',
+            'succ_a_sd', 'succ_b_sd', 'n_sd_intersection', 'n_sd_union'
+        ]
     ).sort_values(by=['jaccard_index', 'corr'], ascending=[False, True])
     logger.info('Done with script, results are in variables '
                 '`overall_ranking`, `jaccard_df_per_drug` and '
