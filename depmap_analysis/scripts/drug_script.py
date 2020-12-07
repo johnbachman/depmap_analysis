@@ -57,11 +57,15 @@ def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
                     else:
                         continue
                 if n > 1:
-                    raise IndexError('Should not have more than one '
-                                     'explanation per (A,B) pair per '
-                                     'category ("shared downstream" and '
-                                     '"shared target" should be only '
-                                     'explanations)')
+                    # raise IndexError('Should not have more than one '
+                    #                  'explanation per (A,B) pair per '
+                    #                  'category ("shared downstream" and '
+                    #                  '"shared target" should be only '
+                    #                  'explanations)')
+                    # Todo: handle misnamed entities
+                    logger.warning(f'Skipping unexpected data from {agA}, '
+                                   f'{agB}')
+                    continue
             # Save:
             # A, B, corr, st JI, sd JI,
             # n_a_st, n_b_st, st_int, st_uni,
