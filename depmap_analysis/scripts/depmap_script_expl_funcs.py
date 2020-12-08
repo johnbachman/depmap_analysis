@@ -129,9 +129,10 @@ def get_st(s, o, corr, net, _type, **kwargs):
     if kwargs.get('ns_set'):
         x_nodes = {x for x in x_nodes if
                    net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
-
-    if x_nodes:
-        return s, o, (list(net.succ[s]), list(net.succ[o]), list(x_nodes),
+    s_succ = list(net.succ[s])
+    o_succ = list(net.succ[o])
+    if x_nodes_union or s_succ or o_succ:
+        return s, o, (s_succ, o_succ, list(x_nodes),
                       list(x_nodes_union))
     else:
         return s, o, None
@@ -175,7 +176,7 @@ def get_sd(s, o, corr, net, _type, **kwargs):
         x_nodes_union = {x for x in x_nodes_union if net.nodes[x][
             'ns'].lower() in kwargs['ns_set']} or None
 
-    if x_nodes_union:
+    if x_nodes_union or s_x_set or o_x_set:
         s_x_list = set()
         o_x_list = set()
         if _type in {'signed', 'pybel'}:
@@ -188,7 +189,7 @@ def get_sd(s, o, corr, net, _type, **kwargs):
             o_x_list = o_x_set
 
         return s, o, (list(s_x_list or []), list(o_x_list or []),
-                      list(x_nodes or []), list(x_nodes_union))
+                      list(x_nodes or []), list(x_nodes_union or []))
     else:
         return s, o, None
 
