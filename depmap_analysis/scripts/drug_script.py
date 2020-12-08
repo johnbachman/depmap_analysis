@@ -44,7 +44,7 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
             w_srcs.append((x, list(x_srcs)))
         return w_srcs
 
-    if graph is not None:
+    if graph is None:
         logger.info('No graph provided, will skip getting sources of targets')
     jaccard_ranks = []
 
