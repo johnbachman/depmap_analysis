@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import logging
-from typing import Dict, Tuple, List
+from typing import Tuple
 from collections import Counter, defaultdict
 from pandas import DataFrame
 from depmap_analysis.util.io_functions import file_opener
@@ -11,14 +11,9 @@ from depmap_analysis.util.statistics import DepMapExplainer
 logger = logging.getLogger(__name__)
 
 
-def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
-                 sampl_size: int = None) -> \
-        Tuple[Dict[str, Counter],
-              Dict[str, List[Tuple[int, int, float]]],
-              List[Tuple[str, str, float, float, float, int,
-                         int, int, int, int, int, int, int]
-              ]]:
-    """Get the count of next nearest neighborhood
+def get_jaccard_rankings_per_pair(expl_df: DataFrame, stats_df: DataFrame) \
+        -> DataFrame:
+    """
 
     Parameters
     ----------
@@ -26,13 +21,11 @@ def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
         Explanation dataframe
     stats_df : DataFrame
         Statistics dataframe
-    sampl_size : int
-        Sampling size
 
     Returns
     -------
-    dict
-        A dict of Counters for each examined agent
+    DataFrame
+
     """
     jaccard_ranks = []
 
@@ -78,6 +71,33 @@ def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
                  len(sd_a_succ), len(sd_b_succ), len(sd_int), len(sd_uni))
             )
 
+    # A, B, corr, st JI, sd JI,
+    # n_a_st, n_b_st, st_int, st_uni,
+    # n_a_sd, n_b_sd, sd_int, sd_uni
+    output_cols = (
+        'drugA', 'drugB', 'corr', 'st_jaccard_index', 'sd_jaccard_index',
+        'succ_a_st', 'succ_b_st', 'n_st_intersection', 'n_st_union',
+        'succ_a_sd', 'succ_b_sd', 'n_sd_intersection', 'n_sd_union'
+    )
+    return DataFrame(data=jaccard_ranks, columns=output_cols)
+
+
+def get_rankings_per_drug(expl_df: DataFrame, sampl_size: int = None) -> \
+        Tuple[Counter, DataFrame]:
+    """Get the count of next nearest neighborhood
+
+    Parameters
+    ----------
+    expl_df : DataFrame
+        Explanation dataframe
+    sampl_size : int
+        Sampling size
+
+    Returns
+    -------
+    dict
+        A dict of Counters for each examined agent
+    """
     # Get the agents that have any shared downstream explanations
     all_agents_sampled = \
         set(expl_df[expl_df['expl type'] == 'shared downstream'].agA.values) |\
@@ -101,7 +121,27 @@ def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
             jaccard_index[ag_name].append((len(ins), len(uni),
                                            len(ins)/len(uni)))
         nnn_counters[ag_name] = Counter(ll)
-    return nnn_counters, jaccard_index, jaccard_ranks
+
+    # Sum up the counters to get a full counter
+    global_ranking = Counter()
+    for c in nnn_counters.values():
+        global_ranking += c
+
+    # Get average Jaccard index per drug
+    jaccard_ranking = []
+    for name, jvs in jaccard_index.items():
+        li, lu, ljr = list(zip(*jvs))
+        jaccard_ranking.append((name,
+                                sum(ljr)/len(ljr),
+                                sum(li)/len(li),
+                                sum(lu)/len(lu)))
+    jaccard_ranking.sort(key=lambda t: t[1], reverse=True)
+    df = DataFrame(
+        data=jaccard_ranking,
+        columns=['drug', 'jaccard_index', 'n_intersection', 'n_union']
+    )
+
+    return global_ranking, df
 
 
 if __name__ == '__main__':
@@ -112,37 +152,11 @@ if __name__ == '__main__':
         sample_size = None
     drug_expl = file_opener(drug_file)
     assert isinstance(drug_expl, DepMapExplainer)
-    rankings, ji, jr = get_rankings(drug_expl.expl_df, drug_expl.stats_df)
+    overall_ranking, jaccard_df_per_drug = \
+        get_rankings_per_drug(drug_expl.expl_df)
+    jaccard_df_per_pair = get_jaccard_rankings_per_pair(drug_expl.expl_df,
+                                                        drug_expl.stats_df)
 
-    # Sum up the counters to get a full counter
-    overall_ranking = Counter()
-    for c in rankings.values():
-        overall_ranking += c
-
-    # Get average Jaccard index per drug
-    jaccard_ranking = []
-    for name, jvs in ji.items():
-        li, lu, ljr = list(zip(*jvs))
-        jaccard_ranking.append((name,
-                                sum(ljr)/len(ljr),
-                                sum(li)/len(li),
-                                sum(lu)/len(lu)))
-    jaccard_ranking.sort(key=lambda t: t[1], reverse=True)
-    jaccard_df_per_drug = DataFrame(
-        data=jaccard_ranking,
-        columns=['drug', 'jaccard_index', 'n_intersection', 'n_union']
-    )
-    jaccard_df_per_pair = DataFrame(
-        data=jr,
-        # A, B, corr, st JI, sd JI,
-        # n_a_st, n_b_st, st_int, st_uni,
-        # n_a_sd, n_b_sd, sd_int, sd_uni
-        columns=[
-            'drugA', 'drugB', 'corr', 'st_jaccard_index', 'sd_jaccard_index',
-            'succ_a_st', 'succ_b_st', 'n_st_intersection', 'n_st_union',
-            'succ_a_sd', 'succ_b_sd', 'n_sd_intersection', 'n_sd_union'
-        ]
-    )
     logger.info('Done with script, results are in variables '
                 '`overall_ranking`, `jaccard_df_per_drug` and '
                 '`jaccard_df_per_pair`')
