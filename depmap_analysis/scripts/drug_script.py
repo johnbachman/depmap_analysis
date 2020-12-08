@@ -99,8 +99,8 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
     # n_a_sd, n_b_sd, sd_int, sd_uni
     output_cols = (
         'drugA', 'drugB', 'corr', 'st_jaccard_index', 'sd_jaccard_index',
-        'succ_a_st', 'succ_b_st', 'n_st_intersection', 'n_st_union',
-        'succ_a_sd', 'succ_b_sd', 'n_sd_intersection', 'n_sd_union'
+        'succ_a_st', 'succ_b_st', 'st_intersection', 'st_union',
+        'succ_a_sd', 'succ_b_sd', 'sd_intersection', 'sd_union'
     )
     return pd.DataFrame(data=jaccard_ranks, columns=output_cols)
 
