@@ -90,11 +90,13 @@ def get_rankings(expl_df: DataFrame, stats_df: DataFrame,
 
     nnn_counters = {}  # Counters of the intersection of downstream targets
     jaccard_index = defaultdict(list)
-    expl_df = expl_df[expl_df['expl type'] == 'shared downstream']
     for ag_name in all_agents_sampled:
         ll = []
-        for ins, uni in expl_df['expl data'][(expl_df.agA == ag_name) |
-                                             (expl_df.agB == ag_name)].values:
+        for sd_a_succ, sd_b_succ, ins, uni in \
+                expl_df['expl data'][
+                    ((expl_df.agA == ag_name) | (expl_df.agB == ag_name)) &
+                    (expl_df['expl type'] == 'shared downstream')
+                ].values:
             ll += ins
             jaccard_index[ag_name].append((len(ins), len(uni),
                                            len(ins)/len(uni)))
@@ -140,7 +142,7 @@ if __name__ == '__main__':
             'succ_a_st', 'succ_b_st', 'n_st_intersection', 'n_st_union',
             'succ_a_sd', 'succ_b_sd', 'n_sd_intersection', 'n_sd_union'
         ]
-    ).sort_values(by=['jaccard_index', 'corr'], ascending=[False, True])
+    )
     logger.info('Done with script, results are in variables '
                 '`overall_ranking`, `jaccard_df_per_drug` and '
                 '`jaccard_df_per_pair`')
