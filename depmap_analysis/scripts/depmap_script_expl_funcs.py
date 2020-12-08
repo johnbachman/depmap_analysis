@@ -132,8 +132,8 @@ def get_st(s, o, corr, net, _type, **kwargs):
     s_succ = list(net.succ[s])
     o_succ = list(net.succ[o])
     if x_nodes_union or s_succ or o_succ:
-        return s, o, (s_succ, o_succ, list(x_nodes),
-                      list(x_nodes_union))
+        return s, o, (s_succ, o_succ, list(x_nodes or []),
+                      list(x_nodes_union or []))
     else:
         return s, o, None
 
