@@ -94,20 +94,32 @@ def expl_bxa(s, o, corr, net, _type, **kwargs):
 
 # Shared regulator: A<-X->B
 def get_sr(s, o, corr, net, _type, **kwargs):
-    x_set = set(net.pred[s]) & set(net.pred[o])
-
-    if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_shared_regulators(s, o, corr, net, x_set)
-    else:
-        x_nodes = x_set
-
     # Filter ns
     if kwargs.get('ns_set'):
-        x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
+        ns_filt_args = (net, kwargs['ns_set'])
+        s_pred = set(_node_ns_filter(net.pred[s], *ns_filt_args))
+        o_pred = set(_node_ns_filter(net.pred[o], *ns_filt_args))
+        x_set = _node_ns_filter(s_pred & o_pred, *ns_filt_args)
+        x_set_union = _node_ns_filter(s_pred | o_pred, *ns_filt_args)
+    else:
+        s_pred = set(net.pred[s])
+        o_pred = set(net.pred[o])
+        x_set = s_pred & o_pred
+        x_set_union = s_pred | o_pred
 
-    if x_nodes:
-        return s, o, list(x_nodes)
+    # Sort out sign
+    if _type in {'signed', 'pybel'}:
+        x_nodes = _get_signed_shared_regulators(s, o, corr, net, x_set, False)
+        x_nodes_union = _get_signed_shared_regulators(s, o, corr, net, x_set,
+                                                      True)
+    else:
+        x_nodes = x_set
+        x_nodes_union = x_set_union
+
+    # Return if there is anything in union, s_pred or o_pred
+    if x_nodes_union or s_pred or o_pred:
+        return s, o, (list(s_pred), list(o_pred),
+                      list(x_nodes or []), list(x_nodes_union or []))
     else:
         return s, o, None
 
