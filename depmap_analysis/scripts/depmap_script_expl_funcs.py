@@ -265,7 +265,7 @@ def _get_signed_shared_targets(s: str, o: str, corr: float,
         sx_plus = (s, x, INT_PLUS) in sign_edge_net.edges
         ox_plus = (o, x, INT_PLUS) in sign_edge_net.edges
         sx_minus = (s, x, INT_MINUS) in sign_edge_net.edges
-        ox_minus = (s, x, INT_MINUS) in sign_edge_net.edges
+        ox_minus = (o, x, INT_MINUS) in sign_edge_net.edges
 
         if union:
             if any([sx_plus, ox_plus, sx_minus, ox_minus]):
