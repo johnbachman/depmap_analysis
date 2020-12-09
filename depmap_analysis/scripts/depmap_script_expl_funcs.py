@@ -329,8 +329,9 @@ def _approve_signed_paths(sxm: bool, sxp: bool, oxm: bool, oxp: bool,
 
 
 def _node_ns_filter(node_list: Union[Set[str], List[str]],
-               net: Union[DiGraph, MultiDiGraph],
-               allowed_ns: Union[Set[str], List[str], Tuple[str]]) -> Set[str]:
+                    net: Union[DiGraph, MultiDiGraph],
+                    allowed_ns: Union[Set[str], List[str], Tuple[str]]) \
+        -> Set[str]:
     return {x for x in node_list if net.nodes[x]['ns'].lower()
             in allowed_ns}
 
