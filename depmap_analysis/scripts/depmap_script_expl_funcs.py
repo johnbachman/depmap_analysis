@@ -157,34 +157,6 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
 
 def get_sd(s, o, corr, net, _type, **kwargs):
-    def _get_nnn_set(
-            n: str, g: nx.MultiDiGraph, signed: bool,
-            ns_set: Optional[Union[Set[str], List[str], Tuple[str]]] = None
-    ) -> Set[Union[str, Tuple[str, str]]]:
-        n_x_set = set()
-        for x in g.succ[n]:
-            if ns_set and g.nodes[x]['ns'] not in ns_set:
-                # Skip if x is not in allowed name space
-                continue
-
-            # If signed, add edges instead and match sign in helper
-            if signed:
-                for y in g.succ[x]:
-                    if ns_set and g.nodes[y]['ns'] not in ns_set:
-                        # Skip if y is not in allowed name space
-                        continue
-                    n_x_set.add((x, y))
-            # Just add nodes for unsigned
-            else:
-                n_x_set.add(x)
-                if ns_set:
-                    n_x_set.update({
-                        y for y in g.succ[x] if g.nodes[y]['ns'] in ns_set
-                    })
-                else:
-                    n_x_set.update(g.succ[x])
-        return n_x_set
-
     # Get next-nearest-neighborhood for subject
     args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'))
     s_x_set = _get_nnn_set(s, *args)
@@ -365,6 +337,35 @@ def _approve_signed_paths(sxm: bool, sxp: bool, oxm: bool, oxp: bool,
         return _asp(*sargs) or _asp(*oargs)
     else:
         return _asp(*sargs) and _asp(*oargs)
+
+
+def _get_nnn_set(
+        n: str, g: nx.MultiDiGraph, signed: bool,
+        ns_set: Optional[Union[Set[str], List[str], Tuple[str]]] = None
+) -> Set[Union[str, Tuple[str, str]]]:
+    n_x_set = set()
+    for x in g.succ[n]:
+        if ns_set and g.nodes[x]['ns'].lower() not in ns_set:
+            # Skip if x is not in allowed name space
+            continue
+
+        # If signed, add edges instead and match sign in helper
+        if signed:
+            for y in g.succ[x]:
+                if ns_set and g.nodes[y]['ns'].lower() not in ns_set:
+                    # Skip if y is not in allowed name space
+                    continue
+                n_x_set.add((x, y))
+        # Just add nodes for unsigned
+        else:
+            n_x_set.add(x)
+            if ns_set:
+                n_x_set.update({
+                    y for y in g.succ[x] if g.nodes[y]['ns'].lower() in ns_set
+                })
+            else:
+                n_x_set.update(g.succ[x])
+    return n_x_set
 
 
 def _node_ns_filter(node_list: Union[Set[str], List[str]],
