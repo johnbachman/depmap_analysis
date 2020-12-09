@@ -114,10 +114,6 @@ def get_sr(s, o, corr, net, _type, **kwargs):
 
 # Shared target: A->X<-B
 def get_st(s, o, corr, net, _type, **kwargs):
-    def _ns_filter(node_list: List[str]):
-        return {x for x in node_list if net.nodes[x]['ns'].lower()
-                in kwargs['ns_set']}
-
     x_set = set(net.succ[s]) & set(net.succ[o])
     x_set_union = set(net.succ[s]) | set(net.succ[o])
 
@@ -131,10 +127,11 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
     # Filter ns
     if kwargs.get('ns_set'):
-        x_nodes = _ns_filter(x_nodes)
-        x_nodes_union = _ns_filter(x_nodes_union)
-        s_succ = list(_ns_filter(net.succ[s]))
-        o_succ = list(_ns_filter(net.succ[o]))
+        args = (net, kwargs['ns_set'])
+        x_nodes = _node_ns_filter(x_nodes, *args)
+        x_nodes_union = _node_ns_filter(x_nodes_union, *args)
+        s_succ = list(_node_ns_filter(net.succ[s], *args))
+        o_succ = list(_node_ns_filter(net.succ[o], *args))
     else:
         s_succ = list(net.succ[s])
         o_succ = list(net.succ[o])
@@ -320,6 +317,13 @@ def _approve_signed_paths(sxm: bool, sxp: bool, oxm: bool, oxp: bool,
         return _asp(*sargs) or _asp(*oargs)
     else:
         return _asp(*sargs) and _asp(*oargs)
+
+
+def _node_ns_filter(node_list: Union[Set[str], List[str]],
+               net: Union[DiGraph, MultiDiGraph],
+               allowed_ns: Union[Set[str], List[str], Tuple[str]]):
+    return {x for x in node_list if net.nodes[x]['ns'].lower()
+            in allowed_ns}
 
 
 def get_ns_id(subj, obj, net):
