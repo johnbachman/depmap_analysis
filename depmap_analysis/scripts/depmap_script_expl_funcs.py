@@ -2,7 +2,7 @@
 explanation functions, please also add them to the mapping at the end"""
 import logging
 import networkx as nx
-from typing import Set, Union, Tuple, List
+from typing import Set, Union, Tuple, List, Optional
 
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
@@ -144,25 +144,40 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
 
 def get_sd(s, o, corr, net, _type, **kwargs):
-    def get_nnn_set(n: str, g: nx.MultiDiGraph, signed: bool) \
-            -> Set[Union[str, Tuple[str, str]]]:
+    def _get_nnn_set(
+            n: str, g: nx.MultiDiGraph, signed: bool,
+            ns_set: Optional[Union[Set[str], List[str], Tuple[str]]] = None
+    ) -> Set[Union[str, Tuple[str, str]]]:
         n_x_set = set()
         for x in g.succ[n]:
+            if ns_set and g.nodes[x]['ns'] not in ns_set:
+                # Skip if x is not in allowed name space
+                continue
+
             # If signed, add edges instead and match sign in helper
             if signed:
                 for y in g.succ[x]:
+                    if ns_set and g.nodes[y]['ns'] not in ns_set:
+                        # Skip if y is not in allowed name space
+                        continue
                     n_x_set.add((x, y))
             # Just add nodes for unsigned
             else:
                 n_x_set.add(x)
-                n_x_set.update(g.succ[x])
+                if ns_set:
+                    n_x_set.update({
+                        y for y in g.succ[x] if g.nodes[y]['ns'] in ns_set
+                    })
+                else:
+                    n_x_set.update(g.succ[x])
         return n_x_set
 
     # Get next-nearest-neighborhood for subject
-    s_x_set = get_nnn_set(s, net, _type in {'signed', 'pybel'})
-    o_x_set = get_nnn_set(o, net, _type in {'signed', 'pybel'})
+    args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'))
+    s_x_set = _get_nnn_set(s, *args)
+    o_x_set = _get_nnn_set(o, *args)
 
-    # Get intersection of each nodes' 1st & 2nd layer neighbors
+    # Get intersection and union of each nodes' 1st & 2nd layer neighbors
     x_set = s_x_set & o_x_set
     x_set_union = s_x_set | o_x_set
 
@@ -173,12 +188,6 @@ def get_sd(s, o, corr, net, _type, **kwargs):
     else:
         x_nodes = x_set
         x_nodes_union = x_set_union
-
-    # Filter ns
-    if kwargs.get('ns_set'):
-        args = (net, kwargs['ns_set'])
-        x_nodes = _node_ns_filter(x_nodes, *args)
-        x_nodes_union = _node_ns_filter(x_nodes_union, *args)
 
     if x_nodes_union or s_x_set or o_x_set:
         s_x_list = set()
@@ -192,17 +201,8 @@ def get_sd(s, o, corr, net, _type, **kwargs):
             s_x_list = s_x_set
             o_x_list = o_x_set
 
-        # Filter ns
-        if kwargs.get('ns_set'):
-            args = (net, kwargs['ns_set'])
-            s_x_list = _node_ns_filter(s_x_list, *args)
-            o_x_list = _node_ns_filter(o_x_list, *args)
-
-        if x_nodes_union or s_x_list or o_x_list:
-            return s, o, (list(s_x_list or []), list(o_x_list or []),
-                          list(x_nodes or []), list(x_nodes_union or []))
-        else:
-            return s, o, None
+        return s, o, (list(s_x_list or []), list(o_x_list or []),
+                      list(x_nodes or []), list(x_nodes_union or []))
     else:
         return s, o, None
 
