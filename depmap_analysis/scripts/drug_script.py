@@ -16,13 +16,19 @@ def _src_count(succ_list: List[Tuple[str, List[str]]], src: List[str]):
 
 
 def _percent_in_tas_or_db_A(row):
-    count = _src_count(row.succ_a_st, ['tas', 'drugbank'])
-    return count / len(row.succ_a_st)
+    if len(row.succ_a_st):
+        count = _src_count(row.succ_a_st, ['tas', 'drugbank'])
+        return count / len(row.succ_a_st)
+    else:
+        return 0
 
 
 def _percent_in_tas_or_db_B(row):
-    count = _src_count(row.succ_b_st, ['tas', 'drugbank'])
-    return count / len(row.succ_b_st)
+    if len(row.succ_b_st):
+        count = _src_count(row.succ_b_st, ['tas', 'drugbank'])
+        return count / len(row.succ_b_st)
+    else:
+        return 0
 
 
 def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
