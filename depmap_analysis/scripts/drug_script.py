@@ -11,6 +11,20 @@ from depmap_analysis.util.statistics import DepMapExplainer
 logger = logging.getLogger(__name__)
 
 
+def _src_count(succ_list: List[Tuple[str, List[str]]], src: List[str]):
+    return sum([any([s in srcl for s in src]) for _, srcl in succ_list])
+
+
+def _percent_in_tas_or_db_A(row):
+    count = _src_count(row.succ_a_st, ['tas', 'drugbank'])
+    return count / len(row.succ_a_st)
+
+
+def _percent_in_tas_or_db_B(row):
+    count = _src_count(row.succ_b_st, ['tas', 'drugbank'])
+    return count / len(row.succ_b_st)
+
+
 def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
                                   stats_df: pd.DataFrame,
                                   graph: Optional[DiGraph] = None) \
@@ -102,7 +116,14 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
         'succ_a_st', 'succ_b_st', 'st_intersection', 'st_union',
         'succ_a_sd', 'succ_b_sd', 'sd_intersection', 'sd_union'
     )
-    return pd.DataFrame(data=jaccard_ranks, columns=output_cols)
+    df = pd.DataFrame(data=jaccard_ranks, columns=output_cols)
+
+    # Add some columns
+    df['agA_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_A, axis=1)
+    df['agB_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_B, axis=1)
+    df['percent_in_tas_db'] = 0.5*(df.agB_percent_in_tas_db +
+                                   df.agA_percent_in_tas_db)
+    return df
 
 
 def get_rankings_per_drug(expl_df: pd.DataFrame, sampl_size: int = None) -> \
