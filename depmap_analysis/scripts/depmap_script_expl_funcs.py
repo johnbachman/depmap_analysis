@@ -97,7 +97,7 @@ def get_sr(s, o, corr, net, _type, **kwargs):
     x_set = set(net.pred[s]) & set(net.pred[o])
 
     if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
+        x_nodes = _get_signed_shared_regulators(s, o, corr, net, x_set)
     else:
         x_nodes = x_set
 
@@ -253,6 +253,33 @@ def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
         if int_sign == INT_MINUS:
             if ax_plus and xb_minus or ax_minus and xb_plus:
                 x_approved.add(x)
+    return x_approved
+
+
+def _get_signed_shared_regulators(s: str, o: str, corr: float,
+                                  sign_edge_net: nx.MultiDiGraph,
+                                  x_set: Set, union: bool) -> Set[str]:
+    x_approved = set()
+
+    for x in x_set:
+        xs_plus = (x, s, INT_PLUS) in sign_edge_net.edges
+        xo_plus = (x, o, INT_PLUS) in sign_edge_net.edges
+        xs_minus = (x, s, INT_MINUS) in sign_edge_net.edges
+        xo_minus = (x, o, INT_MINUS) in sign_edge_net.edges
+
+        if union:
+            if any([xs_plus, xo_plus, xs_minus, xo_minus]):
+                x_approved.add(x)
+            else:
+                pass
+        else:
+            if corr > 0:
+                if xs_plus and xo_plus or xs_minus and xo_minus:
+                    x_approved.add(x)
+            else:
+                if xs_plus and xo_minus or xs_minus and xo_plus:
+                    x_approved.add(x)
+
     return x_approved
 
 
