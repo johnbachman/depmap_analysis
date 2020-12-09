@@ -176,10 +176,9 @@ def get_sd(s, o, corr, net, _type, **kwargs):
 
     # Filter ns
     if kwargs.get('ns_set'):
-        x_nodes = {x for x in x_nodes if net.nodes[x]['ns'].lower() in
-                   kwargs['ns_set']} or None
-        x_nodes_union = {x for x in x_nodes_union if net.nodes[x][
-            'ns'].lower() in kwargs['ns_set']} or None
+        args = (net, kwargs['ns_set'])
+        x_nodes = _node_ns_filter(x_nodes, *args)
+        x_nodes_union = _node_ns_filter(x_nodes_union, *args)
 
     if x_nodes_union or s_x_set or o_x_set:
         s_x_list = set()
@@ -193,8 +192,17 @@ def get_sd(s, o, corr, net, _type, **kwargs):
             s_x_list = s_x_set
             o_x_list = o_x_set
 
-        return s, o, (list(s_x_list or []), list(o_x_list or []),
-                      list(x_nodes or []), list(x_nodes_union or []))
+        # Filter ns
+        if kwargs.get('ns_set'):
+            args = (net, kwargs['ns_set'])
+            s_x_list = _node_ns_filter(s_x_list, *args)
+            o_x_list = _node_ns_filter(o_x_list, *args)
+
+        if x_nodes_union or s_x_list or o_x_list:
+            return s, o, (list(s_x_list or []), list(o_x_list or []),
+                          list(x_nodes or []), list(x_nodes_union or []))
+        else:
+            return s, o, None
     else:
         return s, o, None
 
@@ -321,7 +329,7 @@ def _approve_signed_paths(sxm: bool, sxp: bool, oxm: bool, oxp: bool,
 
 def _node_ns_filter(node_list: Union[Set[str], List[str]],
                net: Union[DiGraph, MultiDiGraph],
-               allowed_ns: Union[Set[str], List[str], Tuple[str]]):
+               allowed_ns: Union[Set[str], List[str], Tuple[str]]) -> Set[str]:
     return {x for x in node_list if net.nodes[x]['ns'].lower()
             in allowed_ns}
 
