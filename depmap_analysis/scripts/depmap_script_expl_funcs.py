@@ -114,9 +114,20 @@ def get_sr(s, o, corr, net, _type, **kwargs):
 
 # Shared target: A->X<-B
 def get_st(s, o, corr, net, _type, **kwargs):
-    x_set = set(net.succ[s]) & set(net.succ[o])
-    x_set_union = set(net.succ[s]) | set(net.succ[o])
+    # Filter ns
+    if kwargs.get('ns_set'):
+        ns_filt_args = (net, kwargs['ns_set'])
+        s_succ = set(_node_ns_filter(net.succ[s], *ns_filt_args))
+        o_succ = set(_node_ns_filter(net.succ[o], *ns_filt_args))
+        x_set = _node_ns_filter(s_succ & o_succ, *ns_filt_args)
+        x_set_union = _node_ns_filter(s_succ | o_succ, *ns_filt_args)
+    else:
+        s_succ = set(net.succ[s])
+        o_succ = set(net.succ[o])
+        x_set = s_succ & o_succ
+        x_set_union = s_succ | o_succ
 
+    # Sort out sign
     if _type in {'signed', 'pybel'}:
         x_nodes = _get_signed_shared_targets(s, o, corr, net, x_set, False)
         x_nodes_union = _get_signed_shared_targets(s, o, corr, net,
@@ -125,20 +136,10 @@ def get_st(s, o, corr, net, _type, **kwargs):
         x_nodes = x_set
         x_nodes_union = x_set_union
 
-    # Filter ns
-    if kwargs.get('ns_set'):
-        args = (net, kwargs['ns_set'])
-        x_nodes = _node_ns_filter(x_nodes, *args)
-        x_nodes_union = _node_ns_filter(x_nodes_union, *args)
-        s_succ = list(_node_ns_filter(net.succ[s], *args))
-        o_succ = list(_node_ns_filter(net.succ[o], *args))
-    else:
-        s_succ = list(net.succ[s])
-        o_succ = list(net.succ[o])
-
+    # Return if there is any node in union, s_succ or o_succ
     if x_nodes_union or s_succ or o_succ:
-        return s, o, (s_succ, o_succ, list(x_nodes or []),
-                      list(x_nodes_union or []))
+        return s, o, (list(s_succ), list(o_succ),
+                      list(x_nodes or []), list(x_nodes_union or []))
     else:
         return s, o, None
 
