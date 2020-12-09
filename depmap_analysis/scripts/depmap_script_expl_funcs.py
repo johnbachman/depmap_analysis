@@ -2,7 +2,7 @@
 explanation functions, please also add them to the mapping at the end"""
 import logging
 import networkx as nx
-from typing import Set, Union, Tuple
+from typing import Set, Union, Tuple, List
 
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
@@ -114,6 +114,10 @@ def get_sr(s, o, corr, net, _type, **kwargs):
 
 # Shared target: A->X<-B
 def get_st(s, o, corr, net, _type, **kwargs):
+    def _ns_filter(node_list: List[str]):
+        return {x for x in node_list if net.nodes[x]['ns'].lower()
+                in kwargs['ns_set']}
+
     x_set = set(net.succ[s]) & set(net.succ[o])
     x_set_union = set(net.succ[s]) | set(net.succ[o])
 
@@ -127,10 +131,14 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
     # Filter ns
     if kwargs.get('ns_set'):
-        x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
-    s_succ = list(net.succ[s])
-    o_succ = list(net.succ[o])
+        x_nodes = _ns_filter(x_nodes)
+        x_nodes_union = _ns_filter(x_nodes_union)
+        s_succ = list(_ns_filter(net.succ[s]))
+        o_succ = list(_ns_filter(net.succ[o]))
+    else:
+        s_succ = list(net.succ[s])
+        o_succ = list(net.succ[o])
+
     if x_nodes_union or s_succ or o_succ:
         return s, o, (s_succ, o_succ, list(x_nodes or []),
                       list(x_nodes_union or []))
