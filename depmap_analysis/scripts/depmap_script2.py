@@ -594,6 +594,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         outpath.parent.mkdir(parents=True, exist_ok=True)
         dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
                           pyobj=explanations, overwrite=overwrite)
+    logger.info('Script finished')
 
 
 if __name__ == '__main__':
