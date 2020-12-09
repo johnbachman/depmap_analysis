@@ -110,8 +110,8 @@ def get_sr(s, o, corr, net, _type, **kwargs):
     # Sort out sign
     if _type in {'signed', 'pybel'}:
         x_nodes = _get_signed_shared_regulators(s, o, corr, net, x_set, False)
-        x_nodes_union = _get_signed_shared_regulators(s, o, corr, net, x_set,
-                                                      True)
+        x_nodes_union = _get_signed_shared_regulators(s, o, corr, net,
+                                                      x_set_union, True)
     else:
         x_nodes = x_set
         x_nodes_union = x_set_union
