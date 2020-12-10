@@ -100,13 +100,20 @@ def get_sr(s, o, corr, net, _type, **kwargs):
         ns_filt_args = (net, kwargs['ns_set'])
         s_pred = set(_node_ns_filter(net.pred[s], *ns_filt_args))
         o_pred = set(_node_ns_filter(net.pred[o], *ns_filt_args))
-        x_set = _node_ns_filter(s_pred & o_pred, *ns_filt_args)
-        x_set_union = _node_ns_filter(s_pred | o_pred, *ns_filt_args)
     else:
         s_pred = set(net.pred[s])
         o_pred = set(net.pred[o])
-        x_set = s_pred & o_pred
-        x_set_union = s_pred | o_pred
+
+    # Filter sources
+    if kwargs.get('src_set'):
+        # Use reverse=False for downstream
+        # net, reverse, allowed_src
+        src_args = (net, True, kwargs['src_set'])
+        s_pred = _src_filter(s, s_pred, *src_args)
+        o_pred = _src_filter(o, o_pred, *src_args)
+
+    x_set = s_pred & o_pred
+    x_set_union = s_pred | o_pred
 
     # Sort out sign
     if _type in {'signed', 'pybel'}:
