@@ -418,8 +418,8 @@ def _src_filter(start_node: str, neighbor_nodes: Set[str],
 
     # Create an edge iterator with correct order
     edge_iter = \
-        product(neighbor_nodes, start_node) if reverse else \
-        product(start_node, neighbor_nodes)
+        product(neighbor_nodes, [start_node]) if reverse else \
+        product([start_node], neighbor_nodes)
 
     # Check which edges have the allowed sources
     filtered_nodes = set()
