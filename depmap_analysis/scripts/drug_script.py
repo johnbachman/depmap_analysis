@@ -125,10 +125,11 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
     df = pd.DataFrame(data=jaccard_ranks, columns=output_cols)
 
     # Add some columns
-    df['agA_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_A, axis=1)
-    df['agB_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_B, axis=1)
-    df['percent_in_tas_db'] = 0.5*(df.agB_percent_in_tas_db +
-                                   df.agA_percent_in_tas_db)
+    if graph:
+        df['agA_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_A, axis=1)
+        df['agB_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_B, axis=1)
+        df['percent_in_tas_db'] = 0.5*(df.agB_percent_in_tas_db +
+                                       df.agA_percent_in_tas_db)
     return df
 
 
