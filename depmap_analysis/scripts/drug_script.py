@@ -81,13 +81,6 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
                         ((expl_df.agA == agA) & (expl_df.agB == agB) |
                          (expl_df.agA == agB) & (expl_df.agB == agA))
                     ].itertuples(index=False)):
-                if expl_data is not None:
-                    if expl_type == 'shared target':
-                        st_a_succ, st_b_succ, st_int, st_uni = expl_data
-                    elif expl_type == 'shared downstream':
-                        sd_a_succ, sd_b_succ, sd_int, sd_uni = expl_data
-                    else:
-                        continue
                 if n > 1:
                     # raise IndexError('Should not have more than one '
                     #                  'explanation per (A,B) pair per '
@@ -98,6 +91,14 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
                     logger.warning(f'Skipping unexpected data from {agA}, '
                                    f'{agB}')
                     continue
+
+                if expl_data is not None:
+                    if expl_type == 'shared target':
+                        st_a_succ, st_b_succ, st_int, st_uni = expl_data
+                    elif expl_type == 'shared downstream':
+                        sd_a_succ, sd_b_succ, sd_int, sd_uni = expl_data
+                    else:
+                        continue
             # Save:
             # A, B, corr, st JI, sd JI,
             # a_st, b_st, st_int, st_uni,
