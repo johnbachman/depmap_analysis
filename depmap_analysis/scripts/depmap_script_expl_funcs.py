@@ -134,15 +134,13 @@ def get_sr(s, o, corr, net, _type, **kwargs):
 
 # Shared target: A->X<-B
 def get_st(s, o, corr, net, _type, **kwargs):
+    s_succ = set(net.succ[s])
+    o_succ = set(net.succ[o])
     # Filter ns
     if kwargs.get('ns_set'):
         ns_filt_args = (net, kwargs['ns_set'])
-        s_succ = set(_node_ns_filter(net.succ[s], *ns_filt_args))
-        o_succ = set(_node_ns_filter(net.succ[o], *ns_filt_args))
-    else:
-        s_succ = set(net.succ[s])
-        o_succ = set(net.succ[o])
-
+        s_succ = set(_node_ns_filter(s_succ, *ns_filt_args))
+        o_succ = set(_node_ns_filter(o_succ, *ns_filt_args))
     # Filter sources
     if kwargs.get('src_set'):
         # Use reverse=False for downstream
