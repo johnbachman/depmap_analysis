@@ -158,7 +158,8 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
 def get_sd(s, o, corr, net, _type, **kwargs):
     # Get next-nearest-neighborhood for subject
-    args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'))
+    args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'),
+            kwargs.get('src_set'))
     s_x_set = _get_nnn_set(s, *args)
     o_x_set = _get_nnn_set(o, *args)
 
@@ -339,14 +340,21 @@ def _approve_signed_paths(sxm: bool, sxp: bool, oxm: bool, oxp: bool,
         return _asp(*sargs) and _asp(*oargs)
 
 
-def _get_nnn_set(
-        n: str, g: nx.MultiDiGraph, signed: bool,
-        ns_set: Optional[Union[Set[str], List[str], Tuple[str]]] = None
-) -> Set[Union[str, Tuple[str, str]]]:
+def _get_nnn_set(n: str,
+                 g: nx.MultiDiGraph,
+                 signed: bool,
+                 ns_set: Optional[Set[str]] = None,
+                 src_set: Optional[Set[str]] = None) \
+        -> Set[Union[str, Tuple[str, str]]]:
+    # Filter node ns at all levels, only filter edge stmt sources at first edge
     n_x_set = set()
     for x in g.succ[n]:
         if ns_set and g.nodes[x]['ns'].lower() not in ns_set:
             # Skip if x is not in allowed name space
+            continue
+        if src_set and not _src_in_edge(g.edges[(n, x)]['statements'],
+                                        src_set):
+            # Skip if there are no sources from the allowed set in edge
             continue
 
         # If signed, add edges instead and match sign in helper
