@@ -66,8 +66,8 @@ output_list = []
 
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
-                            expl_columns, bool_columns, min_columns,
-                            explained_set, _type, allowed_ns=None,
+                            expl_columns, bool_columns, explained_set,
+                            _type, allowed_ns=None, allowed_sources=None,
                             is_a_part_of=None, immediate_only=False):
     try:
         global indranet
@@ -79,6 +79,8 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
             options['is_a_part_of'] = is_a_part_of
         if allowed_ns:
             options['ns_set'] = allowed_ns
+        if allowed_sources:
+            options['src_set'] = allowed_sources
 
         for gA, gB, zsc in corr_iter:
             # Initialize current iteration stats
@@ -256,11 +258,18 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     logger.info(f'Doing correlation matching with {_type} graph')
 
     # Get options
-    allowed_ns = {n.lower() for n in kwargs['allowed_ns']} if \
-        kwargs.get('allowed_ns') else None
-    if allowed_ns:
+    if kwargs.get('allowed_ns'):
+        allowed_ns = {n.lower() for n in kwargs['allowed_ns']}
         logger.info('Only allowing the following namespaces: %s' %
                     ', '.join(allowed_ns))
+    else:
+        allowed_ns = None
+    if kwargs.get('allowed_sources'):
+        allowed_sources = {s.lower() for s in kwargs['allowed_sources']}
+        logger.info('Only allowing the following sources: %s' %
+                    ', '.join(allowed_sources))
+    else:
+        allowed_sources = None
     is_a_part_of = kwargs.get('is_a_part_of')
     immediate_only = kwargs.get('immediate_only', False)
 
@@ -298,10 +307,10 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                                  stats_columns,
                                  expl_columns,
                                  bool_columns,
-                                 min_columns,
                                  explained_set,
                                  _type,
                                  allowed_ns,
+                                 allowed_sources,
                                  is_a_part_of,
                                  immediate_only
                              ),
@@ -354,9 +363,10 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
          expl_funcs=None, pb_node_mapping=None, n_chunks=256, ignore_list=None,
          is_a_part_of=None, immediate_only=False, allowed_ns=None,
-         info=None, indra_date=None, indra_net_file=None, depmap_date=None,
-         sample_size=None, shuffle=False, overwrite=False,
-         normalize_names=False, argparse_dict=None):
+         allowed_sources=None, info=None, indra_date=None,
+         indra_net_file=None, depmap_date=None, sample_size=None,
+         shuffle=False, overwrite=False, normalize_names=False,
+         argparse_dict=None):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
@@ -383,9 +393,13 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     immediate_only : bool
         Only look for immediate parents. This option might limit the number
         of results that are returned.
-    allowed_ns : List
+    allowed_ns : List[str]
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
+    allowed_sources : List[str]
+        The allowed sources for edges. This will not affect subsequent edges
+        in explanations involving 2 or more edges. Default: all sources are
+        allowed.
     info : dict
     indra_date : str
     indra_net_file : str
@@ -475,6 +489,8 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
     run_options['immediate_only'] = immediate_only
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
+    if allowed_sources:
+        run_options['allowed_sources'] = allowed_sources
     if is_a_part_of:
         run_options['is_a_part_of'] = is_a_part_of
 
@@ -665,7 +681,15 @@ if __name__ == '__main__':
              'intermediate nodes. Default: all namespaces are allowed.'
     )
 
-    #   1f Provide expl function names
+    #   1f Provide sources to filter to for edges
+    parser.add_argument(
+        '--allowed-sources', nargs='+',
+        help='Specify the allowed sources for edges. This will not affect '
+             'subsequent edges in explanations involving 2 or more edges. '
+             'Default: all sources are allowed.'
+    )
+
+    #   1g Provide expl function names
     parser.add_argument(
         '--expl-funcs', nargs='+',
         type=allowed_types(set(expl_functions.keys())),
