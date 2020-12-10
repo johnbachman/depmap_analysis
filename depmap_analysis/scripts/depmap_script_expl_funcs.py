@@ -407,17 +407,26 @@ def _node_ns_filter(node_list: Union[Set[str], List[str]],
             in allowed_ns}
 
 
-def _src_filter(node: str, nodes: Set[str], net: Union[DiGraph, MultiDiGraph],
-                reverse: bool, allowed_src: Set[str]) -> Set[str]:
+def _src_filter(start_node: str, neighbor_nodes: Set[str],
+                net: Union[DiGraph, MultiDiGraph], reverse: bool,
+                allowed_src: Set[str]) -> Set[str]:
     # Filter out nodes from 'nodes' if they don't have any sources from the
     # allowed sources
-    node_list = sorted(nodes)
-    edge_iter = product(nodes, node) if reverse else product(node, nodes)
+
+    # Make a sorted list of the neighbors
+    node_list = sorted(neighbor_nodes)
+
+    # Create an edge iterator with correct order
+    edge_iter = \
+        product(neighbor_nodes, start_node) if reverse else \
+        product(start_node, neighbor_nodes)
+
+    # Check which edges have the allowed sources
     filtered_nodes = set()
     for n, edge in zip(node_list, edge_iter):
         stmt_list = net.edges[edge]['statements']
         if _src_in_edge(stmt_list, allowed_src):
-            filtered_nodes.add(node)
+            filtered_nodes.add(n)
     return filtered_nodes
 
 
