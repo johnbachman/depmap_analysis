@@ -66,16 +66,27 @@ def find_cp(s, o, corr, net, _type, **kwargs):
 
 
 def expl_axb(s, o, corr, net, _type, **kwargs):
-    x_set = set(net.succ[s]) & set(net.pred[o])
+    s_succ = set(net.succ[s])
+    o_pred = set(net.pred[o])
+    # Filter ns
+    if kwargs.get('ns_set'):
+        ns_filt_args = (net, kwargs['ns_set'])
+        s_succ = set(_node_ns_filter(s_succ, *ns_filt_args))
+        o_pred = set(_node_ns_filter(o_pred, *ns_filt_args))
+    # Filter sources
+    if kwargs.get('src_set'):
+        # Use reverse=False for downstream
+        # net, reverse, allowed_src
+        s_succ = _src_filter(s, s_succ, net, False, kwargs['src_set'])
+        o_pred = _src_filter(o, o_pred, net, True, kwargs['src_set'])
+    # Get intersection
+    x_set = s_succ & o_pred
+
+    # Sort out sign
     if _type in {'signed', 'pybel'}:
         x_nodes = _get_signed_interm(s, o, corr, net, x_set)
     else:
         x_nodes = x_set
-
-    # Filter ns
-    if kwargs.get('ns_set'):
-        x_nodes = {x for x in x_nodes if
-                   net.nodes[x]['ns'].lower() in kwargs['ns_set']} or None
 
     if x_nodes:
         return s, o, list(x_nodes)
