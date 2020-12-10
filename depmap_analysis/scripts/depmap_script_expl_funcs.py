@@ -2,7 +2,7 @@
 explanation functions, please also add them to the mapping at the end"""
 import logging
 import networkx as nx
-from typing import Set, Union, Tuple, List, Optional
+from typing import Set, Union, Tuple, List, Optional, Dict
 
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
@@ -374,6 +374,17 @@ def _node_ns_filter(node_list: Union[Set[str], List[str]],
         -> Set[str]:
     return {x for x in node_list if net.nodes[x]['ns'].lower()
             in allowed_ns}
+
+
+def _src_in_edge(
+        stmt_list: List[Dict[str, Union[int, float, str, Dict[str, int]]]],
+        allowed_src: Set[str]
+) -> bool:
+    """Assumes the list of stmt meta data as dicts"""
+    for stmt_dict in stmt_list:
+        if any(s.lower() in allowed_src for s in stmt_dict['source_counts']):
+            return True
+    return False
 
 
 def get_ns_id(subj, obj, net):
