@@ -3,6 +3,7 @@ explanation functions, please also add them to the mapping at the end"""
 import logging
 import networkx as nx
 from typing import Set, Union, Tuple, List, Optional, Dict
+from itertools import product
 
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
@@ -382,6 +383,20 @@ def _node_ns_filter(node_list: Union[Set[str], List[str]],
         -> Set[str]:
     return {x for x in node_list if net.nodes[x]['ns'].lower()
             in allowed_ns}
+
+
+def _src_filter(node: str, nodes: Set[str], net: Union[DiGraph, MultiDiGraph],
+                reverse: bool, allowed_src: Set[str]) -> Set[str]:
+    # Filter out nodes from 'nodes' if they don't have any sources from the
+    # allowed sources
+    node_list = sorted(nodes)
+    edge_iter = product(nodes, node) if reverse else product(node, nodes)
+    filtered_nodes = set()
+    for n, edge in zip(node_list, edge_iter):
+        stmt_list = net.edges[edge]['statements']
+        if _src_in_edge(stmt_list, allowed_src):
+            filtered_nodes.add(node)
+    return filtered_nodes
 
 
 def _src_in_edge(
