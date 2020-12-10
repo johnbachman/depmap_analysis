@@ -132,13 +132,19 @@ def get_st(s, o, corr, net, _type, **kwargs):
         ns_filt_args = (net, kwargs['ns_set'])
         s_succ = set(_node_ns_filter(net.succ[s], *ns_filt_args))
         o_succ = set(_node_ns_filter(net.succ[o], *ns_filt_args))
-        x_set = _node_ns_filter(s_succ & o_succ, *ns_filt_args)
-        x_set_union = _node_ns_filter(s_succ | o_succ, *ns_filt_args)
     else:
         s_succ = set(net.succ[s])
         o_succ = set(net.succ[o])
-        x_set = s_succ & o_succ
-        x_set_union = s_succ | o_succ
+
+    # Filter sources
+    if kwargs.get('src_set'):
+        # Use reverse=False for downstream
+        # net, reverse, allowed_src
+        src_args = (net, False, kwargs['src_set'])
+        s_succ = _src_filter(s, s_succ, *src_args)
+        o_succ = _src_filter(o, o_succ, *src_args)
+    x_set = s_succ & o_succ
+    x_set_union = s_succ | o_succ
 
     # Sort out sign
     if _type in {'signed', 'pybel'}:
