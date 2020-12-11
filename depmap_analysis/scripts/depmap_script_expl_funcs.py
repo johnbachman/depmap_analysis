@@ -181,38 +181,38 @@ def get_st(s, o, corr, net, _type, **kwargs):
 
 
 def get_sd(s, o, corr, net, _type, **kwargs):
-    # Get next-nearest-neighborhood for subject
+    # Get nodes two edges away for subject
     args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'),
             kwargs.get('src_set'))
-    s_x_set = _get_nnn_set(s, *args)
-    o_x_set = _get_nnn_set(o, *args)
+    s_y_set = _get_nnn_set(s, *args)
+    o_y_set = _get_nnn_set(o, *args)
 
     # Get intersection and union of each nodes' 1st & 2nd layer neighbors
-    x_set = s_x_set & o_x_set
-    x_set_union = s_x_set | o_x_set
+    y_set = s_y_set & o_y_set
+    y_set_union = s_y_set | o_y_set
 
     if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_deep_interm(s, o, corr, net, x_set, False)
-        x_nodes_union = _get_signed_deep_interm(s, o, corr, net, x_set_union,
+        y_nodes = _get_signed_deep_interm(s, o, corr, net, y_set, False)
+        y_nodes_union = _get_signed_deep_interm(s, o, corr, net, y_set_union,
                                                 True)
     else:
-        x_nodes = x_set
-        x_nodes_union = x_set_union
+        y_nodes = y_set
+        y_nodes_union = y_set_union
 
-    if x_nodes_union or s_x_set or o_x_set:
-        s_x_list = set()
-        o_x_list = set()
+    if y_nodes_union or s_y_set or o_y_set:
+        s_y_list = set()
+        o_y_list = set()
         if _type in {'signed', 'pybel'}:
-            for xy in s_x_set:
-                s_x_list.update(xy)
-            for xy in o_x_set:
-                o_x_list.update(xy)
+            for _, sy in s_y_set:
+                s_y_list.add(sy)
+            for _, oy in o_y_set:
+                o_y_list.update(oy)
         else:
-            s_x_list = s_x_set
-            o_x_list = o_x_set
+            s_y_list = s_y_set
+            o_y_list = o_y_set
 
-        return s, o, (list(s_x_list or []), list(o_x_list or []),
-                      list(x_nodes or []), list(x_nodes_union or []))
+        return s, o, (list(s_y_list or []), list(o_y_list or []),
+                      list(y_nodes or []), list(y_nodes_union or []))
     else:
         return s, o, None
 
@@ -339,9 +339,9 @@ def _get_signed_deep_interm(
         args = (sx_minus, sx_plus, ox_minus, ox_plus, xy_minus, xy_plus,
                 path_sign, union)
 
-        # Add nodes that form paths with the correct sign
+        # Add node that form paths with the correct sign
         if _approve_signed_paths(*args):
-            x_approved.update({x, y})
+            x_approved.add(y)
     return x_approved
 
 
@@ -371,6 +371,8 @@ def _get_nnn_set(n: str,
                  src_set: Optional[Set[str]] = None) \
         -> Set[Union[str, Tuple[str, str]]]:
     # Filter node ns at all levels, only filter edge stmt sources at first edge
+    # Todo make signed check here instead of late in the caller
+    # For signed, have to keep pairs
     n_x_set = set()
     for x in g.succ[n]:
         if ns_set and g.nodes[x]['ns'].lower() not in ns_set:
@@ -390,7 +392,6 @@ def _get_nnn_set(n: str,
                 n_x_set.add((x, y))
         # Just add nodes for unsigned
         else:
-            n_x_set.add(x)
             if ns_set:
                 n_x_set.update({
                     y for y in g.succ[x] if g.nodes[y]['ns'].lower() in ns_set
