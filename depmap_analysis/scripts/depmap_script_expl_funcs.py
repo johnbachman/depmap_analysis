@@ -434,9 +434,12 @@ def _src_in_edge(
         stmt_list: List[Dict[str, Union[int, float, str, Dict[str, int]]]],
         allowed_src: Set[str]
 ) -> bool:
-    """Assumes the list of stmt meta data as dicts"""
+    """Assumes a list of stmt meta data as dicts"""
     for stmt_dict in stmt_list:
-        if any(s.lower() in allowed_src for s in stmt_dict['source_counts']):
+        # Catch empty source counts and check if any of the wanted sources
+        if isinstance(stmt_dict['source_counts'], dict) \
+                and any([s.lower() in allowed_src for s in
+                         stmt_dict['source_counts']]):
             return True
     return False
 
