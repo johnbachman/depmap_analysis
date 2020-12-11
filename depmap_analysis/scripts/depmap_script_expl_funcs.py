@@ -9,6 +9,7 @@ import pandas as pd
 from networkx import DiGraph, MultiDiGraph
 from pybel.dsl import CentralDogma
 
+from depmap_analysis.util.io_functions import dump_it_to_pickle
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.net_functions import gilda_normalization, \
     INT_PLUS, INT_MINUS
@@ -511,13 +512,19 @@ def get_ns_id_pybel_node(hgnc_sym, node):
 
 def normalize_corr_names(corr_m: pd.DataFrame,
                          graph: Union[DiGraph, MultiDiGraph],
-                         ns: str = None) -> pd.DataFrame:
+                         ns: str = None,
+                         name_mapping: Dict[str, str] = None,
+                         dump_mapping: bool = False,
+                         dump_name: str = None) -> pd.DataFrame:
     # todo:
-    #  1. Move this function, together with get_ns_id,
-    #     get_ns_id_pybel_node, normalize_entitites to net_functions
-    #  2. Provide ns and id to the correlation matrix here too (requires
-    #     overhaul of depmap script)
-    #  3. Add support for pybel
+    #  - Move this function, together with get_ns_id,
+    #    get_ns_id_pybel_node, normalize_entitites to net_functions
+    #  - Provide ns and id to the correlation matrix here too (requires
+    #    overhaul of depmap script)
+    #  - Add support for pybel
+    #  - If ns is provided loop through results and get the data for the
+    #    matching name space, otherwise use the function used on Agent
+    #    normalization
     """
 
     Parameters
@@ -529,6 +536,12 @@ def normalize_corr_names(corr_m: pd.DataFrame,
         A graph to look in to see if the names are there
     ns : str
         The assumed namespace of the names in corr_m
+    name_mapping : Optional[Dict[str, str]]
+        If provided try to map names from this dict
+    dump_mapping : bool
+        If True, save the mapping to pickle, Default: False.
+    dump_name : Optional[str]
+        The file path to save the mapping at
 
     Returns
     -------
@@ -537,21 +550,43 @@ def normalize_corr_names(corr_m: pd.DataFrame,
     def _get_ns_id(n: str, g: Union[DiGraph, MultiDiGraph]) -> Tuple[str, str]:
         return g.nodes[n]['ns'], g.nodes[n]['id']
 
+    if dump_mapping and not dump_name:
+        raise ValueError('Must provide file path with variable `dump_name` '
+                         'if name mapping is dumped')
+
     col_names = corr_m.columns.values
     normalized_names = []
+    mapping = {}
     for name in col_names:
-        if name in graph.nodes:
-            normalized_names.append(name)
+        # If mapping is provided and name is in the mapping
+        if name_mapping and name in name_mapping:
+            normalized_names.append(name_mapping[name])
+        # Otherwise use gilda
         else:
-            ns, _id, nn = gilda_normalization(name)
-            if nn:
-                normalized_names.append(nn)
-            else:
+            if name in graph.nodes:
                 normalized_names.append(name)
+                # If we want to save the mapping
+                if dump_mapping:
+                    mapping[name] = name
+            else:
+                ns, _id, nn = gilda_normalization(name)
+                if nn:
+                    normalized_names.append(nn)
+                    # If we want to save the mapping
+                    if dump_mapping:
+                        mapping[name] = nn
+                else:
+                    normalized_names.append(name)
+                    # If we want to save the mapping
+                    if dump_mapping:
+                        mapping[name] = name
 
     # Reset the normalized names
     corr_m.columns = normalized_names
     corr_m.index = normalized_names
+
+    if dump_mapping and mapping:
+        dump_it_to_pickle(fname=dump_name, pyobj=mapping, overwrite=True)
 
     return corr_m
 
