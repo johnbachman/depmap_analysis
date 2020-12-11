@@ -550,7 +550,7 @@ def normalize_corr_names(corr_m: pd.DataFrame,
     def _get_ns_id(n: str, g: Union[DiGraph, MultiDiGraph]) -> Tuple[str, str]:
         return g.nodes[n]['ns'], g.nodes[n]['id']
 
-    if dump_mapping and not dump_name:
+    if name_mapping is None and dump_mapping and not dump_name:
         raise ValueError('Must provide file path with variable `dump_name` '
                          'if name mapping is dumped')
 
@@ -566,19 +566,19 @@ def normalize_corr_names(corr_m: pd.DataFrame,
             if name in graph.nodes:
                 normalized_names.append(name)
                 # If we want to save the mapping
-                if dump_mapping:
+                if dump_mapping and name_mapping is None:
                     mapping[name] = name
             else:
                 ns, _id, nn = gilda_normalization(name)
                 if nn:
                     normalized_names.append(nn)
                     # If we want to save the mapping
-                    if dump_mapping:
+                    if dump_mapping and name_mapping is None:
                         mapping[name] = nn
                 else:
                     normalized_names.append(name)
                     # If we want to save the mapping
-                    if dump_mapping:
+                    if dump_mapping and name_mapping is None:
                         mapping[name] = name
 
     # Reset the normalized names
