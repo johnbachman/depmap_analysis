@@ -109,13 +109,13 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
                                          {'tas', 'drugbank'})
                 l1_int = set(l1_a_succ) & set(l1_b_succ)
                 l1_uni = set(l1_a_succ) | set(l1_b_succ)
-                l1_ji = len(l1_int)/len(l1_uni)
+                l1_ji = len(l1_int)/len(l1_uni) if len(l1_uni) else 0
                 # L2
                 l2_a_succ = _get_sources(graph, agA, l0_a_succ, {'drugbank'})
                 l2_b_succ = _get_sources(graph, agB, l0_b_succ, {'drugbank'})
                 l2_int = set() & set()
                 l2_uni = set() | set()
-                l2_ji = len(l2_int)/len(l2_uni)
+                l2_ji = len(l2_int)/len(l2_uni) if len(l2_uni) else 0
             # If no graph, just set None
             else:
                 l1_a_succ, l1_b_succ, l1_int, l1_uni, l1_ji = (None,) * 5
