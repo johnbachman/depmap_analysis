@@ -1,34 +1,17 @@
+"""
+Post processing script after running the depmap script on the drug data
+"""
 import sys
 import numpy as np
 import pandas as pd
 import logging
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Set, Dict
 from networkx import DiGraph
 from collections import Counter, defaultdict
 from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.util.statistics import DepMapExplainer
 
 logger = logging.getLogger(__name__)
-
-
-def _src_count(succ_list: List[Tuple[str, List[str]]], src: List[str]):
-    return sum([any([s in srcl for s in src]) for _, srcl in succ_list])
-
-
-def _percent_in_tas_or_db_A(row):
-    if len(row.succ_a_st):
-        count = _src_count(row.succ_a_st, ['tas', 'drugbank'])
-        return count / len(row.succ_a_st)
-    else:
-        return 0
-
-
-def _percent_in_tas_or_db_B(row):
-    if len(row.succ_b_st):
-        count = _src_count(row.succ_b_st, ['tas', 'drugbank'])
-        return count / len(row.succ_b_st)
-    else:
-        return 0
 
 
 def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
@@ -51,17 +34,26 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
     DataFrame
     """
 
-    def _get_sources(g: DiGraph, s: str, x_list: List[str]):
-        """Return a list of tuples with (x, bool) where bool refers to if
-        the edges a-x or b-x has any source from the provided sources"""
+    def _get_sources(g: DiGraph, s: str, x_list: List[str],
+                     allowed_srcs: Set[str]) -> List[str]:
+        """Return a list of tuples (x, L) where L=[source] is a list of
+        sources for the edge s-x. If allowed_srcs is provided, the list will
+        be filtered to only allow x if the s-x edge has support from the
+        allowed sources"""
         w_srcs = []
         for x in x_list:
-            stmt_dict_list = g.edges.get((s, x), {}).get('statements', [])
-            x_srcs = set()
+            found = False
+            stmt_dict_list: List[Dict[str, Dict[str, int]]] = \
+                g.edges.get((s, x), {}).get('statements', [])
             for stmt_dict in stmt_dict_list:
                 for src in stmt_dict['source_counts']:
-                    x_srcs.add(src)
-            w_srcs.append((x, list(x_srcs)))
+                    if src.lower() in allowed_srcs:
+                        w_srcs.append(x)
+                        found = True
+                        break  # Break source dict loop
+                if found:
+                    break  # Break stmt dict loop
+
         return w_srcs
 
     if graph is None:
@@ -73,8 +65,8 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
     for (agA, agB, corr, _, _, _, _, _, _, _, _) in \
             stats_df[stats_df.explained == True].itertuples(index=False):
         if agA != agB:
-            st_a_succ, st_b_succ, st_int, st_uni = ([],) * 4
-            sd_a_succ, sd_b_succ, sd_int, sd_uni = ([],) * 4
+            l0_a_succ, l0_b_succ, l0_int, l0_uni = ([],) * 4
+            l3_a_succ, l3_b_succ, l3_int, l3_uni = ([],) * 4
 
             for n, (expl_type, expl_data) in enumerate(
                     expl_df[['expl type', 'expl data']][
@@ -94,44 +86,63 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
 
                 if expl_data is not None:
                     if expl_type == 'shared target':
-                        st_a_succ, st_b_succ, st_int, st_uni = expl_data
+                        l0_a_succ, l0_b_succ, l0_int, l0_uni = expl_data
                     elif expl_type == 'shared downstream':
-                        sd_a_succ, sd_b_succ, sd_int, sd_uni = expl_data
+                        l3_a_succ, l3_b_succ, l3_int, l3_uni = expl_data
                     else:
                         continue
             # Save:
             # A, B, corr, st JI, sd JI,
-            # a_st, b_st, st_int, st_uni,
-            # a_sd, b_sd, sd_int, sd_uni
-            st_ji = len(st_int) / len(st_uni) if len(st_uni) else 0
-            sd_ji = len(sd_int) / len(sd_uni) if len(sd_uni) else 0
-            st_a_succ_srcs = _get_sources(g=graph, s=agA, x_list=st_a_succ) \
-                if graph is not None else st_a_succ
-            st_b_succ_srcs = _get_sources(g=graph, s=agB, x_list=st_b_succ) \
-                if graph is not None else st_b_succ
+            # l0_a, l0_b, l0_int, l0_uni,
+            # l3_a, l3_b, l3_int, l3_uni
+            l0_ji = len(l0_int) / len(l0_uni) if len(l0_uni) else 0
+            l3_ji = len(l3_int) / len(l3_uni) if len(l3_uni) else 0
+
+            # Get the l1 and l2 columns
+            if graph:
+                # Get filtered successors
+                # L1
+                l1_a_succ = _get_sources(graph, agA, l0_a_succ,
+                                         {'tas', 'drugbank'})
+                l1_b_succ = _get_sources(graph, agB, l0_b_succ,
+                                         {'tas', 'drugbank'})
+                l1_int = set(l1_a_succ) & set(l1_b_succ)
+                l1_uni = set(l1_a_succ) | set(l1_b_succ)
+                l1_ji = len(l1_int)/len(l1_uni)
+                # L2
+                l2_a_succ = _get_sources(graph, agA, l0_a_succ, {'drugbank'})
+                l2_b_succ = _get_sources(graph, agB, l0_b_succ, {'drugbank'})
+                l2_int = set() & set()
+                l2_uni = set() | set()
+                l2_ji = len(l2_int)/len(l2_uni)
+            # If no graph, just set None
+            else:
+                l1_a_succ, l1_b_succ, l1_int, l1_uni, l1_ji = (None,) * 5
+                l2_a_succ, l2_b_succ, l2_int, l2_uni, l2_ji = (None,) * 5
+
             jaccard_ranks.append(
-                (agA, agB, corr, st_ji, sd_ji,
-                 st_a_succ_srcs, st_b_succ_srcs, st_int, st_uni,
-                 sd_a_succ, sd_b_succ, sd_int, sd_uni)
+                (agA, agB, corr,
+                 l0_a_succ, l0_b_succ, l0_int, l0_uni, l0_ji,
+                 l1_a_succ, l1_b_succ, l1_int, l1_uni, l1_ji,
+                 l2_a_succ, l2_b_succ, l2_int, l2_uni, l2_ji,
+                 l3_a_succ, l3_b_succ, l3_int, l3_uni, l3_ji)
             )
-
-    # A, B, corr, st JI, sd JI,
-    # n_a_st, n_b_st, st_int, st_uni,
-    # n_a_sd, n_b_sd, sd_int, sd_uni
     output_cols = (
-        'drugA', 'drugB', 'corr', 'st_jaccard_index', 'sd_jaccard_index',
-        'succ_a_st', 'succ_b_st', 'st_intersection', 'st_union',
-        'succ_a_sd', 'succ_b_sd', 'sd_intersection', 'sd_union'
-    )
-    df = pd.DataFrame(data=jaccard_ranks, columns=output_cols)
+        'drugA', 'drugB', 'corr',
 
-    # Add some columns
-    if graph:
-        df['agA_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_A, axis=1)
-        df['agB_percent_in_tas_db'] = df.apply(_percent_in_tas_or_db_B, axis=1)
-        df['percent_in_tas_db'] = 0.5*(df.agB_percent_in_tas_db +
-                                       df.agA_percent_in_tas_db)
-    return df
+        'l0_succ_a', 'l0_succ_b', 'l0_intersection',
+        'l0_union', 'l0_jaccard_index',
+
+        'l1_succ_a', 'l1_succ_b', 'l1_intersection',
+        'l1_union', 'l1_jaccard_index',
+
+        'l2_succ_a', 'l2_succ_b', 'l2_intersection',
+        'l2_union', 'l2_jaccard_index',
+
+        'l3_succ_a', 'l3_succ_b', 'l3_intersection',
+        'l3_union', 'l3_jaccard_index'
+    )
+    return pd.DataFrame(data=jaccard_ranks, columns=output_cols)
 
 
 def get_rankings_per_drug(expl_df: pd.DataFrame, sampl_size: int = None) -> \
