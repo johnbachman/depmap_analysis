@@ -73,15 +73,16 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
                         ((expl_df.agA == agA) & (expl_df.agB == agB) |
                          (expl_df.agA == agB) & (expl_df.agB == agA))
                     ].itertuples(index=False)):
-                if n > 1:
+                if n >= 2:
                     # raise IndexError('Should not have more than one '
                     #                  'explanation per (A,B) pair per '
                     #                  'category ("shared downstream" and '
                     #                  '"shared target" should be only '
                     #                  'explanations)')
                     # Todo: handle misnamed entities
-                    logger.warning(f'Skipping unexpected data from {agA}, '
-                                   f'{agB}')
+                    if n == 2:
+                        logger.warning(f'Unexpected data from {agA}, {agB}, '
+                                       f'skipping further data')
                     continue
 
                 if expl_data is not None:
