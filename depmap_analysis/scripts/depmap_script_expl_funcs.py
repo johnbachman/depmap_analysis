@@ -11,14 +11,12 @@ from pybel.dsl import CentralDogma
 
 from depmap_analysis.util.io_functions import dump_it_to_pickle
 from depmap_analysis.network_functions.famplex_functions import common_parent
-from depmap_analysis.network_functions.net_functions import gilda_normalization, \
-    INT_PLUS, INT_MINUS
+from depmap_analysis.network_functions.net_functions import \
+    gilda_normalization, INT_PLUS, INT_MINUS
 
 
-__all__ = ['explained', 'expl_ab', 'expl_ba', 'expl_axb', 'expl_bxa',
-           'find_cp', 'get_sd', 'get_sr', 'get_st', 'get_ns_id_pybel_node',
-           'get_ns_id', 'normalize_corr_names', 'expl_functions',
-           'funcname_to_colname']
+__all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
+           'expl_functions', 'funcname_to_colname']
 logger = logging.getLogger(__name__)
 
 
