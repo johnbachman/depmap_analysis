@@ -7,7 +7,7 @@ import logging
 import platform
 from io import StringIO
 from os import path, stat
-from typing import Union, BinaryIO, Iterable
+from typing import Iterable
 from pathlib import Path
 from datetime import datetime
 from argparse import ArgumentError
@@ -44,6 +44,8 @@ def file_opener(fname: str) -> object:
         return pickle_open(fname)
     elif fname.endswith('json'):
         return json_open(fname)
+    elif fname.endswith(('csv', 'tsv')):
+        return pd.read_csv(fname)
     else:
         raise ValueError(f'Unknown file extension for file {fname}')
 
