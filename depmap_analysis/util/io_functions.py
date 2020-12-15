@@ -1,9 +1,11 @@
 import re
 import csv
 import json
+import pandas as pd
 import pickle
 import logging
 import platform
+from io import StringIO
 from os import path, stat
 from typing import Union, BinaryIO, Iterable
 from pathlib import Path
@@ -46,8 +48,7 @@ def file_opener(fname: str) -> object:
         raise ValueError(f'Unknown file extension for file {fname}')
 
 
-def s3_file_opener(s3_url: str, unsigned: bool = False) \
-        -> Union[object, BinaryIO]:
+def s3_file_opener(s3_url: str, unsigned: bool = False) -> object:
     """Open a file from s3 given a standard s3-path
 
     Parameters
@@ -55,11 +56,12 @@ def s3_file_opener(s3_url: str, unsigned: bool = False) \
     s3_url : str
         S3 url of the format 's3://<bucket>/<key>'. The key is assumed to
         also contain a file ending
-    unsigned :
+    unsigned : bool
+        If True, perform S3 calls unsigned. Default: False
 
     Returns
     -------
-
+    object
     """
     from indra_db.util.s3_path import S3Path
     from .aws import load_pickle_from_s3, read_json_from_s3, get_s3_client
@@ -71,6 +73,11 @@ def s3_file_opener(s3_url: str, unsigned: bool = False) \
         return read_json_from_s3(s3=s3, key=key, bucket=bucket)
     elif key.endswith('.pkl'):
         return load_pickle_from_s3(s3=s3, key=key, bucket=bucket)
+    elif key.endswith('.csv', '.tsv'):
+        fileio = S3Path.from_string(s3_url).get(s3=s3)
+        csv_str = fileio['Body'].read().decode('utf-8')
+        raw_file = StringIO(csv_str)
+        return pd.read_csv(raw_file, index_col=0)
     else:
         return S3Path.from_string(s3_url).get(s3=s3)
 
