@@ -129,37 +129,18 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
     return z_cm
 
 
-def get_drug_corr_matrix(drug_resp_file, drug_info_file):
-    def _get_drug_name(drug_id):
-        drug_rec = drug_info_df.loc[drug_id]
-        return drug_rec['name']
-    if isinstance(drug_resp_file, (str, Path)):
-        drug_resp_df = pd.read_csv(drug_resp_file, index_col=0)
-    elif isinstance(drug_resp_file, pd.DataFrame):
-        drug_resp_df = drug_resp_file
-    if isinstance(drug_info_file, (str, Path)):
-        drug_info_df = pd.read_csv(drug_info_file, index_col=0)
-    elif isinstance(drug_info_file, pd.DataFrame):
-        drug_info_df = drug_info_file
-
-    # Translate ids to names
-    col_names = [_get_drug_name(did) for did in drug_resp_df.columns]
-    # Gildaify?
-    # col_names = [get_top_ranked_name(name)[-1] or name for name in col_names]
-    drug_resp_df.columns = col_names
-
-    # Drop duplicate columns
-    drug_resp_df = \
-        drug_resp_df.loc[:, ~drug_resp_df.columns.duplicated()]
-
-    # Make correlation matrix
-    corr_df = drug_resp_df.corr()
-
-    return corr_df
-
-
 def drugs_to_corr_matrix(raw_file: str, info_file: str):
-    """Preprocess and create a correlation matrix from raw drug data"""
+    """Preprocess and create a correlation matrix from raw drug data
+
+    Parameters
+    ----------
+    raw_file : str
+        Path to DepMap PRISM drug repurposing data file. Should match
+        primary-screen-replicate-collapsed-logfold-change.csv
+    info_file : str
+        Path to DepMap PRISM drug repurposing info file. Should match
+        primary-screen-replicate-collapsed-treatment-info.csv
+    """
     def _get_drug_name(drug_id):
         drug_rec = info_df.loc[drug_id]
         return drug_rec['name']
