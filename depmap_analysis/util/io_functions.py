@@ -25,8 +25,11 @@ RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
 RE_YYYYMMDD = r'\d{8}'
 
 
-def file_opener(fname: str) -> object:
+def file_opener(fname: str, **kwargs) -> object:
     """Open file based on file extension
+
+    kwargs can be provided and are used for s3_file_opener (s3 calls) and
+    pd.read_csv() (local files)
 
     Parameters
     ----------
@@ -39,19 +42,21 @@ def file_opener(fname: str) -> object:
         Object stored in file fname
     """
     if fname.startswith('s3://'):
-        return s3_file_opener(fname)
+        return s3_file_opener(fname, **kwargs)
     if fname.endswith('pkl'):
         return pickle_open(fname)
     elif fname.endswith('json'):
         return json_open(fname)
     elif fname.endswith(('csv', 'tsv')):
-        return pd.read_csv(fname)
+        return pd.read_csv(fname, **kwargs)  # Can provide e.g. index_col=0
     else:
         raise ValueError(f'Unknown file extension for file {fname}')
 
 
-def s3_file_opener(s3_url: str, unsigned: bool = False) -> object:
+def s3_file_opener(s3_url: str, unsigned: bool = False, **kwargs) -> object:
     """Open a file from s3 given a standard s3-path
+
+    kwargs are only relevant for csv/tsv files and are used for pd.read_csv()
 
     Parameters
     ----------
@@ -75,11 +80,11 @@ def s3_file_opener(s3_url: str, unsigned: bool = False) -> object:
         return read_json_from_s3(s3=s3, key=key, bucket=bucket)
     elif key.endswith('.pkl'):
         return load_pickle_from_s3(s3=s3, key=key, bucket=bucket)
-    elif key.endswith('.csv', '.tsv'):
+    elif key.endswith(('.csv', '.tsv')):
         fileio = S3Path.from_string(s3_url).get(s3=s3)
         csv_str = fileio['Body'].read().decode('utf-8')
         raw_file = StringIO(csv_str)
-        return pd.read_csv(raw_file, index_col=0)
+        return pd.read_csv(raw_file, **kwargs)
     else:
         return S3Path.from_string(s3_url).get(s3=s3)
 

@@ -774,16 +774,8 @@ def drugs_to_corr_matrix(raw_file: str, info_file: str):
         drug_rec = info_df.loc[drug_id]
         return drug_rec['name']
 
-    if raw_file.startswith('s3://'):
-        fileio = io.file_opener(raw_file)
-        csv_str = fileio['Body'].read().decode('utf-8')
-        raw_file = StringIO(csv_str)
-    raw_df = pd.read_csv(raw_file, index_col=0)
-    if info_file.startswith('s3://'):
-        fileio = io.file_opener(info_file)
-        csv_str = fileio['Body'].read().decode('utf-8')
-        info_file = StringIO(csv_str)
-    info_df = pd.read_csv(info_file, index_col=0)
+    raw_df = io.file_opener(raw_file, index_col=0)
+    info_df = io.file_opener(info_file, index_col=0)
     col_names = [_get_drug_name(did) for did in raw_df.columns]
     raw_df.columns = col_names
 
