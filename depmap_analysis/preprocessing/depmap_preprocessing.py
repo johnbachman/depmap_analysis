@@ -7,6 +7,7 @@ import pandas as pd
 from depmap_analysis.util import io_functions as io
 
 logger = logging.getLogger('DepMap PreProcessing')
+__all__ = ['run_corr_merge', 'drugs_to_corr_matrix']
 
 
 def run_corr_merge(crispr_raw=None, rnai_raw=None,
