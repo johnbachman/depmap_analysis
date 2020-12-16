@@ -145,8 +145,8 @@ def drugs_to_corr_matrix(raw_file: str, info_file: str):
         drug_rec = info_df.loc[drug_id]
         return drug_rec['name']
 
-    raw_df = io.file_opener(raw_file, index_col=0)
-    info_df = io.file_opener(info_file, index_col=0)
+    raw_df: pd.DataFrame = io.file_opener(raw_file, index_col=0)
+    info_df: pd.DataFrame = io.file_opener(info_file, index_col=0)
     col_names = [_get_drug_name(did) for did in raw_df.columns]
     raw_df.columns = col_names
 

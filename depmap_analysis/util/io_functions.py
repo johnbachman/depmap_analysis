@@ -7,7 +7,7 @@ import logging
 import platform
 from io import StringIO
 from os import path, stat
-from typing import Iterable
+from typing import Iterable, Union, Dict
 from pathlib import Path
 from datetime import datetime
 from argparse import ArgumentError
@@ -25,7 +25,7 @@ RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
 RE_YYYYMMDD = r'\d{8}'
 
 
-def file_opener(fname: str, **kwargs) -> object:
+def file_opener(fname: str, **kwargs) -> Union[object, pd.DataFrame, Dict]:
     """Open file based on file extension
 
     kwargs can be provided and are used for s3_file_opener (s3 calls) and
@@ -38,7 +38,7 @@ def file_opener(fname: str, **kwargs) -> object:
 
     Returns
     -------
-    object
+    Union[object, pd.DataFrame, Dict]
         Object stored in file fname
     """
     if fname.startswith('s3://'):
@@ -53,7 +53,8 @@ def file_opener(fname: str, **kwargs) -> object:
         raise ValueError(f'Unknown file extension for file {fname}')
 
 
-def s3_file_opener(s3_url: str, unsigned: bool = False, **kwargs) -> object:
+def s3_file_opener(s3_url: str, unsigned: bool = False, **kwargs) -> \
+        Union[object, pd.DataFrame, Dict]:
     """Open a file from s3 given a standard s3-path
 
     kwargs are only relevant for csv/tsv files and are used for pd.read_csv()
@@ -68,7 +69,8 @@ def s3_file_opener(s3_url: str, unsigned: bool = False, **kwargs) -> object:
 
     Returns
     -------
-    object
+    Union[object, pd.DataFrame, Dict]
+        Object stored on S3
     """
     from indra_db.util.s3_path import S3Path
     from .aws import load_pickle_from_s3, read_json_from_s3, get_s3_client
