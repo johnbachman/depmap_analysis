@@ -74,7 +74,8 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
             crispr_raw_df = pd.read_csv(crispr_raw, index_col=0)
         else:
             crispr_raw_df = crispr_raw
-        crispr_corr_df = raw_depmap_to_corr(crispr_raw_df, dropna=True)
+        crispr_corr_df = raw_depmap_to_corr(crispr_raw_df, split_names=True,
+                                            dropna=True)
 
         crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
         logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
@@ -102,7 +103,8 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
             logger.info('Transposing RNAi raw data dataframe...')
             rnai_raw_df = rnai_raw_df.T
 
-        rnai_corr_df = raw_depmap_to_corr(rnai_raw_df, dropna=True)
+        rnai_corr_df = raw_depmap_to_corr(rnai_raw_df, split_names=True,
+                                          dropna=True)
 
         rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
         if not rnai_fpath.parent.is_dir():
@@ -170,7 +172,9 @@ def drugs_to_corr_matrix(raw_file: str, info_file: str):
     return raw_depmap_to_corr(raw_df)
 
 
-def raw_depmap_to_corr(depmap_raw_df, dropna=False):
+def raw_depmap_to_corr(depmap_raw_df: pd.DataFrame,
+                       split_names: bool = False,
+                       dropna: bool = False):
     """Pre-process and create a correlation matrix
 
     Any multi indexing is removed. Duplicated columns are also removed.
@@ -179,6 +183,9 @@ def raw_depmap_to_corr(depmap_raw_df, dropna=False):
     ----------
     depmap_raw_df : pd.DataFrame
         The raw data from the DepMap portal as a pd.DataFrame
+    split_names : bool
+        If True, check if column names contain whitespace and if the do,
+        split the name and keep the first part.
     dropna : bool
         If True, drop nan columns (should be genes) before calculating the
         correlations
@@ -189,8 +196,8 @@ def raw_depmap_to_corr(depmap_raw_df, dropna=False):
         A pd.DataFrame containing the pearson correlations of the raw data.
     """
     # Rename
-    if len(depmap_raw_df.columns[0].split()) > 1:
-        logger.info('renaming columns to contain only gene names')
+    if split_names and len(depmap_raw_df.columns[0].split()) > 1:
+        logger.info('Renaming columns to contain only first part of name')
         gene_names = [n.split()[0] for n in depmap_raw_df.columns]
         depmap_raw_df.columns = gene_names
 
