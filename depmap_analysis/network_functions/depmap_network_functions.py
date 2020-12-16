@@ -4,8 +4,6 @@ import sys
 import math
 import logging
 import itertools as itt
-from io import StringIO
-from typing import Iterable
 from random import choices
 from math import ceil, log10
 from typing import Iterable
@@ -766,121 +764,6 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     interp_gaussian = np.exp(interp_log_gaussian(bin_positions))
 
     return get_gaussian_stats(bin_edges, interp_gaussian)
-
-
-def drugs_to_corr_matrix(raw_file: str, info_file: str):
-    """Preprocess and create a correlation matrix from raw drug data"""
-    def _get_drug_name(drug_id):
-        drug_rec = info_df.loc[drug_id]
-        return drug_rec['name']
-
-    raw_df = io.file_opener(raw_file, index_col=0)
-    info_df = io.file_opener(info_file, index_col=0)
-    col_names = [_get_drug_name(did) for did in raw_df.columns]
-    raw_df.columns = col_names
-
-    return raw_depmap_to_corr(raw_df)
-
-
-def raw_depmap_to_corr(depmap_raw_df, dropna=False):
-    """Pre-process and create a correlation matrix
-
-    Any multi indexing is removed. Duplicated columns are also removed.
-
-    Parameters
-    ----------
-    depmap_raw_df : pd.DataFrame
-        The raw data from the DepMap portal as a pd.DataFrame
-    dropna : bool
-        If True, drop nan columns (should be genes) before calculating the
-        correlations
-
-    Returns
-    -------
-    corr : pd.DataFrame
-        A pd.DataFrame containing the pearson correlations of the raw data.
-    """
-    # Rename
-    if len(depmap_raw_df.columns[0].split()) > 1:
-        logger.info('renaming columns to contain only gene names')
-        gene_names = [n.split()[0] for n in depmap_raw_df.columns]
-        depmap_raw_df.columns = gene_names
-
-    # Drop duplicates
-    depmap_raw_df = depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
-
-    # Drop nan's
-    if dropna:
-        logger.info('Dropping nan columns (axis=1)')
-        depmap_raw_df = depmap_raw_df.dropna(axis=1)
-
-    # Calculate correlation
-    logger.info('Calculating data correlation matrix. This can take up to '
-                '10 min depending on the size of the dataframe.')
-    corr = depmap_raw_df.corr()
-    logger.info('Done calculating data correlation matrix.')
-    return corr
-
-
-def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
-                  dropna=False):
-    """Merge two correlation matrices containing their combined z-scores
-
-    Parameters
-    ----------
-    corr_df : pd.DataFrame
-        A square pandas DataFrame containing gene-gene correlation values
-        to be merged with other_corr_df.
-    other_corr_df : pd.DataFrame
-        A square pandas DataFrame containing gene-gene correlation values
-        to be merged with corr_df.
-    remove_self_corr : bool
-        If True, remove self correlations from the resulting DataFrame.
-        Default: True
-    dropna : bool
-        If True, return the result of
-        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
-        Default: False.
-
-    Returns
-    -------
-    pd.DataFrame
-        A merged correlation matrix containing the merged values a z-scores
-    """
-    def _rename(corr):
-        gene_names = [n.split()[0] for n in corr.columns]
-        corr.columns = gene_names
-        corr.index = gene_names
-        return corr
-
-    def _z_scored(corr):
-        mean = corr.values.mean()
-        sd = corr.values.std()
-        logger.info('Mean value: %f; St dev: %f' % (mean, sd))
-        return (corr - mean) / sd
-
-    # Rename columns/indices to gene name only
-    if len(corr_df.columns[0].split()) > 1:
-        corr_df = _rename(corr_df)
-    if len(other_corr_df.columns[0].split()) > 1:
-        other_corr_df = _rename(other_corr_df)
-
-    # Get corresponding z-score matrices
-    logger.info('Getting z-score matrix of first data frame.')
-    corr_z = _z_scored(corr_df)
-    logger.info('Getting z-score matrix of second data frame.')
-    other_z = _z_scored(other_corr_df)
-
-    # Merge
-    dep_z = (corr_z + other_z) / 2
-    if remove_self_corr:
-        # Assumes the max correlation ONLY occurs on the diagonal
-        self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
-        dep_z = dep_z[dep_z != self_corr_value]
-    if dropna:
-        dep_z = dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
-    assert dep_z.notna().sum().sum() > 0, print('Correlation matrix is empty')
-    return dep_z
 
 
 def get_gene_gene_corr_dict(tuple_generator):
