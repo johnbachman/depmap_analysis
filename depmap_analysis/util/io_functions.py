@@ -277,7 +277,12 @@ def _manually_add_to_histo(hist, start, binsize, value):
 
 
 def allowed_types(types: Iterable):
-    """Types is a set of strings with names of the allowed types"""
+    """Types is a set of strings with names of the allowed types
+
+    Use this function as 'type' when adding a command line argument using
+    parser.add_argument and the argument specifies picking one "type" from a
+    pre-defined set of allowed types
+    """
     def types_check(_type: str) -> str:
         """Check the input type
 
@@ -299,7 +304,11 @@ def allowed_types(types: Iterable):
 
 
 def file_path(file_ending: str = None):
-    """Checks if file at provided path exists"""
+    """Checks if file at provided path exists
+
+    Use this function as 'type' when adding a command line argument using
+    parser.add_argument and the argument is a file path
+    """
     def check_path(fpath: str):
         if fpath.startswith('s3://'):
             if file_ending and not fpath.endswith(file_ending):
