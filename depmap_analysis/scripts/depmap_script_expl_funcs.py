@@ -420,7 +420,7 @@ def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     Tuple[str, str, Union[None, Tuple[List]]]
         A tuple of s, o and, if the edge s-o exists, the edge meta data
     """
-    edge_dict = get_edge_statements(s, o, corr, net, _type, **kwargs)
+    edge_dict = _get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
         return s, o, edge_dict.get('stmt_hash') if _type == 'pybel' else \
             edge_dict.get('statements')
@@ -461,9 +461,9 @@ def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     return expl_ab(o, s, corr, net, _type, **kwargs, **options)
 
 
-def get_edge_statements(s: str, o: str, corr: float,
-                        net: Union[DiGraph, MultiDiGraph], _type: str,
-                        **kwargs) -> \
+def _get_edge_statements(s: str, o: str, corr: float,
+                         net: Union[DiGraph, MultiDiGraph], _type: str,
+                         **kwargs) -> \
         Dict[str, Union[
             str, int, float,
             List[Dict[str, Union[int, float, str, Dict[str, int]]]]
