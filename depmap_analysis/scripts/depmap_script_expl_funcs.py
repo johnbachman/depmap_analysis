@@ -1,5 +1,9 @@
-"""Explainer and helper functions for depmap_script2.py When adding new
-explanation functions, please also add them to the mapping at the end"""
+"""
+Explainer and helper functions for depmap_script2.py
+
+When adding new explanation functions, please also add them to the mapping
+at the end
+"""
 import logging
 import networkx as nx
 from typing import Set, Union, Tuple, List, Optional, Dict
@@ -20,12 +24,41 @@ __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
 logger = logging.getLogger(__name__)
 
 
-def explained(s, o, corr, net, _type, **kwargs):
-    # This function is used for a priori explained relationships
+def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+              _type: str, **kwargs) -> Tuple[str, str, str]:
+    """A mock function that is used for a-priori explained pairs
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     return s, o, 'explained_set'
 
 
-def find_cp(s, o, corr, net, _type, **kwargs):
+def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+            _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+    """
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     if _type == 'pybel':
         s_name = kwargs['s_name']
         s_ns, s_id = get_ns_id_pybel_node(s_name, s)
@@ -64,7 +97,22 @@ def find_cp(s, o, corr, net, _type, **kwargs):
     return s, o, None
 
 
-def expl_axb(s, o, corr, net, _type, **kwargs):
+def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+             _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+    """
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     s_succ = set(net.succ[s])
     o_pred = set(net.pred[o])
     # Filter ns
@@ -93,7 +141,22 @@ def expl_axb(s, o, corr, net, _type, **kwargs):
         return s, o, None
 
 
-def expl_bxa(s, o, corr, net, _type, **kwargs):
+def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+             _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+    """Reversal of expl_axb
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+    Tuple[str, str, Union[None, List[str]]]
+    """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
         o_name = kwargs.pop('o_name')
@@ -104,7 +167,24 @@ def expl_bxa(s, o, corr, net, _type, **kwargs):
 
 
 # Shared regulator: A<-X->B
-def get_sr(s, o, corr, net, _type, **kwargs):
+def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+           _type: str, **kwargs) -> \
+        Tuple[str, str,
+              Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
+    """
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     # Filter ns
     if kwargs.get('ns_set'):
         ns_filt_args = (net, kwargs['ns_set'])
@@ -143,7 +223,24 @@ def get_sr(s, o, corr, net, _type, **kwargs):
 
 
 # Shared target: A->X<-B
-def get_st(s, o, corr, net, _type, **kwargs):
+def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+           _type: str, **kwargs) -> \
+        Tuple[str, str,
+              Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
+    """
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     s_succ = set(net.succ[s])
     o_succ = set(net.succ[o])
     # Filter ns
@@ -178,7 +275,24 @@ def get_st(s, o, corr, net, _type, **kwargs):
         return s, o, None
 
 
-def get_sd(s, o, corr, net, _type, **kwargs):
+def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+           _type: str, **kwargs) -> \
+        Tuple[str, str,
+              Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
+    """
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     # Get nodes two edges away for subject
     args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'),
             kwargs.get('src_set'))
@@ -215,7 +329,22 @@ def get_sd(s, o, corr, net, _type, **kwargs):
         return s, o, None
 
 
-def expl_ab(s, o, corr, net, _type, **kwargs):
+def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+            _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
+    """
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     edge_dict = get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
         return s, o, edge_dict.get('stmt_hash') if _type == 'pybel' else \
@@ -223,7 +352,22 @@ def expl_ab(s, o, corr, net, _type, **kwargs):
     return s, o, None
 
 
-def expl_ba(s, o, corr, net, _type, **kwargs):
+def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
+            _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
+    """Reversal of expl_ab
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
         o_name = kwargs.pop('o_name')
@@ -233,7 +377,27 @@ def expl_ba(s, o, corr, net, _type, **kwargs):
     return expl_ab(o, s, corr, net, _type, **kwargs, **options)
 
 
-def get_edge_statements(s, o, corr, net, _type, **kwargs):
+def get_edge_statements(s: str, o: str, corr: float,
+                        net: Union[DiGraph, MultiDiGraph], _type: str,
+                        **kwargs) -> \
+        Dict[str, Union[
+            str, int, float,
+            List[Dict[str, Union[int, float, str, Dict[str, int]]]]
+        ]]:
+    """
+
+    Parameters
+    ----------
+    s: str
+    o: str
+    corr: float
+    net: Union[DiGraph, MultiDiGraph]
+    _type: str
+
+    Returns
+    -------
+
+    """
     if _type in {'signed', 'pybel'}:
         int_sign = INT_PLUS if corr >= 0 else INT_MINUS
         return net.edges.get((s, o, int_sign), None)
@@ -241,7 +405,9 @@ def get_edge_statements(s, o, corr, net, _type, **kwargs):
         return net.edges.get((s, o))
 
 
-def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
+def _get_signed_interm(s: str, o: str, corr: float,
+                       sign_edge_net: MultiDiGraph, x_set: Set[str]) -> \
+        Set[str]:
     # Used for a->x->b and b->x->a relations
     # Make sure we have the right sign type
     int_sign = INT_PLUS if corr >= 0 else INT_MINUS
@@ -444,7 +610,8 @@ def _src_in_edge(
     return False
 
 
-def get_ns_id(subj, obj, net):
+def get_ns_id(subj: str, obj: str, net: Union[DiGraph, MultiDiGraph]) -> \
+        Tuple[str, str, str, str]:
     """Get ns:id for both subj and obj
 
     Note: should *NOT* be used with PyBEL nodes
