@@ -31,33 +31,47 @@ def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, str]
+        The tuple s, o, 'explained_set'
     """
     return s, o, 'explained_set'
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
-    """
+    """Explain pair by looking for ontological parents
+
+    The pair is explained if the two entities have common ontological parents
 
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, Union[None, List[str]]]
+        A tuple of s, o and, if any, the list of common parents
     """
     if _type == 'pybel':
         s_name = kwargs['s_name']
@@ -99,19 +113,28 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
 def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
              _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
-    """
+    """Explain pair by looking for intermediate nodes connecting a to b
+
+    The pair is considered explained if there is at least one node x
+    connecting s with o in a directed sense: s -> x -> o
 
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, Union[None, List[str]]]
+        A tuple of s, o and a list of the nodes connecting s and o (if any)
     """
     s_succ = set(net.succ[s])
     o_pred = set(net.pred[o])
@@ -148,14 +171,20 @@ def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
     Tuple[str, str, Union[None, List[str]]]
+        A tuple of o, s and a list of the nodes connecting o and s (if any)
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
@@ -171,19 +200,31 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
         Tuple[str, str,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
-    """
+    """Explain pair by finding common upstream nodes
+
+    The pair is explained if there is at least one common upstream node.
+    However, the function returns data even if there are no common upstream
+    nodes and there are predecessors to either of s or o.
 
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    List[str]]]]
+        A tuple of s, o and a tuple of the predecessors of s, o and their
+        intersection and union
     """
     # Filter ns
     if kwargs.get('ns_set'):
@@ -227,19 +268,31 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
         Tuple[str, str,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
-    """
+    """Explain pair by finding common downstream nodes
+
+    The pair is explained if there is at least one common downstream node.
+    However, the function returns data even if there are no common downstream
+    nodes and there are successors to either of s or o.
 
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    List[str]]]]
+        A tuple of s, o and a tuple of the successors of s, o and their
+        intersection and union
     """
     s_succ = set(net.succ[s])
     o_succ = set(net.succ[o])
@@ -279,19 +332,32 @@ def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
         Tuple[str, str,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
-    """
+    """Explain pair by finding common downstream nodes two edges from s and o
+
+    The pair is explained if there is at least one common node two edges
+    away from s and o. However, the function returns data even if there
+    are no common downstream nodes and there are successors to either of s
+    or o.
 
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    List[str]]]]
+        A tuple of s, o and a tuple of the two-edge successors of s,
+        o and their intersection and union
     """
     # Get nodes two edges away for subject
     args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'),
@@ -331,19 +397,28 @@ def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
 def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
-    """
+    """Explain pair by checking for an edge between s and o
+
+    The pair is explained if there exists and edge between s and o. The edge
+    meta data is returned if the edge exists
 
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, Union[None, Tuple[List]]]
+        A tuple of s, o and, if the edge s-o exists, the edge meta data
     """
     edge_dict = get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
@@ -356,17 +431,26 @@ def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
     """Reversal of expl_ab
 
+    The pair is explained if there exists and edge between o and s. The edge
+    meta data is returned if the edge exists
+
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Tuple[str, str, Union[None, Tuple[List]]]
+        A tuple of o, s and, if the edge o-s exists, the edge meta data
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
@@ -389,14 +473,21 @@ def get_edge_statements(s: str, o: str, corr: float,
     Parameters
     ----------
     s: str
+        Subject node
     o: str
+        Object node
     corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
     net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
     _type: str
+        The graph type used
 
     Returns
     -------
-
+    Dict[str, Union[str, int, float,
+                    List[Dict[str, Union[int, float, str, Dict[str, int]]]]
+    ]]
     """
     if _type in {'signed', 'pybel'}:
         int_sign = INT_PLUS if corr >= 0 else INT_MINUS
@@ -432,6 +523,7 @@ def _get_signed_interm(s: str, o: str, corr: float,
 def _get_signed_shared_regulators(s: str, o: str, corr: float,
                                   sign_edge_net: nx.MultiDiGraph,
                                   x_set: Set, union: bool) -> Set[str]:
+    # Used for a<-x->b type relationships
     x_approved = set()
 
     for x in x_set:
@@ -459,6 +551,7 @@ def _get_signed_shared_regulators(s: str, o: str, corr: float,
 def _get_signed_shared_targets(s: str, o: str, corr: float,
                                sign_edge_net: nx.MultiDiGraph,
                                x_set: Set, union: bool) -> Set[str]:
+    # Used for a->x<-b type relationships
     x_approved = set()
 
     for x in x_set:
@@ -486,6 +579,7 @@ def _get_signed_shared_targets(s: str, o: str, corr: float,
 def _get_signed_deep_interm(
         s: str, o: str, corr: float, sign_edge_net: nx.MultiDiGraph,
         xy_set: Set[Tuple[str, str]], union: bool) -> Set[str]:
+    # Used for a->()->x<-()<-b type relationships
     # Make sure we have the right sign type
     path_sign = INT_PLUS if corr >= 0 else INT_MINUS
 
