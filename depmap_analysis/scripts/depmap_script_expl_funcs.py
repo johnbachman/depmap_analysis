@@ -1,6 +1,9 @@
 """
 Explainer and helper functions for depmap_script2.py
 
+Explanation functions must have the signature:
+s, o, cor, net, _type, **kwargs
+
 When adding new explanation functions, please also add them to the mapping
 at the end
 """
@@ -23,6 +26,10 @@ from depmap_analysis.network_functions.net_functions import \
 __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
            'expl_functions', 'funcname_to_colname']
 logger = logging.getLogger(__name__)
+
+
+class FunctionRegistrationError(Exception):
+    """Raise when a function does not adhere to set rules for """
 
 
 def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
@@ -873,12 +880,32 @@ funcname_to_colname = {
 expl_functions = {f.__name__: f for f in expl_func_list}
 
 # Check that functions added to expl_func_list also exist in name to func map
-assert len(expl_func_list) == len(funcname_to_colname)
+try:
+    assert len(expl_func_list) == len(funcname_to_colname)
+except AssertionError:
+    raise FunctionRegistrationError(
+        'Missing function(s) in either expl_func_list or funcname_to_colname'
+    )
 
 # Check that function names are matched in column name mapping
-assert set(expl_functions.keys()) == set(funcname_to_colname.keys())
+try:
+    assert set(expl_functions.keys()) == set(funcname_to_colname.keys())
+except AssertionError:
+    raise FunctionRegistrationError(
+        'Function name mismatch between explanation functions tuple and '
+        'function name to column name mapping'
+    )
 
 # Check that all functions have the fixed arg structure
-assert all(
-    [{'_type', 'corr', 'kwargs', 'net', 'o', 's'} == set(
-        inspect.signature(fa).parameters.keys()) for fa in expl_func_list])
+
+for func in expl_func_list:
+    try:
+        assert \
+            {'_type', 'corr', 'kwargs', 'net', 'o', 's'} == \
+            set(inspect.signature(func).parameters.keys())
+    except AssertionError:
+        raise FunctionRegistrationError(
+            f'Function "{func.__name__}" does not have the required signature '
+            f'for its arguments. The required signature is '
+            f'(s, o, cor, net, _type, **kwargs)'
+        )
