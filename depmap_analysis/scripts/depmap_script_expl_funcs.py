@@ -4,6 +4,7 @@ Explainer and helper functions for depmap_script2.py
 When adding new explanation functions, please also add them to the mapping
 at the end
 """
+import inspect
 import logging
 import networkx as nx
 from typing import Set, Union, Tuple, List, Optional, Dict
@@ -854,6 +855,7 @@ def normalize_corr_names(corr_m: pd.DataFrame,
 # Add new function to the tuple
 expl_func_list = (explained, expl_ab, expl_ba, expl_axb, expl_bxa, find_cp,
                   get_sr, get_st, get_sd)
+
 # Map the name of the function to a more human friendly column name
 funcname_to_colname = {
     'explained': 'explained set',
@@ -866,5 +868,17 @@ funcname_to_colname = {
     'get_st': 'shared target',
     'get_sd': 'shared downstream'
 }
+
+# Map function name to function
 expl_functions = {f.__name__: f for f in expl_func_list}
+
+# Check that functions added to expl_func_list also exist in name to func map
 assert len(expl_func_list) == len(funcname_to_colname)
+
+# Check that function names are matched in column name mapping
+assert set(expl_functions.keys()) == set(funcname_to_colname.keys())
+
+# Check that all functions have the fixed arg structure
+assert all(
+    [{'_type', 'corr', 'kwargs', 'net', 'o', 's'} == set(
+        inspect.signature(fa).parameters.keys()) for fa in expl_func_list])
