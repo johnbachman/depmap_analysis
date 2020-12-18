@@ -129,7 +129,7 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
                  l3_a_succ, l3_b_succ, l3_int, l3_uni, l3_ji)
             )
     output_cols = (
-        'drugA', 'drugB', 'corr',
+        'drugA', 'drugB', 'correlation',
 
         'l0_succ_a', 'l0_succ_b', 'l0_intersection',
         'l0_union', 'l0_jaccard_index',
