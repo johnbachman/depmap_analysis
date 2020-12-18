@@ -42,6 +42,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
+from indra.util import batch_iter
 from indra.util.multiprocessing_traceback import WrapException
 from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.aws import get_s3_client
@@ -81,7 +82,11 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
         if allowed_sources:
             options['src_set'] = allowed_sources
 
-        for gA, gB, zsc in corr_iter:
+        for tup in corr_iter:
+            # Break loop when batch_iter
+            if tup is None:
+                break
+            gA, gB, zsc = tup
             # Initialize current iteration stats
             stats = {k: False for k in bool_columns}
 
@@ -295,8 +300,8 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
 
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0
-        chunk_iter = iter_chunker(n=chunksize,
-                                  iterable=corr_matrix_to_generator(corr_z))
+        chunk_iter = batch_iter(iterator=corr_matrix_to_generator(corr_z),
+                                batch_size=chunksize, return_func=list)
         for chunk in chunk_iter:
             pool.apply_async(func=_match_correlation_body,
                              # args should match the args for func

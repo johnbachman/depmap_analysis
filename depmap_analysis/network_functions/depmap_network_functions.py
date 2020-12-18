@@ -7,7 +7,6 @@ import itertools as itt
 from random import choices
 from math import ceil, log10
 from typing import Iterable
-from itertools import islice
 from collections import Mapping, OrderedDict, defaultdict
 
 import numpy as np
@@ -21,8 +20,8 @@ from pandas.core.series import Series as pd_Series_class
 
 from indra_db import util as dbu
 from indra_db import client as dbc
-from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
+from indra.statements import Statement
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 import depmap_analysis.util.io_functions as io
@@ -190,30 +189,6 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             float(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
             if not np.isnan(corr_value_matrix[i, j]))
-
-
-def iter_chunker(n: int, iterable: Iterable):
-    """Generator of chunks from a generator
-
-    Parameters
-    ----------
-    n : int
-        Chunk size. Each chunk of the input iterator will be of this size
-        except for the last one that will contain the remainder.
-    iterable : Iterable
-        An iterable or a generator
-
-    Returns
-    -------
-    generator
-        A generator yielding chunks from the input iterable or generator
-    """
-    # Adapted from
-    # stackoverflow.com/questions/1915170/
-    # split-a-generator-iterable-every-n-items-in-python-splitevery
-    iterable = iter(iterable)
-    n = int(n)
-    yield from iter(lambda: list(islice(iterable, n)), [])
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
@@ -1927,7 +1902,7 @@ def dbc_load_statements(hgnc_syms):
 
     Parameters
     ----------
-    hgnc_syms : iterable
+    hgnc_syms : Iterable
         An iterable containing HGNC symbols
 
     Returns
