@@ -51,7 +51,7 @@ from depmap_analysis.util.io_functions import file_opener, \
 from depmap_analysis.network_functions.net_functions import \
     pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, iter_chunker, down_sampl_size
+    corr_matrix_to_generator, down_sampl_size
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns
 from depmap_analysis.preprocessing import run_corr_merge, drugs_to_corr_matrix
