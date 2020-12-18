@@ -65,7 +65,7 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
     for (agA, agB, corr, _, _, _, _, _, _, _, _) in \
             stats_df[stats_df.explained == True].itertuples(index=False):
         if agA != agB:
-            l0_a_succ, l0_b_succ, l0_int, l0_uni = ([],) * 4
+            l2_a_succ, l2_b_succ, l2_int, l2_uni = ([],) * 4
             l3_a_succ, l3_b_succ, l3_int, l3_uni = ([],) * 4
 
             for n, (expl_type, expl_data) in enumerate(
@@ -87,39 +87,39 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
 
                 if expl_data is not None:
                     if expl_type == 'shared target':
-                        l0_a_succ, l0_b_succ, l0_int, l0_uni = expl_data
+                        l2_a_succ, l2_b_succ, l2_int, l2_uni = expl_data
                     elif expl_type == 'shared downstream':
                         l3_a_succ, l3_b_succ, l3_int, l3_uni = expl_data
                     else:
                         continue
             # Save:
             # A, B, corr, st JI, sd JI,
-            # l0_a, l0_b, l0_int, l0_uni,
+            # l2_a, l2_b, l2_int, l2_uni,
             # l3_a, l3_b, l3_int, l3_uni
-            l0_ji = len(l0_int) / len(l0_uni) if len(l0_uni) else 0
+            l2_ji = len(l2_int) / len(l2_uni) if len(l2_uni) else 0
             l3_ji = len(l3_int) / len(l3_uni) if len(l3_uni) else 0
 
             # Get the l1 and l2 columns
             if graph:
                 # Get filtered successors
+                # L0
+                l0_a_succ = _get_sources(graph, agA, l2_a_succ, {'drugbank'})
+                l0_b_succ = _get_sources(graph, agB, l2_b_succ, {'drugbank'})
+                l0_int = set() & set()
+                l0_uni = set() | set()
+                l0_ji = len(l0_int)/len(l0_uni) if len(l0_uni) else 0
                 # L1
-                l1_a_succ = _get_sources(graph, agA, l0_a_succ,
-                                         {'tas', 'drugbank'})
-                l1_b_succ = _get_sources(graph, agB, l0_b_succ,
-                                         {'tas', 'drugbank'})
+                l1_a_succ = _get_sources(
+                    graph, agA, l2_a_succ, {'tas', 'drugbank'})
+                l1_b_succ = _get_sources(
+                    graph, agB, l2_b_succ, {'tas', 'drugbank'})
                 l1_int = set(l1_a_succ) & set(l1_b_succ)
                 l1_uni = set(l1_a_succ) | set(l1_b_succ)
                 l1_ji = len(l1_int)/len(l1_uni) if len(l1_uni) else 0
-                # L2
-                l2_a_succ = _get_sources(graph, agA, l0_a_succ, {'drugbank'})
-                l2_b_succ = _get_sources(graph, agB, l0_b_succ, {'drugbank'})
-                l2_int = set() & set()
-                l2_uni = set() | set()
-                l2_ji = len(l2_int)/len(l2_uni) if len(l2_uni) else 0
             # If no graph, just set None
             else:
+                l0_a_succ, l0_b_succ, l0_int, l0_uni, l0_ji = (None,) * 5
                 l1_a_succ, l1_b_succ, l1_int, l1_uni, l1_ji = (None,) * 5
-                l2_a_succ, l2_b_succ, l2_int, l2_uni, l2_ji = (None,) * 5
 
             jaccard_ranks.append(
                 (agA, agB, corr,
@@ -131,17 +131,17 @@ def get_jaccard_rankings_per_pair(expl_df: pd.DataFrame,
     output_cols = (
         'drugA', 'drugB', 'correlation',
 
-        'l0_succ_a', 'l0_succ_b', 'l0_intersection',
-        'l0_union', 'l0_jaccard_index',
+        'L0_succ_a', 'L0_succ_b', 'L0_intersection',
+        'L0_union', 'L0_jaccard_index',
 
-        'l1_succ_a', 'l1_succ_b', 'l1_intersection',
-        'l1_union', 'l1_jaccard_index',
+        'L1_succ_a', 'L1_succ_b', 'L1_intersection',
+        'L1_union', 'L1_jaccard_index',
 
-        'l2_succ_a', 'l2_succ_b', 'l2_intersection',
-        'l2_union', 'l2_jaccard_index',
+        'L2_succ_a', 'L2_succ_b', 'L2_intersection',
+        'L2_union', 'L2_jaccard_index',
 
-        'l3_succ_a', 'l3_succ_b', 'l3_intersection',
-        'l3_union', 'l3_jaccard_index'
+        'L3_succ_a', 'L3_succ_b', 'L3_intersection',
+        'L3_union', 'L3_jaccard_index'
     )
     return pd.DataFrame(data=jaccard_ranks, columns=output_cols)
 
