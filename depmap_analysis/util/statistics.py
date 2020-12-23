@@ -1,6 +1,7 @@
 import logging
 from math import floor
 from io import BytesIO
+from typing import Tuple, Dict, Union, Hashable
 from pathlib import Path
 from datetime import datetime
 
@@ -13,6 +14,9 @@ from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 logger = logging.getLogger(__name__)
 
+min_columns = ('agA', 'agB', 'z-score')
+id_columns = min_columns + ('agA_ns', 'agA_id', 'agB_ns', 'agB_id')
+
 
 class DepMapExplainer:
     """Contains the result of the matching of correlations and an indranet
@@ -23,15 +27,36 @@ class DepMapExplainer:
     tag : str
     indra_network_date : str
     depmap_date : str
-    sd_range : tuple(float|None)
-    info : dict
+    sd_range : Tuple[float, Union[float, None]]
+    info : Dict[str, Any]
     network_type : str
     stats_df : pd.DataFrame
     expl_df : pd.DataFrame
-    is_signed : Bool
-    summary : dict
+    is_signed : bool
+    summary : Dict[str, int]
     summary_str : str
-    corr_stats_axb : dict
+    corr_stats_axb : Dict[Dict[str, int]]
+
+    Methods
+    -------
+    has_data : bool
+        Checks and returns whether there is any data in any of the
+        associated data frames
+    summarize
+        Prints a human readable summary of the results for a quick overview
+    get_summary : Dict
+        Generates counts of explanations and returns a dict
+    get_summary_str : str
+        Generates a string of the results from the dict returned from
+        get_summary
+    save_summary
+        Save the summary dict from get_summary to a csv file
+    get_corr_stats_axb : Dict
+        Get correlation statistics
+    plot_corr_stats
+        Plot the results of get_corr_stats_axb
+    plot_dists
+        Compare the distributions of differently sampled A-X-B correlations
     """
 
     def __init__(self, stats_columns, expl_columns, info, script_settings,
@@ -39,10 +64,10 @@ class DepMapExplainer:
         """
         Parameters
         ----------
-        stats_columns : list[str]|tuple[str]
-        expl_columns : list[str]|tuple[str]
-        info : dict
-        script_settings : dict
+        stats_columns : Union[List[str], Tuple[str]]
+        expl_columns : Union[List[str], Tuple[str]]
+        info : Dict[Hashable, Any]
+        script_settings : Dict[str, Union[str, float, int, List[str]]
         tag : str
         network_type : str
         """
@@ -55,6 +80,7 @@ class DepMapExplainer:
         self.network_type = network_type
         self.stats_df = pd.DataFrame(columns=stats_columns)
         self.expl_df = pd.DataFrame(columns=expl_columns)
+        self.expl_cols = list(set(stats_columns).difference(id_columns))
         self._has_data = False
         self.is_signed = True if network_type in {'signed', 'pybel'} else False
         self.summary = {}
@@ -62,7 +88,7 @@ class DepMapExplainer:
         self.corr_stats_axb = {}
 
     def __str__(self):
-        return self.get_summary_str() if self.has_data else \
+        return self.get_summary_str() if self.__len__() else \
             'DepMapExplainer is empty'
 
     def __len__(self):
@@ -89,45 +115,41 @@ class DepMapExplainer:
         print(self.summary_str)
 
     def get_summary(self):
-        """Calculate and return a dict with the summary counts per explanation
+        """Return a dict with the summary counts
 
         Returns
         -------
-        dict
+        Dict
         """
         if not self.summary:
+            # Get explanation column counts
+            for expl_type in self.stats_df.columns:
+                if expl_type in id_columns:
+                    continue
+                self.summary[expl_type] = self.stats_df[expl_type].sum()
+
+            # Special Counts #
             # Total pairs checked
-            self.summary['total checked'] = len(self.stats_df)
-            # Not in graph
-            self.summary['not in graph'] = sum(self.stats_df['not in graph'])
-            # unexplained
+            self.summary['total checked'] = self.__len__()
+            # unexplained: can be NaN, True, False
             self.summary['unexplained'] = \
                 sum(self.stats_df['explained'] == False)
-            # explained
-            self.summary['explained'] = self.stats_df['explained'].sum()
-            # count common parent
-            self.summary['common parent'] = \
-                self.stats_df['common parent'].sum()
-            # count "explained set"
-            self.summary['explained set'] = \
-                self.stats_df['explained set'].sum()
             # count "complex or direct"
-            self.summary['complex or direct'] = \
-                sum(self.stats_df['a-b'] | self.stats_df['b-a'])
+            if 'a-b' in self.stats_df.columns and \
+                    'b-a' in self.stats_df.columns:
+                self.summary['complex or direct'] = \
+                    sum(self.stats_df['a-b'] | self.stats_df['b-a'])
             # count directed a-x-b: a->x->b or b->x->a
-            self.summary['x intermediate'] = \
-                sum(self.stats_df['a-x-b'] | self.stats_df['b-x-a'])
-            # count shared target: a->x<-b
-            self.summary['shared regulator'] = \
-                self.stats_df['shared regulator'].sum()
-            # count shared regulator: a<-x->b
-            self.summary['shared target'] = \
-                self.stats_df['shared target'].sum()
+            if 'a-x-b' in self.stats_df.columns and \
+                    'b-x-a' in self.stats_df.columns:
+                self.summary['x intermediate'] = \
+                    sum(self.stats_df['a-x-b'] | self.stats_df['b-x-a'])
             # count shared regulator as only expl
-            self.summary['sr only'] = self._get_sr_only()
-            # explained - (shared regulator as only expl)
-            self.summary['explained (excl sr)'] = \
-                self.summary['explained'] - self.summary['sr only']
+            if 'shared regulator' in self.stats_df.columns:
+                self.summary['sr only'] = self._get_sr_only()
+                # explained - (shared regulator as only expl)
+                self.summary['explained (excl sr)'] = \
+                    self.summary['explained'] - self.summary['sr only']
 
         return self.summary
 
@@ -138,19 +160,24 @@ class DepMapExplainer:
         -------
         str
         """
+        # ToDo: Fix order of output
         if not self.summary_str:
-            for expl in ['total checked', 'not in graph', 'explained',
-                         'explained (excl sr)', 'unexplained',
-                         'explained set', 'common parent',
-                         'complex or direct', 'x intermediate',
-                         'shared regulator', 'shared target', 'sr only']:
-                summary = self.get_summary()
+            summary = self.get_summary()
+            self.summary_str = \
+                'Explanation'.ljust(22) + 'count\n' + '-'*len('Explanation') +\
+                ' '*(22-len('Explanation')) + '-'*len('count') + '\n'
+            for expl, count in summary.items():
                 self.summary_str +=\
-                    (expl + ": ").ljust(22) + str(summary[expl]) + '\n'
+                    (expl + ": ").ljust(22) + str(count) + '\n'
         return self.summary_str
 
     def save_summary(self, fname):
-        """Save summary to a file"""
+        """Save summary to a file
+
+        Parameters
+        ----------
+        fname : str
+        """
         summary = self.get_summary()
         with open(fname, 'w') as f:
             f.write('explanation,count\n')
@@ -158,19 +185,18 @@ class DepMapExplainer:
                 f.write(f'{e},{c}\n')
 
     def _get_sr_only(self):
-        # Select rows that match the following conditions
-        indices = self.stats_df[
-            (self.stats_df['shared regulator'] == True) &
-            (self.stats_df['a-b'] == False) &
-            (self.stats_df['b-a'] == False) &
-            (self.stats_df['common parent'] == False) &
-            (self.stats_df['explained set'] == False) &
-            (self.stats_df['a-x-b'] == False) &
-            (self.stats_df['b-x-a'] == False) &
-            (self.stats_df['shared target'] == False) &
-            (self.stats_df['not in graph'] == False)
-        ].index
-        return len(indices)
+        # Get indices where 'shared regulator' is True
+        sr_true = self.stats_df[
+                self.stats_df['shared regulator'] == True
+            ].index.values
+        # Exclude overall explained and shared regulator
+        other_cols = [col for col in self.expl_cols if col not in
+                      {'shared regulator', 'explained'}]
+        others_false = self.stats_df[
+                self.stats_df[other_cols] == False
+            ].index.values
+
+        return len(set(sr_true).intersection(others_false))
 
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True):
@@ -413,7 +439,7 @@ class DepMapExplainer:
         plt.title(title)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
-        plt.legend()
+        plt.legend(legend)
         name = '%s_%s_axb_hist_comparison.pdf' % \
                (sd_str, self.script_settings['graph_type'])
 

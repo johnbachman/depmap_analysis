@@ -7,6 +7,7 @@ from datetime import datetime
 
 import pandas as pd
 
+from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.util.io_functions import file_opener, file_path, \
     is_dir_path
 
@@ -105,6 +106,7 @@ if __name__ == '__main__':
         if not dry:
             # Load pickle
             explainer = file_opener(explainer_file)
+            assert isinstance(explainer, DepMapExplainer)
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr,

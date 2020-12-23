@@ -4,32 +4,35 @@ The script matches observed correlations with different graph
 representations if the IndraNetwork
 
 # Inputs:
-#   1. Pre-processed correlation matrix with only (gene, gene, z-score)
-#   2. nx.DiGraph (or nx.MultiDiGraph?) of IndraNetwork containing at least
-#      agA/B: (name, ns, id), hash, type, belief, sign
+1. Pre-processed correlation matrix with only (gene, gene, z-score)
+2. nx.DiGraph (or nx.MultiDiGraph?) of IndraNetwork containing at least
+   agA/B: (name, ns, id), hash, type, belief, sign
 
 # Processing:
-#   0a. If signed graph: match edge sign with correlation sign
-#   0b. If pybel graph: get node representation and match edge sign with
-#       correlation sign
-#   1. Find direct links both ways
-#   2. Find A-X-B links: both ways (2), common target, common regulator
-#   3. Find famplex links (have common parent)
+0a. If signed graph: match edge sign with correlation sign
+0b. If pybel graph: get node representation and match edge sign with
+    correlation sign
+1. Find direct links both ways
+2. Find A-X-B links: both ways (2), common target, common regulator
+3. Find famplex links (have common parent)
 
 # Questions:
-#   Q1. Where would the cutting down to specific SD ranges be done?
-#   A: Probably outside match correlations, somewhere inside or after
-#      preprocessing. Better to do it all at once for one dump of the data
+Q1. Where would the cutting down to specific SD ranges be done?
+A: Probably outside match correlations, somewhere inside or after
+   preprocessing. Better to do it all at once for one dump of the data
 
 # Output:
-#   An object of a new class that wraps a dataframe that can generate
-#   different explanations statistics
+An instance of the DepMapExplainer class that wraps dataframes that can
+generate different explanations statistics
 """
+import pickle
 import inspect
 import logging
 import argparse
 import multiprocessing as mp
 from time import time
+from copy import deepcopy
+from typing import Union, List, Dict, Iterable
 from pathlib import Path
 from itertools import product
 from collections import defaultdict
@@ -38,151 +41,169 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import networkx as nx
-from pybel.dsl.node_classes import CentralDogma
 
+from indra.util import batch_iter
+from indra.util.multiprocessing_traceback import WrapException
+from indra_db.util.s3_path import S3Path
+from depmap_analysis.util.aws import get_s3_client
 from depmap_analysis.util.io_functions import file_opener, \
-    dump_it_to_pickle, graph_types, file_path
+    dump_it_to_pickle, allowed_types, file_path, strip_out_date
 from depmap_analysis.network_functions.net_functions import \
-    INT_MINUS, INT_PLUS, ns_id_from_name, get_hgnc_node_mapping
-from depmap_analysis.network_functions.famplex_functions import common_parent
+    pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, iter_chunker, down_sampl_size
-from depmap_analysis.util.statistics import DepMapExplainer
-from depmap_analysis.scripts.depmap_preprocessing import run_corr_merge
+    corr_matrix_to_generator, down_sampl_size
+from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
+    id_columns
+from depmap_analysis.preprocessing import run_corr_merge, drugs_to_corr_matrix
+from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
-logger = logging.getLogger('DepMap Script')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-indranet = None
-hgnc_node_mapping = None
-output_list = None
+indranet = nx.DiGraph()
+hgnc_node_mapping = dict()
+output_list = []
 
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
-                            expl_columns, bool_columns, min_columns,
-                            explained_set, _type):
-    # Separate out this part
+                            expl_columns, bool_columns, explained_set,
+                            _type, allowed_ns=None, allowed_sources=None,
+                            is_a_part_of=None, immediate_only=False):
+    try:
+        global indranet
 
-    stats_dict = {k: [] for k in stats_columns}
-    expl_dict = {k: [] for k in expl_columns}
+        stats_dict = {k: [] for k in stats_columns}
+        expl_dict = {k: [] for k in expl_columns}
+        options = {'immediate_only': immediate_only}
+        if is_a_part_of:
+            options['is_a_part_of'] = is_a_part_of
+        if allowed_ns:
+            options['ns_set'] = allowed_ns
+        if allowed_sources:
+            options['src_set'] = allowed_sources
 
-    for gA, gB, zsc in corr_iter:
-        # Initialize current iteration stats
-        stats = {k: False for k in bool_columns}
+        for tup in corr_iter:
+            # Break loop when batch_iter
+            if tup is None:
+                break
+            gA, gB, zsc = tup
+            # Initialize current iteration stats
+            stats = {k: False for k in bool_columns}
 
-        # Append to stats_dict
-        stats_dict['agA'].append(gA)
-        stats_dict['agB'].append(gB)
-        stats_dict['z-score'].append(zsc)
+            # Append to stats_dict; These assignments need to be before the
+            # checks that will skip current iteration
+            stats_dict['agA'].append(gA)
+            stats_dict['agB'].append(gB)
+            stats_dict['z-score'].append(zsc)
 
-        # Skip if A or B not in graph or (if type is pybel) no node
-        # mapping exists for either A or B
-        if _type == 'pybel' and \
-                (gA not in hgnc_node_mapping or gB not in hgnc_node_mapping) \
-                or \
-                _type != 'pybel' and \
-                (gA not in indranet.nodes or gB not in indranet.nodes):
-            for k in set(stats_dict.keys()).difference(set(min_columns)):
-                if k == 'not in graph':
-                    # Flag not in graph
-                    stats_dict[k].append(True)
-                else:
-                    # All columns are NaN's
-                    stats_dict[k].append(np.nan)
-            continue
-
-        if _type == 'pybel':
-            # Get ns, id
-            a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
-            b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
-        else:
-            a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
-
-        # Append to stats dict
-        stats_dict['agA_ns'].append(a_ns)
-        stats_dict['agB_ns'].append(b_ns)
-        stats_dict['agA_id'].append(a_id)
-        stats_dict['agB_id'].append(b_id)
-
-        # If in expl set, skip other explanations
-        if explained_set:
-            if gA in explained_set and gB in explained_set:
-                # Set explained set = True
-                stats_dict['explained set'].append(True)
-
-                # Set overall explained = True
-                stats_dict['explained'].append(True)
-
-                # All other columns to False
-                for k in set(bool_columns).difference(
-                        {'explained set', 'explained'}):
-                    stats_dict[k].append(False)
-
-                # Set explanation type and data
-                # Append to expl_dict
-                expl_dict['agA'].append(gA)
-                expl_dict['agB'].append(gB)
-                expl_dict['z-score'].append(zsc)
-                expl_dict['expl type'].append('explained set')
-                expl_dict['expl data'].append(np.nan)
-
-                # And skip the rest of explanations
+            # Skip if A or B not in graph or (if type is pybel) no node
+            # mapping exists for either A or B
+            if _type == 'pybel' and (gA not in hgnc_node_mapping or
+                                     gB not in hgnc_node_mapping) or \
+                    _type != 'pybel' and (gA not in indranet.nodes or
+                                          gB not in indranet.nodes):
+                for k in set(stats_dict.keys()).difference(set(min_columns)):
+                    if k == 'not in graph':
+                        # Flag not in graph
+                        stats_dict[k].append(True)
+                    else:
+                        # All columns are NaN's
+                        stats_dict[k].append(np.nan)
                 continue
 
-        # Create iterator for pairs
-        expl_iter = product(hgnc_node_mapping[gA], hgnc_node_mapping[gB]) \
-            if _type == 'pybel' else [(gA, gB)]
+            if _type == 'pybel':
+                # Get ns, id
+                a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
+                b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
+            else:
+                a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
 
-        expl_iterations = defaultdict(list)
-        for A, B in expl_iter:
-            # Loop expl functions
-            for expl_type, expl_func in expl_types.items():
-                # Function signature: s, o, corr, net, graph_type, **kwargs
-                # Function should return what will be kept in the 'expl_data'
-                # column of the expl_df
+            # Append to stats dict
+            stats_dict['agA_ns'].append(a_ns)
+            stats_dict['agB_ns'].append(b_ns)
+            stats_dict['agA_id'].append(a_id)
+            stats_dict['agB_id'].append(b_id)
 
-                # Skip if 'explained set', which is caught above
-                if expl_type == 'explained set':
+            # If in expl set, skip other explanations
+            if explained_set:
+                if gA in explained_set and gB in explained_set:
+                    # Set explained set = True
+                    stats_dict['explained set'].append(True)
+
+                    # Set overall explained = True
+                    stats_dict['explained'].append(True)
+
+                    # All other columns to False
+                    for k in set(bool_columns).difference(
+                            {'explained set', 'explained'}):
+                        stats_dict[k].append(False)
+
+                    # Set explanation type and data
+                    # Append to expl_dict
+                    expl_dict['agA'].append(gA)
+                    expl_dict['agB'].append(gB)
+                    expl_dict['z-score'].append(zsc)
+                    expl_dict['expl type'].append('explained set')
+                    expl_dict['expl data'].append(np.nan)
+
+                    # And skip the rest of explanations
                     continue
 
-                # Add hgnc symbol name to kwargs if pybel
-                options = {}
-                if _type == 'pybel':
-                    options['s_name'] = gA
-                    options['o_name'] = gB
+            # Create iterator for pairs
+            expl_iter = product(hgnc_node_mapping[gA], hgnc_node_mapping[gB]) \
+                if _type == 'pybel' else [(gA, gB)]
 
-                # Some functions reverses A, B hence the s, o assignment
-                s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
-                                            **options)
-                if expl_data:
-                    # Use original name
-                    s_name = s.name if _type == 'pybel' else s
-                    o_name = o.name if _type == 'pybel' else o
-                    expl_dict['agA'].append(s_name)
-                    expl_dict['agB'].append(o_name)
-                    expl_dict['z-score'].append(zsc)
-                    expl_dict['expl type'].append(expl_type)
-                    expl_dict['expl data'].append(expl_data)
+            # Add hgnc symbol name to expl kwargs if pybel
+            if _type == 'pybel':
+                options['s_name'] = gA
+                options['o_name'] = gB
 
-                    # Append to expl_iterations
-                    expl_iterations[expl_type].append(expl_data)
+            expl_iterations = defaultdict(list)
+            for A, B in expl_iter:
+                # Loop expl functions
+                for expl_type, expl_func in expl_types.items():
+                    # Function signature: s, o, corr, net, graph_type, **kwargs
+                    # Function should return what will be kept in the
+                    # 'expl_data' column of the expl_df
 
-        # Check which ones got explained
-        for expl_type_, expl_data_ in expl_iterations.items():
-            stats[expl_type_] = bool(expl_data_)
+                    # Skip if 'explained set', which is caught above
+                    if expl_type == 'explained set':
+                        continue
 
-        # Set explained column
-        stats['explained'] = any([b for b in stats.values()])
+                    # Some functions reverses A, B hence the s, o assignment
+                    s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
+                                                **options)
+                    if expl_data:
+                        # Use original name
+                        s_name = s.name if _type == 'pybel' else s
+                        o_name = o.name if _type == 'pybel' else o
+                        expl_dict['agA'].append(s_name)
+                        expl_dict['agB'].append(o_name)
+                        expl_dict['z-score'].append(zsc)
+                        expl_dict['expl type'].append(expl_type)
+                        expl_dict['expl data'].append(expl_data)
 
-        # Add stats to stats_dict
-        for expl_tp in stats:
-            stats_dict[expl_tp].append(stats[expl_tp])
+                        # Append to expl_iterations
+                        expl_iterations[expl_type].append(expl_data)
 
-        # Assert that all columns are the same length
-        if not all(len(ls) for ls in stats_dict.values()):
-            raise IndexError('Unequal column lengths in stats_dict after '
-                             'iteration')
-    return stats_dict, expl_dict
+            # Check which ones got explained
+            for expl_type_, expl_data_ in expl_iterations.items():
+                stats[expl_type_] = bool(expl_data_)
+
+            # Set explained column
+            stats['explained'] = any([b for b in stats.values()])
+
+            # Add stats to stats_dict
+            for expl_tp in stats:
+                stats_dict[expl_tp].append(stats[expl_tp])
+
+            # Assert that all columns are the same length
+            if not all(len(ls) for ls in stats_dict.values()):
+                raise IndexError('Unequal column lengths in stats_dict after '
+                                 'iteration')
+        return stats_dict, expl_dict
+    except Exception as exc:
+        raise WrapException()
 
 
 def match_correlations(corr_z, sd_range, script_settings, **kwargs):
@@ -203,7 +224,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
         nx.MultiDiGraph with edges keys by (gene, gene, sign) tuples.
     sd_range : tuple[float]
         The SD ranges that the corr_z is filtered to
-    script_settings :
+    script_settings : dict
 
     Returns
     -------
@@ -211,18 +232,27 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
         An instance of the DepMapExplainer class containing the explanations
         for the correlations.
     """
-    min_columns = ('agA', 'agB', 'z-score')
-    id_columns = min_columns + ('agA_ns', 'agA_id', 'agB_ns', 'agB_id')
     # Map each expl type to a function that handles that explanation
-    expl_types = {'a-b': expl_ab,
-                  'b-a': expl_ba,
-                  'common parent': find_cp,
-                  'explained set': explained,  # a priori explained
-                  'a-x-b': expl_axb,
-                  'b-x-a': expl_bxa,
-                  'shared regulator': get_sr,
-                  'shared target': get_st,
-                  }
+    if not kwargs.get('expl_funcs'):
+        # No function names provided, use all explanation functions
+        logger.info('All explanation types used')
+        expl_types = {funcname_to_colname[func_name]: func
+                      for func_name, func in expl_functions.items()}
+    else:
+        # Map function names to functions, check if
+        expl_types = {}
+        for func_name in kwargs['expl_funcs']:
+            if func_name not in expl_functions:
+                logger.warning(f'{func_name} does not map to a registered '
+                               f'explanation function. Allowed functions '
+                               f'{", ".join(expl_functions.keys())}')
+            else:
+                expl_types[funcname_to_colname[func_name]] = \
+                    expl_functions[func_name]
+
+    if not len(expl_types):
+        raise ValueError('No explanation functions provided')
+
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
@@ -230,11 +260,33 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
 
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
+
+    # Get options
+    if kwargs.get('allowed_ns'):
+        allowed_ns = {n.lower() for n in kwargs['allowed_ns']}
+        logger.info('Only allowing the following namespaces: %s' %
+                    ', '.join(allowed_ns))
+    else:
+        allowed_ns = None
+    if kwargs.get('allowed_sources'):
+        allowed_sources = {s.lower() for s in kwargs['allowed_sources']}
+        logger.info('Only allowing the following sources: %s' %
+                    ', '.join(allowed_sources))
+    else:
+        allowed_sources = None
+    is_a_part_of = kwargs.get('is_a_part_of')
+    immediate_only = kwargs.get('immediate_only', False)
+
+    # Try to get dates of files from file names and file info
     ymd_now = datetime.now().strftime('%Y%m%d')
+    inet_file = script_settings['indranet']
     indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
-        else ymd_now
+        else (strip_out_date(inet_file, r'\d{8}')
+              if strip_out_date(inet_file, r'\d{8}') else ymd_now)
+    dm_file = script_settings['z_score']
     depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
-        else ymd_now
+        else (strip_out_date(dm_file, r'\d{8}')
+              if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
     estim_pairs = corr_z.notna().sum().sum()
     print(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} with '
@@ -248,8 +300,8 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
 
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0
-        chunk_iter = iter_chunker(n=chunksize,
-                                  iterable=corr_matrix_to_generator(corr_z))
+        chunk_iter = batch_iter(iterator=corr_matrix_to_generator(corr_z),
+                                batch_size=chunksize, return_func=list)
         for chunk in chunk_iter:
             pool.apply_async(func=_match_correlation_body,
                              # args should match the args for func
@@ -259,9 +311,12 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                                  stats_columns,
                                  expl_columns,
                                  bool_columns,
-                                 min_columns,
                                  explained_set,
-                                 _type
+                                 _type,
+                                 allowed_ns,
+                                 allowed_sources,
+                                 is_a_part_of,
+                                 immediate_only
                              ),
                              callback=success_callback,
                              error_callback=error_callback)
@@ -297,231 +352,58 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     return explainer
 
 
-def explained(s, o, corr, net, _type, **kwargs):
-    # This function is used for a priori explained relationships
-    return s, o, 'explained_set'
-
-
-def find_cp(s, o, corr, net, _type, **kwargs):
-    if _type == 'pybel':
-        s_name = kwargs['s_name']
-        s_ns, s_id = get_ns_id_pybel_node(s_name, s)
-        o_name = kwargs['o_name']
-        o_ns, o_id = get_ns_id_pybel_node(o_name, o)
-    else:
-        s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
-
-    if not s_id:
-        s_ns, s_id = ns_id_from_name(s_name) if _type == 'pybel' else \
-            ns_id_from_name(s)
-    if not o_id:
-        o_ns, o_id = ns_id_from_name(o_name) if _type == 'pybel' else \
-            ns_id_from_name(o)
-
-    if s_id and o_id:
-        parents = list(common_parent(ns1=s_ns, id1=s_id, ns2=o_ns, id2=o_id))
-        if parents:
-            return s, o, parents
-
-    return s, o, None
-
-
-def expl_axb(s, o, corr, net, _type, **kwargs):
-    x_set = set(net.succ[s]) & set(net.pred[o])
-    if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
-    else:
-        x_nodes = x_set
-
-    if x_nodes:
-        return s, o, list(x_nodes)
-    else:
-        return s, o, None
-
-
-def expl_bxa(s, o, corr, net, _type, **kwargs):
-    if _type == 'pybel':
-        s_name = kwargs.pop('s_name')
-        o_name = kwargs.pop('o_name')
-        options = {'o_name': s_name, 's_name': o_name}
-    else:
-        options = {}
-    return expl_axb(o, s, corr, net, _type, **kwargs, **options)
-
-
-# Shared regulator: A<-X->B
-def get_sr(s, o, corr, net, _type, **kwargs):
-    x_set = set(net.pred[s]) & set(net.pred[o])
-
-    if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
-    else:
-        x_nodes = x_set
-
-    if x_nodes:
-        return s, o, list(x_nodes)
-    else:
-        return s, o, None
-
-
-# Shared target: A->X<-B
-def get_st(s, o, corr, net, _type, **kwargs):
-    x_set = set(net.succ[s]) & set(net.succ[o])
-
-    if _type in {'signed', 'pybel'}:
-        x_nodes = _get_signed_interm(s, o, corr, net, x_set)
-    else:
-        x_nodes = x_set
-
-    if x_nodes:
-        return s, o, list(x_nodes)
-    else:
-        return s, o, None
-
-
-def expl_ab(s, o, corr, net, _type, **kwargs):
-    edge_dict = get_edge_statements(s, o, corr, net, _type, **kwargs)
-    if edge_dict:
-        return s, o, edge_dict.get('stmt_hash') if _type == 'pybel' else \
-            edge_dict.get('statements')
-    return s, o, None
-
-
-def expl_ba(s, o, corr, net, _type, **kwargs):
-    if _type == 'pybel':
-        s_name = kwargs.pop('s_name')
-        o_name = kwargs.pop('o_name')
-        options = {'o_name': s_name, 's_name': o_name}
-    else:
-        options = {}
-    return expl_ab(o, s, corr, net, _type, **kwargs, **options)
-
-
-def get_edge_statements(s, o, corr, net, _type, **kwargs):
-    if _type in {'signed', 'pybel'}:
-        int_sign = INT_PLUS if corr >= 0 else INT_MINUS
-        return net.edges.get((s, o, int_sign), None)
-    else:
-        return net.edges.get((s, o))
-
-
-def _get_signed_interm(s, o, corr, sign_edge_net, x_set):
-    # Make sure we have the right sign type
-    int_sign = INT_PLUS if corr >= 0 else INT_MINUS
-
-    # ax and xb sign need to match correlation sign
-    x_approved = set()
-    for x in x_set:
-        ax_plus = sign_edge_net.edges.get((s, x, INT_PLUS), {})
-        ax_minus = sign_edge_net.edges.get((s, x, INT_MINUS), {})
-        xb_plus = sign_edge_net.edges.get((x, o, INT_PLUS), {})
-        xb_minus = sign_edge_net.edges.get((x, o, INT_MINUS), {})
-
-        if int_sign == INT_PLUS:
-            if ax_plus and xb_plus or ax_minus and xb_minus:
-                x_approved.add(x)
-        if int_sign == INT_MINUS:
-            if ax_plus and xb_minus or ax_minus and xb_plus:
-                x_approved.add(x)
-    return x_approved
-
-
-def get_ns_id(subj, obj, net):
-    """Get ns:id for both subj and obj
-
-    Note: should *NOT* be used with PyBEL nodes
-
-    Parameters
-    ----------
-
-    subj : str
-        The subject node
-    obj : str
-        The source node
-    net : nx.Graph
-        A networkx graph object that at least contains node entries.
-
-    Returns
-    -------
-    tuple
-        A tuple with four entries:
-        (subj namespace, subj id, obj namespace, obj id)
-    """
-    s_ns = net.nodes[subj]['ns'] if net.nodes.get(subj) else None
-    s_id = net.nodes[subj]['id'] if net.nodes.get(subj) else None
-    o_ns = net.nodes[obj]['ns'] if net.nodes.get(obj) else None
-    o_id = net.nodes[obj]['id'] if net.nodes.get(obj) else None
-    return s_ns, s_id, o_ns, o_id
-
-
-def get_ns_id_pybel_node(hgnc_sym, node):
-    """
-
-    Parameters
-    ----------
-    hgnc_sym : str
-        Name to match
-    node : CentralDogma|tuple
-        PyBEL node or tuple of PyBEL nodes
-
-    Returns
-    -------
-    tuple
-        Tuple of ns, id for node
-    """
-    # If tuple of nodes, recursive call until match is found
-    if isinstance(node, tuple):
-        for n in node:
-            ns, _id = get_ns_id_pybel_node(hgnc_sym, n)
-            if ns is not None:
-                return ns, _id
-        logger.warning('None of the names in the tuple matched the HGNC '
-                       'symbol')
-        return None, None
-    # If PyBEL node, check name match, return if match, else None tuple
-    elif isinstance(node, CentralDogma):
-        if node.name == hgnc_sym:
-            try:
-                return node.namespace, node.identifier
-            except AttributeError:
-                return None, None
-    # Not recognized
-    else:
-        logger.warning(f'Type {node.__class__} not recognized')
-        return None, None
-
-
 def success_callback(res):
     logger.info('Appending a result')
     output_list.append(res)
 
 
 def error_callback(err):
-    logger.error('The following exception occurred (print of traceback):')
+    logger.error(f'The following exception occurred in process '
+                 f'{mp.current_process().pid} (print of traceback):')
     logger.exception(err)
 
 
-def main(indra_net, outname, graph_type, sd_range=None, random=False,
+def main(indra_net, outname, graph_type, sd_range, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
-         pb_node_mapping=None, n_chunks=256, ignore_list=None, info=None,
-         indra_date=None, indra_net_file=None, depmap_date=None,
-         sample_size=None, shuffle=False):
+         expl_funcs=None, pb_node_mapping=None, n_chunks=256, ignore_list=None,
+         is_a_part_of=None, immediate_only=False, allowed_ns=None,
+         allowed_sources=None, info=None, indra_date=None,
+         indra_net_file=None, depmap_date=None, sample_size=None,
+         shuffle=False, overwrite=False, normalize_names=False,
+         argparse_dict=None):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
     ----------
-    indra_net : nx.DiGraph|nx.MultiDiGraph
+    indra_net : Union[nx.DiGraph, nx.MultiDiGraph]
     outname : str
     graph_type : str
-    sd_range : tuple(float|None)
+    sd_range : Tuple[float, Union[float, None]]
     random : bool
-    z_score : pd.DataFrame|str
+    z_score : Union[pd.DataFrame, str]
     z_score_file : str
     raw_data : str
     raw_corr : str
-    pb_node_mapping : dict|str
+    expl_funcs : Iterable[str]
+        Provide a list of explanation functions to apply. Default: All
+        functions are applied.
+    pb_node_mapping : Union[Dict, str]
     n_chunks : int
-    ignore_list : list|str
+    ignore_list : Union[List, str]
+        List of nodes in graph to ignore
+    is_a_part_of : Iterable
+        A set of identifiers to look for when applying the common parent
+        explanation between a pair of correlating nodes.
+    immediate_only : bool
+        Only look for immediate parents. This option might limit the number
+        of results that are returned.
+    allowed_ns : List[str]
+        A list of allowed name spaces for explanations involving
+        intermediary nodes. Default: Any namespace.
+    allowed_sources : List[str]
+        The allowed sources for edges. This will not affect subsequent edges
+        in explanations involving 2 or more edges. Default: all sources are
+        allowed.
     info : dict
     indra_date : str
     indra_net_file : str
@@ -530,15 +412,19 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         Number of correlation pairs to approximately get out of the
         correlation matrix after down sampling it
     shuffle : bool
-
-    Returns
-    -------
-    depmap_analysis.util.statistics.DepMapExplainer
+    overwrite : bool
+        If True, overwrite any output files. Default: False
+    normalize_names : bool
+        If True, try to normalize the names in the correlation matrix that
+        are not found in the provided graph
+    argparse_dict : dict
+        Provide the argparse options from running this file as a script
     """
     global indranet, hgnc_node_mapping, output_list
     indranet = indra_net
 
-    run_options = {'n-chunks': n_chunks}
+    assert expl_funcs is None or isinstance(expl_funcs, (list, tuple, set))
+    run_options = {'n-chunks': n_chunks, 'expl_funcs': expl_funcs or None}
 
     # 1 Check options
     sd_l, sd_u = sd_range if sd_range and len(sd_range) == 2 else \
@@ -547,7 +433,7 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
 
     if not random and not sd_l and not sd_u:
         raise ValueError('Must specify at least a lower bound for the SD '
-                         'range')
+                         'range or flag run for random explanation')
 
     if graph_type == 'pybel' and not pb_node_mapping:
         raise ValueError('Must provide PyBEL node mapping with option '
@@ -559,9 +445,31 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         raise ValueError('Must provide either z_score XOR either of raw_data '
                          'or raw_corr')
 
+    # Get ignore list
+    if ignore_list and isinstance(ignore_list, (set, list, tuple)):
+        run_options['explained_set'] = set(ignore_list)
+    elif ignore_list and isinstance(ignore_list, str):
+        expl_df = pd.read_csv(ignore_list)
+        try:
+            expl_set = set(expl_df['Approved symbol'])
+        except KeyError as err:
+            raise KeyError('Ignored entities must be in CSV file with column '
+                           'name "Approved symbol"') from err
+        run_options['explained_set'] = expl_set
+
+    if run_options.get('explained_set'):
+        logger.info(f'Using explained set with '
+                    f'{len(run_options["explained_set"])} genes')
+
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
-    outpath = Path(outname)
+    if not overwrite:
+        if outname.startswith('s3://'):
+            s3 = get_s3_client(unsigned=False)
+            if S3Path.from_string(outname).exists(s3):
+                raise FileExistsError(f'File {str(outname)} already exists!')
+        elif Path(outname).is_file():
+            raise FileExistsError(f'File {str(outname)} already exists!')
 
     if z_score is not None:
         if isinstance(z_score, str) and Path(z_score).is_file():
@@ -580,8 +488,15 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         }
         z_corr = run_corr_merge(**z_sc_options)
 
-    graph_type = graph_type
     run_options['graph_type'] = graph_type
+    # Add optional options
+    run_options['immediate_only'] = immediate_only
+    if allowed_ns:
+        run_options['allowed_ns'] = allowed_ns
+    if allowed_sources:
+        run_options['allowed_sources'] = allowed_sources
+    if is_a_part_of:
+        run_options['is_a_part_of'] = is_a_part_of
 
     # Get mapping of correlation names to pybel nodes
     if graph_type == 'pybel':
@@ -636,23 +551,13 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
         z_corr = z_corr.sample(frac=1, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
+    if normalize_names:
+        logger.info('Normalizing correlation matrix column names')
+        z_corr = normalize_corr_names(z_corr, indra_net)
+    else:
+        logger.info('Leaving correlation matrix column names as is')
+
     run_options['corr_z'] = z_corr
-
-    # 3. Ignore list as file
-    if ignore_list and isinstance(ignore_list, (set, list, tuple)):
-        run_options['explained_set'] = set(ignore_list)
-    elif ignore_list and isinstance(ignore_list, str):
-        with Path(ignore_list).open('r') as fh:
-            expl_set = set(fh.read().split())
-            try:
-                expl_set.remove('')  # If there are empty lines
-            except KeyError:
-                pass  # Handle '' not existing
-            run_options['explained_set'] = expl_set
-
-    if run_options.get('explained_set'):
-        logger.info(f'Using explained set with '
-                    f'{len(run_options["explained_set"])} genes')
 
     # 4. Add meta data
     info_dict = {}
@@ -665,33 +570,51 @@ def main(indra_net, outname, graph_type, sd_range=None, random=False,
     run_options['info'] = info_dict
 
     # Set the script_settings
-    run_options['script_settings'] = {'raw_data': raw_data,
-                                      'raw_corr': raw_corr,
-                                      'z_score': z_score if isinstance(
-                                          z_score, str) else
-                                      (z_score_file or 'no info'),
-                                      'random': random,
-                                      'indranet': indra_net_file or 'no info',
-                                      'shuffle': shuffle,
-                                      'sample_size': sample_size,
-                                      'n_chunks': n_chunks,
-                                      'outname': outname,
-                                      'ignore_list': ignore_list if
-                                      isinstance(ignore_list, str) else
-                                      'no info',
-                                      'graph_type': graph_type,
-                                      'pybel_node_mapping': pb_node_mapping
-                                      if isinstance(pb_node_mapping, str) else
-                                      'no_info'}
+    run_options['script_settings'] = {
+        'raw_data': raw_data,
+        'raw_corr': raw_corr,
+        'z_score': z_score if isinstance(z_score, str) else (z_score_file or
+                                                             'no info'),
+        'random': random,
+        'indranet': indra_net_file or 'no info',
+        'shuffle': shuffle,
+        'sample_size': sample_size,
+        'n_chunks': n_chunks,
+        'outname': outname,
+        'ignore_list': ignore_list if isinstance(ignore_list,
+                                                 str) else 'no info',
+        'graph_type': graph_type,
+        'pybel_node_mapping': pb_node_mapping if isinstance(
+            pb_node_mapping, str) else 'no info',
+        'argparse_info': argparse_dict
+    }
 
     # Create output list in global scope
     output_list = []
     explanations = match_correlations(**run_options)
+    if outname.startswith('s3://'):
+        try:
+            logger.info(f'Uploading results to s3: {outname}')
+            s3 = get_s3_client(unsigned=False)
+            s3outpath = S3Path.from_string(outname)
+            s3outpath.upload(s3=s3, body=pickle.dumps(explanations))
+            logger.info('Finished uploading results to s3')
+        except Exception:
+            new_path = Path(outname.replace('s3://', ''))
+            logger.warning(f'Something went wrong in s3 upload, trying to '
+                           f'save locally instead to {new_path}')
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            dump_it_to_pickle(fname=new_path.absolute().resolve().as_posix(),
+                              pyobj=explanations, overwrite=overwrite)
 
-    # mkdir in case it  doesn't exist
-    outpath.parent.mkdir(parents=True, exist_ok=True)
-    dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
-                      pyobj=explanations)
+    else:
+        # mkdir in case it doesn't exist
+        outpath = Path(outname)
+        logger.info(f'Dumping results to {outpath}')
+        outpath.parent.mkdir(parents=True, exist_ok=True)
+        dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
+                          pyobj=explanations, overwrite=overwrite)
+    logger.info('Script finished')
 
 
 if __name__ == '__main__':
@@ -715,7 +638,14 @@ if __name__ == '__main__':
     corr_group.add_argument(
         '--z-score', type=file_path(),
         help='The file path to the fully merged correlation matrix '
-             'containing z-scores.')
+             'containing z-scores for gene-gene correlations.')
+    corr_group.add_argument(
+        '--raw-drugs', nargs=2, type=file_path(),
+        help='File paths to the raw drug data from the DepMap portal\'s '
+             'PRISM Repurposing data. The file names should match '
+             '`primary-screen-replicate-collapsed-logfold-change.csv` and '
+             '`primary-screen-replicate-collapsed-treatment-info.csv`'
+    )
 
     #   1b Load indranet
     parser.add_argument(
@@ -741,12 +671,34 @@ if __name__ == '__main__':
     )
 
     #   1d Provide graph type
-    allowed_types = {'unsigned', 'signed', 'pybel'}
+    allowed_graph_types = {'unsigned', 'signed', 'pybel'}
     parser.add_argument(
-        '--graph-type', type=graph_types(allowed_types),
+        '--graph-type', type=allowed_types(allowed_graph_types),
         default='unsigned',
-        help='Specify the graph type used. Allowed values are '
-             f'{allowed_types}'
+        help=f'Specify the graph type used. Allowed values are {allowed_types}'
+    )
+
+    #   1e Provide allowed_ns
+    parser.add_argument(
+        '--allowed-ns', nargs='+',
+        help='Specify the allowed namespaces to be used in the graph for '
+             'intermediate nodes. Default: all namespaces are allowed.'
+    )
+
+    #   1f Provide sources to filter to for edges
+    parser.add_argument(
+        '--allowed-sources', nargs='+',
+        help='Specify the allowed sources for edges. This will not affect '
+             'subsequent edges in explanations involving 2 or more edges. '
+             'Default: all sources are allowed.'
+    )
+
+    #   1g Provide expl function names
+    parser.add_argument(
+        '--expl-funcs', nargs='+',
+        type=allowed_types(set(expl_functions.keys())),
+        help='Provide explainer function names to be used in the explanation '
+             'loop'
     )
 
     #   2a. Filter to SD range
@@ -760,9 +712,9 @@ if __name__ == '__main__':
                                   'correlation matrix')
     #   3. Ignore list as file
     parser.add_argument(
-        '--ignore-list', type=str,
-        help='Provide a text file with one gene name per line to skip in the'
-             'explanations')
+        '--ignore-list', type=file_path(),
+        help='Provide a csv file with a column named "Approved symbol" '
+             'containing genes (or other entities) to ignore in explanations.')
 
     # 4 output
     parser.add_argument(
@@ -784,7 +736,7 @@ if __name__ == '__main__':
              'pairs (approximately) are picked at random.'
     )
 
-    # 6 Extra info
+    # 6 Extra info and options
     parser.add_argument('--indra-date',
                         help='Provide a date for the dump from which the '
                              'indra network was created')
@@ -794,9 +746,23 @@ if __name__ == '__main__':
     parser.add_argument('--shuffle', action='store_true',
                         help='Shuffle the correlation matrix before running '
                              'matching loop.')
+    parser.add_argument('--is-a-part-of', nargs='+',
+                        help='Identifiers that are considered to explain '
+                             'pair connections in common parent search in '
+                             'ontology.')
+    parser.add_argument('--immediate-only', action='store_true',
+                        help='Only look in immediate parents in common '
+                             'parent search.')
+    parser.add_argument('--overwrite', action='store_true',
+                        help='Overwrite any output files that already exist.')
+    parser.add_argument('--normalize-names', action='store_true',
+                        help='Try to normalize the names in the correlation '
+                             'matrix if they are not found in the provided '
+                             'graph')
 
     args = parser.parse_args()
     arg_dict = vars(args)
+    arg_dict['argparse_dict'] = deepcopy(arg_dict)
 
     # Load z_corr, indranet and optionally pybel_model
     inet_graph = file_opener(args.indranet)
@@ -805,6 +771,9 @@ if __name__ == '__main__':
     if arg_dict.get('z_score'):
         corr_matrix = pd.read_hdf(arg_dict['z_score'])
         arg_dict['z_score_file'] = arg_dict['z_score']
+    elif arg_dict.get('raw_drugs'):
+        raw_drug_data, raw_drug_info = arg_dict['raw_drugs']
+        corr_matrix = drugs_to_corr_matrix(raw_drug_data, raw_drug_info)
     else:
         arg_dict['raw_data'] = arg_dict.get('raw_data')
         arg_dict['corr_data'] = arg_dict.get('corr_data')
@@ -827,8 +796,8 @@ if __name__ == '__main__':
                          'if graph type is pybel')
     # Only model provided: create mapping
     if arg_dict.get('pybel_model') and not arg_dict.get('pybel_node_mapping'):
-        mapping = get_hgnc_node_mapping(
-            hgnc_names=hgnc_names,
+        mapping = pybel_node_name_mapping(
+            node_names=hgnc_names, node_ns='HGNC',
             pb_model=file_opener(arg_dict['pybel_model'])
         )
         arg_dict['pb_node_mapping'] = mapping

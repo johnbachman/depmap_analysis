@@ -1,9 +1,16 @@
+import re
 import csv
 import json
+import pandas as pd
 import pickle
 import logging
-from argparse import ArgumentError
+import platform
+from io import StringIO
+from os import path, stat
+from typing import Iterable, Union, Dict
 from pathlib import Path
+from datetime import datetime
+from argparse import ArgumentError
 from functools import wraps
 from itertools import repeat, takewhile
 
@@ -11,26 +18,77 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+DT_YmdHMS_ = '%Y-%m-%d-%H-%M-%S'
+DT_YmdHMS = '%Y%m%d%H%M%S'
+DT_Ymd = '%Y%m%d'
+RE_YmdHMS_ = r'\d{4}\-\d{2}\-\d{2}\-\d{2}\-\d{2}\-\d{2}'
+RE_YYYYMMDD = r'\d{8}'
 
-def file_opener(fname):
+
+def file_opener(fname: str, **kwargs) -> Union[object, pd.DataFrame, Dict]:
     """Open file based on file extension
+
+    kwargs can be provided and are used for s3_file_opener (s3 calls) and
+    pd.read_csv() (local files)
 
     Parameters
     ----------
     fname : str
-        The filename
+        The filename. If an s3 url, load object directly from s3.
 
     Returns
     -------
-    object
+    Union[object, pd.DataFrame, Dict]
         Object stored in file fname
     """
+    if fname.startswith('s3://'):
+        return s3_file_opener(fname, **kwargs)
     if fname.endswith('pkl'):
         return pickle_open(fname)
     elif fname.endswith('json'):
         return json_open(fname)
+    elif fname.endswith(('csv', 'tsv')):
+        return pd.read_csv(fname, **kwargs)  # Can provide e.g. index_col=0
     else:
         raise ValueError(f'Unknown file extension for file {fname}')
+
+
+def s3_file_opener(s3_url: str, unsigned: bool = False, **kwargs) -> \
+        Union[object, pd.DataFrame, Dict]:
+    """Open a file from s3 given a standard s3-path
+
+    kwargs are only relevant for csv/tsv files and are used for pd.read_csv()
+
+    Parameters
+    ----------
+    s3_url : str
+        S3 url of the format 's3://<bucket>/<key>'. The key is assumed to
+        also contain a file ending
+    unsigned : bool
+        If True, perform S3 calls unsigned. Default: False
+
+    Returns
+    -------
+    Union[object, pd.DataFrame, Dict]
+        Object stored on S3
+    """
+    from indra_db.util.s3_path import S3Path
+    from .aws import load_pickle_from_s3, read_json_from_s3, get_s3_client
+    logger.info(f'Loading {s3_url} from s3')
+    s3_path = S3Path.from_string(s3_url)
+    s3 = get_s3_client(unsigned=unsigned)
+    bucket, key = s3_path.bucket, s3_path.key
+    if key.endswith('.json'):
+        return read_json_from_s3(s3=s3, key=key, bucket=bucket)
+    elif key.endswith('.pkl'):
+        return load_pickle_from_s3(s3=s3, key=key, bucket=bucket)
+    elif key.endswith(('.csv', '.tsv')):
+        fileio = S3Path.from_string(s3_url).get(s3=s3)
+        csv_str = fileio['Body'].read().decode('utf-8')
+        raw_file = StringIO(csv_str)
+        return pd.read_csv(raw_file, **kwargs)
+    else:
+        return S3Path.from_string(s3_url).get(s3=s3)
 
 
 def file_dump_wrapper(f):
@@ -106,7 +164,7 @@ def dump_it_to_json(fname, pyobj, overwrite=False):
     logger.info('Dumping to json file %s' % fname)
     with Path(fname).open('w') as json_out:
         json.dump(pyobj, json_out)
-    logger.info('Finished dumping to pickle')
+    logger.info('Finished dumping to json')
 
 
 @file_dump_wrapper
@@ -218,21 +276,25 @@ def _manually_add_to_histo(hist, start, binsize, value):
     hist[map2index(start, binsize, value)] += 1
 
 
-def graph_types(types):
-    """Types is a set of strings with names of the allowed graph types"""
-    def types_check(_type):
-        """Check the input graph type
+def allowed_types(types: Iterable):
+    """Types is a set of strings with names of the allowed types
+
+    Use this function as 'type' when adding a command line argument using
+    parser.add_argument and the argument specifies picking one "type" from a
+    pre-defined set of allowed types
+    """
+    def types_check(_type: str) -> str:
+        """Check the input type
 
         Parameters
         ----------
         _type : str
-            The input graph type
+            The input type
 
         Returns
         -------
         str
-            Returns the lowercase of the input string representing the graph
-            type
+            Returns the lowercase of the input string representing the type
         """
         if _type.lower() not in types:
             raise ArgumentError(f'Provided graph type {_type} not allowed. '
@@ -241,9 +303,22 @@ def graph_types(types):
     return types_check
 
 
-def file_path(file_ending=None):
-    """Checks if file at provided path exists"""
-    def check_path(fpath):
+def file_path(file_ending: str = None):
+    """Checks if file at provided path exists
+
+    Use this function as 'type' when adding a command line argument using
+    parser.add_argument and the argument is a file path
+    """
+    def check_path(fpath: str):
+        if fpath.startswith('s3://'):
+            if file_ending and not fpath.endswith(file_ending):
+                raise ValueError(f'Unrecognized file type '
+                                 f'{fpath.split("/")[-1]}')
+            from indra_db.util.s3_path import S3Path
+            from .aws import get_s3_client
+            if not S3Path.from_string(fpath).exists(s3=get_s3_client(False)):
+                raise ValueError(f'File {fpath} does not exist')
+            return fpath
         p = Path(fpath)
         if not p.is_file():
             raise ArgumentError(f'File {fpath} does not exist')
@@ -262,3 +337,49 @@ def is_dir_path():
             raise ArgumentError(f'Path {path} does not exist')
         return path
     return is_dir
+
+
+def todays_date(dt_fmt=DT_Ymd):
+    return datetime.now().strftime(dt_fmt)
+
+
+def get_earliest_date(file):
+    """Returns creation or modification timestamp of file
+
+    # todo: Add s3 option
+
+    Parameters
+    ----------
+    file : str
+        File path
+
+    Returns
+    -------
+    float
+        Timestamp in seconds with microseconds as a float
+    """
+    # https://stackoverflow.com/questions/237079/
+    # how-to-get-file-creation-modification-date-times-in-python
+    if platform.system().lower() == 'windows':
+        return path.getctime(file)
+    else:
+        st = stat(file)
+        try:
+            return st.st_birthtime
+        except AttributeError:
+            return st.st_mtime
+
+
+def get_date_from_str(date_str, dt_format):
+    """Returns a datetime object from a datestring of format FORMAT"""
+    return datetime.strptime(date_str, dt_format)
+
+
+def strip_out_date(keystring, re_format):
+    """Strips out datestring of format re_format from a keystring"""
+    try:
+        return re.search(re_format, keystring).group()
+    except AttributeError:
+        logger.warning('Can\'t parse string "%s" for date using regex pattern '
+                       'r"%s"' % (keystring, re_format))
+        return None

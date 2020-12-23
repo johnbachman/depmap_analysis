@@ -64,7 +64,7 @@ def get_latest_sif_s3(get_mesh_ids=False):
 
 def load_pickled_net_from_s3(name):
     s3_cli = get_s3_client(False)
-    key = NETS_PREFIX + '/' + name
+    key = NETS_PREFIX + name
     return load_pickle_from_s3(s3_cli, key=key, bucket=NET_BUCKET)
 
 
@@ -72,6 +72,7 @@ def load_pickle_from_s3(s3, key, bucket):
     try:
         res = s3.get_object(Key=key, Bucket=bucket)
         pyobj = pickle.loads(res['Body'].read())
+        logger.info('Finished loading pickle from s3')
     except Exception as err:
         logger.error('Something went wrong while loading, reading or '
                      'unpickling the object from s3')
@@ -97,6 +98,7 @@ def read_json_from_s3(s3, key, bucket):
     try:
         res = s3.get_object(Key=key, Bucket=bucket)
         json_obj = json.loads(res['Body'].read().decode())
+        logger.info('Finished loading json from s3')
     except Exception as err:
         logger.error('Something went wrong while loading or reading the json '
                      'object from s3')

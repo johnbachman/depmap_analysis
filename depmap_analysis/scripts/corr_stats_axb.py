@@ -150,13 +150,10 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
         logger.info('No reactome file provided')
         gbv.update_global_vars(z_cm=z_corr)
     if gbv.assert_global_vars(assert_vars):
-        all_x_corrs_no_direct, \
-        avg_x_corrs_no_direct, \
-        top_x_corrs_no_direct, \
-        all_azb_corrs_no_direct, \
-        azb_avg_corrs_no_direct, \
-        all_reactome_corrs, \
-        reactome_avg_corrs = get_corr_stats_mp(**options)
+        all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
+            all_azb_corrs_no_direct, azb_avg_corrs_no_direct, \
+            all_reactome_corrs, reactome_avg_corrs = \
+            get_corr_stats_mp(**options)
     else:
         raise ValueError('Global variables could not be set')
 

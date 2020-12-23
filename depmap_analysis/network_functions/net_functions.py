@@ -1,11 +1,13 @@
 import logging
 from decimal import Decimal
+from itertools import cycle
 from collections import defaultdict
 import subprocess
 
 import requests
 import numpy as np
 import pandas as pd
+from typing import Tuple, Union
 from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
@@ -17,6 +19,7 @@ from indra.assemblers.indranet import IndraNet
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
+from indra.explanation.pathfinding import bfs_search
 from indra.explanation.model_checker.model_checker import \
     signed_edges_to_signed_nodes
 from depmap_analysis.util.aws import get_latest_pa_stmt_dump
@@ -464,27 +467,13 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
     return indranet_graph
 
 
-def db_dump_to_pybel_sg(stmts_list=None):
-    """Create a signed pybel graph from an evidenceless dump from the db
-
-    Parameters
-    ----------
-    stmts_list : list[indrs.statements.Statement]
-        Provide a list of statements if they are already loaded. By default
-        the latest available pa statements dump is downloaded from s3.
-        Default: None.
-
-    Returns
-    -------
-    tuple(nx.DiGraph, nx.MultiDiGraph)
-    """
-    # Get statement dump:
-    # Look for latest file on S3 and pickle.loads it
+def _custom_pb_assembly(stmts_list=None):
     if stmts_list is None:
+        logger.info('No statements provided, downloading latest pa stmt dump')
         stmts_list = get_latest_pa_stmt_dump()
 
     # Filter bad statements
-    logger.info('Fltering out statements with bad position attribute')
+    logger.info('Filtering out statements with bad position attribute')
     filtered_stmts = []
     for st in stmts_list:
         try:
@@ -505,14 +494,81 @@ def db_dump_to_pybel_sg(stmts_list=None):
     logger.info('Assembling PyBEL model')
     pb = PybelAssembler(stmts=filtered_stmts)
     pb_model = pb.make_model()
+    return pb_model
+
+
+def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
+                        default_belief=0.1, sign_in_edges=False):
+    """Create a signed pybel graph from an evidenceless dump from the db
+
+    Parameters
+    ----------
+    stmts_list : list[indra.statements.Statement]
+        Provide a list of statements if they are already loaded. By default
+        the latest available pa statements dump is downloaded from s3.
+        Default: None.
+    pybel_model : pybel.BELGraph
+        If provided, skip generating a new pybel model from scratch
+    belief_dump : dict
+        If provided, reset the belief scores associated with the statements
+        supporting the edges.
+    default_belief : float
+        Only used if belief_dump is provided. When no belief score is
+        available, reset to this belief score. Default: 0.1.
+    sign_in_edges : bool
+        If True, check that all edges are stored with an index corresponding
+        to the sign of the edge. Default: False.
+
+    Returns
+    -------
+    tuple(nx.DiGraph, nx.MultiDiGraph)
+    """
+    # Get statement dump:
+    # Look for latest file on S3 and pickle.loads it
+    if pybel_model is None:
+        pb_model = _custom_pb_assembly(stmts_list)
+    else:
+        logger.info('Pybel model provided')
+        pb_model = pybel_model
+
+    # If belief dump is provided, reset beliefs to the entries in it
+    if belief_dump:
+        logger.info('Belief dump provided, resetting belief scores')
+        missing_hash = 0
+        changed_belief = 0
+        no_hash = 0
+        logger.info(f'Looking for belief scores among {len(pb_model.edges)} '
+                    f'edges')
+        for edge in pb_model.edges:
+            ed = pb_model.edges[edge]
+            if ed and ed.get('stmt_hash'):
+                h = ed['stmt_hash']
+                if h in belief_dump:
+                    ed['belief'] = belief_dump[h]
+                    changed_belief += 1
+                else:
+                    logger.warning(f'No belief found for {h}')
+                    ed['belief'] = default_belief
+                    missing_hash += 1
+            else:
+                no_hash += 1
+        logger.info(f'{no_hash} edges did not have hashes')
+        logger.info(f'{changed_belief} belief scores were changed')
+        logger.info(f'{missing_hash} edges did not have a belief entry')
 
     # Get a signed edge graph
     logger.info('Getting a PyBEL signed edge graph')
     pb_signed_edge_graph = belgraph_to_signed_graph(
-        pb_model, include_variants=True, symmetric_variant_links=True,
-        include_components=True, symmetric_component_links=True,
+        pb_model, symmetric_variant_links=True, symmetric_component_links=True,
         propagate_annotations=True
     )
+
+    if sign_in_edges:
+        for u, v, ix in pb_signed_edge_graph.edges:
+            ed = pb_signed_edge_graph.edges[(u, v, ix)]
+            if 'sign' in ed and ix != ed['sign']:
+                pb_signed_edge_graph.add_edge(u, v, ed['sign'], **ed)
+                pb_signed_edge_graph.remove_edge(u, v, ix)
 
     # Map hashes to edges
     logger.info('Getting hash to signed edge mapping')
@@ -665,8 +721,23 @@ def ag_belief_score(belief_list):
     return ag_belief
 
 
-def ns_id_from_name(name, gilda_retry=False):
-    """Query the grounding service for the most likely ns:id pair for name"""
+def gilda_normalization(name: str, gilda_retry: bool = False) -> \
+        Tuple[Union[None, str], Union[None, str], Union[None, str]]:
+    """Query the grounding service for the most likely ns, id, name tuple
+
+    Parameters
+    ----------
+    name: str
+        Search gilda with this string
+    gilda_retry: bool
+        If True, try to reach gilda again after a previous perceived outage
+
+    Returns
+    -------
+    Tuple[str, str, str]
+        A 3-tuple containing the namespace, id, and normalized name of the
+        search
+    """
     global GILDA_TIMEOUT
     if gilda_retry and GILDA_TIMEOUT and gilda_pinger():
         logger.info('GILDA is responding again!')
@@ -676,8 +747,8 @@ def ns_id_from_name(name, gilda_retry=False):
         try:
             res = requests.post(GRND_URI, json={'text': name})
             if res.status_code == 200:
-                rj = res.json()[0]
-                return rj['term']['db'], rj['term']['id']
+                rj = res.json()[0]['term']
+                return rj['db'], rj['id'], rj['entry_name']
             else:
                 logger.warning('Grounding service responded with code %d, '
                                'check your query format and URL' %
@@ -693,33 +764,39 @@ def ns_id_from_name(name, gilda_retry=False):
         else:
             logger.warning('Indra Grounding service not available. Add '
                            'GILDA_URL to `indra/config.ini`')
-    return None, None
+    return None, None, None
 
 
-def get_hgnc_node_mapping(hgnc_names, pb_model):
+def pybel_node_name_mapping(pb_model, node_names=None, node_ns='HGNC'):
     """Generate a mapping of HGNC symbols to pybel nodes
 
     Parameters
     ----------
-    hgnc_names : iterable[str]
-        An iterable containing HGNC names to be mapped to pybel nodes
+    node_names : iterable[str]
+        Optional. An iterable containing the node names to be mapped to pybel
+        nodes. If not provided, all nodes from the provided name space will be
+        added.
     pb_model : PyBEL.Model
         An assembled pybel model
+    node_ns : str
+        The node namespace to consider. Default: HGNC.
 
     Returns
     -------
     dict
-        A dictionary mapping names (HGNC symbols) to a sets of pybel nodes
+        A dictionary mapping names (HGNC symbols) to sets of pybel nodes
     """
 
     # Get existing node mappings
-    corr_names = set(hgnc_names)
+    corr_names = set(node_names) if node_names else set()
     pb_model_mapping = {}
     for node in pb_model.nodes:
         try:
             # Only consider HGNC nodes and if node name is in provided set
             # of HGNC symbol names
-            if node.name in corr_names and node.namespace == 'HGNC':
+            if node.namespace == node_ns and \
+                    ((corr_names and node.name in corr_names) or
+                     not corr_names):
                 if pb_model_mapping.get(node.name):
                     pb_model_mapping[node.name].add(node)
                 else:
@@ -730,3 +807,48 @@ def get_hgnc_node_mapping(hgnc_names, pb_model):
         except AttributeError:
             continue
     return pb_model_mapping
+
+
+def yield_multiple_paths(g, sources, path_len=None, **kwargs):
+    """Wraps bfs_search and cycles between one generator per source in sources
+
+    Parameters
+    ----------
+    g : nx.DiGraph
+    sources : list
+    path_len : int
+        Only produce paths of this length (number of edges)
+    kwargs : **kwargs
+    """
+    # create one generator per drug
+    generators = []
+    cycler = cycle(range(len(sources)))
+    for source in sources:
+        generators.append(bfs_search(g, source, **kwargs))
+
+    skip = set()
+    while True:
+        gi = next(cycler)
+        if len(skip) >= len(sources):
+            break
+        # If gi in skip, get new one, unless we added all of them
+        while gi in skip and len(skip) < len(sources):
+            gi = next(cycler)
+        try:
+            path = next(generators[gi])
+            if path_len:
+                if path_len > len(path):
+                    # Too short
+                    continue
+                elif path_len == len(path):
+                    yield path
+                elif path_len < len(path):
+                    # Too long: Done. Add to skip.
+                    skip.add(gi)
+                    continue
+            # No path length specified, yield all
+            else:
+                yield path
+        except StopIteration:
+            print(f'Got StopIteration from {gi}')
+            skip.add(gi)

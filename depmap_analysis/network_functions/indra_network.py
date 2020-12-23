@@ -341,8 +341,9 @@ class IndraNetwork:
             return True
 
         # Check non-resolving query
-        # sns, sid = nf.ns_id_from_name(options['source'], gilda_retry=True)
-        # tns, tid = nf.ns_id_from_name(options['target'])
+        # sns, sid, snn = nf.gilda_normalization(options['source'],
+        #                                    gilda_retry=True)
+        # tns, tid, tnn = nf.gilda_normalization(options['target'])
         # if (sns and sns.lower() not in options['node_filter']) or \
         #         (tns and tns.lower() not in options['node_filter']):
         #     if sns.lower() not in options['node_filter']:
@@ -1328,7 +1329,8 @@ class IndraNetwork:
             source_id = self.nodes[options['source']]['id']
             source_ns = self.nodes[options['source']]['ns']
         else:
-            source_ns, source_id = nf.ns_id_from_name(options['source'])
+            source_ns, source_id, source_norm_name = \
+                nf.gilda_normalization(options['source'])
             if not source_id:
                 source_id = options['source']
 
@@ -1337,7 +1339,8 @@ class IndraNetwork:
             target_id = self.nodes[options['target']]['id']
             target_ns = self.nodes[options['target']]['ns']
         else:
-            target_ns, target_id = nf.ns_id_from_name(options['target'])
+            target_ns, target_id, target_norm_name = \
+                nf.gilda_normalization(options['target'])
             if not target_id:
                 target_id = options['target']
 
@@ -1633,7 +1636,7 @@ class IndraNetwork:
             db_id = node
             ns = self.nodes[node]['ns']
 
-            true_ns, true_id = nf.ns_id_from_name(db_id)
+            true_ns, true_id, norm_name = nf.gilda_normalization(db_id)
             if true_ns and true_id:
                 ns, db_id = true_ns, true_id
             parents = nf.bio_ontology.get_parents(ns, db_id)

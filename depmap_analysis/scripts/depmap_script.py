@@ -294,9 +294,9 @@ def loop_body(args, hgnc_name2id=None, fplx_name2id=None):
 
     # Last resort: GILDA
     if id1_id is None:
-        id1_ns, id1_id = nf.ns_id_from_name(id1)
+        id1_ns, id1_id, id1_nn = nf.gilda_normalization(id1)
     if id2_id is None:
-        id2_ns, id2_id = nf.ns_id_from_name(id2)
+        id2_ns, id2_id, id2_nn = nf.gilda_normalization(id2)
 
     if id1_id and id2_id and ff.has_common_parent(ns1=id1_ns, id1=id1_id,
                                                   ns2=id2_ns, id2=id2_id):

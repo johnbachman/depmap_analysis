@@ -6,7 +6,7 @@ import logging
 import itertools as itt
 from random import choices
 from math import ceil, log10
-from itertools import islice
+from typing import Iterable
 from collections import Mapping, OrderedDict, defaultdict
 
 import numpy as np
@@ -20,8 +20,8 @@ from pandas.core.series import Series as pd_Series_class
 
 from indra_db import util as dbu
 from indra_db import client as dbc
-from indra.statements import Statement
 from indra.tools import assemble_corpus as ac
+from indra.statements import Statement
 from indra.sources.indra_db_rest import api as db_api
 from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 import depmap_analysis.util.io_functions as io
@@ -189,29 +189,6 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             float(corr_value_matrix[i, j]))
             for i, j in zip(*tr_up_indices)
             if not np.isnan(corr_value_matrix[i, j]))
-
-
-def iter_chunker(n, iterable):
-    """Generator of chunks from a generator
-
-    Parameters
-    ----------
-    n : int
-        Chunk size. Each chunk of the input iterator will be of this size
-        except for the last one that will contain the remainder.
-    iterable : iterable
-        An iterable or a generator
-
-    Returns
-    -------
-    generator
-        A generator yielding chunks from the input iterable or generator
-    """
-    # Adapted from
-    # stackoverflow.com/questions/1915170/
-    # split-a-generator-iterable-every-n-items-in-python-splitevery
-    iterable = iter(iterable)
-    yield from iter(lambda: list(islice(iterable, n)), [])
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
@@ -762,107 +739,6 @@ def _get_partial_gaussian_stats(bin_edges, hist):
     interp_gaussian = np.exp(interp_log_gaussian(bin_positions))
 
     return get_gaussian_stats(bin_edges, interp_gaussian)
-
-
-def raw_depmap_to_corr(depmap_raw_df, dropna=False):
-    """Pre-process and create a correlation matrix
-
-    Any multi indexing is removed. Duplicated columns are also removed.
-
-    Parameters
-    ----------
-    depmap_raw_df : pd.DataFrame
-        The raw data from the DepMap portal as a pd.DataFrame
-    dropna : bool
-        If True, drop nan columns (should be genes) before calculating the
-        correlations
-
-    Returns
-    -------
-    corr : pd.DataFrame
-        A pd.DataFrame containing the pearson correlations of the raw data.
-    """
-    # Rename
-    if len(depmap_raw_df.columns[0].split()) > 1:
-        logger.info('renaming columns to contain only gene names')
-        gene_names = [n.split()[0] for n in depmap_raw_df.columns]
-        depmap_raw_df.columns = gene_names
-
-    # Drop duplicates
-    depmap_raw_df = depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
-
-    # Drop nan's
-    if dropna:
-        logger.info('Dropping nan columns (axis=1)')
-        depmap_raw_df = depmap_raw_df.dropna(axis=1)
-
-    # Calculate correlation
-    logger.info('Calculating data correlation matrix. This will take '
-                    '10 - 50 min.')
-    corr = depmap_raw_df.corr()
-    logger.info('Done calculating data correlation matrix.')
-    return corr
-
-
-def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
-                  dropna=False):
-    """Merge two correlation matrices containing their combined z-scores
-
-    Parameters
-    ----------
-    corr_df : pd.DataFrame
-        A square pandas DataFrame containing gene-gene correlation values
-        to be merged with other_corr_df.
-    other_corr_df : pd.DataFrame
-        A square pandas DataFrame containing gene-gene correlation values
-        to be merged with corr_df.
-    remove_self_corr : bool
-        If True, remove self correlations from the resulting DataFrame.
-        Default: True
-    dropna : bool
-        If True, return the result of
-        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
-        Default: False.
-
-    Returns
-    -------
-    pd.DataFrame
-        A merged correlation matrix containing the merged values a z-scores
-    """
-    def _rename(corr):
-        gene_names = [n.split()[0] for n in corr.columns]
-        corr.columns = gene_names
-        corr.index = gene_names
-        return corr
-
-    def _z_scored(corr):
-        mean = corr.values.mean()
-        sd = corr.values.std()
-        logger.info('Mean value: %f; St dev: %f' % (mean, sd))
-        return (corr - mean) / sd
-
-    # Rename columns/indices to gene name only
-    if len(corr_df.columns[0].split()) > 1:
-        corr_df = _rename(corr_df)
-    if len(other_corr_df.columns[0].split()) > 1:
-        other_corr_df = _rename(other_corr_df)
-
-    # Get corresponding z-score matrices
-    logger.info('Getting z-score matrix of first data frame.')
-    corr_z = _z_scored(corr_df)
-    logger.info('Getting z-score matrix of second data frame.')
-    other_z = _z_scored(other_corr_df)
-
-    # Merge
-    dep_z = (corr_z + other_z) / 2
-    if remove_self_corr:
-        # Assumes the max correlation ONLY occurs on the diagonal
-        self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
-        dep_z = dep_z[dep_z != self_corr_value]
-    if dropna:
-        dep_z = dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
-    assert dep_z.notna().sum().sum() > 0, print('Correlation matrix is empty')
-    return dep_z
 
 
 def get_gene_gene_corr_dict(tuple_generator):
@@ -2026,7 +1902,7 @@ def dbc_load_statements(hgnc_syms):
 
     Parameters
     ----------
-    hgnc_syms : iterable
+    hgnc_syms : Iterable
         An iterable containing HGNC symbols
 
     Returns
