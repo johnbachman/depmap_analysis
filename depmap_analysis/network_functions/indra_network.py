@@ -863,11 +863,17 @@ class IndraNetwork:
             related_hashes = None
             ref_counts_from_hashes = None
 
+        # Set weight style: regular or context
+        weight = 'context_weight' if _is_context_weighted(
+            mesh_id_list=options['mesh_ids'],
+            strict_filtering=options['strict_mesh_id_filtering']
+        ) else options['weight']
+
         dijkstra_gen = open_dijkstra_search(graph, starting_node,
                                             reverse=reverse,
                                             hashes=related_hashes,
                                             terminal_ns=terminal_ns,
-                                            weight='context_weight',
+                                            weight=weight,
                                             ref_counts_function=
                                             ref_counts_from_hashes,
                                             ignore_nodes=ignore_nodes,
