@@ -60,6 +60,10 @@ from depmap_analysis.scripts.depmap_script_expl_funcs import *
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+mito_file_name = 'Human.MitoCarta3.0.xls'
+mito_file = Path(__file__).absolute().parent.parent\
+    .joinpath('resources', mito_file_name).as_posix()
+
 indranet = nx.DiGraph()
 hgnc_node_mapping = dict()
 output_list = []
