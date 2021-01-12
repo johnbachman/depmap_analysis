@@ -1,6 +1,8 @@
 import logging
 
+from typing import Tuple, Union
 from indra.ontology.bio import bio_ontology
+from indra.ontology.ontology_graph import IndraOntology
 from indra.databases import get_identifiers_url
 
 logger = logging.getLogger(__name__)
@@ -133,3 +135,45 @@ def has_common_parent(id1, id2, ns1='HGNC', ns2='HGNC',
     return bool(common_parent(id1, id2, ns1=ns1, ns2=ns2, ontology=ontology,
                               immediate_only=immediate_only,
                               is_a_part_of=is_a_part_of))
+
+
+def ns_id_xref(from_ns: str, from_id: str, to_ns: str,
+               ontology: IndraOntology = bio_ontology) \
+        -> Union[Tuple[str, str], None]:
+    """Get the id in another namespace given an ns-id pair
+
+    Parameters
+    ----------
+    from_ns : str
+        The namespace to translate from
+    from_id : str
+        The id in ns from_ns
+    to_ns : str
+        The namespace to find an id in
+    ontology : IndraOntology
+        The ontology to look in. Default: BioOnto
+
+    Returns
+    -------
+    Union[Tuple[str, str], None]
+        If found, a tuple of (ns, id), otherwise None.
+    """
+    return ontology.map_to(ns1=from_ns, id1=from_id, ns2=to_ns)
+
+
+def ns_id_to_name(ns: str, _id: str, ontology: IndraOntology = bio_ontology) \
+        -> Union[str, None]:
+    """
+
+    Parameters
+    ----------
+    ns
+    _id
+    ontology
+
+    Returns
+    -------
+    Union[str, None]
+        If found, the name is returned. Otherwise None is returned
+    """
+    return ontology.get_name(ns=ns, id=_id)
