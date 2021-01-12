@@ -9,8 +9,8 @@ from depmap_analysis.util import io_functions as io
 from depmap_analysis.network_functions.famplex_functions import ns_id_xref, \
     ns_id_to_name
 
-logger = logging.getLogger('DepMap PreProcessing')
-__all__ = ['run_corr_merge', 'drugs_to_corr_matrix']
+logger = logging.getLogger(__name__)
+__all__ = ['run_corr_merge', 'drugs_to_corr_matrix', 'get_mitocarta_info']
 
 
 def run_corr_merge(crispr_raw=None, rnai_raw=None,
@@ -126,8 +126,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         # Make square
         z_cm = z_cm[list(z_cm.index.values)]
 
-    assert z_cm.notna().sum().sum() > 0, \
-        print(f'Correlation matrix is empty')
+    assert z_cm.notna().sum().sum() > 0, 'Correlation matrix is empty'
 
     return z_cm
 
