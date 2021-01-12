@@ -33,7 +33,7 @@ class FunctionRegistrationError(Exception):
 
 
 def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-              _type: str, **kwargs) -> Tuple[str, str, str]:
+              _type: str, **kwargs) -> Tuple[str, str, Union[str, None]]:
     """A mock function that is used for a-priori explained pairs
 
     Parameters
@@ -51,10 +51,24 @@ def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, str]
-        The tuple s, o, 'explained_set'
+    Tuple[str, str, Union[str, None]]
+        If explained, the tuple (s, o, explanation) is returned,
+        where `explanation` is a string mapped from the subject or object.
     """
-    return s, o, 'explained_set'
+    # Todo: Do both of s and o have to be 'explained'? Maybe non-strict
+    #  (s OR o are explained) combined with not skipping if explained
+
+    expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
+    if expl_mapping is None:
+        return s, o, None
+
+    # Get a-priori explanations for s and o
+    why_s = expl_mapping.get(s)
+    why_o = expl_mapping.get(o)
+    if not why_s and not why_o:
+        return s, o, None
+    explanation = f'{s}: {why_s}, {o}: {why_o}'
+    return s, o, explanation
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
