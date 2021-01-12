@@ -1,10 +1,13 @@
 import logging
 import argparse
+from typing import Dict
 from pathlib import Path
 
 import pandas as pd
 
 from depmap_analysis.util import io_functions as io
+from depmap_analysis.network_functions.famplex_functions import ns_id_xref, \
+    ns_id_to_name
 
 logger = logging.getLogger('DepMap PreProcessing')
 __all__ = ['run_corr_merge', 'drugs_to_corr_matrix']
@@ -257,6 +260,33 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
         dep_z = dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
     assert dep_z.notna().sum().sum() > 0, print('Correlation matrix is empty')
     return dep_z
+
+
+def get_mitocarta_info(mitocarta_file: str) -> Dict[str, str]:
+    """Load mitocarta file and get mapping of gene to gene function
+
+    Parameters
+    ----------
+    mitocarta_file : str
+        Path as string to mitocarta file
+
+    Returns
+    -------
+    Dict[str, str]
+
+    """
+    xls = pd.ExcelFile(mitocarta_file)
+    # Sheet A is second sheet of MitoCarta 3.0 info
+    sheet_a = xls.parse(xls.sheet_names[1])
+    hgnc_expl = {}
+    for eid, expl in zip(sheet_a.HumanGeneID.values,
+                         sheet_a.Description.values):
+        hgnc_tup = ns_id_xref(from_ns='EGID', from_id=eid, to_ns='HGNC')
+        if hgnc_tup:
+            hgnc_symb = ns_id_to_name(*hgnc_tup)
+            if hgnc_symb:
+                hgnc_expl[hgnc_symb] = expl
+    return hgnc_expl
 
 
 if __name__ == '__main__':
