@@ -342,7 +342,8 @@ def error_callback(err):
 def main(indra_net, outname, graph_type, sd_range, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
          expl_funcs=None, pb_node_mapping=None, n_chunks=256,
-         apriori_explained=None, is_a_part_of=None, immediate_only=False,
+         expl_mapping: Optional[Dict[str, str]] = None, is_a_part_of=None,
+         immediate_only=False,
          allowed_ns=None, allowed_sources=None, info=None, indra_date=None,
          indra_net_file=None, depmap_date=None, sample_size=None,
          shuffle=False, overwrite=False, normalize_names=False,
@@ -421,25 +422,10 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         raise ValueError('Must provide either z_score XOR either of raw_data '
                          'or raw_corr')
 
-    # Get ignore list
-    if apriori_explained and isinstance(apriori_explained, (set, list, tuple)):
-        run_options['expl_mapping'] = set(apriori_explained)
-    elif apriori_explained and isinstance(apriori_explained, str):
-        if mito_file_name in apriori_explained:
-            expl_mapping = get_mitocarta_info(apriori_explained)
-        else:
-            # Hope it's a csv
-            expl_df = pd.read_csv(apriori_explained)
-            try:
-                expl_mapping = set(expl_df['Approved symbol'])
-            except KeyError as err:
-                raise KeyError('Ignored entities must be in CSV file with '
-                               'column name "Approved symbol"') from err
+    if expl_mapping:
         run_options['expl_mapping'] = expl_mapping
-
-    if run_options.get('expl_mapping'):
         logger.info(f'Using explained set with '
-                    f'{len(run_options["expl_mapping"])} genes')
+                    f'{len(expl_mapping)} genes')
 
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
@@ -795,6 +781,27 @@ if __name__ == '__main__':
         else:
             raise ValueError('Unknown file type %s' %
                              arg_dict['pybel_node_mapping'].split('.')[-1])
+
+    # Get ignore list
+    apriori_explained = args.apriori_explained
+    if apriori_explained:
+        # Check if it's the default file
+        if mito_file_name in apriori_explained:
+            expl_map = get_mitocarta_info(apriori_explained)
+        else:
+            # Hope it's a csv
+            try:
+                expl_df = pd.read_csv(apriori_explained)
+                expl_map = {e: d for e, d in zip(expl_df.name,
+                                                 expl_df.description)}
+            except Exception as err:
+                raise ValueError('A-priori explained entities must be in a '
+                                 'file that can be parsed as CSV/TSV with '
+                                 'column names "name" for entity name and '
+                                 '"description" for explanation why the '
+                                 'entity is explained.') \
+                    from err
+        arg_dict['expl_mapping'] = expl_map
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
