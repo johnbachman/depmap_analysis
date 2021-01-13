@@ -64,10 +64,11 @@ def apriori_explained(s: str, o: str, corr: float,
     why_s = expl_mapping.get(s)
     why_o = expl_mapping.get(o)
 
-    # Todo: Do both of s and o have to be 'explained'? Maybe non-strict
-    #  (s OR o are explained) combined with not skipping if explained
-    explanation = f'{s}: {why_s}, {o}: {why_o}'
-    return s, o, explanation
+    if why_s or why_o:
+        explanation = f'{s}: {why_s}, {o}: {why_o}'
+        return s, o, explanation
+    else:
+        return s, o, None
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
