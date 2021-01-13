@@ -232,7 +232,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
-    explained_set = kwargs.get('explained_set', set())
+    expl_mapping = kwargs.get('expl_mapping', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
@@ -287,7 +287,7 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
                                  stats_columns,
                                  expl_columns,
                                  bool_columns,
-                                 explained_set,
+                                 expl_mapping,
                                  _type,
                                  allowed_ns,
                                  allowed_sources,
@@ -366,8 +366,9 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         functions are applied.
     pb_node_mapping : Union[Dict, str]
     n_chunks : int
-    apriori_explained : Union[List, str]
-        List of nodes in graph to ignore
+    expl_mapping : Dict[str, str]
+        A mapping from entity to a string with information about the entity
+        that explains why it is considered 'explained'
     is_a_part_of : Iterable
         A set of identifiers to look for when applying the common parent
         explanation between a pair of correlating nodes.
