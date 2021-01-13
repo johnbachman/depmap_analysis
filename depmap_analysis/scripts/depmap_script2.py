@@ -364,9 +364,9 @@ def error_callback(err):
 
 def main(indra_net, outname, graph_type, sd_range, random=False,
          z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
-         expl_funcs=None, pb_node_mapping=None, n_chunks=256, ignore_list=None,
-         is_a_part_of=None, immediate_only=False, allowed_ns=None,
-         allowed_sources=None, info=None, indra_date=None,
+         expl_funcs=None, pb_node_mapping=None, n_chunks=256,
+         apriori_explained=None, is_a_part_of=None, immediate_only=False,
+         allowed_ns=None, allowed_sources=None, info=None, indra_date=None,
          indra_net_file=None, depmap_date=None, sample_size=None,
          shuffle=False, overwrite=False, normalize_names=False,
          argparse_dict=None):
@@ -388,7 +388,7 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         functions are applied.
     pb_node_mapping : Union[Dict, str]
     n_chunks : int
-    ignore_list : Union[List, str]
+    apriori_explained : Union[List, str]
         List of nodes in graph to ignore
     is_a_part_of : Iterable
         A set of identifiers to look for when applying the common parent
@@ -580,8 +580,8 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
         'sample_size': sample_size,
         'n_chunks': n_chunks,
         'outname': outname,
-        'ignore_list': ignore_list if isinstance(ignore_list,
-                                                 str) else 'no info',
+        'apriori_explained': apriori_explained if isinstance(
+            apriori_explained, str) else 'no info',
         'graph_type': graph_type,
         'pybel_node_mapping': pb_node_mapping if isinstance(
             pb_node_mapping, str) else 'no info',
@@ -709,11 +709,14 @@ if __name__ == '__main__':
                              help='Check the explanation rate for randomly '
                                   'sampled pairs of genes from the full '
                                   'correlation matrix')
+
     #   3. Ignore list as file
     parser.add_argument(
-        '--ignore-list', type=file_path(),
-        help='Provide a csv file with a column named "Approved symbol" '
-             'containing genes (or other entities) to ignore in explanations.')
+        '--apriori-explained', type=file_path(), nargs='?',
+        const=mito_file,
+        help='Provide a csv or excel file with a column named "Approved '
+             'symbol" containing genes (or other entities) to ignore in '
+             'explanations.')
 
     # 4 output
     parser.add_argument(
