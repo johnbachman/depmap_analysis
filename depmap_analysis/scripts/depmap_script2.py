@@ -70,7 +70,7 @@ output_list = []
 
 
 def _match_correlation_body(corr_iter, expl_types, stats_columns,
-                            expl_columns, bool_columns, explained_set,
+                            expl_columns, bool_columns, expl_mapping,
                             _type, allowed_ns=None, allowed_sources=None,
                             is_a_part_of=None, immediate_only=False):
     try:
@@ -445,20 +445,24 @@ def main(indra_net, outname, graph_type, sd_range, random=False,
                          'or raw_corr')
 
     # Get ignore list
-    if ignore_list and isinstance(ignore_list, (set, list, tuple)):
-        run_options['explained_set'] = set(ignore_list)
-    elif ignore_list and isinstance(ignore_list, str):
-        expl_df = pd.read_csv(ignore_list)
-        try:
-            expl_set = set(expl_df['Approved symbol'])
-        except KeyError as err:
-            raise KeyError('Ignored entities must be in CSV file with column '
-                           'name "Approved symbol"') from err
-        run_options['explained_set'] = expl_set
+    if apriori_explained and isinstance(apriori_explained, (set, list, tuple)):
+        run_options['expl_mapping'] = set(apriori_explained)
+    elif apriori_explained and isinstance(apriori_explained, str):
+        if mito_file_name in apriori_explained:
+            expl_mapping = get_mitocarta_info(apriori_explained)
+        else:
+            # Hope it's a csv
+            expl_df = pd.read_csv(apriori_explained)
+            try:
+                expl_mapping = set(expl_df['Approved symbol'])
+            except KeyError as err:
+                raise KeyError('Ignored entities must be in CSV file with '
+                               'column name "Approved symbol"') from err
+        run_options['expl_mapping'] = expl_mapping
 
-    if run_options.get('explained_set'):
+    if run_options.get('expl_mapping'):
         logger.info(f'Using explained set with '
-                    f'{len(run_options["explained_set"])} genes')
+                    f'{len(run_options["expl_mapping"])} genes')
 
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
