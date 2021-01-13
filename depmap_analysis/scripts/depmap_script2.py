@@ -32,7 +32,8 @@ import argparse
 import multiprocessing as mp
 from time import time
 from copy import deepcopy
-from typing import Union, List, Dict, Iterable
+from typing import Union, List, Dict, Iterable, Tuple, Optional, Generator, \
+    Callable, Set, Hashable, Any
 from pathlib import Path
 from itertools import product
 from collections import defaultdict
@@ -64,15 +65,22 @@ mito_file_name = 'Human.MitoCarta3.0.xls'
 mito_file = Path(__file__).absolute().parent.parent\
     .joinpath('resources', mito_file_name).as_posix()
 
-indranet = nx.DiGraph()
-hgnc_node_mapping = dict()
-output_list = []
+indranet: nx.DiGraph = nx.DiGraph()
+hgnc_node_mapping: Dict[str, Set] = dict()
+output_list: List[Tuple[Dict[str, List], Dict[str, List]]] = []
 
 
-def _match_correlation_body(corr_iter, expl_types, stats_columns,
-                            expl_columns, bool_columns, expl_mapping,
-                            _type, allowed_ns=None, allowed_sources=None,
-                            is_a_part_of=None, immediate_only=False):
+def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float]],
+                            expl_types: Dict[str, Callable],
+                            stats_columns: Tuple[str],
+                            expl_columns: Tuple[str],
+                            bool_columns: Tuple[str],
+                            expl_mapping: Optional[Dict[str, str]],
+                            _type: str,
+                            allowed_ns: Optional[Set[str]] = None,
+                            allowed_sources: Optional[Set[str]] = None,
+                            is_a_part_of: Optional[List[str]] = None,
+                            immediate_only: bool = False):
     try:
         global indranet
 
@@ -182,8 +190,14 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
         raise WrapException()
 
 
-def match_correlations(corr_z, sd_range, script_settings, **kwargs):
+def match_correlations(corr_z: pd.DataFrame,
+                       sd_range: Tuple[float, Union[float, None]],
+                       script_settings: Dict[str, Union[str, int, float]],
+                       **kwargs):
     """The main loop for matching correlations with INDRA explanations
+
+    Note that indranet is assumed to be a global variable that needs to be
+    set outside of this function and be set to global
 
     Parameters
     ----------
@@ -200,7 +214,8 @@ def match_correlations(corr_z, sd_range, script_settings, **kwargs):
         nx.MultiDiGraph with edges keys by (gene, gene, sign) tuples.
     sd_range : tuple[float]
         The SD ranges that the corr_z is filtered to
-    script_settings : dict
+    script_settings : Dict[str, Union[str, int, float]]
+        Dictionary with script settings for the purpose of book keeping
 
     Returns
     -------
@@ -339,63 +354,114 @@ def error_callback(err):
     logger.exception(err)
 
 
-def main(indra_net, outname, graph_type, sd_range, random=False,
-         z_score=None, z_score_file=None, raw_data=None, raw_corr=None,
-         expl_funcs=None, pb_node_mapping=None, n_chunks=256,
-         expl_mapping: Optional[Dict[str, str]] = None, is_a_part_of=None,
-         immediate_only=False,
-         allowed_ns=None, allowed_sources=None, info=None, indra_date=None,
-         indra_net_file=None, depmap_date=None, sample_size=None,
-         shuffle=False, overwrite=False, normalize_names=False,
-         argparse_dict=None):
+def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
+         outname: str,
+         graph_type: str,
+         sd_range: Tuple[float, Union[None, float]],
+         random: bool = False,
+         z_score: Optional[Union[pd.DataFrame, str]] = None,
+         z_score_file: Optional[str] = None,
+         raw_data: Optional[List[str]] = None,
+         raw_corr: Optional[List[str]] = None,
+         expl_funcs: Optional[List[str]] = None,
+         pb_node_mapping: Optional[Dict[str, Set]] = None,
+         n_chunks: Optional[int] = 256,
+         expl_mapping: Optional[Dict[str, str]] = None,
+         is_a_part_of: Optional[List[str]] = None,
+         immediate_only: Optional[bool] = False,
+         allowed_ns: Optional[List[str]] = None,
+         allowed_sources: Optional[List[str]] = None,
+         info: Optional[Dict[Hashable, Any]] = None,
+         indra_date: Optional[str] = None,
+         indra_net_file: Optional[str] = None,
+         depmap_date: Optional[str] = None,
+         sample_size: Optional[int] = None,
+         shuffle: Optional[bool] = False,
+         overwrite: Optional[bool] = False,
+         normalize_names: Optional[bool] = False,
+         argparse_dict: Optional[Dict[str, Union[str, float, int,
+                                                 List[str]]]] = None):
     """Set up correlation matching of depmap data with an indranet graph
 
     Parameters
     ----------
     indra_net : Union[nx.DiGraph, nx.MultiDiGraph]
+        The graph representation of the indra network. Each edge should
+        have an attribute named 'statements' containing a list of sources
+        supporting that edge. If signed search, indranet is expected to be an
+        nx.MultiDiGraph with edges keyed by (gene, gene, sign) tuples.
     outname : str
+        A file path (can be an S3 url) to where to store the final pickle
+        file containing the DepmapExplainer
     graph_type : str
+        The graph type of the graph used for the explanations. Can be one of
+        'unsigned', 'signed', 'pybel'.
     sd_range : Tuple[float, Union[float, None]]
+        A tuple of the lower and optionally the upper bound of the z-score
+        range to use when getting correlations
     random : bool
+        Whether to do a random sampling or not. If True do a random sample
+        instead of cutting the correlations of to the given SD range.
     z_score : Union[pd.DataFrame, str]
+        The correlation matrix as a pandas DataFrame or a path to the
+        dataframe.
     z_score_file : str
-    raw_data : str
-    raw_corr : str
-    expl_funcs : Iterable[str]
+        The path to the correlation DataFrame. This argument is only used
+        for storing the info about the location. To provide the location for
+        loading the DataFrame, use `z_score`.
+    raw_data : Optional[List[str]]
+        File paths to CRISPR raw data and RNAi raw data from the DepMap Portal
+    raw_corr : Optional[List[str]]
+        File paths to raw correlation data (before z-score conversion)
+        containing hdf compressed correlation data. These files contain the
+        result of running `raw_df.corr()`.
+    expl_funcs : Optional[Iterable[str]]
         Provide a list of explanation functions to apply. Default: All
         functions are applied.
-    pb_node_mapping : Union[Dict, str]
-    n_chunks : int
-    expl_mapping : Dict[str, str]
+    pb_node_mapping : Optional[Union[Dict, Set[Any]]]
+        If graph type is "pybel", use this argument to provide a mapping
+        from HGNC symbols to pybel nodes in the pybel model
+    n_chunks : Optional[int]
+        How many chunks to split the data into in the multiprocessing part
+        of the script
+    expl_mapping : Optional[Dict[str, str]]
         A mapping from entity to a string with information about the entity
         that explains why it is considered 'explained'
-    is_a_part_of : Iterable
+    is_a_part_of : Optional[Iterable]
         A set of identifiers to look for when applying the common parent
         explanation between a pair of correlating nodes.
-    immediate_only : bool
+    immediate_only : Optional[bool]
         Only look for immediate parents. This option might limit the number
-        of results that are returned.
-    allowed_ns : List[str]
+        of results that are returned. Default: False.
+    allowed_ns : Optional[List[str]]
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
-    allowed_sources : List[str]
+    allowed_sources : Optional[List[str]]
         The allowed sources for edges. This will not affect subsequent edges
         in explanations involving 2 or more edges. Default: all sources are
         allowed.
-    info : dict
-    indra_date : str
-    indra_net_file : str
-    depmap_date : str
-    sample_size : int
+    info : Optional[Dict[Hashable, Any]]
+        An optional dict in which to save meta data about this run
+    indra_date : Optional[str]
+        The date of the sif dump used to create the graph
+    indra_net_file : Optional[str]
+        The file path to the graph used
+    depmap_date : Optional[str]
+        The date (usually a quarter )
+    sample_size : Optional[int]
         Number of correlation pairs to approximately get out of the
         correlation matrix after down sampling it
-    shuffle : bool
-    overwrite : bool
-        If True, overwrite any output files. Default: False
-    normalize_names : bool
+    shuffle : Optional[bool]
+        If True, shuffle the correlation matrix. This is good to do in case
+        the input data have some sort of structure that could lead to large
+        discrepancies between compute times for the different processes.
+        Default: False.
+    overwrite : Optional[bool]
+        If True, overwrite any output files. Default: False.
+    normalize_names : Optional[bool]
         If True, try to normalize the names in the correlation matrix that
-        are not found in the provided graph
-    argparse_dict : dict
+        are not found in the provided graph. Default: False.
+    argparse_dict : Optional[Dict[str, Union[str, float, int, List[str]]]]
         Provide the argparse options from running this file as a script
     """
     global indranet, hgnc_node_mapping, output_list
