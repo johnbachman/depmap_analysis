@@ -85,6 +85,8 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
             options['ns_set'] = allowed_ns
         if allowed_sources:
             options['src_set'] = allowed_sources
+        if expl_mapping:
+            options['expl_mapping'] = expl_mapping
 
         for tup in corr_iter:
             # Break loop when batch_iter
