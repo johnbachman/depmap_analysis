@@ -883,10 +883,10 @@ funcname_to_colname = {
     'expl_ba': 'b-a',
     'expl_axb': 'a-x-b',
     'expl_bxa': 'b-x-a',
-    'find_cp': 'common parent',
-    'get_sr': 'shared regulator',
-    'get_st': 'shared target',
-    'get_sd': 'shared downstream'
+    'find_cp': 'common_parent',
+    'get_sr': 'shared_regulator',
+    'get_st': 'shared_target',
+    'get_sd': 'shared_downstream'
 }
 
 # Map function name to function
