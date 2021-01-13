@@ -164,19 +164,14 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
 
             expl_iterations = defaultdict(list)
             for A, B in expl_iter:
-                # Loop expl functions
+                # Loop expl functions. Args:
+                # s, o, corr, net, graph_type, **kwargs
+                expl_args = (A, B, zsc, indranet, _type)
                 for expl_type, expl_func in expl_types.items():
-                    # Function signature: s, o, corr, net, graph_type, **kwargs
                     # Function should return what will be kept in the
                     # 'expl_data' column of the expl_df
-
-                    # Skip if 'explained set', which is caught above
-                    if expl_type == 'explained set':
-                        continue
-
                     # Some functions reverses A, B hence the s, o assignment
-                    s, o, expl_data = expl_func(A, B, zsc, indranet, _type,
-                                                **options)
+                    s, o, expl_data = expl_func(*expl_args, **options)
                     if expl_data:
                         # Use original name
                         s_name = s.name if _type == 'pybel' else s
