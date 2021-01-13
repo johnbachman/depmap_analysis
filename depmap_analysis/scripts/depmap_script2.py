@@ -130,31 +130,6 @@ def _match_correlation_body(corr_iter, expl_types, stats_columns,
             stats_dict['agA_id'].append(a_id)
             stats_dict['agB_id'].append(b_id)
 
-            # If in expl set, skip other explanations
-            if explained_set:
-                if gA in explained_set and gB in explained_set:
-                    # Set explained set = True
-                    stats_dict['explained set'].append(True)
-
-                    # Set overall explained = True
-                    stats_dict['explained'].append(True)
-
-                    # All other columns to False
-                    for k in set(bool_columns).difference(
-                            {'explained set', 'explained'}):
-                        stats_dict[k].append(False)
-
-                    # Set explanation type and data
-                    # Append to expl_dict
-                    expl_dict['agA'].append(gA)
-                    expl_dict['agB'].append(gB)
-                    expl_dict['z-score'].append(zsc)
-                    expl_dict['expl type'].append('explained set')
-                    expl_dict['expl data'].append(np.nan)
-
-                    # And skip the rest of explanations
-                    continue
-
             # Create iterator for pairs
             expl_iter = product(hgnc_node_mapping[gA], hgnc_node_mapping[gB]) \
                 if _type == 'pybel' else [(gA, gB)]
