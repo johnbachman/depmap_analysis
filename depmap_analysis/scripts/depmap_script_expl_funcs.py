@@ -32,8 +32,9 @@ class FunctionRegistrationError(Exception):
     """Raise when a function does not adhere to set rules for """
 
 
-def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-              _type: str, **kwargs) -> Tuple[str, str, Union[str, None]]:
+def apriori_explained(s: str, o: str, corr: float,
+                      net: Union[DiGraph, MultiDiGraph], _type: str, **kwargs)\
+        -> Tuple[str, str, Union[str, None]]:
     """A mock function that is used for a-priori explained pairs
 
     Parameters
@@ -872,12 +873,12 @@ def normalize_corr_names(corr_m: pd.DataFrame,
 
 
 # Add new function to the tuple
-expl_func_list = (explained, expl_ab, expl_ba, expl_axb, expl_bxa, find_cp,
-                  get_sr, get_st, get_sd)
+expl_func_list = (apriori_explained, expl_ab, expl_ba, expl_axb, expl_bxa,
+                  find_cp, get_sr, get_st, get_sd)
 
 # Map the name of the function to a more human friendly column name
 funcname_to_colname = {
-    'explained': 'explained set',
+    'apriori_explained': 'apriori_explained',
     'expl_ab': 'a-b',
     'expl_ba': 'b-a',
     'expl_axb': 'a-x-b',
