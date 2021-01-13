@@ -681,9 +681,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--apriori-explained', type=file_path(), nargs='?',
         const=mito_file,
-        help='Provide a csv or excel file with a column named "Approved '
-             'symbol" containing genes (or other entities) to ignore in '
-             'explanations.')
+        help='A-priori explained entities must be in a file that can be '
+             'parsed as CSV/TSV with column names "name" for entity name and '
+             '"description" for explanation why the entity is explained.')
 
     # 4 output
     parser.add_argument(
