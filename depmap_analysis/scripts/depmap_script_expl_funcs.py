@@ -55,9 +55,6 @@ def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         If explained, the tuple (s, o, explanation) is returned,
         where `explanation` is a string mapped from the subject or object.
     """
-    # Todo: Do both of s and o have to be 'explained'? Maybe non-strict
-    #  (s OR o are explained) combined with not skipping if explained
-
     expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
     if expl_mapping is None:
         return s, o, None
@@ -65,8 +62,9 @@ def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     # Get a-priori explanations for s and o
     why_s = expl_mapping.get(s)
     why_o = expl_mapping.get(o)
-    if not why_s and not why_o:
-        return s, o, None
+
+    # Todo: Do both of s and o have to be 'explained'? Maybe non-strict
+    #  (s OR o are explained) combined with not skipping if explained
     explanation = f'{s}: {why_s}, {o}: {why_o}'
     return s, o, explanation
 
