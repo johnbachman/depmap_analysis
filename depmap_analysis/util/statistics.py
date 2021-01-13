@@ -1,7 +1,7 @@
 import logging
 from math import floor
 from io import BytesIO
-from typing import Tuple, Dict, Union, Hashable
+from typing import Tuple, Dict, Union, Hashable, List, Optional, Any
 from pathlib import Path
 from datetime import datetime
 
@@ -59,15 +59,19 @@ class DepMapExplainer:
         Compare the distributions of differently sampled A-X-B correlations
     """
 
-    def __init__(self, stats_columns, expl_columns, info, script_settings,
-                 tag=None, network_type='digraph'):
+    def __init__(self, stats_columns: Tuple[str],
+                 expl_columns: Tuple[str],
+                 info: Dict[Hashable, Any],
+                 script_settings: Dict[str, Union[str, float, int, List[str]]],
+                 tag: Optional[str] = None,
+                 network_type: str = 'digraph'):
         """
         Parameters
         ----------
         stats_columns : Union[List[str], Tuple[str]]
         expl_columns : Union[List[str], Tuple[str]]
         info : Dict[Hashable, Any]
-        script_settings : Dict[str, Union[str, float, int, List[str]]
+        script_settings : Dict[str, Union[str, float, int, List[str]]]
         tag : str
         network_type : str
         """
