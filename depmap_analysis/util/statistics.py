@@ -106,11 +106,7 @@ class DepMapExplainer:
         -------
         bool
         """
-        if len(self.stats_df) > 0 or len(self.expl_df) > 0:
-            self._has_data = True
-        else:
-            self._has_data = False
-        return self._has_data
+        return len(self.stats_df) > 0 or len(self.expl_df) > 0
 
     def summarize(self):
         """Count explanations and print a summary count of them"""
