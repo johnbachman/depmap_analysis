@@ -447,7 +447,8 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     indra_net_file : Optional[str]
         The file path to the graph used
     depmap_date : Optional[str]
-        The date (usually a quarter )
+        The date (usually a quarter e.g. 19Q4) the depmap data was published
+        on depmap.org
     sample_size : Optional[int]
         Number of correlation pairs to approximately get out of the
         correlation matrix after down sampling it
