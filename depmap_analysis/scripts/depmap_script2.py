@@ -745,13 +745,16 @@ if __name__ == '__main__':
                                   'sampled pairs of genes from the full '
                                   'correlation matrix')
 
-    #   3. Ignore list as file
+    #   3. A-priori explained entities
     parser.add_argument(
         '--apriori-explained', type=file_path(), nargs='?',
         const=mito_file,
         help='A-priori explained entities must be in a file that can be '
              'parsed as CSV/TSV with column names "name" for entity name and '
-             '"description" for explanation why the entity is explained.')
+             '"description" for explanation why the entity is explained. '
+             'This argument can be used as a flag as well: by only providing '
+             '`--apriori-explained` (without any value) the default resource '
+             'file containing MitoCarta 3.0 data is used.')
 
     # 4 output
     parser.add_argument(
