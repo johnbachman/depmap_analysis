@@ -1368,9 +1368,10 @@ class IndraNetwork:
                 cp = ff.common_parent(ns1=source_ns, id1=source_id,
                                       ns2=target_ns, id2=target_id)
             else:
-                logger.info('The namespaces for %s and/or %s are not in node '
-                            'filter. Aborting common parent search.' %
-                            (source_id, target_id))
+                logger.info(f'The namespaces for {source_ns} and/or '
+                            f'{target_ns} are not in node filter: '
+                            f'({", ".join(options["node_filter"])})'
+                            f'Aborting common parent search.')
                 cp_results['common_parents'] = []
                 return cp_results
 
