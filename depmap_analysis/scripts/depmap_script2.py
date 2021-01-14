@@ -70,7 +70,8 @@ hgnc_node_mapping: Dict[str, Set] = dict()
 output_list: List[Tuple[Dict[str, List], Dict[str, List]]] = []
 
 
-def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float]],
+def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
+                                                 None, None],
                             expl_types: Dict[str, Callable],
                             stats_columns: Tuple[str],
                             expl_columns: Tuple[str],
