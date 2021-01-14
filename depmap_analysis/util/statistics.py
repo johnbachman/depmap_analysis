@@ -25,17 +25,34 @@ class DepMapExplainer:
     Attributes
     ----------
     tag : str
+        A string that describes the data
     indra_network_date : str
+        The date of the sif dump used to create the graph
     depmap_date : str
+        The date (usually a quarter e.g. 19Q4) the depmap data was published
+        on depmap.org
     sd_range : Tuple[float, Union[float, None]]
+        A tuple of the lower and optionally the upper bound of the z-score
+        range to use when getting correlations
     info : Dict[str, Any]
+        Dictionary with meta data
     network_type : str
+        The graph type used, e.g. unsigned, signed, pybel
     stats_df : pd.DataFrame
+        The dataframe that per row contains which entity pairs where checked
+        and which explanations were applicable to them.
     expl_df : pd.DataFrame
+        The dataframe that per row contains one explanation type for an entity
+        pair that has been explained and the data supporting the explanation.
     is_signed : bool
+        True if the graph used was signed or not
     summary : Dict[str, int]
+        A dict mapping different explanations to counts of the explanation
     summary_str : str
+        A printable string that summarizes the data in terms of explanation
+        count
     corr_stats_axb : Dict[Dict[str, int]]
+        A Dict containing correlation data for different explanations
 
     Methods
     -------
@@ -69,11 +86,18 @@ class DepMapExplainer:
         Parameters
         ----------
         stats_columns : Union[List[str], Tuple[str]]
+            Columns for stats_df
         expl_columns : Union[List[str], Tuple[str]]
+            Columns for expl_df
         info : Dict[Hashable, Any]
+            Dictionary with meta data
         script_settings : Dict[str, Union[str, float, int, List[str]]]
+            Dictionary containing the settings and input files used to run
+            the script
         tag : str
+            A string that describes the data
         network_type : str
+            The graph type used, e.g. unsigned, signed, pybel
         """
         self.tag = tag
         self.indra_network_date = info.pop('indra_network_date')
