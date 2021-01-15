@@ -17,11 +17,11 @@ from depmap_analysis.util.io_functions import file_opener, file_path, \
 logger = logging.getLogger(__name__)
 
 
-def _exists(fpath: Union[S3Path, Path]) -> bool:
-    if isinstance(fpath, S3Path):
-        return fpath.exists(s3)
+def _exists(fpath: str) -> bool:
+    if fpath.startswith('s3://'):
+        return S3Path.from_string(fpath).exists(s3)
     else:
-        return fpath.is_file()
+        return Path(fpath).is_file()
 
 
 def _joinpath(fpath: Union[S3Path, Path], other: str) -> str:
