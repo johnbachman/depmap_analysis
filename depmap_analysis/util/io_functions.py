@@ -49,6 +49,8 @@ def file_opener(fname: str, **kwargs) -> Union[object, pd.DataFrame, Dict]:
         return json_open(fname)
     elif fname.endswith(('csv', 'tsv')):
         return pd.read_csv(fname, **kwargs)  # Can provide e.g. index_col=0
+    elif fname.endswith('h5'):
+        return pd.read_hdf(fname, **kwargs)
     else:
         raise ValueError(f'Unknown file extension for file {fname}')
 
@@ -88,6 +90,9 @@ def s3_file_opener(s3_url: str, unsigned: bool = False, **kwargs) -> \
         raw_file = StringIO(csv_str)
         return pd.read_csv(raw_file, **kwargs)
     else:
+        logger.warning(f'File type {key.split(".")[-1]} not recognized, '
+                       f'returning S3 file stream handler (access from '
+                       f'`res["Body"].read()`)')
         return S3Path.from_string(s3_url).get(s3=s3)
 
 

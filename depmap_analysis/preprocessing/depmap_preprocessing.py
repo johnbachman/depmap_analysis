@@ -74,7 +74,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         # Create new one, write to input file's directory
         if isinstance(crispr_raw, str):
             logger.info(f'Reading raw DepMap data from {crispr_raw}')
-            crispr_raw_df = pd.read_csv(crispr_raw, index_col=0)
+            crispr_raw_df = io.file_opener(crispr_raw, index_col=0)
         else:
             crispr_raw_df = crispr_raw
         crispr_corr_df = raw_depmap_to_corr(crispr_raw_df, split_names=True,
@@ -96,7 +96,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         # Create new one, write to input file's directory
         if isinstance(rnai_raw, str):
             logger.info(f'Reading raw DepMap data from {rnai_raw}')
-            rnai_raw_df = pd.read_csv(rnai_raw, index_col=0)
+            rnai_raw_df = io.file_opener(rnai_raw, index_col=0)
         else:
             rnai_raw_df = rnai_raw
 
