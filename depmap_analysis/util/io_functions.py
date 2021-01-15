@@ -336,10 +336,18 @@ def file_path(file_ending: str = None):
 
 def is_dir_path():
     """Checks if provided path exists"""
-    def is_dir(path):
-        dp = Path(path)
-        if not dp.is_dir():
-            raise ArgumentError(f'Path {path} does not exist')
+    def is_dir(path: str):
+        if path.startswith('s3://'):
+            from indra_db.util.s3_path import S3Path
+            from .aws import get_s3_client
+            s3 = get_s3_client(False)
+            s3dp = S3Path.from_string(path)
+            if not s3dp.exists(s3):
+                raise ValueError(f'Path {path} does not seem to exists')
+        else:
+            dp = Path(path)
+            if not dp.is_dir():
+                raise ArgumentError(f'Path {path} does not exist')
         return path
     return is_dir
 
