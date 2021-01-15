@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from indra.util.aws import get_s3_client
+from indra_db.util.s3_path import S3Path
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 logger = logging.getLogger(__name__)
@@ -309,18 +310,11 @@ class DepMapExplainer:
             than 10 000. Default: True.
         """
         # Local file or s3
-        if outdir.startswith('s3:'):
-            full_path = outdir.replace('s3:', '').split('/')
-            bucket = full_path[0]
-            if not _bucket_exists(bucket):
-                raise FileNotFoundError(f'The bucket {bucket} seems to not '
-                                        f'exist on s3.')
-            key_base = '/'.join(full_path[1:]) if len(full_path) > 1 else \
-                'output_data_' + datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        if outdir.startswith('s3://'):
+            s3_path = S3Path(outdir)
             od = None
         else:
-            bucket = None
-            key_base = None
+            s3_path = None
             od = Path(outdir)
             if not od.is_dir():
                 od.mkdir(parents=True, exist_ok=True)
@@ -367,9 +361,9 @@ class DepMapExplainer:
                         # Reset pointer
                         fname.seek(0)
                         # Upload to s3
+                        full_s3_path = _joinpath(s3_path, name)
                         _upload_bytes_io_to_s3(bytes_io_obj=fname,
-                                               bucket=bucket,
-                                               key=key_base + '/' + name)
+                                               s3p=full_s3_path)
 
                     # Show plot
                     if show_plot:
@@ -421,18 +415,11 @@ class DepMapExplainer:
             than 10 000. Default: True.
         """
         # Local file or s3
-        if outdir.startswith('s3:'):
-            full_path = outdir.replace('s3:', '').split('/')
-            bucket = full_path[0]
-            if not _bucket_exists(bucket):
-                raise FileNotFoundError(f'The bucket {bucket} seems to not '
-                                        f'exist on s3.')
-            key_base = '/'.join(full_path[1:]) if len(full_path) > 1 else \
-                'output_data_' + datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        if outdir.startswith('s3://'):
+            s3_path = S3Path.from_string(outdir)
             od = None
         else:
-            bucket = None
-            key_base = None
+            s3_path = None
             od = Path(outdir)
             if not od.is_dir():
                 od.mkdir(parents=True, exist_ok=True)
@@ -477,8 +464,8 @@ class DepMapExplainer:
             # Reset pointer
             fname.seek(0)
             # Upload to s3
-            _upload_bytes_io_to_s3(bytes_io_obj=fname, bucket=bucket,
-                                   key=key_base + '/' + name)
+            _upload_bytes_io_to_s3(bytes_io_obj=fname,
+                                   s3p=s3_path)
 
         # Show plot
         if show_plot:
@@ -488,23 +475,45 @@ class DepMapExplainer:
         plt.close(fig_index)
 
 
-def _upload_bytes_io_to_s3(bytes_io_obj, bucket, key):
+def _upload_bytes_io_to_s3(bytes_io_obj: BytesIO, s3p: S3Path):
     """Upload a BytesIO object to s3
 
     Parameters
     ----------
     bytes_io_obj : BytesIO
         Object to upload
-    bucket : str
-        S3 bucket to save object in
-    key : str
-        S3 key to use for object
+    s3p : S3Path
+        An S3Path instance of the full upload url
     """
     bytes_io_obj.seek(0)  # Just in case
     s3 = get_s3_client(unsigned=False)
-    s3.put_object(Body=bytes_io_obj, Bucket=bucket, Key=key)
+    s3p.put(body=bytes_io_obj, s3=s3)
 
 
 def _bucket_exists(buck):
     s3 = boto3.resource('s3')
     return s3.Bucket(buck).creation_date is not None
+
+
+def _exists(fpath: Union[Path, S3Path]) -> bool:
+    if isinstance(fpath, S3Path):
+        s3 = boto3.client('s3')
+        return fpath.exists(s3)
+    else:
+        return fpath.is_file()
+
+
+def _joinpath(fpath: Union[S3Path, Path], other: str) -> Union[S3Path, Path]:
+    if isinstance(fpath, Path):
+        return fpath.joinpath(other).absolute()
+    else:
+        if fpath.to_string().endswith('/') and not other.startswith('/') or \
+                not fpath.to_string().endswith('/') and other.startswith('/'):
+            return S3Path.from_string(fpath.to_string() + other)
+        elif fpath.to_string().endswith('/') and other.startswith('/'):
+            return S3Path.from_string(fpath.to_string() + other[1:])
+        elif not fpath.to_string().endswith('/') and not other.startswith('/'):
+            return S3Path.from_string(fpath.to_string() + '/' + other)
+        else:
+            raise ValueError(f'Unable to join {fpath.to_string()} and '
+                             f'{other} with "/"')
