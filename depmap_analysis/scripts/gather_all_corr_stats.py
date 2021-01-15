@@ -1,17 +1,34 @@
+import boto3
 import logging
 import argparse
 from math import floor
+from typing import Union
 from pathlib import Path
 from itertools import count
 from datetime import datetime
 
 import pandas as pd
 
+from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.util.io_functions import file_opener, file_path, \
     is_dir_path
 
 logger = logging.getLogger(__name__)
+
+
+def _exists(fpath: Union[S3Path, Path]) -> bool:
+    if isinstance(fpath, S3Path):
+        return fpath.exists(s3)
+    else:
+        return fpath.exists()
+
+
+def _joinpath(fpath: Union[S3Path, Path], other: str) -> str:
+    if isinstance(fpath, Path):
+        return fpath.joinpath(other).absolute().as_posix()
+    else:
+        return fpath.to_string() + other
 
 
 if __name__ == '__main__':
@@ -69,9 +86,29 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-    base_path = Path(args.base_path)
-    output_dir = Path(args.outdir) if args.outdir else \
-        base_path.joinpath('output')
+    base_path: str = args.base_path
+    outdir: str = args.outdir
+
+    if base_path.startswith('s3://') or outdir.startswith('s3://'):
+        s3 = boto3.client('s3')
+    else:
+        s3 = None
+
+    # Set input dir
+    if base_path.startswith('s3://'):
+        s3_base_path = S3Path.from_string(base_path)
+        input_iter = [s3p.to_string() for s3p in s3_base_path.list_objects(s3)]
+    else:
+        local_base_path = Path(base_path)
+        input_iter = [f.absolute().as_posix()
+                      for f in local_base_path.glob('*.pkl')]
+
+    # Set output dir
+    if outdir.startswith('s3://'):
+        output_dir = S3Path.from_string(outdir)
+    else:
+        output_dir = Path(outdir)
+
     dry = args.dry
 
     if args.max_proc:
@@ -96,13 +133,20 @@ if __name__ == '__main__':
             raise FileNotFoundError(f'{args.z_corr} was not found')
         z_corr = pd.DataFrame()
         reactome = None
+
     # Create a global indexer to separate each figure
     indexer = count(0)
-    for explainer_file in base_path.glob('*.pkl'):
-        print(f'> > > > Processing {explainer_file} '
-              f'{datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} (UTC) < < '
-              f'< <')
-        explainer_out = output_dir.joinpath(explainer_file.stem).as_posix()
+    for explainer_file in input_iter:
+        logger.info(
+            f'> > > > '
+            f'Processing {explainer_file} '
+            f'{datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} (UTC)'
+            f' < < < <'
+        )
+        explainer_out = _joinpath(
+            output_dir, str(explainer_file).split('/')[-1].split('.')[0]
+        )
+        logger.info(f'Saving output to {explainer_out}')
         if not dry:
             # Load pickle
             explainer = file_opener(explainer_file)
