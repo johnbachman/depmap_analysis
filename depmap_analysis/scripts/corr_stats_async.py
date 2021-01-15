@@ -13,6 +13,8 @@ from indra.util.multiprocessing_traceback import WrapException
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id,\
     uniprot_ids, get_hgnc_name
 
+from depmap_analysis.scripts.depmap_script_expl_funcs import *
+
 logger = logging.getLogger(__name__)
 
 uniprot_ids_reverse = {v: k for k, v in uniprot_ids.items()}
@@ -21,6 +23,13 @@ global_results = []
 global_results_pairs = []
 global_vars = {}
 list_of_genes = []
+
+apriori = funcname_to_colname['apriori_explained']
+axb_colname = funcname_to_colname['expl_axb']
+bxa_colname = funcname_to_colname['expl_bxa']
+ab_colname = funcname_to_colname['expl_ab']
+ba_colname = funcname_to_colname['expl_ba']
+st_colname = funcname_to_colname['get_st']
 
 
 def _list_chunk_gen(lst, size, shuffle=False):
@@ -179,18 +188,12 @@ def get_pairs(corr_pairs):
         int_types = set(expl_df['expl type'][(expl_df['agA'] == s) &
                                              (expl_df['agB'] == o)].values)
         # Check intersection of types
-        axb_types = {'a-x-b', 'b-x-a', 'shared target'}.intersection(int_types)
-        if axb_types:
-            pairs_any_axb.add((s, o))
-            if 'direct' in int_types:
-                # Direct and pathway
-                pairs_axb_direct.add((s, o))
-            else:
-                # Pathway and NOT direct
-                pairs_axb_only.add((s, o))
-        else:
-            # Skip direct only
-            continue
+        axb_types = {axb_colname, bxa_colname,
+                     st_colname}.intersection(int_types)
+        # if axb_types and not direct explanation is known:
+        if axb_types and ab_colname not in int_types and ba_colname not \
+                in int_types:
+            pairs_axb_only.add((s, o))
 
     # The union should be all pairs where a-x-b explanations exist
     ab_axb_union = pairs_axb_direct.union(pairs_axb_only)

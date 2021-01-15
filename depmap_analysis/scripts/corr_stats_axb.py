@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
+from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp, \
+    ab_colname, ba_colname, axb_colname, bxa_colname, st_colname
 
 logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.INFO)
@@ -58,11 +59,13 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
     # 'direct' and NOT 'pathway' is the explanation, but this should be a
     # very small set)
     logger.info("Filter expl_df to pathway, direct, shared_target")
-    expl_df = expl_df[(expl_df['expl type'] == 'a-x-b') |
-                      (expl_df['expl type'] == 'b-x-a') |
-                      (expl_df['expl type'] == 'a-b') |
-                      (expl_df['expl type'] == 'b-a') |
-                      (expl_df['expl type'] == 'shared target')]
+    expl_df = expl_df[
+        (expl_df['expl type'] == axb_colname) |
+        (expl_df['expl type'] == bxa_colname) |
+        (expl_df['expl type'] == ab_colname) |
+        (expl_df['expl type'] == ba_colname) |
+        (expl_df['expl type'] == st_colname)
+    ]
 
     # Re-map the columns containing string representations of objects
     if eval_str:
@@ -96,25 +99,19 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
             # Make sure we don't try to explain self-correlations
             if s == o:
                 continue
+
             # Get all interaction types associated with given subject s and
             # object o
             int_types = \
                 set(expl_df['expl type'][(expl_df['agA'] == s) &
                                          (expl_df['agB'] == o)].values)
-            # Check intersection of types
+            # Gather only axb types of interest, i.e. a-x-b, b-x-a, st
             axb_types = \
-                {'a-x-b', 'b-x-a', 'shared target'}.intersection(int_types)
-            if axb_types:
-                pairs_any_axb.add((s, o))
-                if 'direct' in int_types:
-                    # Direct and pathway
-                    pairs_axb_direct.add((s, o))
-                else:
-                    # Pathway and NOT direct
-                    pairs_axb_only.add((s, o))
-            else:
-                # Skip direct only
-                continue
+                {axb_colname, bxa_colname, st_colname}.intersection(int_types)
+            if axb_types and ab_colname not in int_types and ba_colname not \
+                    in int_types:
+                # Pathway and NOT direct
+                pairs_axb_only.add((s, o))
 
         # The union should be all pairs where a-x-b explanations exist
         ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
