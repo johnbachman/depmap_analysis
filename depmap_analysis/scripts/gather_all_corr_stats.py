@@ -21,7 +21,7 @@ def _exists(fpath: Union[S3Path, Path]) -> bool:
     if isinstance(fpath, S3Path):
         return fpath.exists(s3)
     else:
-        return fpath.exists()
+        return fpath.is_file()
 
 
 def _joinpath(fpath: Union[S3Path, Path], other: str) -> str:
@@ -172,6 +172,6 @@ if __name__ == '__main__':
                                  max_so_pairs_size=args.max_so_pairs,
                                  mp_pairs=args.mp_pairs)
         else:
-            if not Path(explainer_file).is_file():
+            if not _exists(explainer_file):
                 raise FileNotFoundError(f'{explainer_file} does not exist')
         logger.info(f'Writing output to {explainer_out}/*.pdf')
