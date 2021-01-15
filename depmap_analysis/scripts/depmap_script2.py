@@ -601,7 +601,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     if depmap_date:
         info_dict['depmap_date'] = depmap_date
     if indra_date:
-        info_dict['indra_date'] = indra_date
+        run_options['indra_date'] = indra_date
     run_options['info'] = info_dict
 
     # Set the script_settings
