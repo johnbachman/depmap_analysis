@@ -150,7 +150,12 @@ if __name__ == '__main__':
         if not dry:
             # Load pickle
             explainer = file_opener(explainer_file)
-            assert isinstance(explainer, DepMapExplainer)
+            try:
+                assert isinstance(explainer, DepMapExplainer)
+            except AssertionError:
+                logger.warning(f'File {explainer_file} is not '
+                               f'DepMapExplainer, skipping...')
+                continue
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr,
