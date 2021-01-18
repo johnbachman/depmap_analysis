@@ -347,9 +347,9 @@ def get_corr_stats(so_pairs):
 def get_interm_corr_stats_x(subj, obj, z_corr, df):
     path_rows = df[(df['agA'] == subj) &
                    (df['agB'] == obj) &
-                   ((df['expl type'] == 'a-x-b') |
-                    (df['expl type'] == 'b-x-a') |
-                    (df['expl type'] == 'shared target'))]
+                   ((df['expl type'] == axb_colname) |
+                    (df['expl type'] == bxa_colname) |
+                    (df['expl type'] == st_colname))]
     x_set = set()
     for ix, path_row in path_rows.iterrows():
         x_names = [x.name if isinstance(x, CentralDogma) else x for x in
