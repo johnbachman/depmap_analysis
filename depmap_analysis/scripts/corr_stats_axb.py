@@ -91,31 +91,26 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
         # Pairs where a-x-b AND NOT a-b explanation exists
         pairs_axb_only = set()
 
-        # all a-x-b "pathway" explanations, should be union of the above two
-        pairs_any_axb = set()
-
         logger.info("Stratifying correlations by interaction type")
         for s, o in all_ab_corr_pairs:
             # Make sure we don't try to explain self-correlations
             if s == o:
                 continue
 
-            # Get all interaction types associated with given subject s and
-            # object o
+            # Get all interaction types associated with s and o
             int_types = \
                 set(expl_df['expl type'][(expl_df['agA'] == s) &
                                          (expl_df['agB'] == o)].values)
-            # Gather only axb types of interest, i.e. a-x-b, b-x-a, st
+
+            # Filter to a-x-b, b-x-a, st
             axb_types = \
                 {axb_colname, bxa_colname, st_colname}.intersection(int_types)
-            if axb_types and ab_colname not in int_types and ba_colname not \
-                    in int_types:
-                # Pathway and NOT direct
-                pairs_axb_only.add((s, o))
 
-        # The union should be all pairs where a-x-b explanations exist
-        ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
-        assert ab_axb_union == pairs_any_axb
+            # Only allow pairs where we do NOT have ab or ba explanation
+            if axb_types and \
+                    ab_colname not in int_types and \
+                    ba_colname not in int_types:
+                pairs_axb_only.add((s, o))
 
     # Check for and remove self correlations
     if not np.isnan(z_corr.loc[z_corr.columns[0], z_corr.columns[0]]):
