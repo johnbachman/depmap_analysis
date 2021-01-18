@@ -352,8 +352,14 @@ def get_interm_corr_stats_x(subj, obj, z_corr, df):
                     (df['expl type'] == st_colname))]
     x_set = set()
     for ix, path_row in path_rows.iterrows():
-        x_names = [x.name if isinstance(x, CentralDogma) else x for x in
-                   path_row['expl data'] if x not in (subj, obj)]
+        # Data is in a 4-tuple for shared targets:
+        # subj successors, obj predecessors, x intersection, x union
+        # For a-x-b, b-x-a the data is not nested
+        x_iter = path_row['expl data'][2] if \
+            path_row['expl type'] == st_colname else path_row['expl data']
+        x_names = \
+            [x.name if isinstance(x, CentralDogma) else x for
+             x in x_iter if x not in (subj, obj)]
         x_set.update(x_names)
     return _get_interm_corr_stats(subj, obj, x_set, z_corr), len(x_set)
 
