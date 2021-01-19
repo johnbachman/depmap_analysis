@@ -10,7 +10,6 @@ from os import path, stat
 from typing import Iterable, Union, Dict
 from pathlib import Path
 from datetime import datetime
-from argparse import ArgumentError
 from functools import wraps
 from itertools import repeat, takewhile
 
@@ -302,8 +301,8 @@ def allowed_types(types: Iterable):
             Returns the lowercase of the input string representing the type
         """
         if _type.lower() not in types:
-            raise ArgumentError(f'Provided graph type {_type} not allowed. '
-                                f'Have to be one of {types}')
+            raise ValueError(f'Provided graph type {_type} not allowed. '
+                             f'Have to be one of "{", ".join(types)}"')
         return _type.lower()
     return types_check
 
@@ -326,10 +325,9 @@ def file_path(file_ending: str = None):
             return fpath
         p = Path(fpath)
         if not p.is_file():
-            raise ArgumentError(f'File {fpath} does not exist')
+            raise ValueError(f'File {fpath} does not exist')
         if file_ending and not p.name.endswith(file_ending):
-            raise ArgumentError(f'Unrecognized file type '
-                                f'{p.name.split(".")[-1]}')
+            raise ValueError(f'Unrecognized file type {p.name.split(".")[-1]}')
         return fpath
     return check_path
 
@@ -347,7 +345,7 @@ def is_dir_path():
         else:
             dp = Path(path)
             if not dp.is_dir():
-                raise ArgumentError(f'Path {path} does not exist')
+                raise ValueError(f'Path {path} does not exist')
         return path
     return is_dir
 
