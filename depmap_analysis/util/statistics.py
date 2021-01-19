@@ -223,6 +223,13 @@ class DepMapExplainer:
 
         return len(set(sr_true).intersection(others_false))
 
+    def get_sd_str(self):
+        """Construct a string """
+        if self.sd_range[1]:
+            return f'{self.sd_range[0]}-{self.sd_range[1]}SD'
+        else:
+            return f'{self.sd_range[0]}+SD'
+
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True):
         """Get statistics of the correlations associated with different
@@ -326,8 +333,7 @@ class DepMapExplainer:
             z_corr=z_corr, max_proc=max_proc, reactome=reactome,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
-        sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
-            if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
+        sd_str = self.get_sd_str()
         for n, (k, v) in enumerate(corr_stats.items()):
             for m, plot_type in enumerate(['all_azb_corrs', 'azb_avg_corrs',
                                            'all_x_corrs', 'avg_x_corrs',
@@ -352,7 +358,7 @@ class DepMapExplainer:
                     plt.hist(x=data, bins='auto')
                     title = '%s %s; %s (%s)' % \
                             (plot_type.replace('_', ' ').capitalize(),
-                             k.replace('_', ' '), sd,
+                             k.replace('_', ' '), sd_str,
                              self.script_settings['graph_type'])
                     plt.title(title)
                     plt.xlabel('combined z-score')
@@ -376,7 +382,7 @@ class DepMapExplainer:
                     plt.close(fig_index)
                 else:
                     logger.warning(f'Empty result for {k} ({plot_type}) in '
-                                   f'range {sd} for graph type '
+                                   f'range {sd_str} for graph type '
                                    f'{self.script_settings["graph_type"]}')
 
     def plot_dists(self, outdir, z_corr=None, reactome=None,
@@ -446,8 +452,7 @@ class DepMapExplainer:
                      density=True, color='g', alpha=0.3)
             legend.append('A-X-B for X in reactome path')
 
-        sd_str = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
-            if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
+        sd_str = self.get_sd_str()
         title = 'avg X corrs %s (%s)' % (sd_str,
                                          self.script_settings['graph_type'])
         plt.title(title)
