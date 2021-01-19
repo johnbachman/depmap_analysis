@@ -467,8 +467,9 @@ class DepMapExplainer:
             # Reset pointer
             fname.seek(0)
             # Upload to s3
+            full_s3_path = _joinpath(s3_path, name)
             _upload_bytes_io_to_s3(bytes_io_obj=fname,
-                                   s3p=s3_path)
+                                   s3p=full_s3_path)
 
         # Show plot
         if show_plot:
