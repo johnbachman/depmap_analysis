@@ -318,6 +318,7 @@ class DepMapExplainer:
             s3_path = None
             od = Path(outdir)
             if not od.is_dir():
+                logger.info(f'Creating directory/ies for {od}')
                 od.mkdir(parents=True, exist_ok=True)
 
         # Get corr stats
@@ -336,6 +337,7 @@ class DepMapExplainer:
                 if len(v[plot_type]) > 0:
                     name = '%s_%s_%s.pdf' % \
                            (plot_type, k, self.script_settings['graph_type'])
+                    logger.info(f'Using file name {name}')
                     if od is None:
                         fname = BytesIO()
                     else:
@@ -486,6 +488,7 @@ def _upload_bytes_io_to_s3(bytes_io_obj: BytesIO, s3p: S3Path):
     s3p : S3Path
         An S3Path instance of the full upload url
     """
+    logger.info(f'Uploading BytesIO object to s3: {str(s3p)}')
     bytes_io_obj.seek(0)  # Just in case
     s3 = get_s3_client(unsigned=False)
     s3p.put(body=bytes_io_obj, s3=s3)
