@@ -311,7 +311,8 @@ class DepMapExplainer:
         """
         # Local file or s3
         if outdir.startswith('s3://'):
-            s3_path = S3Path(outdir)
+            s3_path = S3Path.from_string(outdir)
+            logger.info(f'Outdir path is on S3: {str(s3_path)}')
             od = None
         else:
             s3_path = None
