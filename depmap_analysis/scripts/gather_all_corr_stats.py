@@ -97,7 +97,9 @@ if __name__ == '__main__':
     # Set input dir
     if base_path.startswith('s3://'):
         s3_base_path = S3Path.from_string(base_path)
-        input_iter = [s3p.to_string() for s3p in s3_base_path.list_objects(s3)]
+        input_iter = \
+            [s3p.to_string() for s3p in s3_base_path.list_objects(s3)
+             if s3p.to_string().endswith('.pkl')]
     else:
         local_base_path = Path(base_path)
         input_iter = [f.absolute().as_posix()
