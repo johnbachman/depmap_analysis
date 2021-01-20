@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'INDRA DepMap Analysis'
-copyright = '2020, K. Karis'
+copyright = '2020, 2021, K. Karis'
 author = 'K. Karis'
 
 
