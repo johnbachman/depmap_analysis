@@ -17,6 +17,7 @@ from indra.belief import load_default_probs
 from indra.assemblers.english import EnglishAssembler
 from indra.statements import Agent, get_statement_by_name
 from indra.assemblers.indranet import IndraNet
+from indra.assemblers.indranet.net import default_sign_dict
 from indra.databases import get_identifiers_url
 from indra.assemblers.pybel import PybelAssembler
 from indra.assemblers.pybel.assembler import belgraph_to_signed_graph
@@ -236,6 +237,7 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
                            mesh_id_dict: Optional[Dict] = None,
                            graph_type: str = 'digraph',
                            include_entity_hierarchies: bool = True,
+                           sign_dict: Dict[str, int] = None,
                            verbosity: int = 0):
     """Return a NetworkX digraph from a pandas dataframe of a db dump
 
@@ -260,6 +262,8 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
         is added between the nodes BRCA and BRCA1. Default: True. Note that
         this option only is available for the options directed/unsigned graph
         and multidigraph.
+    sign_dict : Dict[str, int]
+        todo write docstr
     verbosity: int
         Output various messages if > 0. For all messages, set to 4.
 
@@ -267,10 +271,13 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
     -------
     Union[nx.DiGraph, nx.MultiDiGraph]
         The type is determined by the graph_type argument"""
-    graph_options = ('digraph', 'multidigraph', 'signed')
+    graph_options = ('digraph', 'multidigraph', 'signed', 'signed-expanded',
+                     'digraph-signed-types')
     if graph_type.lower() not in graph_options:
         raise ValueError(f'Graph type {graph_type} not supported. Can only '
                          f'chose between {graph_options}')
+    sign_dict = sign_dict if sign_dict else default_sign_dict
+
     graph_type = graph_type.lower()
     date = date if date else datetime.now().strftime('%Y-%m-%d')
 
@@ -295,7 +302,10 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
     # Create graph from df
     if graph_type == 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
-    elif graph_type == 'digraph':
+    elif graph_type in ('digraph', 'digraph-signed-types'):
+        # If signed types: filter out rows that of unsigned types
+        if graph_type == 'digraph-signed-types':
+            sif_df = sif_df[sif_df.stmt_type.isin(sign_dict.keys())]
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
