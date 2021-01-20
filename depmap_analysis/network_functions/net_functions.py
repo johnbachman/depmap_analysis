@@ -8,7 +8,7 @@ import subprocess
 import requests
 import numpy as np
 import pandas as pd
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict, Optional
 from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
@@ -231,15 +231,17 @@ def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
     return merged_df
 
 
-def sif_dump_df_to_digraph(df, date=None, mesh_id_dict=None,
-                           graph_type='digraph',
-                           include_entity_hierarchies=True,
-                           verbosity=0):
+def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
+                           date: str,
+                           mesh_id_dict: Optional[Dict] = None,
+                           graph_type: str = 'digraph',
+                           include_entity_hierarchies: bool = True,
+                           verbosity: int = 0):
     """Return a NetworkX digraph from a pandas dataframe of a db dump
 
     Parameters
     ----------
-    df : str|pd.DataFrame
+    df : Union[str, pd.DataFrame]
         A dataframe, either as a file path to a file (.pkl or .csv) or a
         pandas DataFrame object.
     date : str
@@ -253,18 +255,22 @@ def sif_dump_df_to_digraph(df, date=None, mesh_id_dict=None,
             - 'multidigraph': IndraNet(nx.MultiDiGraph)
             - 'signed': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
     include_entity_hierarchies : bool
-        Default: True
+        If True, add edges between nodes if they are related ontologically
+        with stmt type 'fplx': e.g. BRCA1 is in the BRCA family, so an edge
+        is added between the nodes BRCA and BRCA1. Default: True. Note that
+        this option only is available for the options directed/unsigned graph
+        and multidigraph.
     verbosity: int
-        Output various messages if > 0. For all messages, set to 4
+        Output various messages if > 0. For all messages, set to 4.
 
     Returns
     -------
-    indranet_graph : IndraNet(graph_type)
+    Union[nx.DiGraph, nx.MultiDiGraph]
         The type is determined by the graph_type argument"""
-    graph_options = ('digraph', 'multidigraph', 'signed', 'pybel')
+    graph_options = ('digraph', 'multidigraph', 'signed')
     if graph_type.lower() not in graph_options:
-        raise ValueError('Graph type %s not supported. Can only chose between'
-                         ' %s' % (graph_type, graph_options))
+        raise ValueError(f'Graph type {graph_type} not supported. Can only '
+                         f'chose between {graph_options}')
     graph_type = graph_type.lower()
     date = date if date else datetime.now().strftime('%Y-%m-%d')
 
