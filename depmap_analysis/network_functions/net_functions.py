@@ -1,5 +1,6 @@
 import logging
 from decimal import Decimal
+from datetime import datetime
 from itertools import cycle
 from collections import defaultdict
 import subprocess
@@ -230,7 +231,7 @@ def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
     return merged_df
 
 
-def sif_dump_df_to_digraph(df, mesh_id_dict=None,
+def sif_dump_df_to_digraph(df, date=None, mesh_id_dict=None,
                            graph_type='digraph',
                            include_entity_hierarchies=True,
                            verbosity=0):
@@ -241,6 +242,8 @@ def sif_dump_df_to_digraph(df, mesh_id_dict=None,
     df : str|pd.DataFrame
         A dataframe, either as a file path to a file (.pkl or .csv) or a
         pandas DataFrame object.
+    date : str
+        A date string specifying when the data was dumped from the database.
     mesh_id_dict : dict
         A dict object mapping statement hashes to all mesh ids sharing a 
         common PMID
@@ -263,6 +266,7 @@ def sif_dump_df_to_digraph(df, mesh_id_dict=None,
         raise ValueError('Graph type %s not supported. Can only chose between'
                          ' %s' % (graph_type, graph_options))
     graph_type = graph_type.lower()
+    date = date if date else datetime.now().strftime('%Y-%m-%d')
 
     sif_df = sif_dump_df_merger(df, mesh_id_dict, verbosity=verbosity)
 
@@ -396,6 +400,7 @@ def sif_dump_df_to_digraph(df, mesh_id_dict=None,
         indranet_graph.graph['node_by_uri'] = node_by_uri
     indranet_graph.graph['node_by_ns_id'] = ns_id_to_nodename
     indranet_graph.graph['edge_by_hash'] = hash_edge_dict
+    indranet_graph.graph['date'] = date
     return indranet_graph
 
 
