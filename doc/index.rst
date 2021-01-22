@@ -10,8 +10,6 @@ Welcome to INDRA DepMap Analysis's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   indra_depmap_service/index
-
 Indices and tables
 ==================
 

@@ -2,7 +2,6 @@ import json
 import pickle
 import logging
 from operator import itemgetter
-from botocore.exceptions import ClientError
 
 from indra.util.aws import get_s3_file_tree, get_s3_client
 from indra_db.managers.dump_manager import Belief, Sif, StatementHashMeshId,\
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 DUMPS_BUCKET = 'bigmech'
 DUMPS_PREFIX = 'indra-db/dumps/'
 NET_BUCKET = 'depmap-analysis'
-NETS_PREFIX = 'indra_db_files/'
+NETS_PREFIX = 'graphs/'
 NEW_NETS_PREFIX = NETS_PREFIX + 'new/'
 
 
@@ -62,12 +61,6 @@ def get_latest_sif_s3(get_mesh_ids=False):
     return df, sev, bd
 
 
-def load_pickled_net_from_s3(name):
-    s3_cli = get_s3_client(False)
-    key = NETS_PREFIX + name
-    return load_pickle_from_s3(s3_cli, key=key, bucket=NET_BUCKET)
-
-
 def load_pickle_from_s3(s3, key, bucket):
     try:
         res = s3.get_object(Key=key, Bucket=bucket)
@@ -106,48 +99,11 @@ def read_json_from_s3(s3, key, bucket):
     return json_obj
 
 
-def check_existence_and_date_s3(query_hash, indranet_date=None):
-    s3 = get_s3_client(unsigned=False)
-    key_prefix = 'indra_network_search/%s' % query_hash
-    query_json_key = key_prefix + '_query.json'
-    result_json_key = key_prefix + '_result.json'
-    exits_dict = {}
-    if indranet_date:
-        # Check 'LastModified' key in results
-        # res_query = s3.head_object(Bucket=SIF_BUCKET, Key=query_json_key)
-        # res_results = s3.head_object(Bucket=SIF_BUCKET, Key=result_json_key)
-        pass
-    else:
-        try:
-            query_json = s3.head_object(Bucket=DUMPS_BUCKET,
-                                        Key=query_json_key)
-        except ClientError:
-            query_json = ''
-        if query_json:
-            exits_dict['query_json_key'] = query_json_key
-        try:
-            result_json = s3.head_object(Bucket=DUMPS_BUCKET,
-                                         Key=result_json_key)
-        except ClientError:
-            result_json = ''
-        if result_json:
-            exits_dict['result_json_key'] = result_json_key
-        return exits_dict
-
-    return {}
-
-
 def dump_pickle_to_s3(name, indranet_graph_object, prefix=''):
     s3 = get_s3_client(unsigned=False)
     key = prefix + name
     s3.put_object(Bucket=NET_BUCKET, Key=key,
                   Body=pickle.dumps(obj=indranet_graph_object))
-
-
-def read_query_json_from_s3(s3_key):
-    s3 = get_s3_client(unsigned=False)
-    bucket = DUMPS_BUCKET
-    return read_json_from_s3(s3=s3, key=s3_key, bucket=bucket)
 
 
 def get_latest_pa_stmt_dump():
