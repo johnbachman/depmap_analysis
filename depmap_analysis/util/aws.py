@@ -53,7 +53,18 @@ def get_latest_sif_s3(get_mesh_ids=False):
                                   bucket=DUMPS_BUCKET)
         return df, mid
 
-    return df
+
+def _get_date_from_s3_str(s3path: str) -> str:
+    # Checks if truly an s3 path
+    patt = re.compile('s3://bigmech/indra-db/dumps/([0-9\-]+)/(.*)')
+    m = patt.match(s3path)
+    if m is None:
+        raise ValueError(f'Invalid format for s3 path: {s3path}')
+
+    # Split and get second to last directory
+    date_str, fname = m.groups()
+    logger.info(f'Got date {date_str} for {fname}')
+    return date_str
 
 
 def load_pickle_from_s3(s3, key, bucket):
