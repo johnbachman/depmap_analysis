@@ -22,16 +22,15 @@ def dump_new_nets(mdg: bool = False, dg: bool = False, sg: bool = False,
     options = dict()
 
     if add_mesh_ids:
-        df, sev, bd, mid = get_latest_sif_s3(get_mesh_ids=True)
+        df, mid = get_latest_sif_s3(get_mesh_ids=True)
         mid_dict = dict()
         for pair in mid:
             mid_dict.setdefault(pair[0], []).append(pair[1])
         options['mesh_id_dict'] = mid_dict
     else:
-        df, sev, bd = get_latest_sif_s3()
+        df = get_latest_sif_s3()
 
-    options.update({'df': df, 'belief_dict': bd, 'strat_ev_dict': sev,
-                    'include_entity_hierarchies': True,
+    options.update({'df': df, 'include_entity_hierarchies': True,
                     'verbosity': verbosity})
 
     if mdg:

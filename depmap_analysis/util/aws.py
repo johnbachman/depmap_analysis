@@ -7,7 +7,7 @@ from indra.util.aws import get_s3_file_tree, get_s3_client
 from indra_db.managers.dump_manager import Belief, Sif, StatementHashMeshId,\
     SourceCount
 
-dumpers = [Belief, Sif, SourceCount]
+dumpers = [Sif]
 dumpers_alt_name = {SourceCount.name: 'src_counts'}
 
 logger = logging.getLogger(__name__)
@@ -46,19 +46,14 @@ def get_latest_sif_s3(get_mesh_ids=False):
                 necc_keys[n] = k
                 break
     logger.info(f'Latest files: {", ".join([f for f in necc_keys.values()])}')
-    df = load_pickle_from_s3(s3, key=necc_keys[Sif.name],
-                             bucket=DUMPS_BUCKET)
-    sev = load_pickle_from_s3(s3, key=necc_keys[SourceCount.name],
-                              bucket=DUMPS_BUCKET)
-    bd = read_json_from_s3(s3, key=necc_keys[Belief.name],
-                           bucket=DUMPS_BUCKET)
+    df = load_pickle_from_s3(s3, key=necc_keys[Sif.name], bucket=DUMPS_BUCKET)
     if get_mesh_ids:
         mid = load_pickle_from_s3(s3,
                                   key=necc_keys[StatementHashMeshId.name],
                                   bucket=DUMPS_BUCKET)
-        return df, sev, bd, mid
+        return df, mid
 
-    return df, sev, bd
+    return df
 
 
 def load_pickle_from_s3(s3, key, bucket):

@@ -41,6 +41,7 @@ REVERSE_SIGN = {INT_PLUS: INT_MINUS, INT_MINUS: INT_PLUS,
                 '+': '-', '-': '+',
                 'plus': 'minus', 'minus': 'plus'}
 
+# Use the "readers" vs db from indra_db
 READERS = {'reach', 'trips', 'isi', 'sparser', 'medscan', 'rlimsp', 'eidos',
            'cwms', 'geneways', 'tees', 'hume', 'sofia'}
 
@@ -140,8 +141,7 @@ def _english_from_agents_type(agA_name, agB_name, stmt_type):
     return EnglishAssembler([stmt]).make_model()
 
 
-def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None,
-                       set_weights=True, verbosity=0):
+def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
     """Merge the sif dump df with the provided dictionaries
 
     Parameters
@@ -173,70 +173,20 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None,
     sed = None
 
     if isinstance(df, str):
-        if df.endswith('.csv'):
-            logger.info(f'Loading csv file {df}')
-            merged_df = pd.read_csv(df)
-            logger.info('Finished loading csv file')
-        else:
-            merged_df = file_opener(df)
+        merged_df = file_opener(df)
     else:
         merged_df = df
 
     if 'hash' in merged_df.columns:
         merged_df.rename(columns={'hash': 'stmt_hash'}, inplace=True)
 
-    if isinstance(belief_dict, str):
-        belief_dict = file_opener(belief_dict)
-    elif isinstance(belief_dict, dict):
-        belief_dict = belief_dict
-
-    if isinstance(strat_ev_dict, str):
-        sed = file_opener(strat_ev_dict)
-    elif isinstance(strat_ev_dict, dict):
-        sed = strat_ev_dict
-
     # Extend df with these columns:
-    #   belief score from provided dict
-    #   stratified evidence count by source
     #   english string from mock statements
     #   mesh_id mapped by dict (if provided)
     # Extend df with famplex rows
     # 'stmt_hash' must exist as column in the input dataframe for merge to work
     # Preserve all rows in merged_df, so do left join:
     # merged_df.merge(other, how='left', on='stmt_hash')
-
-    hashes = []
-    beliefs = []
-    for k, v in belief_dict.items():
-        hashes.append(int(k))
-        beliefs.append(v)
-
-    merged_df = merged_df.merge(
-        right=pd.DataFrame(data={'stmt_hash': hashes, 'belief': beliefs}),
-        how='left',
-        on='stmt_hash'
-    )
-    # Check for missing hashes
-    if merged_df['belief'].isna().sum() > 0:
-        logger.warning('%d rows with missing belief score found' %
-                       merged_df['belief'].isna().sum())
-        if verbosity > 1:
-            logger.info('Missing hashes in belief dict: %s' % list(
-                merged_df['stmt_hash'][merged_df['belief'].isna() == True]))
-        logger.info('Setting missing belief scores to 1/evidence count')
-
-    hashes = []
-    strat_dicts = []
-    for k, v in sed.items():
-        hashes.append(int(k))
-        strat_dicts.append(v)
-
-    merged_df = merged_df.merge(
-        right=pd.DataFrame(data={'stmt_hash': hashes,
-                                 'source_counts': strat_dicts}),
-        how='left',
-        on='stmt_hash'
-    )
 
     if mesh_id_dict is not None:
         hashes = []
@@ -288,8 +238,7 @@ def sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict=None,
     return merged_df
 
 
-def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
-                           mesh_id_dict=None,
+def sif_dump_df_to_digraph(df, mesh_id_dict=None,
                            graph_type='digraph',
                            include_entity_hierarchies=True,
                            verbosity=0):
@@ -331,8 +280,7 @@ def sif_dump_df_to_digraph(df, strat_ev_dict, belief_dict,
                          ' %s' % (graph_type, graph_options))
     graph_type = graph_type.lower()
 
-    sif_df = sif_dump_df_merger(df, strat_ev_dict, belief_dict, mesh_id_dict,
-                                verbosity=verbosity)
+    sif_df = sif_dump_df_merger(df, mesh_id_dict, verbosity=verbosity)
 
     # Map ns:id to node name
     logger.info('Creating dictionary mapping (ns,id) to node name')
