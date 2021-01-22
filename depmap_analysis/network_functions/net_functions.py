@@ -149,14 +149,6 @@ def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
     df : str|pd.DataFrame
         A dataframe, either as a file path to a pickle or csv, or a pandas
         DataFrame object.
-    belief_dict : str|dict
-        The file path to a pickled dict or a dict object keyed by statement
-        hash containing the belief score for the corresponding statements.
-        The hashes should correspond to the hashes in the loaded dataframe.
-    strat_ev_dict : str|dict
-        The file path to a pickled dict or a dict object keyed by statement
-        hash containing the stratified evidence count per statement. The
-        hashes should correspond to the hashes in the loaded dataframe.
     mesh_id_dict : dict
         A dict object mapping statement hashes to all mesh ids sharing a 
         common PMID
@@ -249,14 +241,6 @@ def sif_dump_df_to_digraph(df, mesh_id_dict=None,
     df : str|pd.DataFrame
         A dataframe, either as a file path to a file (.pkl or .csv) or a
         pandas DataFrame object.
-    belief_dict : str|dict
-        The file path to a pickled dict or a dict object keyed by statement
-        hash containing the belief score for the corresponding statements.
-        The hashes should correspond to the hashes in the loaded dataframe.
-    strat_ev_dict : str|dict
-        The file path to a pickled dict or a dict object keyed by statement
-        hash containing the stratified evidence count per statement. The
-        hashes should correspond to the hashes in the loaded dataframe.
     mesh_id_dict : dict
         A dict object mapping statement hashes to all mesh ids sharing a 
         common PMID
