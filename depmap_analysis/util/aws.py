@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 DUMPS_BUCKET = 'bigmech'
 DUMPS_PREFIX = 'indra-db/dumps/'
 NET_BUCKET = 'depmap-analysis'
-NETS_PREFIX = 'indra_db_files/'
+NETS_PREFIX = 'graphs/'
 NEW_NETS_PREFIX = NETS_PREFIX + 'new/'
 
 
