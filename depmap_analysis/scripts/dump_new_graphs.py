@@ -1,8 +1,12 @@
 """Dumps new indra graphs from the latest sif dump"""
+import logging
 import argparse
 import depmap_analysis.network_functions.net_functions as nf
 from depmap_analysis.util.aws import get_latest_sif_s3, dump_pickle_to_s3, \
-    NEW_NETS_PREFIX
+    NETS_PREFIX
+
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['INDRA_MDG', 'INDRA_DG', 'INDRA_SNG', 'INDRA_SEG', 'INDRA_PBSNG',
            'INDRA_PBSEG']
@@ -22,32 +26,33 @@ def dump_new_nets(mdg: bool = False, dg: bool = False, sg: bool = False,
     options = dict()
 
     if add_mesh_ids:
-        df, mid = get_latest_sif_s3(get_mesh_ids=True)
+        (df, sif_date), (mid, _) = get_latest_sif_s3(
+            get_mesh_ids=True)
         mid_dict = dict()
         for pair in mid:
             mid_dict.setdefault(pair[0], []).append(pair[1])
         options['mesh_id_dict'] = mid_dict
     else:
-        df = get_latest_sif_s3()
+        df, sif_date = get_latest_sif_s3()
 
     options.update({'df': df, 'include_entity_hierarchies': True,
                     'verbosity': verbosity})
-
+    prefix = f'{NETS_PREFIX}/{sif_date}'
     if mdg:
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
-        dump_pickle_to_s3(INDRA_MDG, network, prefix=NEW_NETS_PREFIX)
+        dump_pickle_to_s3(INDRA_MDG, network, prefix=prefix)
     if dg:
         network = nf.sif_dump_df_to_digraph(**options)
-        dump_pickle_to_s3(INDRA_DG, network, prefix=NEW_NETS_PREFIX)
+        dump_pickle_to_s3(INDRA_DG, network, prefix=prefix)
     if sg:
         network, isng = nf.sif_dump_df_to_digraph(graph_type='signed',
                                                   **options)
-        dump_pickle_to_s3(INDRA_SEG, network, prefix=NEW_NETS_PREFIX)
-        dump_pickle_to_s3(INDRA_SNG, isng, prefix=NEW_NETS_PREFIX)
+        dump_pickle_to_s3(INDRA_SEG, network, prefix=prefix)
+        dump_pickle_to_s3(INDRA_SNG, isng, prefix=prefix)
     if spbg:
         pb_seg, pb_sng = nf.db_dump_to_pybel_sg()
-        dump_pickle_to_s3(INDRA_SNG, pb_sng, prefix=NEW_NETS_PREFIX)
-        dump_pickle_to_s3(INDRA_SEG, pb_seg, prefix=NEW_NETS_PREFIX)
+        dump_pickle_to_s3(INDRA_SNG, pb_sng, prefix=prefix)
+        dump_pickle_to_s3(INDRA_SEG, pb_seg, prefix=prefix)
 
 
 if __name__ == '__main__':
