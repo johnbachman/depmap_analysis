@@ -8,7 +8,8 @@ import subprocess
 import requests
 import numpy as np
 import pandas as pd
-from typing import Tuple, Union, Dict, Optional
+from networkx import DiGraph, MultiDiGraph
+from typing import Tuple, Union, Dict, Optional, List
 from requests.exceptions import ConnectionError
 
 from indra.config import CONFIG_DICT
@@ -143,7 +144,78 @@ def _english_from_agents_type(agA_name, agB_name, stmt_type):
     return EnglishAssembler([stmt]).make_model()
 
 
-def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
+def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
+                  stmt_types: List[str]) -> pd.DataFrame:
+    """Expands out which statements should be added to the signed graph
+
+    The statements types provided in 'stmt_types' will be added for both
+    signs. To add more statement types of just one sign, add it to 'sign_dict'.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+    sign_dict : Dict[str, int]
+    stmt_types : List[str]
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    # Todo: Do class matching instead to catch modifications
+    # Add new sign column, set to None. Using 'initial_sign' allows usage of
+    # IndraNet.to_signed_graph
+    df['initial_sign'] = None
+
+    # Locate relevant rows
+    standard_sign = df.stmt_type.isin(sign_dict.keys())
+    expand_sign = df.stmt_type.isin(stmt_types)
+
+    # Add sign for signed statements
+    df.loc[standard_sign, 'initial_sign'] = \
+        df.loc[standard_sign, 'stmt_type'].apply(lambda st: sign_dict.get(st))
+
+    # Add positive sign to the rows with types in stmt_types
+    df.loc[expand_sign] = INT_PLUS
+
+    # Copy rows for expand sign and switch sign
+    add_rows = []
+    for _, expand_row in df[expand_sign].iterrows():
+        exp_row = [INT_MINUS if col == 'initial_sign' else val
+                   for col, val in expand_row.items()]
+        add_rows.append(exp_row)
+
+    extra_df = pd.DataFrame(add_rows, columns=df.columns.values)
+    df = df.append(extra_df)
+
+    # Remove all rows without assigned sign
+    df = df[~df.initial_sign.isna()]
+
+    return df
+
+
+def unsigned_signed_types(df, sign_dict):
+    """Reduces the dataframe to the statement types in sign_dict
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing interactions from the indra db sif dump
+    sign_dict : Dict[str, int]
+        Dict mapping statement type to sign
+    Returns
+    -------
+    pd.DataFrame
+    """
+    return df[df.stmt_type.isin(sign_dict.keys())]
+
+
+def sif_dump_df_merger(df: pd.DataFrame,
+                       graph_type: str,
+                       sign_dict: Optional[Dict[str, int]] = None,
+                       stmt_types: Optional[List[str]] = None,
+                       mesh_id_dict: Optional[Dict[str, str]] = None,
+                       set_weights: Optional[bool] = True,
+                       verbosity: Optional[int] = 0):
     """Merge the sif dump df with the provided dictionaries
 
     Parameters
@@ -152,12 +224,18 @@ def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
         A dataframe, either as a file path to a pickle or csv, or a pandas
         DataFrame object.
     graph_type : str
-        Return type for the returned graph. Currently supports:
-            - 'digraph': DiGraph (Default)
-            - 'multidigraph': MultiDiGraph
-            - 'signed': Tuple[DiGraph, MultiDiGraph]
-            - 'signed-expanded': Tuple[DiGraph, MultiDiGraph]
-            - 'digraph-signed-types':  DiGraph
+        If 'signed-expanded' or 'digraph-signed-types', do extra filtering
+        or alteration to the DataFrame to produce an expanded signed graph
+        or a reduced digraph with only the signed types
+    sign_dict : Optional[Dict[str, int]]
+        A dictionary mapping a Statement type to a sign to be used for the
+        edge. By default only Activation and IncreaseAmount are added as
+        positive edges and Inhibition and DecreaseAmount are added as
+        negative edges, but a user can pass any other Statement types in a
+        dictionary.
+    stmt_types : Optional[List[str]]
+        Provide a list of statement types to be used if expanding the signed
+        graph to include statements of these types
     mesh_id_dict : dict
         A dict object mapping statement hashes to all mesh ids sharing a
         common PMID
@@ -171,8 +249,6 @@ def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
     pd.DataFrame
         A pandas DataFrame with new columns from the merge
     """
-    sed = None
-
     if isinstance(df, str):
         merged_df = file_opener(df)
     else:
@@ -188,6 +264,11 @@ def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
     # 'stmt_hash' must exist as column in the input dataframe for merge to work
     # Preserve all rows in merged_df, so do left join:
     # merged_df.merge(other, how='left', on='stmt_hash')
+
+    if graph_type == 'digraph-signed-types' and sign_dict:
+        merged_df = unsigned_signed_types(merged_df, sign_dict)
+    elif graph_type == 'signed-expanded' and sign_dict and stmt_types:
+        merged_df = expand_signed(merged_df, sign_dict, stmt_types)
 
     if mesh_id_dict is not None:
         hashes = []
@@ -244,8 +325,10 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
                            mesh_id_dict: Optional[Dict] = None,
                            graph_type: str = 'digraph',
                            include_entity_hierarchies: bool = True,
-                           sign_dict: Dict[str, int] = None,
-                           verbosity: int = 0):
+                           sign_dict: Optional[Dict[str, int]] = None,
+                           stmt_types: Optional[List[str]] = None,
+                           verbosity: int = 0) \
+        -> Union[DiGraph, MultiDiGraph, Tuple[DiGraph, MultiDiGraph]]:
     """Return a NetworkX digraph from a pandas dataframe of a db dump
 
     Parameters
@@ -277,6 +360,8 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
         positive edges and Inhibition and DecreaseAmount are added as
         negative edges, but a user can pass any other Statement types in a
         dictionary.
+    stmt_types : List[str]
+        A list of statement types to epxand out to other signs
     verbosity: int
         Output various messages if > 0. For all messages, set to 4.
 
@@ -295,7 +380,8 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
     graph_type = graph_type.lower()
     date = date if date else datetime.now().strftime('%Y-%m-%d')
 
-    sif_df = sif_dump_df_merger(df, mesh_id_dict, verbosity=verbosity)
+    sif_df = sif_dump_df_merger(df, graph_type, sign_dict, stmt_types,
+                                mesh_id_dict, verbosity=verbosity)
 
     # Map ns:id to node name
     logger.info('Creating dictionary mapping (ns,id) to node name')
@@ -305,7 +391,7 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
     ns_id_to_nodename = {(ns, _id): name for ns, _id, name in ns_id_name_tups}
 
     # Map hashes to edge for non-signed graphs
-    if graph_type in {'multidigraph', 'digraph'}:
+    if graph_type in {'multidigraph', 'digraph', 'digraph-signed-types'}:
         logger.info('Creating dictionary mapping hashes to edges for '
                     'unsigned graph')
         hash_edge_dict = {h: (a, b) for a, b, h in
