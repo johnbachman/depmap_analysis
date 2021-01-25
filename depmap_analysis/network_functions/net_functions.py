@@ -413,14 +413,14 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
                                                   _weight_mapping)
-    elif graph_type == 'signed':
-        signed_edge_graph = IndraNet.signed_from_df(
-            df=sif_df,
-            flattening_method='complementary_belief',
+    elif graph_type in ('signed', 'signed-expanded'):
+        signed_edge_graph: MultiDiGraph = IndraNet.signed_from_df(
+            df=sif_df, flattening_method='complementary_belief',
             weight_mapping=_weight_mapping
         )
-        signed_node_graph = signed_edges_to_signed_nodes(
-            graph=signed_edge_graph, copy_edge_data=True)
+        signed_node_graph: DiGraph = signed_edges_to_signed_nodes(
+            graph=signed_edge_graph, copy_edge_data=True
+        )
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
 
