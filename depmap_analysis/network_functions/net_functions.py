@@ -213,26 +213,6 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     return df
 
 
-def unsigned_signed_types(df, sign_dict):
-    """Reduces the dataframe to the statement types in sign_dict
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing interactions from the indra db sif dump
-    sign_dict : Dict[str, int]
-        A dictionary mapping a Statement type to a sign to be used for the
-        edge. By default only Activation and IncreaseAmount are added as
-        positive edges and Inhibition and DecreaseAmount are added as
-        negative edges, but a user can pass any other Statement types in a
-        dictionary.
-    Returns
-    -------
-    pd.DataFrame
-    """
-    return df[df.stmt_type.isin(sign_dict.keys())]
-
-
 def sif_dump_df_merger(df: pd.DataFrame,
                        graph_type: str,
                        sign_dict: Optional[Dict[str, int]] = None,
@@ -289,9 +269,7 @@ def sif_dump_df_merger(df: pd.DataFrame,
     # Preserve all rows in merged_df, so do left join:
     # merged_df.merge(other, how='left', on='stmt_hash')
 
-    if graph_type == 'digraph-signed-types' and sign_dict:
-        merged_df = unsigned_signed_types(merged_df, sign_dict)
-    elif graph_type == 'signed-expanded' and sign_dict and stmt_types:
+    if graph_type == 'signed-expanded' and sign_dict and stmt_types:
         merged_df = expand_signed(merged_df, sign_dict, stmt_types)
 
     if mesh_id_dict is not None:
@@ -404,6 +382,10 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
     graph_type = graph_type.lower()
     date = date if date else datetime.now().strftime('%Y-%m-%d')
 
+    # If signed types: filter out rows that of unsigned types
+    if graph_type == 'digraph-signed-types':
+        df = df[df.stmt_type.isin(sign_dict.keys())]
+
     sif_df = sif_dump_df_merger(df, graph_type, sign_dict, stmt_types,
                                 mesh_id_dict, verbosity=verbosity)
 
@@ -427,9 +409,6 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
     if graph_type == 'multidigraph':
         indranet_graph = IndraNet.from_df(sif_df)
     elif graph_type in ('digraph', 'digraph-signed-types'):
-        # If signed types: filter out rows that of unsigned types
-        if graph_type == 'digraph-signed-types':
-            sif_df = sif_df[sif_df.stmt_type.isin(sign_dict.keys())]
         # Flatten
         indranet_graph = IndraNet.digraph_from_df(sif_df,
                                                   'complementary_belief',
