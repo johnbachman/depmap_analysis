@@ -32,8 +32,9 @@ class FunctionRegistrationError(Exception):
     """Raise when a function does not adhere to set rules for """
 
 
-def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-              _type: str, **kwargs) -> Tuple[str, str, str]:
+def apriori_explained(s: str, o: str, corr: float,
+                      net: Union[DiGraph, MultiDiGraph], _type: str, **kwargs)\
+        -> Tuple[str, str, Union[str, None]]:
     """A mock function that is used for a-priori explained pairs
 
     Parameters
@@ -51,10 +52,23 @@ def explained(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, str]
-        The tuple s, o, 'explained_set'
+    Tuple[str, str, Union[str, None]]
+        If explained, the tuple (s, o, explanation) is returned,
+        where `explanation` is a string mapped from the subject or object.
     """
-    return s, o, 'explained_set'
+    expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
+    if expl_mapping is None:
+        return s, o, None
+
+    # Get a-priori explanations for s and o
+    why_s = expl_mapping.get(s)
+    why_o = expl_mapping.get(o)
+
+    if why_s or why_o:
+        explanation = f'{s}: {why_s}, {o}: {why_o}'
+        return s, o, explanation
+    else:
+        return s, o, None
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
@@ -860,20 +874,20 @@ def normalize_corr_names(corr_m: pd.DataFrame,
 
 
 # Add new function to the tuple
-expl_func_list = (explained, expl_ab, expl_ba, expl_axb, expl_bxa, find_cp,
-                  get_sr, get_st, get_sd)
+expl_func_list = (apriori_explained, expl_ab, expl_ba, expl_axb, expl_bxa,
+                  find_cp, get_sr, get_st, get_sd)
 
 # Map the name of the function to a more human friendly column name
 funcname_to_colname = {
-    'explained': 'explained set',
-    'expl_ab': 'a-b',
-    'expl_ba': 'b-a',
-    'expl_axb': 'a-x-b',
-    'expl_bxa': 'b-x-a',
-    'find_cp': 'common parent',
-    'get_sr': 'shared regulator',
-    'get_st': 'shared target',
-    'get_sd': 'shared downstream'
+    'apriori_explained': 'apriori_explained',
+    'expl_ab': 'a_b',
+    'expl_ba': 'b_a',
+    'expl_axb': 'a_x_b',
+    'expl_bxa': 'b_x_a',
+    'find_cp': 'common_parent',
+    'get_sr': 'shared_regulator',
+    'get_st': 'shared_target',
+    'get_sd': 'shared_downstream'
 }
 
 # Map function name to function

@@ -10,7 +10,6 @@ from os import path, stat
 from typing import Iterable, Union, Dict
 from pathlib import Path
 from datetime import datetime
-from argparse import ArgumentError
 from functools import wraps
 from itertools import repeat, takewhile
 
@@ -49,6 +48,8 @@ def file_opener(fname: str, **kwargs) -> Union[object, pd.DataFrame, Dict]:
         return json_open(fname)
     elif fname.endswith(('csv', 'tsv')):
         return pd.read_csv(fname, **kwargs)  # Can provide e.g. index_col=0
+    elif fname.endswith('h5'):
+        return pd.read_hdf(fname, **kwargs)
     else:
         raise ValueError(f'Unknown file extension for file {fname}')
 
@@ -88,6 +89,9 @@ def s3_file_opener(s3_url: str, unsigned: bool = False, **kwargs) -> \
         raw_file = StringIO(csv_str)
         return pd.read_csv(raw_file, **kwargs)
     else:
+        logger.warning(f'File type {key.split(".")[-1]} not recognized, '
+                       f'returning S3 file stream handler (access from '
+                       f'`res["Body"].read()`)')
         return S3Path.from_string(s3_url).get(s3=s3)
 
 
@@ -297,8 +301,8 @@ def allowed_types(types: Iterable):
             Returns the lowercase of the input string representing the type
         """
         if _type.lower() not in types:
-            raise ArgumentError(f'Provided graph type {_type} not allowed. '
-                                f'Have to be one of {types}')
+            raise ValueError(f'Provided graph type {_type} not allowed. '
+                             f'Have to be one of "{", ".join(types)}"')
         return _type.lower()
     return types_check
 
@@ -321,20 +325,27 @@ def file_path(file_ending: str = None):
             return fpath
         p = Path(fpath)
         if not p.is_file():
-            raise ArgumentError(f'File {fpath} does not exist')
+            raise ValueError(f'File {fpath} does not exist')
         if file_ending and not p.name.endswith(file_ending):
-            raise ArgumentError(f'Unrecognized file type '
-                                f'{p.name.split(".")[-1]}')
+            raise ValueError(f'Unrecognized file type {p.name.split(".")[-1]}')
         return fpath
     return check_path
 
 
 def is_dir_path():
     """Checks if provided path exists"""
-    def is_dir(path):
-        dp = Path(path)
-        if not dp.is_dir():
-            raise ArgumentError(f'Path {path} does not exist')
+    def is_dir(path: str):
+        if path.startswith('s3://'):
+            from indra_db.util.s3_path import S3Path
+            from .aws import get_s3_client
+            s3 = get_s3_client(False)
+            s3dp = S3Path.from_string(path)
+            if not s3dp.exists(s3):
+                raise ValueError(f'Path {path} does not seem to exists')
+        else:
+            dp = Path(path)
+            if not dp.is_dir():
+                raise ValueError(f'Path {path} does not exist')
         return path
     return is_dir
 

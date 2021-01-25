@@ -1,7 +1,7 @@
 import logging
 from math import floor
 from io import BytesIO
-from typing import Tuple, Dict, Union, Hashable
+from typing import Tuple, Dict, Union, Hashable, List, Optional, Any
 from pathlib import Path
 from datetime import datetime
 
@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from indra.util.aws import get_s3_client
+from indra_db.util.s3_path import S3Path
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
 
 logger = logging.getLogger(__name__)
@@ -25,17 +26,34 @@ class DepMapExplainer:
     Attributes
     ----------
     tag : str
+        A string that describes the data
     indra_network_date : str
+        The date of the sif dump used to create the graph
     depmap_date : str
+        The date (usually a quarter e.g. 19Q4) the depmap data was published
+        on depmap.org
     sd_range : Tuple[float, Union[float, None]]
+        A tuple of the lower and optionally the upper bound of the z-score
+        range to use when getting correlations
     info : Dict[str, Any]
+        Dictionary with meta data
     network_type : str
+        The graph type used, e.g. unsigned, signed, pybel
     stats_df : pd.DataFrame
+        The dataframe that per row contains which entity pairs where checked
+        and which explanations were applicable to them.
     expl_df : pd.DataFrame
+        The dataframe that per row contains one explanation type for an entity
+        pair that has been explained and the data supporting the explanation.
     is_signed : bool
+        True if the graph used was signed or not
     summary : Dict[str, int]
+        A dict mapping different explanations to counts of the explanation
     summary_str : str
+        A printable string that summarizes the data in terms of explanation
+        count
     corr_stats_axb : Dict[Dict[str, int]]
+        A Dict containing correlation data for different explanations
 
     Methods
     -------
@@ -59,17 +77,28 @@ class DepMapExplainer:
         Compare the distributions of differently sampled A-X-B correlations
     """
 
-    def __init__(self, stats_columns, expl_columns, info, script_settings,
-                 tag=None, network_type='digraph'):
+    def __init__(self, stats_columns: Tuple[str],
+                 expl_columns: Tuple[str],
+                 info: Dict[Hashable, Any],
+                 script_settings: Dict[str, Union[str, float, int, List[str]]],
+                 tag: Optional[str] = None,
+                 network_type: str = 'digraph'):
         """
         Parameters
         ----------
         stats_columns : Union[List[str], Tuple[str]]
+            Columns for stats_df
         expl_columns : Union[List[str], Tuple[str]]
+            Columns for expl_df
         info : Dict[Hashable, Any]
-        script_settings : Dict[str, Union[str, float, int, List[str]]
+            Dictionary with meta data
+        script_settings : Dict[str, Union[str, float, int, List[str]]]
+            Dictionary containing the settings and input files used to run
+            the script
         tag : str
+            A string that describes the data
         network_type : str
+            The graph type used, e.g. unsigned, signed, pybel
         """
         self.tag = tag
         self.indra_network_date = info.pop('indra_network_date')
@@ -102,11 +131,7 @@ class DepMapExplainer:
         -------
         bool
         """
-        if len(self.stats_df) > 0 or len(self.expl_df) > 0:
-            self._has_data = True
-        else:
-            self._has_data = False
-        return self._has_data
+        return len(self.stats_df) > 0 or len(self.expl_df) > 0
 
     def summarize(self):
         """Count explanations and print a summary count of them"""
@@ -198,6 +223,13 @@ class DepMapExplainer:
 
         return len(set(sr_true).intersection(others_false))
 
+    def get_sd_str(self):
+        """Construct a string """
+        if self.sd_range[1]:
+            return f'{self.sd_range[0]}-{self.sd_range[1]}SD'
+        else:
+            return f'{self.sd_range[0]}+SD'
+
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True):
         """Get statistics of the correlations associated with different
@@ -255,8 +287,8 @@ class DepMapExplainer:
         ----------
         outdir : str
             The output directory to save the plots in. If string starts with
-            's3:' upload to s3. outdir must then have the form
-            's3:<bucket>/<sub_dir>' where <bucket> must be specified and
+            's3://' upload to s3. outdir must then have the form
+            's3://<bucket>/<sub_dir>' where <bucket> must be specified and
             <sub_dir> is optional and may contain subdirectories.
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
@@ -285,20 +317,15 @@ class DepMapExplainer:
             than 10 000. Default: True.
         """
         # Local file or s3
-        if outdir.startswith('s3:'):
-            full_path = outdir.replace('s3:', '').split('/')
-            bucket = full_path[0]
-            if not _bucket_exists(bucket):
-                raise FileNotFoundError(f'The bucket {bucket} seems to not '
-                                        f'exist on s3.')
-            key_base = '/'.join(full_path[1:]) if len(full_path) > 1 else \
-                'output_data_' + datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        if outdir.startswith('s3://'):
+            s3_path = S3Path.from_string(outdir)
+            logger.info(f'Outdir path is on S3: {str(s3_path)}')
             od = None
         else:
-            bucket = None
-            key_base = None
+            s3_path = None
             od = Path(outdir)
             if not od.is_dir():
+                logger.info(f'Creating directory/ies for {od}')
                 od.mkdir(parents=True, exist_ok=True)
 
         # Get corr stats
@@ -306,8 +333,7 @@ class DepMapExplainer:
             z_corr=z_corr, max_proc=max_proc, reactome=reactome,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
-        sd = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
-            if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
+        sd_str = self.get_sd_str()
         for n, (k, v) in enumerate(corr_stats.items()):
             for m, plot_type in enumerate(['all_azb_corrs', 'azb_avg_corrs',
                                            'all_x_corrs', 'avg_x_corrs',
@@ -317,6 +343,7 @@ class DepMapExplainer:
                 if len(v[plot_type]) > 0:
                     name = '%s_%s_%s.pdf' % \
                            (plot_type, k, self.script_settings['graph_type'])
+                    logger.info(f'Using file name {name}')
                     if od is None:
                         fname = BytesIO()
                     else:
@@ -331,7 +358,7 @@ class DepMapExplainer:
                     plt.hist(x=data, bins='auto')
                     title = '%s %s; %s (%s)' % \
                             (plot_type.replace('_', ' ').capitalize(),
-                             k.replace('_', ' '), sd,
+                             k.replace('_', ' '), sd_str,
                              self.script_settings['graph_type'])
                     plt.title(title)
                     plt.xlabel('combined z-score')
@@ -343,9 +370,9 @@ class DepMapExplainer:
                         # Reset pointer
                         fname.seek(0)
                         # Upload to s3
+                        full_s3_path = _joinpath(s3_path, name)
                         _upload_bytes_io_to_s3(bytes_io_obj=fname,
-                                               bucket=bucket,
-                                               key=key_base + '/' + name)
+                                               s3p=full_s3_path)
 
                     # Show plot
                     if show_plot:
@@ -355,7 +382,7 @@ class DepMapExplainer:
                     plt.close(fig_index)
                 else:
                     logger.warning(f'Empty result for {k} ({plot_type}) in '
-                                   f'range {sd} for graph type '
+                                   f'range {sd_str} for graph type '
                                    f'{self.script_settings["graph_type"]}')
 
     def plot_dists(self, outdir, z_corr=None, reactome=None,
@@ -367,8 +394,8 @@ class DepMapExplainer:
         ----------
         outdir : str
             The output directory to save the plots in. If string starts with
-            's3:' upload to s3. outdir must then have the form
-            's3:<bucket>/<sub_dir>' where <bucket> must be specified and
+            's3://' upload to s3. outdir must then have the form
+            's3://<bucket>/<sub_dir>' where <bucket> must be specified and
             <sub_dir> is optional and may contain subdirectories.
         z_corr : pd.DataFrame
             A pd.DataFrame containing the correlation z scores used to
@@ -397,18 +424,11 @@ class DepMapExplainer:
             than 10 000. Default: True.
         """
         # Local file or s3
-        if outdir.startswith('s3:'):
-            full_path = outdir.replace('s3:', '').split('/')
-            bucket = full_path[0]
-            if not _bucket_exists(bucket):
-                raise FileNotFoundError(f'The bucket {bucket} seems to not '
-                                        f'exist on s3.')
-            key_base = '/'.join(full_path[1:]) if len(full_path) > 1 else \
-                'output_data_' + datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        if outdir.startswith('s3://'):
+            s3_path = S3Path.from_string(outdir)
             od = None
         else:
-            bucket = None
-            key_base = None
+            s3_path = None
             od = Path(outdir)
             if not od.is_dir():
                 od.mkdir(parents=True, exist_ok=True)
@@ -432,8 +452,7 @@ class DepMapExplainer:
                      density=True, color='g', alpha=0.3)
             legend.append('A-X-B for X in reactome path')
 
-        sd_str = f'{self.sd_range[0]} - {self.sd_range[1]} SD' \
-            if self.sd_range[1] else f'{self.sd_range[0]}+ SD'
+        sd_str = self.get_sd_str()
         title = 'avg X corrs %s (%s)' % (sd_str,
                                          self.script_settings['graph_type'])
         plt.title(title)
@@ -453,8 +472,9 @@ class DepMapExplainer:
             # Reset pointer
             fname.seek(0)
             # Upload to s3
-            _upload_bytes_io_to_s3(bytes_io_obj=fname, bucket=bucket,
-                                   key=key_base + '/' + name)
+            full_s3_path = _joinpath(s3_path, name)
+            _upload_bytes_io_to_s3(bytes_io_obj=fname,
+                                   s3p=full_s3_path)
 
         # Show plot
         if show_plot:
@@ -464,23 +484,46 @@ class DepMapExplainer:
         plt.close(fig_index)
 
 
-def _upload_bytes_io_to_s3(bytes_io_obj, bucket, key):
+def _upload_bytes_io_to_s3(bytes_io_obj: BytesIO, s3p: S3Path):
     """Upload a BytesIO object to s3
 
     Parameters
     ----------
     bytes_io_obj : BytesIO
         Object to upload
-    bucket : str
-        S3 bucket to save object in
-    key : str
-        S3 key to use for object
+    s3p : S3Path
+        An S3Path instance of the full upload url
     """
+    logger.info(f'Uploading BytesIO object to s3: {str(s3p)}')
     bytes_io_obj.seek(0)  # Just in case
     s3 = get_s3_client(unsigned=False)
-    s3.put_object(Body=bytes_io_obj, Bucket=bucket, Key=key)
+    s3p.put(body=bytes_io_obj, s3=s3)
 
 
 def _bucket_exists(buck):
     s3 = boto3.resource('s3')
     return s3.Bucket(buck).creation_date is not None
+
+
+def _exists(fpath: Union[Path, S3Path]) -> bool:
+    if isinstance(fpath, S3Path):
+        s3 = boto3.client('s3')
+        return fpath.exists(s3)
+    else:
+        return fpath.is_file()
+
+
+def _joinpath(fpath: Union[S3Path, Path], other: str) -> Union[S3Path, Path]:
+    if isinstance(fpath, Path):
+        return fpath.joinpath(other).absolute()
+    else:
+        if fpath.to_string().endswith('/') and not other.startswith('/') or \
+                not fpath.to_string().endswith('/') and other.startswith('/'):
+            return S3Path.from_string(fpath.to_string() + other)
+        elif fpath.to_string().endswith('/') and other.startswith('/'):
+            return S3Path.from_string(fpath.to_string() + other[1:])
+        elif not fpath.to_string().endswith('/') and not other.startswith('/'):
+            return S3Path.from_string(fpath.to_string() + '/' + other)
+        else:
+            raise ValueError(f'Unable to join {fpath.to_string()} and '
+                             f'{other} with "/"')
