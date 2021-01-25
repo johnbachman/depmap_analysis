@@ -173,6 +173,7 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     pd.DataFrame
     """
     if use_descendants:
+        logger.info('Getting descendants to match for expanded signed graph')
         # Get name of descendants
         more_stmt_types = set(stmt_types)
         for s in stmt_types:
@@ -191,6 +192,7 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     expand_sign = df.stmt_type.isin(stmt_types)
 
     # Add sign for signed statements
+    logger.info('Setting initial sign for signed types')
     df.loc[standard_sign, 'initial_sign'] = \
         df.loc[standard_sign, 'stmt_type'].apply(lambda st: sign_dict.get(st))
 
@@ -198,16 +200,19 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     df.loc[expand_sign] = INT_PLUS
 
     # Copy rows for expand sign and switch sign
+    logger.info('Setting initial sign for expanded signed types')
     add_rows = []
     for _, expand_row in df[expand_sign].iterrows():
         exp_row = [INT_MINUS if col == 'initial_sign' else val
                    for col, val in expand_row.items()]
         add_rows.append(exp_row)
 
+    logger.info('Appending extended signed rows')
     extra_df = pd.DataFrame(add_rows, columns=df.columns.values)
     df = df.append(extra_df)
 
     # Remove all rows without assigned sign
+    logger.info('Removing rows without signed')
     df = df[~df.initial_sign.isna()]
 
     return df
