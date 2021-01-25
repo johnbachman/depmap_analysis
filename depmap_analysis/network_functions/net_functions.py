@@ -156,7 +156,17 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     ----------
     df : pd.DataFrame
     sign_dict : Dict[str, int]
+        A dictionary mapping a Statement type to a sign to be used for the
+        edge. By default only Activation and IncreaseAmount are added as
+        positive edges and Inhibition and DecreaseAmount are added as
+        negative edges, but a user can pass any other Statement types in a
+        dictionary.
     stmt_types : List[str]
+        The statement types to match to expand signs to. The rows matching
+        these types will be duplicated and each copy gets a distinct sign.
+    use_descendants : bool
+        If True, also match descendants of the statements provided in
+        'stmt_types' when adding the extended signs.
 
     Returns
     -------
@@ -211,7 +221,11 @@ def unsigned_signed_types(df, sign_dict):
     df : pd.DataFrame
         DataFrame containing interactions from the indra db sif dump
     sign_dict : Dict[str, int]
-        Dict mapping statement type to sign
+        A dictionary mapping a Statement type to a sign to be used for the
+        edge. By default only Activation and IncreaseAmount are added as
+        positive edges and Inhibition and DecreaseAmount are added as
+        negative edges, but a user can pass any other Statement types in a
+        dictionary.
     Returns
     -------
     pd.DataFrame
