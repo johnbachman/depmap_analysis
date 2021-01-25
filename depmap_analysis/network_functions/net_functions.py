@@ -151,8 +151,15 @@ def sif_dump_df_merger(df, mesh_id_dict=None, set_weights=True, verbosity=0):
     df : str|pd.DataFrame
         A dataframe, either as a file path to a pickle or csv, or a pandas
         DataFrame object.
+    graph_type : str
+        Return type for the returned graph. Currently supports:
+            - 'digraph': DiGraph (Default)
+            - 'multidigraph': MultiDiGraph
+            - 'signed': Tuple[DiGraph, MultiDiGraph]
+            - 'signed-expanded': Tuple[DiGraph, MultiDiGraph]
+            - 'digraph-signed-types':  DiGraph
     mesh_id_dict : dict
-        A dict object mapping statement hashes to all mesh ids sharing a 
+        A dict object mapping statement hashes to all mesh ids sharing a
         common PMID
     set_weights : bool
         If True, set the edge weights. Default: True.
@@ -253,9 +260,11 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
         common PMID
     graph_type : str
         Return type for the returned graph. Currently supports:
-            - 'digraph': IndraNet(nx.DiGraph) (Default)
-            - 'multidigraph': IndraNet(nx.MultiDiGraph)
-            - 'signed': IndraNet(nx.DiGraph), IndraNet(nx.MultiDiGraph)
+            - 'digraph': DiGraph (Default)
+            - 'multidigraph': MultiDiGraph
+            - 'signed': Tuple[DiGraph, MultiDiGraph]
+            - 'signed-expanded': Tuple[DiGraph, MultiDiGraph]
+            - 'digraph-signed-types':  DiGraph
     include_entity_hierarchies : bool
         If True, add edges between nodes if they are related ontologically
         with stmt type 'fplx': e.g. BRCA1 is in the BRCA family, so an edge
@@ -263,14 +272,19 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
         this option only is available for the options directed/unsigned graph
         and multidigraph.
     sign_dict : Dict[str, int]
-        todo write docstr
+        A dictionary mapping a Statement type to a sign to be used for the
+        edge. By default only Activation and IncreaseAmount are added as
+        positive edges and Inhibition and DecreaseAmount are added as
+        negative edges, but a user can pass any other Statement types in a
+        dictionary.
     verbosity: int
         Output various messages if > 0. For all messages, set to 4.
 
     Returns
     -------
-    Union[nx.DiGraph, nx.MultiDiGraph]
-        The type is determined by the graph_type argument"""
+    Union[DiGraph, MultiDiGraph, Tuple[DiGraph, MultiDiGraph]]
+        The type is determined by the graph_type argument
+    """
     graph_options = ('digraph', 'multidigraph', 'signed', 'signed-expanded',
                      'digraph-signed-types')
     if graph_type.lower() not in graph_options:
@@ -474,7 +488,7 @@ def db_dump_to_pybel_sg(stmts_list=None, pybel_model=None, belief_dump=None,
 
     Returns
     -------
-    tuple(nx.DiGraph, nx.MultiDiGraph)
+    tuple(DiGraph, MultiDiGraph)
     """
     # Get statement dump:
     # Look for latest file on S3 and pickle.loads it
@@ -767,7 +781,7 @@ def yield_multiple_paths(g, sources, path_len=None, **kwargs):
 
     Parameters
     ----------
-    g : nx.DiGraph
+    g : DiGraph
     sources : list
     path_len : int
         Only produce paths of this length (number of edges)
