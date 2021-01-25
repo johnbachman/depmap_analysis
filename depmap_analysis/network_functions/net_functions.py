@@ -16,7 +16,7 @@ from indra.config import CONFIG_DICT
 from indra.ontology.bio import bio_ontology
 from indra.belief import load_default_probs
 from indra.assemblers.english import EnglishAssembler
-from indra.statements import Agent, get_statement_by_name
+from indra.statements import Agent, get_statement_by_name, get_all_descendants
 from indra.assemblers.indranet import IndraNet
 from indra.assemblers.indranet.net import default_sign_dict
 from indra.databases import get_identifiers_url
@@ -145,7 +145,8 @@ def _english_from_agents_type(agA_name, agB_name, stmt_type):
 
 
 def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
-                  stmt_types: List[str]) -> pd.DataFrame:
+                  stmt_types: List[str], use_descendants: bool = True) \
+        -> pd.DataFrame:
     """Expands out which statements should be added to the signed graph
 
     The statements types provided in 'stmt_types' will be added for both
@@ -161,7 +162,16 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     -------
     pd.DataFrame
     """
-    # Todo: Do class matching instead to catch modifications
+    if use_descendants:
+        # Get name of descendants
+        more_stmt_types = set(stmt_types)
+        for s in stmt_types:
+            more_stmt_types.update({
+                s.__name__ for s in
+                get_all_descendants(get_statement_by_name(s))
+            })
+        stmt_types = list(more_stmt_types)
+
     # Add new sign column, set to None. Using 'initial_sign' allows usage of
     # IndraNet.to_signed_graph
     df['initial_sign'] = None
