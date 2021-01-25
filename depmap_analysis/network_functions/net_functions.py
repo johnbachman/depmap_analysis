@@ -330,7 +330,7 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
                            sign_dict: Optional[Dict[str, int]] = None,
                            stmt_types: Optional[List[str]] = None,
                            verbosity: int = 0) \
-        -> Union[DiGraph, MultiDiGraph, Tuple[DiGraph, MultiDiGraph]]:
+        -> Union[DiGraph, MultiDiGraph, Tuple[MultiDiGraph, DiGraph]]:
     """Return a NetworkX digraph from a pandas dataframe of a db dump
 
     Parameters
