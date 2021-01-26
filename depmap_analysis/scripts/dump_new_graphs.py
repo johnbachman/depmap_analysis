@@ -66,9 +66,5 @@ if __name__ == '__main__':
     parser.add_argument('--pb', help='Dump new PyBel signed edge and node '
                                      'graphs',
                         action='store_true', default=False)
-    parser.add_argument('--s3', help='Also upload the new graphs to s3',
-                        action='store_true', default=False)
-    parser.add_argument('--overwrite', help='Overwrite local files',
-                        action='store_true', default=False)
     args = parser.parse_args()
     dump_new_nets(mdg=args.mdg, dg=args.dg, sg=args.sg, spbg=args.pb)
