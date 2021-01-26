@@ -45,24 +45,24 @@ def get_latest_sif_s3(get_mesh_ids: bool = False) \
                 break
     logger.info(f'Latest files: {", ".join([f for f in necc_keys.values()])}')
     df = load_pickle_from_s3(s3, key=necc_keys[Sif.name], bucket=DUMPS_BUCKET)
-    sif_date = _get_date_from_s3_str(necc_keys[Sif.name])
+    sif_date = _get_date_from_s3_key(necc_keys[Sif.name])
     if get_mesh_ids:
         mid = load_pickle_from_s3(s3,
                                   key=necc_keys[StatementHashMeshId.name],
                                   bucket=DUMPS_BUCKET)
-        meshids_date = _get_date_from_s3_str(
+        meshids_date = _get_date_from_s3_key(
             necc_keys[StatementHashMeshId.name])
         return (df, sif_date), (mid, meshids_date)
 
     return df, sif_date
 
 
-def _get_date_from_s3_str(s3path: str) -> str:
+def _get_date_from_s3_key(s3key: str) -> str:
     # Checks if truly an s3 path
-    patt = re.compile('s3://bigmech/indra-db/dumps/([0-9\-]+)/(.*)')
-    m = patt.match(s3path)
+    patt = re.compile('indra-db/dumps/([0-9\-]+)/(.*)')
+    m = patt.match(s3key)
     if m is None:
-        raise ValueError(f'Invalid format for s3 path: {s3path}')
+        raise ValueError(f'Invalid format for s3 path: {s3key}')
 
     # Split and get second to last directory
     date_str, fname = m.groups()
