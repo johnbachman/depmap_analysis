@@ -26,8 +26,7 @@ def dump_new_nets(mdg: bool = False, dg: bool = False, sg: bool = False,
     options = dict()
 
     if add_mesh_ids:
-        (df, sif_date), (mid, _) = get_latest_sif_s3(
-            get_mesh_ids=True)
+        (df, sif_date), (mid, _) = get_latest_sif_s3(get_mesh_ids=True)
         mid_dict = dict()
         for pair in mid:
             mid_dict.setdefault(pair[0], []).append(pair[1])
