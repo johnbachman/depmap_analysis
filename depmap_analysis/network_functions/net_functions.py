@@ -397,11 +397,16 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
     graph_type = graph_type.lower()
     date = date if date else datetime.now().strftime('%Y-%m-%d')
 
+    if isinstance(df, str):
+        sif_df = file_opener(df)
+    else:
+        sif_df = df
+
     # If signed types: filter out rows that of unsigned types
     if graph_type == 'digraph-signed-types':
-        df = df[df.stmt_type.isin(sign_dict.keys())]
+        sif_df = sif_df[sif_df.stmt_type.isin(sign_dict.keys())]
 
-    sif_df = sif_dump_df_merger(df, graph_type, sign_dict, stmt_types,
+    sif_df = sif_dump_df_merger(sif_df, graph_type, sign_dict, stmt_types,
                                 mesh_id_dict, verbosity=verbosity)
 
     # Map ns:id to node name
