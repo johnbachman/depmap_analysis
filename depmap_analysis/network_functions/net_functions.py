@@ -222,6 +222,15 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     logger.info('Removing rows without signed')
     df = df[~df.initial_sign.isna()]
 
+    # Re-cast sign column as int
+    try:
+        df.initial_sign = df.initial_sign.astype(pd.Int32Dtype())
+    except Exception as exc:
+        link = 'https://pandas.pydata.org/pandas-docs/stable/user_guide' \
+          '/integer_na.html'
+        logger.warning(f'Could not set sign column as Nullable Integer Data '
+                       f'Type. MAke sure to use pandas v0.24+. See {link}')
+
     return df
 
 
