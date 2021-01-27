@@ -204,7 +204,7 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
         df.loc[standard_sign, 'stmt_type'].apply(lambda st: sign_dict.get(st))
 
     # Add positive sign to the rows with types in stmt_types
-    df.loc[expand_sign] = INT_PLUS
+    df.loc[expand_sign, 'initial_sign'] = INT_PLUS
 
     # Copy rows for expand sign and switch sign
     logger.info('Setting initial sign for expanded signed types')
