@@ -36,7 +36,7 @@ def dump_new_nets(mdg: bool = False, dg: bool = False, sg: bool = False,
 
     options.update({'df': df, 'include_entity_hierarchies': True,
                     'verbosity': verbosity, 'date': sif_date})
-    prefix = f'{NETS_PREFIX}/{sif_date}'
+    prefix = f'{NETS_PREFIX}/{sif_date}/'.replace('//', '/')
     if mdg:
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
         dump_pickle_to_s3(INDRA_MDG, network, prefix=prefix)

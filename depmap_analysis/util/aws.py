@@ -111,6 +111,7 @@ def read_json_from_s3(s3, key, bucket):
 def dump_pickle_to_s3(name, pyobj, prefix=''):
     s3 = get_s3_client(unsigned=False)
     key = prefix + name
+    key = key.replace('//', '/')
     s3.put_object(Bucket=NET_BUCKET, Key=key,
                   Body=pickle.dumps(obj=pyobj))
 
