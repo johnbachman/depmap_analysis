@@ -276,6 +276,9 @@ def sif_dump_df_merger(df: pd.DataFrame,
 
     if graph_type == 'signed-expanded' and sign_dict and stmt_types:
         merged_df = expand_signed(merged_df, sign_dict, stmt_types)
+    elif graph_type == 'signed-expanded' and not (sign_dict and stmt_types):
+        raise ValueError('Must provide statement types using variable '
+                         '`stmt_types` to run signed_expanded graph')
 
     if mesh_id_dict is not None:
         hashes = []
