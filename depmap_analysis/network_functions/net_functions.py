@@ -193,7 +193,7 @@ def expand_signed(df: pd.DataFrame, sign_dict: Dict[str, int],
     assert sum(standard_sign) + sum(expand_sign) > 0, \
         'All rows filtered out from DataFrame. Check that statement types ' \
         'in sign_dict and stmt_types exist in the DataFrame.'
-    if sum(expand_sign) > 0:
+    if sum(expand_sign) == 0:
         logger.warning('No rows can be used for expanded signed edges. Check '
                        'that statement types in stmt_types exist in the '
                        'DataFrame.')
