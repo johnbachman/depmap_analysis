@@ -26,8 +26,7 @@ def dump_new_nets(mdg: bool = False, dg: bool = False, sg: bool = False,
     options = dict()
 
     if add_mesh_ids:
-        (df, sif_date), (mid, _) = get_latest_sif_s3(
-            get_mesh_ids=True)
+        (df, sif_date), (mid, _) = get_latest_sif_s3(get_mesh_ids=True)
         mid_dict = dict()
         for pair in mid:
             mid_dict.setdefault(pair[0], []).append(pair[1])
@@ -37,7 +36,7 @@ def dump_new_nets(mdg: bool = False, dg: bool = False, sg: bool = False,
 
     options.update({'df': df, 'include_entity_hierarchies': True,
                     'verbosity': verbosity, 'date': sif_date})
-    prefix = f'{NETS_PREFIX}/{sif_date}'
+    prefix = f'{NETS_PREFIX}/{sif_date}/'.replace('//', '/')
     if mdg:
         network = nf.sif_dump_df_to_digraph(graph_type='multi', **options)
         dump_pickle_to_s3(INDRA_MDG, network, prefix=prefix)
