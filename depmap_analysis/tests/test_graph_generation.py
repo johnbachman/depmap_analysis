@@ -24,6 +24,16 @@ sif_dict = {'agA_name': agA_names, 'agA_ns': agA_ns_list,
             'source_counts': src, 'belief': bd}
 
 
+def _get_df():
+    sif_df = pd.DataFrame(sif_dict)
+    return sif_df
+
+
+def test_df_from_dict():
+    df = _get_df()
+    assert len(agA_names) == len(df)
+
+
 def test_digraph_dump():
     sif_df = pd.DataFrame(sif_dict)
     idg = sif_dump_df_to_digraph(df=sif_df,
