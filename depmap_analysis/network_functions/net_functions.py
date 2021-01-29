@@ -458,16 +458,22 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
         # Get hash to signed edge mapping
         logger.info('Creating dictionary mapping hashes to edges for '
                     'unsigned graph')
-        seg_hash_edge_dict = {}
+        seg_hash_edge_dict = {} if graph_type == 'signed' else defaultdict(set)
         for edge in signed_edge_graph.edges:
             for es in signed_edge_graph.edges[edge]['statements']:
-                seg_hash_edge_dict[es['stmt_hash']] = edge
+                if graph_type == 'signed':
+                    seg_hash_edge_dict[es['stmt_hash']] = edge
+                else:
+                    seg_hash_edge_dict[es['stmt_hash']].add(edge)
         signed_edge_graph.graph['edge_by_hash'] = seg_hash_edge_dict
 
-        sng_hash_edge_dict = {}
+        sng_hash_edge_dict = {} if graph_type == 'signed' else defaultdict(set)
         for edge in signed_node_graph.edges:
             for es in signed_node_graph.edges[edge]['statements']:
-                sng_hash_edge_dict[es['stmt_hash']] = edge
+                if graph_type == 'signed':
+                    sng_hash_edge_dict[es['stmt_hash']] = edge
+                else:
+                    sng_hash_edge_dict[es['stmt_hash']].add(edge)
         signed_node_graph.graph['edge_by_hash'] = sng_hash_edge_dict
 
         return signed_edge_graph, signed_node_graph
