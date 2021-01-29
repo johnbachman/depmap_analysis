@@ -148,10 +148,9 @@ def test_expanded_signed_graph_dump():
 
     # Check signed edge graph
     assert seg.graph.get('edge_by_hash')
-    assert seg.graph['edge_by_hash'][h1] == signed_edge1
-    # Todo: fix the hash to node mapping for expanded graphs: h2 maps to two
-    #  edges
-    assert seg.graph['edge_by_hash'][h2] == signed_edge3
+    assert signed_edge1 in seg.graph['edge_by_hash'][h1]
+    assert signed_edge2 in seg.graph['edge_by_hash'][h2]
+    assert signed_edge3 in seg.graph['edge_by_hash'][h2]
     assert seg.graph.get('node_by_ns_id')
     assert seg.graph.get('date') == date
     assert len(seg.edges) == 3, len(seg.edges)
@@ -176,10 +175,9 @@ def test_expanded_signed_graph_dump():
 
     # Check signed node graph
     assert sng.graph.get('edge_by_hash')
-    assert sng.graph['edge_by_hash'][h1] == sign_node_edge1
-    # Todo: fix the hash to node mapping for expanded graphs: h2 maps to two
-    #  edges
-    assert sng.graph['edge_by_hash'][h2] == sign_node_edge3
+    assert sign_node_edge1 in sng.graph['edge_by_hash'][h1]
+    assert sign_node_edge2 in sng.graph['edge_by_hash'][h2]
+    assert sign_node_edge3 in sng.graph['edge_by_hash'][h2]
     assert sng.graph.get('node_by_ns_id')
     assert sng.graph.get('date') == date
     assert len(sng.edges) == 3
