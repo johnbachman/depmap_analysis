@@ -1,13 +1,10 @@
-# todo:
-#  -Test famplex edges
-#  -How to map hashes to expanded sign edges
 from networkx import DiGraph, MultiDiGraph
 from datetime import datetime
 from typing import Tuple
 import pandas as pd
 from indra.assemblers.indranet.net import default_sign_dict
 from depmap_analysis.network_functions.net_functions import \
-    sif_dump_df_to_digraph
+    sif_dump_df_to_digraph, NP_PRECISION
 
 # Add input
 agA_names = ['nameX1', 'nameX2']
@@ -55,6 +52,32 @@ def test_digraph_dump():
     assert isinstance(idg.edges[('nameX1', 'nameY1')]['statements'], list)
     assert idg.edges[('nameX1', 'nameY1')]['statements'][0]['stmt_hash'] == \
            h1
+
+
+# This test takes ~10 s
+def test_ontological_edges():
+    sif_df = _get_df()
+    date = datetime.utcnow().strftime('%Y-%m-%d')
+    idg: DiGraph = sif_dump_df_to_digraph(df=sif_df, date=date,
+                                          graph_type='digraph',
+                                          include_entity_hierarchies=True)
+    assert len(idg.edges) > 1
+    tested = False
+    for u, v, data in idg.edges(data=True):
+        for sd in data['statements']:
+            if 'fplx' not in sd['stmt_type']:
+                continue
+            assert sd['evidence_count'] == 1
+            assert sd['source_counts'] == {'fplx': 1}
+            assert sd['belief'] == 1.0
+            assert sd['curated']
+            assert sd['weight'] == NP_PRECISION, \
+                f'weight={sd["weight"]}, NP_PRECISION={NP_PRECISION}'
+            assert 'stmt_hash' in sd
+            assert 'curated' in sd
+            tested = True
+        if tested:
+            break
 
 
 def test_signed_graph_dump():
