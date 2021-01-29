@@ -450,6 +450,8 @@ def sif_dump_df_to_digraph(df: Union[pd.DataFrame, str],
         signed_node_graph: DiGraph = signed_edges_to_signed_nodes(
             graph=signed_edge_graph, copy_edge_data=True
         )
+        signed_edge_graph.graph['date'] = date
+        signed_node_graph.graph['date'] = date
         signed_edge_graph.graph['node_by_ns_id'] = ns_id_to_nodename
         signed_node_graph.graph['node_by_ns_id'] = ns_id_to_nodename
 
