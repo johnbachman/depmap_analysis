@@ -1,4 +1,6 @@
+from networkx import DiGraph, MultiDiGraph
 from datetime import datetime
+from typing import Tuple
 import pandas as pd
 from depmap_analysis.network_functions.net_functions import \
     sif_dump_df_to_digraph
@@ -51,11 +53,61 @@ def test_digraph_dump():
            h1
 
 
-def test_digraph_signed_types_dump():
-    pass
-
-
 def test_signed_graph_dump():
+    sif_df = _get_df()
+    signed_edge1 = (agA_names[0], agB_names[0], 0)
+    sign_node_edge1 = ((agA_names[0], 0), (agB_names[0], 0))
+    date = datetime.utcnow().strftime('%Y-%m-%d')
+    seg, sng = \
+        sif_dump_df_to_digraph(df=sif_df, date=date, graph_type='signed',
+                               include_entity_hierarchies=False)
+    assert isinstance(seg, MultiDiGraph), str(seg.__class__)
+    assert isinstance(sng, DiGraph), str(sng.__class__)
+
+    # Check signed edge graph
+    assert seg.graph.get('edge_by_hash')
+    assert seg.graph['edge_by_hash'][h1] == signed_edge1
+    assert seg.graph.get('node_by_ns_id')
+    assert seg.graph.get('date') == date
+    assert len(seg.edges) == 1, len(seg.edges)
+    # All nodes added, skip doesn't happen until nodes added
+    assert len(seg.nodes) == 4, len(seg.nodes)
+    assert seg.nodes[signed_edge1[0]] == {'ns': agA_ns_list[0],
+                                          'id': agA_ids[0]}
+    assert seg.edges.get(signed_edge1)
+    assert 'weight' in seg.edges[signed_edge1]
+    assert isinstance(seg.edges[signed_edge1]['statements'], list)
+    sd = seg.edges[signed_edge1]['statements'][0]
+    assert sd['stmt_hash'] == h1
+    assert sd['stmt_type'] == stmt_types[0]
+    assert sd['belief'] == bd[0]
+    assert sd['evidence_count'] == ev_counts[0]
+    assert sd['source_counts'] == src[0]
+    assert 'curated' in sd
+
+    # Check signed node graph
+    assert sng.graph.get('edge_by_hash')
+    assert sng.graph['edge_by_hash'][h1] == sign_node_edge1
+    assert sng.graph.get('node_by_ns_id')
+    assert sng.graph.get('date') == date
+    assert len(sng.edges) == 1
+    # All nodes added, skip doesn't happen until nodes added
+    assert len(sng.nodes) == 4
+    assert sng.nodes[sign_node_edge1[0]] == {'ns': agA_ns_list[0],
+                                             'id': agA_ids[0]}
+    assert sng.edges.get(sign_node_edge1)
+    assert 'weight' in sng.edges[sign_node_edge1]
+    assert isinstance(sng.edges[sign_node_edge1]['statements'], list)
+    sd = sng.edges[sign_node_edge1]['statements'][0]
+    assert sd['stmt_hash'] == h1
+    assert sd['stmt_type'] == stmt_types[0]
+    assert sd['belief'] == bd[0]
+    assert sd['evidence_count'] == ev_counts[0]
+    assert sd['source_counts'] == src[0]
+    assert 'curated' in sd
+
+
+def test_digraph_signed_types_dump():
     pass
 
 
