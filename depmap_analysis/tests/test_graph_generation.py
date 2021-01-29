@@ -35,12 +35,14 @@ def test_df_from_dict():
 
 
 def test_digraph_dump():
-    sif_df = pd.DataFrame(sif_dict)
+    sif_df = _get_df()
     idg = sif_dump_df_to_digraph(df=sif_df,
                                  date=datetime.utcnow().strftime('%Y-%m-%d'),
                                  graph_type='digraph',
                                  include_entity_hierarchies=False)
     assert idg.graph.get('edge_by_hash')
+    assert idg.graph.get('date')
+    assert idg.graph.get('node_by_ns_id')
     assert idg.graph['edge_by_hash'][h1] == ('nameX1', 'nameY1')
     assert idg.graph['edge_by_hash'][h2] == ('nameX2', 'nameY2')
     assert idg.edges.get(('nameX1', 'nameY1'))
