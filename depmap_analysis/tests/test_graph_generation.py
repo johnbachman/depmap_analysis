@@ -2,6 +2,7 @@ from networkx import DiGraph, MultiDiGraph
 from datetime import datetime
 from typing import Tuple
 import pandas as pd
+from indra.assemblers.indranet.net import default_sign_dict
 from depmap_analysis.network_functions.net_functions import \
     sif_dump_df_to_digraph
 
@@ -108,7 +109,21 @@ def test_signed_graph_dump():
 
 
 def test_digraph_signed_types_dump():
-    pass
+    sif_df = _get_df()
+    date = datetime.utcnow().strftime('%Y-%m-%d')
+    edge = (agA_names[0], agB_names[0])
+    dg_st = sif_dump_df_to_digraph(df=sif_df, date=date,
+                                   graph_type='digraph-signed-types',
+                                   include_entity_hierarchies=False)
+    assert dg_st.graph.get('edge_by_hash')
+    assert dg_st.graph['edge_by_hash'][h1] == edge
+    assert dg_st.graph.get('node_by_ns_id')
+    assert dg_st.graph.get('date') == date
+    assert len(dg_st.edges) == 1, len(dg_st.edges)
+    assert len(dg_st.nodes) == 2, len(dg_st.nodes)
+    assert all(all([sd['stmt_type'] in default_sign_dict
+                    for sd in data['statements']])
+               for _, _, data in dg_st.edges(data=True))
 
 
 def test_expanded_signed_graph_dump():
