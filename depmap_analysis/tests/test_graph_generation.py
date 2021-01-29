@@ -1,3 +1,6 @@
+# todo:
+#  -Test famplex edges
+#  -How to map hashes to expanded sign edges
 from networkx import DiGraph, MultiDiGraph
 from datetime import datetime
 from typing import Tuple
@@ -39,10 +42,10 @@ def test_df_from_dict():
 
 def test_digraph_dump():
     sif_df = _get_df()
-    idg = sif_dump_df_to_digraph(df=sif_df,
-                                 date=datetime.utcnow().strftime('%Y-%m-%d'),
-                                 graph_type='digraph',
-                                 include_entity_hierarchies=False)
+    date = datetime.utcnow().strftime('%Y-%m-%d')
+    idg: DiGraph = sif_dump_df_to_digraph(df=sif_df, date=date,
+                                          graph_type='digraph',
+                                          include_entity_hierarchies=False)
     assert idg.graph.get('edge_by_hash')
     assert idg.graph.get('date')
     assert idg.graph.get('node_by_ns_id')
