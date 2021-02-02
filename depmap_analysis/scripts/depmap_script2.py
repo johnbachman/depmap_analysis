@@ -280,9 +280,12 @@ def match_correlations(corr_z: pd.DataFrame,
         else (strip_out_date(dm_file, r'\d{8}')
               if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
-    estim_pairs = corr_z.notna().sum().sum()
-    print(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} with '
-          f'about {estim_pairs} pairs to check')
+    # Kudos to https://stackoverflow.com/a/45631406/10478812
+    logger.info('Calculating number of pairs to check...')
+    estim_pairs = corr_z.mask(np.triu(np.ones(corr_z.shape)).astype(
+        bool)).notna().sum().sum()
+    logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
+                f'with about {estim_pairs} pairs to check')
     tstart = time()
 
     with mp.Pool() as pool:
