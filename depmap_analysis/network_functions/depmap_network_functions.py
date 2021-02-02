@@ -2135,7 +2135,9 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
     ----------
     available_pairs : int
         Number of pairs in correlation matrix as counted by
-        corr.notna().sum().sum()
+        corr_z.mask(
+            np.triu(np.ones(corr_z.shape)).astype(bool)
+        ).notna().sum().sum()
     size_of_matrix : int
         The number of rows/columns of the correlation matrix as counted by
         len(corr)
