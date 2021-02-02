@@ -18,7 +18,7 @@ def _get_off_diag_pair(max_index: int):
     r = np.random.randint(0, max_index)
     c = np.random.randint(0, max_index)
     while r == c:
-        c = np.random.randn(0, max_index)
+        c = np.random.randint(0, max_index)
     return r, c
 
 
