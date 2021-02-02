@@ -34,6 +34,13 @@ def test_df_pair_calc():
     n_pairs = _get_pairs(a)
     assert n_pairs == int((size**2 - size - 2) / 2)
 
+    # Test having some of the diagonal elements gone as well, this should
+    # not affect the count since diagonal elements should be ignored
+    d = np.random.randint(0, size)
+    a.iloc[d, d] = np.nan
+    n_pairs = _get_pairs(a)
+    assert n_pairs == int((size**2 - size - 2) / 2)
+
 
 def test_down_sampling():
     size = 40
