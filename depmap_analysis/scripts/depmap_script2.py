@@ -280,10 +280,8 @@ def match_correlations(corr_z: pd.DataFrame,
         else (strip_out_date(dm_file, r'\d{8}')
               if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
-    # Kudos to https://stackoverflow.com/a/45631406/10478812
     logger.info('Calculating number of pairs to check...')
-    estim_pairs = corr_z.mask(np.triu(np.ones(corr_z.shape)).astype(
-        bool)).notna().sum().sum()
+    estim_pairs = _get_pairs(corr_z)
     logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
                 f'with about {estim_pairs} pairs to check')
     tstart = time()
@@ -345,6 +343,13 @@ def match_correlations(corr_z: pd.DataFrame,
 
     explainer.has_data = True
     return explainer
+
+
+def _get_pairs(corr_z: pd.DataFrame):
+    # Kudos to https://stackoverflow.com/a/45631406/10478812
+    return corr_z.mask(
+        np.triu(np.ones(corr_z.shape)).astype(bool)
+    ).notna().sum().sum()
 
 
 def success_callback(res):
@@ -569,14 +574,14 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         logger.info(f'Reducing correlation matrix to a random approximately '
                     f'{sample_size} correlation pairs.')
         row_samples = len(z_corr) - 1
-        n_pairs = z_corr.notna().sum().sum()
+        n_pairs = _get_pairs(corr_z=z_corr)
         while n_pairs > int(1.1*sample_size):
             logger.info(f'Down sampling from {n_pairs}')
             z_corr = z_corr.sample(row_samples, axis=0)
             z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
             # Update n_pairs and row_samples
-            n_pairs = z_corr.notna().sum().sum()
+            n_pairs = _get_pairs(corr_z=z_corr)
             mm = max(row_samples - int(np.ceil(0.05*row_samples))
                      if n_pairs - sample_size < np.ceil(0.1*sample_size)
                      else down_sampl_size(n_pairs, len(z_corr), sample_size),
