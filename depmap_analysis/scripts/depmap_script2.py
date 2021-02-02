@@ -352,6 +352,25 @@ def _get_pairs(corr_z: pd.DataFrame):
     ).notna().sum().sum()
 
 
+def _down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+    # Do small initial downsampling
+    row_samples = len(z_corr) - 1
+    n_pairs = _get_pairs(corr_z=z_corr)
+    while n_pairs > int(1.1 * sample_size):
+        logger.info(f'Down sampling from {n_pairs}')
+        z_corr = z_corr.sample(row_samples, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+
+        # Update n_pairs and row_samples
+        n_pairs = _get_pairs(corr_z=z_corr)
+        mm = max(row_samples - int(np.ceil(0.05 * row_samples))
+                 if n_pairs - sample_size < np.ceil(0.1 * sample_size)
+                 else down_sampl_size(n_pairs, len(z_corr), sample_size),
+                 1)
+        row_samples = row_samples - 1 if mm >= row_samples else mm
+    return z_corr
+
+
 def success_callback(res):
     logger.info('Appending a result')
     output_list.append(res)
@@ -573,20 +592,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     if sample_size is not None and not random:
         logger.info(f'Reducing correlation matrix to a random approximately '
                     f'{sample_size} correlation pairs.')
-        row_samples = len(z_corr) - 1
-        n_pairs = _get_pairs(corr_z=z_corr)
-        while n_pairs > int(1.1*sample_size):
-            logger.info(f'Down sampling from {n_pairs}')
-            z_corr = z_corr.sample(row_samples, axis=0)
-            z_corr = z_corr.filter(list(z_corr.index), axis=1)
-
-            # Update n_pairs and row_samples
-            n_pairs = _get_pairs(corr_z=z_corr)
-            mm = max(row_samples - int(np.ceil(0.05*row_samples))
-                     if n_pairs - sample_size < np.ceil(0.1*sample_size)
-                     else down_sampl_size(n_pairs, len(z_corr), sample_size),
-                     1)
-            row_samples = row_samples - 1 if mm >= row_samples else mm
+        z_corr = _down_sample_df(z_corr, sample_size)
 
     # Shuffle corr matrix without removing items
     elif shuffle and not random:
