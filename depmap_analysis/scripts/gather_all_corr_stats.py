@@ -112,6 +112,9 @@ if __name__ == '__main__':
         output_dir = Path(outdir)
 
     dry = args.dry
+    if dry:
+        logger.info('DRY RUN: no calculations are run but file errors are '
+                    'raised for missing files')
 
     if args.max_proc:
         max_proc = floor(args.max_proc)
