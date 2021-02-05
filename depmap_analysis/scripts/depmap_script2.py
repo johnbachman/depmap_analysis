@@ -81,13 +81,15 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                             allowed_ns: Optional[Set[str]] = None,
                             allowed_sources: Optional[Set[str]] = None,
                             is_a_part_of: Optional[List[str]] = None,
-                            immediate_only: bool = False):
+                            immediate_only: Optional[bool] = False,
+                            strict_intermediates: Optional[bool] = False):
     try:
         global indranet
 
         stats_dict = {k: [] for k in stats_columns}
         expl_dict = {k: [] for k in expl_columns}
-        options = {'immediate_only': immediate_only}
+        options = {'immediate_only': immediate_only,
+                   'strict_intermediates': strict_intermediates}
         if is_a_part_of:
             options['is_a_part_of'] = is_a_part_of
         if allowed_ns:
@@ -268,6 +270,7 @@ def match_correlations(corr_z: pd.DataFrame,
         allowed_sources = None
     is_a_part_of = kwargs.get('is_a_part_of')
     immediate_only = kwargs.get('immediate_only', False)
+    strict_intermediates = kwargs.get('strict_intermediates', False)
 
     # Try to get dates of files from file names and file info
     ymd_now = datetime.now().strftime('%Y%m%d')
@@ -309,7 +312,8 @@ def match_correlations(corr_z: pd.DataFrame,
                                  allowed_ns,
                                  allowed_sources,
                                  is_a_part_of,
-                                 immediate_only
+                                 immediate_only,
+                                 strict_intermediates
                              ),
                              callback=success_callback,
                              error_callback=error_callback)
@@ -397,6 +401,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          expl_mapping: Optional[Dict[str, str]] = None,
          is_a_part_of: Optional[List[str]] = None,
          immediate_only: Optional[bool] = False,
+         strict_intermediates: Optional[bool] = False,
          allowed_ns: Optional[List[str]] = None,
          allowed_sources: Optional[List[str]] = None,
          info: Optional[Dict[Hashable, Any]] = None,
@@ -461,6 +466,11 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     immediate_only : Optional[bool]
         Only look for immediate parents. This option might limit the number
         of results that are returned. Default: False.
+    strict_intermediates : Optional[bool]
+        If True: return explanation only when there is a set intersection of
+        nodes up- or downstream of A, B for shared regulators and shared
+        targets, otherwise return if there are successors for either of A or
+        B. Default: False.
     allowed_ns : Optional[List[str]]
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
@@ -553,6 +563,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     run_options['graph_type'] = graph_type
     # Add optional options
     run_options['immediate_only'] = immediate_only
+    run_options['strict_intermediates'] = strict_intermediates
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
     if allowed_sources:
@@ -808,6 +819,10 @@ if __name__ == '__main__':
     parser.add_argument('--immediate-only', action='store_true',
                         help='Only look in immediate parents in common '
                              'parent search.')
+    parser.add_argument('--strict-intermediates', action='store_true',
+                        help='For shared target and shared regulators: only '
+                             'return explanation if there are shared nodes '
+                             'up- or downstream of A-B pair.')
     parser.add_argument('--overwrite', action='store_true',
                         help='Overwrite any output files that already exist.')
     parser.add_argument('--normalize-names', action='store_true',
