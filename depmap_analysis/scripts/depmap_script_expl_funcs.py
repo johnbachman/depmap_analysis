@@ -277,8 +277,11 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         x_nodes = x_set
         x_nodes_union = x_set_union
 
-    # Return if there is anything in union, s_pred or o_pred
-    if x_nodes_union or s_pred or o_pred:
+    # Return x_nodes if strict, else if there is anything in union or s_pred
+    # or o_pred
+    strict = kwargs.get('strict_intermediates', False)
+    if (strict and x_nodes) or \
+            (not strict and x_nodes_union or s_pred or o_pred):
         return s, o, (list(s_pred), list(o_pred),
                       list(x_nodes or []), list(x_nodes_union or []))
     else:
@@ -342,8 +345,11 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         x_nodes = x_set
         x_nodes_union = x_set_union
 
-    # Return if there is any node in union, s_succ or o_succ
-    if x_nodes_union or s_succ or o_succ:
+    # Return x_nodes if strict, else if there is anything in union or s_succ
+    # or o_succ
+    strict = kwargs.get('strict_intermediates', False)
+    if (strict and x_nodes) or \
+            (not strict and x_nodes_union or s_succ or o_succ):
         return s, o, (list(s_succ), list(o_succ),
                       list(x_nodes or []), list(x_nodes_union or []))
     else:
