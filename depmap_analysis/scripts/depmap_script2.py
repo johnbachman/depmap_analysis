@@ -52,7 +52,7 @@ from depmap_analysis.util.io_functions import file_opener, \
 from depmap_analysis.network_functions.net_functions import \
     pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, down_sampl_size, get_pairs
+    corr_matrix_to_generator, down_sampl_size, get_pairs, get_chunk_size
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns
 from depmap_analysis.preprocessing import *
@@ -292,7 +292,7 @@ def match_correlations(corr_z: pd.DataFrame,
     with mp.Pool() as pool:
         MAX_SUB = 512
         n_sub = min(kwargs.get('n-chunks', 256), MAX_SUB)
-        chunksize = max(estim_pairs // n_sub, 1)
+        chunksize = get_chunk_size(n_sub, estim_pairs)
 
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0

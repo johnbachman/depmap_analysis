@@ -178,7 +178,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
 
     corr_value_matrix = corr_df_sample.values
     gene_name_array = corr_df_sample.index.values
-    if not isinstance(gene_name_array[0], str):
+    if isinstance(gene_name_array[0], tuple):
         gene_name_array = [n[0] for n in gene_name_array]
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     # Only get HGNC symbols (first in tuple) since we're gonna compare to
@@ -2186,3 +2186,22 @@ def get_pairs(corr_z: pd.DataFrame) -> int:
     return corr_z.mask(
         np.triu(np.ones(corr_z.shape)).astype(bool)
     ).notna().sum().sum()
+
+
+def get_chunk_size(n_chunks: int, total_items: int) -> int:
+    """Find n such that `(n-1)*n_chunks < total_items <= n*n_chunks`
+
+    Parameters
+    ----------
+    n_chunks : int
+        The number of chunks of iterables wanted
+    total_items : int
+        The total number of items in the original iterable
+
+    Returns
+    -------
+    int
+        Return n in `(n-1)*n_chunks < total_items <= n*n_chunks`
+    """
+    # How many pairs does a chunk need to contain to get chunks_wanted chunks?
+    return max(int(np.ceil(total_items / n_chunks)), 1)
