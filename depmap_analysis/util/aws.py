@@ -1,14 +1,14 @@
+import re
 import json
 import pickle
 import logging
+from typing import Union, Tuple, Any
 from operator import itemgetter
 
 from indra.util.aws import get_s3_file_tree, get_s3_client
-from indra_db.managers.dump_manager import Belief, Sif, StatementHashMeshId,\
-    SourceCount
+from indra_db.managers.dump_manager import Sif, StatementHashMeshId
 
-dumpers = [Belief, Sif, SourceCount]
-dumpers_alt_name = {SourceCount.name: 'src_counts'}
+dumpers = [Sif]
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +16,10 @@ DUMPS_BUCKET = 'bigmech'
 DUMPS_PREFIX = 'indra-db/dumps/'
 NET_BUCKET = 'depmap-analysis'
 NETS_PREFIX = 'graphs/'
-NEW_NETS_PREFIX = NETS_PREFIX + 'new/'
 
 
-def get_latest_sif_s3(get_mesh_ids=False):
+def get_latest_sif_s3(get_mesh_ids: bool = False) \
+        -> Union[Tuple[Any, str], Tuple[Tuple[Any, str], Tuple[Any, str]]]:
     necc_files = [mngr.name for mngr in dumpers]
     if get_mesh_ids:
         necc_files.append(StatementHashMeshId.name)
@@ -33,32 +33,41 @@ def get_latest_sif_s3(get_mesh_ids=False):
     keys.sort(key=lambda t: t[1], reverse=True)
     # Get keys of those pickles
     keys_in_latest_dir = \
-        [k[0] for k in keys if
-         any(nfl in k[0] for nfl in necc_files) or
-         any(dumpers_alt_name.get(nfl, 'null') in k[0] for nfl in necc_files)]
+        [k[0] for k in keys if any(nfl in k[0] for nfl in necc_files)]
     # Map key to resource
     necc_keys = {}
     for n in necc_files:
         for k in keys_in_latest_dir:
             # check name then alt name
-            if n in k or dumpers_alt_name.get(n, 'null') in k:
+            if n in k:
                 # Save and continue to next file in necc_files
                 necc_keys[n] = k
                 break
     logger.info(f'Latest files: {", ".join([f for f in necc_keys.values()])}')
-    df = load_pickle_from_s3(s3, key=necc_keys[Sif.name],
-                             bucket=DUMPS_BUCKET)
-    sev = load_pickle_from_s3(s3, key=necc_keys[SourceCount.name],
-                              bucket=DUMPS_BUCKET)
-    bd = read_json_from_s3(s3, key=necc_keys[Belief.name],
-                           bucket=DUMPS_BUCKET)
+    df = load_pickle_from_s3(s3, key=necc_keys[Sif.name], bucket=DUMPS_BUCKET)
+    sif_date = _get_date_from_s3_key(necc_keys[Sif.name])
     if get_mesh_ids:
         mid = load_pickle_from_s3(s3,
                                   key=necc_keys[StatementHashMeshId.name],
                                   bucket=DUMPS_BUCKET)
-        return df, sev, bd, mid
+        meshids_date = _get_date_from_s3_key(
+            necc_keys[StatementHashMeshId.name])
+        return (df, sif_date), (mid, meshids_date)
 
-    return df, sev, bd
+    return df, sif_date
+
+
+def _get_date_from_s3_key(s3key: str) -> str:
+    # Checks if truly an s3 path
+    patt = re.compile('indra-db/dumps/([0-9\-]+)/(.*)')
+    m = patt.match(s3key)
+    if m is None:
+        raise ValueError(f'Invalid format for s3 path: {s3key}')
+
+    # Split and get second to last directory
+    date_str, fname = m.groups()
+    logger.info(f'Got date {date_str} for {fname}')
+    return date_str
 
 
 def load_pickle_from_s3(s3, key, bucket):
@@ -99,11 +108,12 @@ def read_json_from_s3(s3, key, bucket):
     return json_obj
 
 
-def dump_pickle_to_s3(name, indranet_graph_object, prefix=''):
+def dump_pickle_to_s3(name, pyobj, prefix=''):
     s3 = get_s3_client(unsigned=False)
     key = prefix + name
+    key = key.replace('//', '/')
     s3.put_object(Bucket=NET_BUCKET, Key=key,
-                  Body=pickle.dumps(obj=indranet_graph_object))
+                  Body=pickle.dumps(obj=pyobj))
 
 
 def get_latest_pa_stmt_dump():
