@@ -2162,3 +2162,27 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
 
     # Get number of rows to sample
     return int(np.ceil(p*L))
+
+
+def get_pairs(corr_z: pd.DataFrame) -> int:
+    """Count the number of extracable pairs from a pandas correlation matrix
+
+    Count the number of pairs that can be looped over from the DataFrame
+    correlation matrix from the upper triangle of the matrix (since the
+    matrix is assumed to be symmetric) with NaN's and potential values on
+    the diagonal ignored.
+
+    Parameters
+    ----------
+    corr_z : pd.DataFrame
+        A DataFrame with correlations obtained from pandas.DataFrame.corr()
+
+    Returns
+    -------
+    int
+        The count of pairs that can be looped over
+    """
+    # Kudos to https://stackoverflow.com/a/45631406/10478812
+    return corr_z.mask(
+        np.triu(np.ones(corr_z.shape)).astype(bool)
+    ).notna().sum().sum()

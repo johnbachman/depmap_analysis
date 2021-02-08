@@ -52,7 +52,7 @@ from depmap_analysis.util.io_functions import file_opener, \
 from depmap_analysis.network_functions.net_functions import \
     pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, down_sampl_size
+    corr_matrix_to_generator, down_sampl_size, get_pairs
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns
 from depmap_analysis.preprocessing import *
@@ -284,7 +284,7 @@ def match_correlations(corr_z: pd.DataFrame,
               if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
     logger.info('Calculating number of pairs to check...')
-    estim_pairs = _get_pairs(corr_z)
+    estim_pairs = get_pairs(corr_z)
     logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
                 f'with about {estim_pairs} pairs to check')
     tstart = time()
@@ -349,24 +349,17 @@ def match_correlations(corr_z: pd.DataFrame,
     return explainer
 
 
-def _get_pairs(corr_z: pd.DataFrame):
-    # Kudos to https://stackoverflow.com/a/45631406/10478812
-    return corr_z.mask(
-        np.triu(np.ones(corr_z.shape)).astype(bool)
-    ).notna().sum().sum()
-
-
 def _down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
     # Do small initial downsampling
     row_samples = len(z_corr) - 1
-    n_pairs = _get_pairs(corr_z=z_corr)
+    n_pairs = get_pairs(corr_z=z_corr)
     while n_pairs > int(1.1 * sample_size):
         logger.info(f'Down sampling from {n_pairs}')
         z_corr = z_corr.sample(row_samples, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
         # Update n_pairs and row_samples
-        n_pairs = _get_pairs(corr_z=z_corr)
+        n_pairs = get_pairs(corr_z=z_corr)
         mm = max(row_samples - int(np.ceil(0.05 * row_samples))
                  if n_pairs - sample_size < np.ceil(0.1 * sample_size)
                  else down_sampl_size(n_pairs, len(z_corr), sample_size),
