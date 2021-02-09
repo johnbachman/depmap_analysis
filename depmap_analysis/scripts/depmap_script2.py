@@ -74,7 +74,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                                                  None, None],
                             expl_types: Dict[str, Callable],
                             stats_columns: Tuple[str],
-                            expl_columns: Tuple[str],
+                            expl_cols: Tuple[str],
                             bool_columns: Tuple[str],
                             expl_mapping: Optional[Dict[str, str]],
                             _type: str,
@@ -87,7 +87,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
         global indranet
 
         stats_dict = {k: [] for k in stats_columns}
-        expl_dict = {k: [] for k in expl_columns}
+        expl_dict = {k: [] for k in expl_cols}
         options = {'immediate_only': immediate_only,
                    'strict_intermediates': strict_intermediates}
         if is_a_part_of:
@@ -252,6 +252,7 @@ def match_correlations(corr_z: pd.DataFrame,
 
     bool_columns = ('not_in_graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
+    expl_cols = expl_columns
     expl_mapping = kwargs.get('expl_mapping', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
@@ -307,7 +308,7 @@ def match_correlations(corr_z: pd.DataFrame,
                                  chunk,
                                  expl_types,
                                  stats_columns,
-                                 expl_columns,
+                                 expl_cols,
                                  bool_columns,
                                  expl_mapping,
                                  _type,
