@@ -54,7 +54,7 @@ from depmap_analysis.network_functions.net_functions import \
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, down_sampl_size, get_pairs, get_chunk_size
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
-    id_columns
+    id_columns, expl_columns
 from depmap_analysis.preprocessing import *
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
@@ -252,7 +252,6 @@ def match_correlations(corr_z: pd.DataFrame,
 
     bool_columns = ('not_in_graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
-    expl_columns = min_columns + ('expl_type', 'expl_data')
     expl_mapping = kwargs.get('expl_mapping', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
