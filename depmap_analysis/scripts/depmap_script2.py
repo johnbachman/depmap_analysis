@@ -158,10 +158,13 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                 # s, o, corr, net, graph_type, **kwargs
                 expl_args = (A, B, zsc, indranet, _type)
                 for expl_type, expl_func in expl_types.items():
-                    # Function should return what will be kept in the
-                    # 'expl_data' column of the expl_df
+                    # Function should return:
+                    # -s: str
+                    # -o: str
+                    # -explained: bool
+                    # -expl_data: Any
                     # Some functions reverses A, B hence the s, o assignment
-                    s, o, expl_data = expl_func(*expl_args, **options)
+                    s, o, expl, expl_data = expl_func(*expl_args, **options)
                     if expl_data:
                         # Use original name
                         s_name = s.name if _type == 'pybel' else s

@@ -37,7 +37,7 @@ class FunctionRegistrationError(Exception):
 
 def apriori_explained(s: str, o: str, corr: float,
                       net: Union[DiGraph, MultiDiGraph], _type: str, **kwargs)\
-        -> Tuple[str, str, Union[str, None]]:
+        -> Tuple[str, str, bool, Union[str, None]]:
     """A mock function that is used for a-priori explained pairs
 
     Parameters
@@ -69,13 +69,14 @@ def apriori_explained(s: str, o: str, corr: float,
 
     if why_s or why_o:
         explanation = f'{s}: {why_s}, {o}: {why_o}'
-        return s, o, explanation
+        return s, o, True, explanation
     else:
-        return s, o, None
+        return s, o, False, None
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-            _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+            _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                 List[str]]]:
     """Explain pair by looking for ontological parents
 
     The pair is explained if the two entities have common ontological parents
@@ -131,13 +132,14 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             # if kwargs.get('ns_set'):
             #     parents = {(ns, _id) for ns, _id in parents if ns.lower() in
             #                kwargs['ns_set']} or None
-            return s, o, parents
+            return s, o, True, parents
 
-    return s, o, None
+    return s, o, False, None
 
 
 def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-             _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+             _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                  List[str]]]:
     """Explain pair by looking for intermediate nodes connecting a to b
 
     The pair is considered explained if there is at least one node x
@@ -184,13 +186,14 @@ def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         x_nodes = x_set
 
     if x_nodes:
-        return s, o, list(x_nodes)
+        return s, o, True, list(x_nodes)
     else:
-        return s, o, None
+        return s, o, False, None
 
 
 def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-             _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+             _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                  List[str]]]:
     """Reversal of expl_axb
 
     Parameters
@@ -217,13 +220,14 @@ def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         options = {'o_name': s_name, 's_name': o_name}
     else:
         options = {}
-    return expl_axb(o, s, corr, net, _type, **kwargs, **options)
+    u, v, expl, data = expl_axb(o, s, corr, net, _type, **kwargs, **options)
+    return u, v, expl, data
 
 
 # Shared regulator: A<-X->B
 def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
-        Tuple[str, str,
+        Tuple[str, str, bool,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
     """Explain pair by finding common upstream nodes
 
@@ -284,16 +288,17 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     # or o_pred
     strict = kwargs.get('strict_intermediates', False)
     if (strict and x_nodes) or (not strict and (s_pred or o_pred)):
-        return s, o, (list(s_pred), list(o_pred),
-                      list(x_nodes or []), list(x_nodes_union or []))
+        expl = True
     else:
-        return s, o, None
+        expl = False
+    return s, o, expl, (list(s_pred), list(o_pred), list(x_nodes or []),
+                        list(x_nodes_union or []))
 
 
 # Shared target: A->X<-B
 def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
-        Tuple[str, str,
+        Tuple[str, str, bool,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
     """Explain pair by finding common downstream nodes
 
@@ -351,15 +356,17 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     # or o_succ
     strict = kwargs.get('strict_intermediates', False)
     if (strict and x_nodes) or (not strict and (s_succ or o_succ)):
-        return s, o, (list(s_succ), list(o_succ),
-                      list(x_nodes or []), list(x_nodes_union or []))
+        expl = True
     else:
-        return s, o, None
+        expl = False
+
+    return s, o, expl, (list(s_succ), list(o_succ), list(x_nodes or []),
+                        list(x_nodes_union or []))
 
 
 def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
-        Tuple[str, str,
+        Tuple[str, str, bool,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
     """Explain pair by finding common downstream nodes two edges from s and o
 
@@ -418,14 +425,15 @@ def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             s_y_list = s_y_set
             o_y_list = o_y_set
 
-        return s, o, (list(s_y_list or []), list(o_y_list or []),
-                      list(y_nodes or []), list(y_nodes_union or []))
+        return s, o, True, (list(s_y_list or []), list(o_y_list or []),
+                            list(y_nodes or []), list(y_nodes_union or []))
     else:
-        return s, o, None
+        return s, o, False, None
 
 
 def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-            _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
+            _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                 Tuple[List]]]:
     """Explain pair by checking for an edge between s and o
 
     The pair is explained if there exists and edge between s and o. The edge
@@ -451,13 +459,14 @@ def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     """
     edge_dict = _get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
-        return s, o, edge_dict.get('stmt_hash') if _type == 'pybel' else \
-            edge_dict.get('statements')
-    return s, o, None
+        return s, o, True, edge_dict.get('stmt_hash') if _type == 'pybel' \
+            else edge_dict.get('statements')
+    return s, o, False, None
 
 
 def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-            _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
+            _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                 Tuple[List]]]:
     """Reversal of expl_ab
 
     The pair is explained if there exists and edge between o and s. The edge
@@ -487,7 +496,8 @@ def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         options = {'o_name': s_name, 's_name': o_name}
     else:
         options = {}
-    return expl_ab(o, s, corr, net, _type, **kwargs, **options)
+    u, v, expl, data = expl_ab(o, s, corr, net, _type, **kwargs, **options)
+    return u, v, expl, data
 
 
 def _get_edge_statements(s: str, o: str, corr: float,
@@ -941,3 +951,6 @@ for func in expl_func_list:
             f'for its arguments. The required signature is '
             f'(s, o, cor, net, _type, **kwargs)'
         )
+
+# Check that all func return str, str, bool as first three values
+
