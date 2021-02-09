@@ -128,11 +128,8 @@ def test_iterator_slicing():
 
 
 def test_depmap_script():
-    global indranet
-
     df = get_df()
     idg = get_dg()
-    indranet = idg
 
     # Make correlation matrix with all combinations from the df pairs
     all_names = list(set(df.agA_name.values) | set(df.agB_name.values))
@@ -147,7 +144,6 @@ def test_depmap_script():
     stats_columns = id_columns + bool_columns
     _type = 'unsigned'
 
-    # Will error if the func name wrong
     func_map = {fname: expl_functions[fname] for fname in func_names}
 
     corr_pairs = corr_matrix_to_generator(corr_m)
@@ -155,7 +151,7 @@ def test_depmap_script():
         corr_iter=corr_pairs, expl_types=func_map,
         stats_columns=stats_columns, expl_cols=expl_columns,
         bool_columns=bool_columns, expl_mapping={}, _type=_type,
-        strict_intermediates=True
+        strict_intermediates=True, local_indranet=idg
     )
 
     assert set(stats_columns) == set(stats_dict.keys())
