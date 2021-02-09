@@ -7,7 +7,7 @@ from depmap_analysis.network_functions.depmap_network_functions import \
 from depmap_analysis.scripts.depmap_script2 import _down_sample_df
 
 
-def _gen_sym_matrix(size):
+def _gen_sym_df(size):
     # Get square, symmetric matrix in dataframe
     m = np.random.rand(size, size)
     m = (m + m.T) / 2
@@ -27,7 +27,7 @@ def _get_off_diag_pair(max_index: int):
 
 def test_df_pair_calc():
     size = 4
-    a = _gen_sym_matrix(size)
+    a = _gen_sym_df(size)
 
     # Put NaN's in two symmetrical, but random positions
     row, col = _get_off_diag_pair(size)
@@ -47,7 +47,7 @@ def test_df_pair_calc():
 
 def test_down_sampling():
     size = 40
-    a = _gen_sym_matrix(size)
+    a = _gen_sym_df(size)
 
     pairs = set()
     for n in range(5):
@@ -66,7 +66,7 @@ def test_down_sampling():
 
 def test_iterator_slicing():
     size = 50
-    a = _gen_sym_matrix(size)
+    a = _gen_sym_df(size)
 
     pairs = set()
     n = 0
