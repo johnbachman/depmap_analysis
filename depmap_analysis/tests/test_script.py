@@ -131,8 +131,10 @@ def test_depmap_script():
     df = get_df()
     idg = get_dg()
 
+    not_in_graph = 'not_in_graph'
     # Make correlation matrix with all combinations from the df pairs
-    all_names = list(set(df.agA_name.values) | set(df.agB_name.values))
+    all_names = list(set(df.agA_name.values) | set(df.agB_name.values)) + \
+        [not_in_graph]
     all_names.sort()
     corr_m = _gen_sym_df(len(all_names))
     corr_m.columns = all_names
@@ -156,3 +158,15 @@ def test_depmap_script():
 
     assert set(stats_columns) == set(stats_dict.keys())
     assert set(expl_columns) == set(expl_dict.keys())
+
+    expl_df = pd.DataFrame(expl_dict)
+    stats_df = pd.DataFrame(stats_dict)
+
+    assert all(b for b in
+               stats_df[(stats_df.agA == not_in_graph) |
+                        (stats_df.agB == not_in_graph)].not_in_graph), \
+        str([b for b in stats_df[(stats_df.agA == not_in_graph) |
+                                 (stats_df.agB == not_in_graph)].not_in_graph])
+    assert all(np.isnan(b) for b in
+               stats_df[(stats_df.agA == not_in_graph) |
+                        (stats_df.agB == not_in_graph)].explained)
