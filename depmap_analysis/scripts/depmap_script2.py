@@ -100,7 +100,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             options['expl_mapping'] = expl_mapping
 
         for tup in corr_iter:
-            # Break loop when batch_iter
+            # Break loop when batch_iter reaches None padding
             if tup is None:
                 break
             gA, gB, zsc = tup
