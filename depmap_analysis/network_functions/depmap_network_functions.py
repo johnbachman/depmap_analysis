@@ -2165,7 +2165,7 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
 
 
 def get_pairs(corr_z: pd.DataFrame) -> int:
-    """Count the number of extracable pairs from a pandas correlation matrix
+    """Count the number of extractable pairs from a pandas correlation matrix
 
     Count the number of pairs that can be looped over from the DataFrame
     correlation matrix from the upper triangle of the matrix (since the
@@ -2175,17 +2175,26 @@ def get_pairs(corr_z: pd.DataFrame) -> int:
     Parameters
     ----------
     corr_z : pd.DataFrame
-        A DataFrame with correlations obtained from pandas.DataFrame.corr()
+        A DataFrame with correlations obtained from pandas.DataFrame.corr().
+        The DataFrame is assumed to be pre-filtered such that values
+        filtered out are NaN's.
 
     Returns
     -------
     int
         The count of pairs that can be looped over
     """
-    # Kudos to https://stackoverflow.com/a/45631406/10478812
-    return corr_z.mask(
-        np.triu(np.ones(corr_z.shape)).astype(bool)
-    ).notna().sum().sum()
+    # Expect corr_z to be filtered to the values of interest and that the
+    # values that are filtered out are NaN's
+
+    # Map to boolean with NaN => False, else True
+    bm: pd.DataFrame = (~corr_z.isna())
+
+    # Mask lower triangle and diagonal with zeroes
+    ma = bm.mask(np.tril(np.ones(bm.shape).astype(bool)), other=0)
+
+    # Return sum over full matrix
+    return ma.sum().sum()
 
 
 def get_chunk_size(n_chunks: int, total_items: int) -> int:
