@@ -2194,7 +2194,7 @@ def get_pairs(corr_z: pd.DataFrame) -> int:
     ma = bm.mask(np.tril(np.ones(bm.shape).astype(bool)), other=0)
 
     # Return sum over full matrix
-    return ma.sum().sum()
+    return int(ma.sum().sum())
 
 
 def get_chunk_size(n_chunks: int, total_items: int) -> int:
