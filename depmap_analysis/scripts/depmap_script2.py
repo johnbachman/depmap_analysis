@@ -113,7 +113,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             stats_dict['agA'].append(gA)
             stats_dict['agB'].append(gB)
             stats_dict['pair'].append(pair_key)
-            stats_dict['z-score'].append(zsc)
+            stats_dict['z_score'].append(zsc)
 
             # Skip if A or B not in graph or (if type is pybel) no node
             # mapping exists for either A or B
@@ -122,7 +122,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                     _type != 'pybel' and (gA not in indranet.nodes or
                                           gB not in indranet.nodes):
                 for k in set(stats_dict.keys()).difference(set(min_columns)):
-                    if k == 'not in graph':
+                    if k == 'not_in_graph':
                         # Flag not in graph
                         stats_dict[k].append(True)
                     else:
@@ -169,9 +169,9 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                         expl_dict['agA'].append(s_name)
                         expl_dict['agB'].append(o_name)
                         expl_dict['pair'].append(pair_key)
-                        expl_dict['z-score'].append(zsc)
-                        expl_dict['expl type'].append(expl_type)
-                        expl_dict['expl data'].append(expl_data)
+                        expl_dict['z_score'].append(zsc)
+                        expl_dict['expl_type'].append(expl_type)
+                        expl_dict['expl_data'].append(expl_data)
 
                         # Append to expl_iterations
                         expl_iterations[expl_type].append(expl_data)
@@ -250,9 +250,9 @@ def match_correlations(corr_z: pd.DataFrame,
     if not len(expl_types):
         raise ValueError('No explanation functions provided')
 
-    bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
+    bool_columns = ('not_in_graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
-    expl_columns = min_columns + ('expl type', 'expl data')
+    expl_columns = min_columns + ('expl_type', 'expl_data')
     expl_mapping = kwargs.get('expl_mapping', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
