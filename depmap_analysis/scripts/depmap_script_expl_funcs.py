@@ -24,7 +24,10 @@ from depmap_analysis.network_functions.net_functions import \
 
 
 __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
-           'expl_functions', 'funcname_to_colname']
+           'expl_functions', 'funcname_to_colname', 'apriori', 'axb_colname',
+           'bxa_colname', 'ab_colname', 'ba_colname', 'st_colname',
+           'sr_colname', 'sd_colname', 'cp_colname']
+
 logger = logging.getLogger(__name__)
 
 
@@ -896,6 +899,17 @@ funcname_to_colname = {
 
 # Map function name to function
 expl_functions = {f.__name__: f for f in expl_func_list}
+
+# Set colnames to variables
+apriori = funcname_to_colname['apriori_explained']
+axb_colname = funcname_to_colname['expl_axb']
+bxa_colname = funcname_to_colname['expl_bxa']
+ab_colname = funcname_to_colname['expl_ab']
+ba_colname = funcname_to_colname['expl_ba']
+st_colname = funcname_to_colname['get_st']
+sr_colname = funcname_to_colname['get_sr']
+sd_colname = funcname_to_colname['get_sd']
+cp_colname = funcname_to_colname['find_cp']
 
 # Check that functions added to expl_func_list also exist in name to func map
 try:

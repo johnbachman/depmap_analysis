@@ -1,13 +1,21 @@
 import numpy as np
 import pandas as pd
-from indra.util import batch_iter
+import networkx as nx
+from typing import Optional
 
+from indra.util import batch_iter
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, get_pairs, get_chunk_size
-from depmap_analysis.scripts.depmap_script2 import _down_sample_df
+from depmap_analysis.scripts.depmap_script2 import _down_sample_df, \
+    _match_correlation_body, expl_columns, id_columns
+from depmap_analysis.scripts.depmap_script_expl_funcs import *
+from . import *
 
 
-def _gen_sym_matrix(size):
+indranet: Optional[nx.DiGraph] = None
+
+
+def _gen_sym_df(size):
     # Get square, symmetric matrix in dataframe
     m = np.random.rand(size, size)
     m = (m + m.T) / 2
@@ -27,7 +35,7 @@ def _get_off_diag_pair(max_index: int):
 
 def test_df_pair_calc():
     size = 4
-    a = _gen_sym_matrix(size)
+    a = _gen_sym_df(size)
 
     # Put NaN's in two symmetrical, but random positions
     row, col = _get_off_diag_pair(size)
@@ -47,7 +55,7 @@ def test_df_pair_calc():
 
 def test_down_sampling():
     size = 40
-    a = _gen_sym_matrix(size)
+    a = _gen_sym_df(size)
 
     pairs = set()
     for n in range(5):
@@ -66,7 +74,7 @@ def test_down_sampling():
 
 def test_iterator_slicing():
     size = 50
-    a = _gen_sym_matrix(size)
+    a = _gen_sym_df(size)
 
     pairs = set()
     n = 0
@@ -117,3 +125,38 @@ def test_iterator_slicing():
     # wanted?
     assert chunk_ix + 1 == chunks_wanted, \
         f'chunk_ix+1={chunk_ix + 1}, chunks_wanted={chunks_wanted}'
+
+
+def test_depmap_script():
+    global indranet
+
+    df = get_df()
+    idg = get_dg()
+    indranet = idg
+
+    # Make correlation matrix with all combinations from the df pairs
+    all_names = list(set(df.agA_name.values) | set(df.agB_name.values))
+    all_names.sort()
+    corr_m = _gen_sym_df(len(all_names))
+    corr_m.columns = all_names
+    corr_m.index = all_names
+
+    func_names = ['expl_ab', 'expl_ba', 'expl_axb', 'expl_bxa', 'get_sr',
+                  'get_st']
+    bool_columns = ('not_in_graph', 'explained') + tuple(func_names)
+    stats_columns = id_columns + bool_columns
+    _type = 'unsigned'
+
+    # Will error if the func name wrong
+    func_map = {fname: expl_functions[fname] for fname in func_names}
+
+    corr_pairs = corr_matrix_to_generator(corr_m)
+    stats_dict, expl_dict = _match_correlation_body(
+        corr_iter=corr_pairs, expl_types=func_map,
+        stats_columns=stats_columns, expl_cols=expl_columns,
+        bool_columns=bool_columns, expl_mapping={}, _type=_type,
+        strict_intermediates=True
+    )
+
+    assert set(stats_columns) == set(stats_dict.keys())
+    assert set(expl_columns) == set(expl_dict.keys())
