@@ -82,9 +82,21 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                             allowed_sources: Optional[Set[str]] = None,
                             is_a_part_of: Optional[List[str]] = None,
                             immediate_only: Optional[bool] = False,
-                            strict_intermediates: Optional[bool] = False):
+                            strict_intermediates: Optional[bool] = False,
+                            local_indranet: Optional[nx.DiGraph] = None):
     try:
-        global indranet
+        if local_indranet is not None and len(local_indranet.nodes) > 0:
+            graph = local_indranet
+        else:
+            global indranet
+            graph = indranet
+            try:
+                assert len(graph.nodes)
+                assert len(graph.edges)
+            except AssertionError:
+                raise ValueError(f'indranet seems to be empty with '
+                                 f'{len(graph.nodes)} nodes and '
+                                 f'{len(graph.edges)} edges')
 
         stats_dict = {k: [] for k in stats_columns}
         expl_dict = {k: [] for k in expl_cols}
@@ -119,8 +131,8 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             # mapping exists for either A or B
             if _type == 'pybel' and (gA not in hgnc_node_mapping or
                                      gB not in hgnc_node_mapping) or \
-                    _type != 'pybel' and (gA not in indranet.nodes or
-                                          gB not in indranet.nodes):
+                    _type != 'pybel' and (gA not in graph.nodes or
+                                          gB not in graph.nodes):
                 for k in set(stats_dict.keys()).difference(set(min_columns)):
                     if k == 'not_in_graph':
                         # Flag not in graph
@@ -135,7 +147,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                 a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
                 b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
             else:
-                a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
+                a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, graph)
 
             # Append to stats dict
             stats_dict['agA_ns'].append(a_ns)
@@ -156,7 +168,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             for A, B in expl_iter:
                 # Loop expl functions. Args:
                 # s, o, corr, net, graph_type, **kwargs
-                expl_args = (A, B, zsc, indranet, _type)
+                expl_args = (A, B, zsc, graph, _type)
                 for expl_type, expl_func in expl_types.items():
                     # Function should return:
                     # -s: str
