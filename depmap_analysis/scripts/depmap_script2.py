@@ -104,6 +104,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             if tup is None:
                 break
             gA, gB, zsc = tup
+            pair_key = f'{gA}_{gB}'
             # Initialize current iteration stats
             stats = {k: False for k in bool_columns}
 
@@ -111,6 +112,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             # checks that will skip current iteration
             stats_dict['agA'].append(gA)
             stats_dict['agB'].append(gB)
+            stats_dict['pair'].append(pair_key)
             stats_dict['z-score'].append(zsc)
 
             # Skip if A or B not in graph or (if type is pybel) no node
@@ -166,6 +168,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                         o_name = o.name if _type == 'pybel' else o
                         expl_dict['agA'].append(s_name)
                         expl_dict['agB'].append(o_name)
+                        expl_dict['pair'].append(pair_key)
                         expl_dict['z-score'].append(zsc)
                         expl_dict['expl type'].append(expl_type)
                         expl_dict['expl data'].append(expl_data)
@@ -249,7 +252,7 @@ def match_correlations(corr_z: pd.DataFrame,
 
     bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
-    expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
+    expl_columns = min_columns + ('expl type', 'expl data')
     expl_mapping = kwargs.get('expl_mapping', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
