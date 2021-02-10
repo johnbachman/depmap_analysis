@@ -101,35 +101,11 @@ def common_reactome_paths(s: str, o: str, corr: float,
     -------
 
     """
-    hgnc_id_s = get_current_hgnc_id(s)
-    if isinstance(hgnc_id_s, list):
-        ix = 0
-        while True:
-            try:
-                s_up = get_uniprot_id(hgnc_id_s[ix])
-            except IndexError:
-                s_up = None
-                break
-            if s_up is None:
-                ix += 1
-    else:
-        s_up = get_uniprot_id(hgnc_id_s)
+    s_up = _get_up_from_hgnc(s)
     if s_up is None:
         return s, o, False, None
 
-    hgnc_id_o = get_current_hgnc_id(o)
-    if isinstance(hgnc_id_o, list):
-        ix = 0
-        while True:
-            try:
-                o_up = get_uniprot_id(hgnc_id_o[ix])
-            except IndexError:
-                o_up = None
-                break
-            if o_up is None:
-                ix += 1
-    else:
-        o_up = get_uniprot_id(hgnc_id_o)
+    o_up = get_uniprot_id(o)
     if o_up is None:
         return s, o, False, None
 
@@ -760,6 +736,23 @@ def _get_nnn_set(n: str,
             else:
                 n_x_set.update(g.succ[x])
     return n_x_set
+
+
+def _get_up_from_hgnc(hgnc_gene: str) -> Union[str, None]:
+    hgnc_id = get_current_hgnc_id(hgnc_gene)
+    if isinstance(hgnc_id, list):
+        ix = 0
+        while True:
+            try:
+                up_id = get_uniprot_id(hgnc_id[ix])
+            except IndexError:
+                up_id = None
+                break
+            if up_id is None:
+                ix += 1
+    else:
+        up_id = get_uniprot_id(hgnc_id)
+    return up_id
 
 
 def _node_ns_filter(node_list: Union[Set[str], List[str]],
