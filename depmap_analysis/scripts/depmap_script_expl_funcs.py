@@ -951,7 +951,7 @@ def normalize_corr_names(corr_m: pd.DataFrame,
 
 # Add new function to the tuple
 expl_func_list = (apriori_explained, expl_ab, expl_ba, expl_axb, expl_bxa,
-                  find_cp, get_sr, get_st, get_sd)
+                  find_cp, get_sr, get_st, get_sd, common_reactome_paths)
 
 # Map the name of the function to a more human friendly column name
 funcname_to_colname = {
@@ -963,7 +963,8 @@ funcname_to_colname = {
     'find_cp': 'common_parent',
     'get_sr': 'shared_regulator',
     'get_st': 'shared_target',
-    'get_sd': 'shared_downstream'
+    'get_sd': 'shared_downstream',
+    'common_reactome_paths': 'reactome_paths'
 }
 
 # Map function name to function
@@ -979,6 +980,7 @@ st_colname = funcname_to_colname['get_st']
 sr_colname = funcname_to_colname['get_sr']
 sd_colname = funcname_to_colname['get_sd']
 cp_colname = funcname_to_colname['find_cp']
+react_colname = funcname_to_colname['common_reactome_paths']
 
 # Check that functions added to expl_func_list also exist in name to func map
 try:
