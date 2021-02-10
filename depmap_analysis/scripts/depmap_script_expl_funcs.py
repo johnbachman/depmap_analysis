@@ -78,7 +78,8 @@ def apriori_explained(s: str, o: str, corr: float,
 
 def common_reactome_paths(s: str, o: str, corr: float,
                           net: Union[DiGraph, MultiDiGraph],
-                          _type: str, reactome_dict: Dict[str, List[str]]) \
+                          _type: str, reactome_dict: Dict[str, List[str]],
+                          **kwargs) \
         -> Tuple[str, str, bool, Union[None, List[str]]]:
     """Explain pair by matching common reactome pathways
 
