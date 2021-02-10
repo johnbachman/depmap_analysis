@@ -176,7 +176,10 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                     # -explained: bool
                     # -expl_data: Any
                     # Some functions reverses A, B hence the s, o assignment
-                    s, o, expl, expl_data = expl_func(*expl_args, **options)
+                    s, o, is_expl, expl_data = expl_func(*expl_args, **options)
+
+                    # Append explanation status
+                    expl_iterations[expl_type].append(is_expl)
                     if expl_data:
                         # Use original name
                         s_name = s.name if _type == 'pybel' else s
@@ -188,12 +191,9 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                         expl_dict['expl_type'].append(expl_type)
                         expl_dict['expl_data'].append(expl_data)
 
-                        # Append to expl_iterations
-                        expl_iterations[expl_type].append(expl_data)
-
             # Check which ones got explained
             for expl_type_, expl_data_ in expl_iterations.items():
-                stats[expl_type_] = bool(expl_data_)
+                stats[expl_type_] = any(expl_data_)
 
             # Set explained column
             stats['explained'] = any([b for b in stats.values()])
