@@ -368,7 +368,6 @@ def match_correlations(corr_z: pd.DataFrame,
         explainer.expl_df = explainer.expl_df.append(other=pd.DataFrame(
             data=expl_dict))
 
-    explainer.has_data = True
     return explainer
 
 
