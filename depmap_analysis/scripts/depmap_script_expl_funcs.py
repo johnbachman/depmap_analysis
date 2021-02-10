@@ -27,7 +27,8 @@ from depmap_analysis.network_functions.net_functions import \
 __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
            'expl_functions', 'funcname_to_colname', 'apriori', 'axb_colname',
            'bxa_colname', 'ab_colname', 'ba_colname', 'st_colname',
-           'sr_colname', 'sd_colname', 'cp_colname']
+           'sr_colname', 'sd_colname', 'cp_colname', 'react_colname',
+           'react_funcname']
 
 logger = logging.getLogger(__name__)
 
@@ -966,6 +967,9 @@ funcname_to_colname = {
     'get_sd': 'shared_downstream',
     'common_reactome_paths': 'reactome_paths'
 }
+
+# Set reactome funcname
+react_funcname = 'common_reactome_paths'
 
 # Map function name to function
 expl_functions = {f.__name__: f for f in expl_func_list}
