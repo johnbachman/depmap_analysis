@@ -9,10 +9,10 @@ at the end
 """
 import inspect
 import logging
-import networkx as nx
 from typing import Set, Union, Tuple, List, Optional, Dict
 from itertools import product
 
+import networkx as nx
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
 from pybel.dsl import CentralDogma
@@ -22,7 +22,6 @@ from depmap_analysis.util.io_functions import dump_it_to_pickle
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.net_functions import \
     gilda_normalization, INT_PLUS, INT_MINUS
-
 
 __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
            'expl_functions', 'funcname_to_colname', 'apriori', 'axb_colname',
@@ -57,9 +56,10 @@ def apriori_explained(s: str, o: str, corr: float,
 
     Returns
     -------
-    Tuple[str, str, Union[str, None]]
-        If explained, the tuple (s, o, explanation) is returned,
-        where `explanation` is a string mapped from the subject or object.
+    Tuple[str, str, bool, Union[str, None]]
+        If explained, the tuple (s, o, explained, explanation) is returned,
+        where `explained` is a flags the truthyness of the explanation and
+        `explanation` is a string mapped from the subject and/or object.
     """
     expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
     if expl_mapping is None:
@@ -212,8 +212,9 @@ def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of s, o and a list of the nodes connecting s and o (if any)
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of s, o, a bool flagging if the explanations is explained
+        and a list of the nodes connecting s and o (if any)
     """
     s_succ = set(net.succ[s])
     o_pred = set(net.pred[o])
@@ -263,8 +264,9 @@ def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of o, s and a list of the nodes connecting o and s (if any)
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of o, s, a bool flagging if the explanation is explained and
+        a list of the nodes connecting o and s (if any)
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
@@ -302,10 +304,10 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
     List[str]]]]
-        A tuple of s, o and a tuple of the predecessors of s, o and their
-        intersection and union
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the predecessors of s, o and their intersection and union
     """
     # Filter ns
     if kwargs.get('ns_set'):
@@ -373,10 +375,10 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
     List[str]]]]
-        A tuple of s, o and a tuple of the successors of s, o and their
-        intersection and union
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the successors of s, o and their intersection and union
     """
     s_succ = set(net.succ[s])
     o_succ = set(net.succ[o])
@@ -442,10 +444,11 @@ def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
-    List[str]]]]
-        A tuple of s, o and a tuple of the two-edge successors of s,
-        o and their intersection and union
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
+                                            List[str]]]]
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the two-edge successors of s, o and their intersection
+        and union
     """
     # Get nodes two edges away for subject
     args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'),
@@ -506,8 +509,9 @@ def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List]]]
-        A tuple of s, o and, if the edge s-o exists, the edge meta data
+    Tuple[str, str, bool, Union[None, Tuple[List]]]
+        A tuple of s, o, a bool flagging if the explanation is explained
+        and, if the edge s-o exists, the edge meta data
     """
     edge_dict = _get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
@@ -539,8 +543,9 @@ def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List]]]
-        A tuple of o, s and, if the edge o-s exists, the edge meta data
+    Tuple[str, str, bool, Union[None, Tuple[List]]]
+        A tuple of o, s, a bool flagging if the explanation is explained
+        and, if the edge o-s exists, the edge meta data
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
