@@ -9,30 +9,31 @@ at the end
 """
 import inspect
 import logging
-import networkx as nx
 from typing import Set, Union, Tuple, List, Optional, Dict
 from itertools import product
 
+import networkx as nx
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
 from pybel.dsl import CentralDogma
 
+from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
 from depmap_analysis.util.io_functions import dump_it_to_pickle
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.net_functions import \
     gilda_normalization, INT_PLUS, INT_MINUS
 
-
 __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
            'expl_functions', 'funcname_to_colname', 'apriori', 'axb_colname',
            'bxa_colname', 'ab_colname', 'ba_colname', 'st_colname',
-           'sr_colname', 'sd_colname', 'cp_colname']
+           'sr_colname', 'sd_colname', 'cp_colname', 'react_colname',
+           'react_funcname']
 
 logger = logging.getLogger(__name__)
 
 
 class FunctionRegistrationError(Exception):
-    """Raise when a function does not adhere to set rules for """
+    """Raise when a function does not adhere to the explainer function rules"""
 
 
 def apriori_explained(s: str, o: str, corr: float,
@@ -55,9 +56,10 @@ def apriori_explained(s: str, o: str, corr: float,
 
     Returns
     -------
-    Tuple[str, str, Union[str, None]]
-        If explained, the tuple (s, o, explanation) is returned,
-        where `explanation` is a string mapped from the subject or object.
+    Tuple[str, str, bool, Union[str, None]]
+        If explained, the tuple (s, o, explained, explanation) is returned,
+        where `explained` is a flags the truthyness of the explanation and
+        `explanation` is a string mapped from the subject and/or object.
     """
     expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
     if expl_mapping is None:
@@ -72,6 +74,55 @@ def apriori_explained(s: str, o: str, corr: float,
         return s, o, True, explanation
     else:
         return s, o, False, None
+
+
+def common_reactome_paths(s: str, o: str, corr: float,
+                          net: Union[DiGraph, MultiDiGraph],
+                          _type: str, reactome_dict: Dict[str, Dict],
+                          **kwargs) \
+        -> Tuple[str, str, bool, Union[None, List[str]]]:
+    """Explain pair by matching common reactome pathways
+
+    The pair is explained if they have any common reactome pathways
+
+    Parameters
+    ----------
+    s: str
+        Subject node
+    o: str
+        Object node
+    corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
+    net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
+    _type: str
+        The graph type used
+    reactome_dict: Dict[str, Dict]
+        Dict containing two dicts:
+            - 'uniprot_mapping': Dict[str, List[str]]
+                mapping UP gene ids to reactome pathway ids
+            - 'pathid_name_mapping': Dict[str, str]
+                mapping reactome pathway ids to descriptions
+
+    Returns
+    -------
+    Tuple[str, str, bool, Union[None, List[str]]]
+        s, o, a bool flagging the explanation as explained and, if found,
+        the pathways s and o have in common
+    """
+    s_up = _get_upid_from_hgnc_symbol(s)
+    if s_up is None:
+        return s, o, False, None
+
+    o_up = _get_upid_from_hgnc_symbol(o)
+    if o_up is None:
+        return s, o, False, None
+
+    um = reactome_dict['uniprot_mapping']
+    pnm = reactome_dict['pathid_name_mapping']
+
+    cr = set(um.get(s_up, [])) & set(um.get(o_up, []))
+    return s, o, bool(cr), [pnm[pid] for pid in cr] or None
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
@@ -96,8 +147,9 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of s, o and, if any, the list of common parents
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of s, o, a bool flagging the explanation as explained and,
+        if any, the list of common parents
     """
     if _type == 'pybel':
         s_name = kwargs['s_name']
@@ -160,8 +212,9 @@ def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of s, o and a list of the nodes connecting s and o (if any)
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of s, o, a bool flagging if the explanations is explained
+        and a list of the nodes connecting s and o (if any)
     """
     s_succ = set(net.succ[s])
     o_pred = set(net.pred[o])
@@ -211,8 +264,9 @@ def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of o, s and a list of the nodes connecting o and s (if any)
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of o, s, a bool flagging if the explanation is explained and
+        a list of the nodes connecting o and s (if any)
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
@@ -250,10 +304,10 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
     List[str]]]]
-        A tuple of s, o and a tuple of the predecessors of s, o and their
-        intersection and union
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the predecessors of s, o and their intersection and union
     """
     # Filter ns
     if kwargs.get('ns_set'):
@@ -321,10 +375,10 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
     List[str]]]]
-        A tuple of s, o and a tuple of the successors of s, o and their
-        intersection and union
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the successors of s, o and their intersection and union
     """
     s_succ = set(net.succ[s])
     o_succ = set(net.succ[o])
@@ -390,10 +444,11 @@ def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
-    List[str]]]]
-        A tuple of s, o and a tuple of the two-edge successors of s,
-        o and their intersection and union
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
+                                            List[str]]]]
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the two-edge successors of s, o and their intersection
+        and union
     """
     # Get nodes two edges away for subject
     args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'),
@@ -454,8 +509,9 @@ def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List]]]
-        A tuple of s, o and, if the edge s-o exists, the edge meta data
+    Tuple[str, str, bool, Union[None, Tuple[List]]]
+        A tuple of s, o, a bool flagging if the explanation is explained
+        and, if the edge s-o exists, the edge meta data
     """
     edge_dict = _get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
@@ -487,8 +543,9 @@ def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List]]]
-        A tuple of o, s and, if the edge o-s exists, the edge meta data
+    Tuple[str, str, bool, Union[None, Tuple[List]]]
+        A tuple of o, s, a bool flagging if the explanation is explained
+        and, if the edge o-s exists, the edge meta data
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
@@ -698,6 +755,23 @@ def _get_nnn_set(n: str,
     return n_x_set
 
 
+def _get_upid_from_hgnc_symbol(hgnc_gene: str) -> Union[str, None]:
+    hgnc_id = get_current_hgnc_id(hgnc_gene)
+    if isinstance(hgnc_id, list):
+        ix = 0
+        while True:
+            try:
+                up_id = get_uniprot_id(hgnc_id[ix])
+            except IndexError:
+                up_id = None
+                break
+            if up_id is None:
+                ix += 1
+    else:
+        up_id = get_uniprot_id(hgnc_id)
+    return up_id
+
+
 def _node_ns_filter(node_list: Union[Set[str], List[str]],
                     net: Union[DiGraph, MultiDiGraph],
                     allowed_ns: Union[Set[str], List[str], Tuple[str]]) \
@@ -892,7 +966,7 @@ def normalize_corr_names(corr_m: pd.DataFrame,
 
 # Add new function to the tuple
 expl_func_list = (apriori_explained, expl_ab, expl_ba, expl_axb, expl_bxa,
-                  find_cp, get_sr, get_st, get_sd)
+                  find_cp, get_sr, get_st, get_sd, common_reactome_paths)
 
 # Map the name of the function to a more human friendly column name
 funcname_to_colname = {
@@ -904,8 +978,12 @@ funcname_to_colname = {
     'find_cp': 'common_parent',
     'get_sr': 'shared_regulator',
     'get_st': 'shared_target',
-    'get_sd': 'shared_downstream'
+    'get_sd': 'shared_downstream',
+    'common_reactome_paths': 'reactome_paths'
 }
+
+# Set reactome funcname
+react_funcname = 'common_reactome_paths'
 
 # Map function name to function
 expl_functions = {f.__name__: f for f in expl_func_list}
@@ -920,6 +998,7 @@ st_colname = funcname_to_colname['get_st']
 sr_colname = funcname_to_colname['get_sr']
 sd_colname = funcname_to_colname['get_sd']
 cp_colname = funcname_to_colname['find_cp']
+react_colname = funcname_to_colname['common_reactome_paths']
 
 # Check that functions added to expl_func_list also exist in name to func map
 try:
@@ -943,14 +1022,14 @@ except AssertionError:
 for func in expl_func_list:
     try:
         assert \
-            {'_type', 'corr', 'kwargs', 'net', 'o', 's'} == \
-            set(inspect.signature(func).parameters.keys())
+            {'_type', 'corr', 'net', 'o', 's'}.issubset(
+                set(inspect.signature(func).parameters.keys()))
     except AssertionError:
         raise FunctionRegistrationError(
-            f'Function "{func.__name__}" does not have the required signature '
-            f'for its arguments. The required signature is '
-            f'(s, o, cor, net, _type, **kwargs)'
+            f'Function "{func.__name__}" does not have the required minimum '
+            f'signature for its arguments. The required signature is '
+            f'(s, o, corr, net, _type, **kwargs)'
         )
 
-# Check that all func return str, str, bool as first three values
+# todo Check that all func return str, str, bool as first three values
 
