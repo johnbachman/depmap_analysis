@@ -482,11 +482,10 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     immediate_only : Optional[bool]
         Only look for immediate parents. This option might limit the number
         of results that are returned. Default: False.
-    strict_intermediates : Optional[bool]
-        If True: return explanation only when there is a set intersection of
-        nodes up- or downstream of A, B for shared regulators and shared
-        targets, otherwise return if there are successors for either of A or
-        B. Default: False.
+    return_unexplained : Optional[bool]
+        If True: return explanation data even if there is no set
+        intersection of nodes up- or downstream of A, B for shared
+        regulators and shared targets. Default: False.
     reactome_dict : Dict[str, Any]
         Mapping from gene UP ID to its associated reactome pathways
     allowed_ns : Optional[List[str]]
@@ -839,9 +838,13 @@ if __name__ == '__main__':
                         help='Only look in immediate parents in common '
                              'parent search.')
     parser.add_argument('--return-unexplained', action='store_true',
-                        help='For shared target and shared regulators: only '
-                             'return explanation if there are shared nodes '
-                             'up- or downstream of A-B pair.')
+                        help='For shared target and shared regulators: '
+                             'return explanation data even if there is no '
+                             'set intersection of nodes up- or downstream of '
+                             'A, B. The explanation will be marked as '
+                             'unexplained in its column in the stats data '
+                             'frame, but the data will still be reported in '
+                             'the explanations data frame')
     parser.add_argument('--reactome-dict', type=file_path('pkl'),
                         help='Path to reactome file.')
     parser.add_argument('--overwrite', action='store_true',
