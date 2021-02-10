@@ -927,7 +927,9 @@ if __name__ == '__main__':
         arg_dict['expl_mapping'] = expl_map
 
     if args.reactome_dict:
-        arg_dict['reactome_dict'] = file_opener(args.reactome_dict)[0]
+        up2path, _, pathid2pathname = file_opener(args.reactome_dict)
+        arg_dict['reactome_dict'] = {'uniprot_mapping': up2path,
+                                     'pathid_name_mapping': pathid2pathname}
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
