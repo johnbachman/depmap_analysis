@@ -81,6 +81,8 @@ def common_reactome_paths(s: str, o: str, corr: float,
         -> Tuple[str, str, bool, Union[None, List[str]]]:
     """Explain pair by matching common reactome pathways
 
+    The pair is explained if they have any common reactome pathways
+
     Parameters
     ----------
     s: str
