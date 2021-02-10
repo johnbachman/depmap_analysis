@@ -78,7 +78,7 @@ def apriori_explained(s: str, o: str, corr: float,
 
 def common_reactome_paths(s: str, o: str, corr: float,
                           net: Union[DiGraph, MultiDiGraph],
-                          _type: str, reactome_dict: Dict[str, List[str]],
+                          _type: str, reactome_dict: Dict[str, Dict],
                           **kwargs) \
         -> Tuple[str, str, bool, Union[None, List[str]]]:
     """Explain pair by matching common reactome pathways
@@ -106,7 +106,9 @@ def common_reactome_paths(s: str, o: str, corr: float,
 
     Returns
     -------
-
+    Tuple[str, str, bool, Union[None, List[str]]]
+        s, o, a bool flagging the explanation as explained and, if found,
+        the pathways s and o have in common
     """
     s_up = _get_upid_from_hgnc_symbol(s)
     if s_up is None:
@@ -145,8 +147,9 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of s, o and, if any, the list of common parents
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of s, o, a bool flagging the explanation as explained and,
+        if any, the list of common parents
     """
     if _type == 'pybel':
         s_name = kwargs['s_name']
@@ -1023,5 +1026,5 @@ for func in expl_func_list:
             f'(s, o, corr, net, _type, **kwargs)'
         )
 
-# Check that all func return str, str, bool as first three values
+# todo Check that all func return str, str, bool as first three values
 
