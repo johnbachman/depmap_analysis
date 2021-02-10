@@ -109,7 +109,7 @@ def common_reactome_paths(s: str, o: str, corr: float,
     if s_up is None:
         return s, o, False, None
 
-    o_up = get_uniprot_id(o)
+    o_up = _get_upid_from_hgnc_symbol(o)
     if o_up is None:
         return s, o, False, None
 
