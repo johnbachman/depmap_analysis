@@ -199,7 +199,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
 
             # Set explained column (ignore reactome)
             stats['explained'] = any([b for k, b in stats.items() if k !=
-                                      react_funcname])
+                                      react_colname])
 
             # Add stats to stats_dict
             for expl_tp in stats:
