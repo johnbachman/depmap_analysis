@@ -1,8 +1,11 @@
 import numpy as np
 import pandas as pd
-from typing import Dict
+import networkx as nx
+from typing import Dict, Callable
 
 from indra.util import batch_iter
+from indra.databases.hgnc_client import uniprot_ids, hgnc_names
+from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, get_pairs, get_chunk_size
 from depmap_analysis.scripts.depmap_script2 import _down_sample_df, \
@@ -214,3 +217,25 @@ def test_depmap_script():
     assert expl_df[
                (expl_df.pair == p) & (expl_df.expl_type == 'get_st')
     ].expl_data.values[0][2] == ['Z1']
+
+
+def test_reactome_expl():
+    reactome_dict = file_opener(
+        's3://depmap-analysis/misc_files/reactome_pathways.pkl')[0]
+
+    react_func: Callable = expl_functions[react_funcname]
+    reverse_uniprot = {v: k for k, v in uniprot_ids.items()}
+    up1 = 'A0A075B6P5'
+    up2 = 'A5LHX3'
+    res = {'R-HSA-2871837'}
+    assert res == set(reactome_dict[up1]) & set(reactome_dict[up2])
+
+    hgnc_id1 = reverse_uniprot[up1]
+    hgnc_name1 = hgnc_names[hgnc_id1]
+    hgnc_id2 = reverse_uniprot[up2]
+    hgnc_name2 = hgnc_names[hgnc_id2]
+    func_args = (hgnc_name1, hgnc_name2, 0.0, nx.DiGraph(), 'unsigned',
+                 reactome_dict)
+    s, o, explained, data = react_func(*func_args)
+    assert explained
+    assert data == res, str(data or 'None returned')
