@@ -61,7 +61,7 @@ def apriori_explained(s: str, o: str, corr: float,
     """
     expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
     if expl_mapping is None:
-        return s, o, None
+        return s, o, False, None
 
     # Get a-priori explanations for s and o
     why_s = expl_mapping.get(s)
