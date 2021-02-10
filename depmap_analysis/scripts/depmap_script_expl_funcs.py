@@ -97,9 +97,12 @@ def common_reactome_paths(s: str, o: str, corr: float,
         The indra graph used to explain the correlation between s and o
     _type: str
         The graph type used
-    reactome_dict: Dict[str, List[str]]
-        Dict mapping gene names to reactome pathway identifiers. The dict is
-        keyed by gene UP IDs, so s and o must be translated to UP.
+    reactome_dict: Dict[str, Dict]
+        Dict containing two dicts:
+            - 'uniprot_mapping': Dict[str, List[str]]
+                mapping UP gene ids to reactome pathway ids
+            - 'pathid_name_mapping': Dict[str, str]
+                mapping reactome pathway ids to descriptions
 
     Returns
     -------
@@ -113,9 +116,11 @@ def common_reactome_paths(s: str, o: str, corr: float,
     if o_up is None:
         return s, o, False, None
 
-    common_reactome = set(reactome_dict.get(s_up, [])) & \
-        set(reactome_dict.get(o_up, []))
-    return s, o, bool(common_reactome), common_reactome or None
+    um = reactome_dict['uniprot_mapping']
+    pnm = reactome_dict['pathid_name_mapping']
+
+    cr = set(um.get(s_up, [])) & set(um.get(o_up, []))
+    return s, o, bool(cr), [pnm[pid] for pid in cr] or None
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
