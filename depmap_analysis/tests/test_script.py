@@ -13,6 +13,8 @@ from depmap_analysis.scripts.depmap_script2 import _down_sample_df, \
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from . import *
 
+reverse_uniprot = {v: k for k, v in uniprot_ids.items()}
+
 
 def _gen_sym_df(size):
     # Get square, symmetric matrix in dataframe
@@ -127,32 +129,47 @@ def test_iterator_slicing():
 
 
 def test_depmap_script():
+    reactome_dict = file_opener(
+        's3://depmap-analysis/misc_files/reactome_pathways.pkl')[0]
     df = get_df()
     idg = get_dg()
 
+    up1 = 'A0A075B6P5'
+    up2 = 'A5LHX3'
+    hgnc_id1 = reverse_uniprot[up1]
+    hgnc_name1 = hgnc_names[hgnc_id1]
+    hgnc_id2 = reverse_uniprot[up2]
+    hgnc_name2 = hgnc_names[hgnc_id2]
+
+    idg.add_node(hgnc_name1, ns='HGNC', id=hgnc_id1)
+    idg.add_node(hgnc_name2, ns='HGNC', id=hgnc_id2)
     not_in_graph = 'not_in_graph'
+
     # Make correlation matrix with all combinations from the df pairs
     all_names = list(set(df.agA_name.values) | set(df.agB_name.values)) + \
-        [not_in_graph]
+        [not_in_graph, hgnc_name1, hgnc_name2]
     all_names.sort()
     corr_m = _gen_sym_df(len(all_names))
     corr_m.columns = all_names
     corr_m.index = all_names
 
     func_names = ['expl_ab', 'expl_ba', 'expl_axb', 'expl_bxa', 'get_sr',
-                  'get_st']
-    bool_columns = ('not_in_graph', 'explained') + tuple(func_names)
-    stats_columns = id_columns + bool_columns
-    _type = 'unsigned'
+                  'get_st', react_funcname]
 
-    func_map = {fname: expl_functions[fname] for fname in func_names}
+    func_map = {funcname_to_colname[fname]: expl_functions[fname]
+                for fname in func_names}
+    bool_columns = ('not_in_graph', 'explained') + tuple(func_map.keys())
+    stats_columns = id_columns + bool_columns
+
+    _type = 'unsigned'
 
     corr_pairs = corr_matrix_to_generator(corr_m)
     stats_dict, expl_dict = _match_correlation_body(
         corr_iter=corr_pairs, expl_types=func_map,
         stats_columns=stats_columns, expl_cols=expl_columns,
         bool_columns=bool_columns, expl_mapping={}, _type=_type,
-        strict_intermediates=True, local_indranet=idg
+        strict_intermediates=True, reactome_dict=reactome_dict,
+        local_indranet=idg
     )
 
     assert set(stats_columns) == set(stats_dict.keys())
@@ -175,12 +192,13 @@ def test_depmap_script():
 
     expected = {'not_in_graph': False,
                 'explained': True,
-                'expl_ab': False,
-                'expl_ba': False,
-                'expl_axb': False,  # Not True, as pairs go alphabetically
-                'expl_bxa': True,  # True from testing Y2,Z2
-                'get_sr': False,
-                'get_st': False}
+                ab_colname: False,
+                ba_colname: False,
+                axb_colname: False,  # Not True, as pairs go alphabetically
+                bxa_colname: True,  # True from testing Y2,Z2
+                sr_colname: False,
+                st_colname: False,
+                react_colname: False}
     p = 'Y2_Z2'
     res = stats_df[list(bool_columns)][stats_df.pair == p].to_dict(
         orient='records')[0]
@@ -188,23 +206,24 @@ def test_depmap_script():
         assert b == expected[k]
 
     assert expl_df[
-               (expl_df.pair == p) & (expl_df.expl_type == 'expl_bxa')
+               (expl_df.pair == p) & (expl_df.expl_type == bxa_colname)
     ].expl_data.values[0] == ['X2']
     assert expl_df[
-               (expl_df.pair == p) & (expl_df.expl_type == 'get_sr')
+               (expl_df.pair == p) & (expl_df.expl_type == sr_colname)
     ].expl_data.values[0][2] == []
     assert expl_df[
-               (expl_df.pair == p) & (expl_df.expl_type == 'get_st')
+               (expl_df.pair == p) & (expl_df.expl_type == st_colname)
     ].expl_data.values[0][2] == []
 
     expected = {'not_in_graph': False,
                 'explained': True,
-                'expl_ab': False,
-                'expl_ba': False,
-                'expl_axb': False,
-                'expl_bxa': False,
-                'get_sr': True,
-                'get_st': True}
+                ab_colname: False,
+                ba_colname: False,
+                axb_colname: False,
+                bxa_colname: False,
+                sr_colname: True,
+                st_colname: True,
+                react_colname: False}
     p = 'X1_X2'
     res: Dict = stats_df[list(bool_columns)][stats_df.pair == p].to_dict(
         orient='records')[0]
@@ -212,11 +231,18 @@ def test_depmap_script():
         assert b == expected[k]
 
     assert expl_df[
-               (expl_df.pair == p) & (expl_df.expl_type == 'get_sr')
+               (expl_df.pair == p) & (expl_df.expl_type == sr_colname)
     ].expl_data.values[0][2] == ['Z2']
     assert expl_df[
-               (expl_df.pair == p) & (expl_df.expl_type == 'get_st')
+               (expl_df.pair == p) & (expl_df.expl_type == st_colname)
     ].expl_data.values[0][2] == ['Z1']
+
+    # Check that reactome is explained, and not counted as among the explained
+    len_react = len(stats_df[stats_df[react_colname] == True])
+    assert len_react == 1, len_react
+    len_react = len(stats_df[(stats_df[react_colname] == True) &
+                             (stats_df.explained == False)])
+    assert len_react == 1, len_react
 
 
 def test_reactome_expl():
@@ -224,7 +250,6 @@ def test_reactome_expl():
         's3://depmap-analysis/misc_files/reactome_pathways.pkl')[0]
 
     react_func: Callable = expl_functions[react_funcname]
-    reverse_uniprot = {v: k for k, v in uniprot_ids.items()}
     up1 = 'A0A075B6P5'
     up2 = 'A5LHX3'
     res = {'R-HSA-2871837'}
