@@ -1008,13 +1008,13 @@ except AssertionError:
 for func in expl_func_list:
     try:
         assert \
-            {'_type', 'corr', 'kwargs', 'net', 'o', 's'} == \
-            set(inspect.signature(func).parameters.keys())
+            {'_type', 'corr', 'net', 'o', 's'}.issubset(
+                set(inspect.signature(func).parameters.keys()))
     except AssertionError:
         raise FunctionRegistrationError(
-            f'Function "{func.__name__}" does not have the required signature '
-            f'for its arguments. The required signature is '
-            f'(s, o, cor, net, _type, **kwargs)'
+            f'Function "{func.__name__}" does not have the required minimum '
+            f'signature for its arguments. The required signature is '
+            f'(s, o, corr, net, _type, **kwargs)'
         )
 
 # Check that all func return str, str, bool as first three values
