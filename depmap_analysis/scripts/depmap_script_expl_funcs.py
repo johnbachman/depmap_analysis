@@ -105,7 +105,7 @@ def common_reactome_paths(s: str, o: str, corr: float,
     -------
 
     """
-    s_up = _get_up_from_hgnc(s)
+    s_up = _get_upid_from_hgnc_symbol(s)
     if s_up is None:
         return s, o, False, None
 
@@ -742,7 +742,7 @@ def _get_nnn_set(n: str,
     return n_x_set
 
 
-def _get_up_from_hgnc(hgnc_gene: str) -> Union[str, None]:
+def _get_upid_from_hgnc_symbol(hgnc_gene: str) -> Union[str, None]:
     hgnc_id = get_current_hgnc_id(hgnc_gene)
     if isinstance(hgnc_id, list):
         ix = 0
