@@ -169,7 +169,7 @@ def test_depmap_script():
         corr_iter=corr_pairs, expl_types=func_map,
         stats_columns=stats_columns, expl_cols=expl_columns,
         bool_columns=bool_columns, expl_mapping={}, _type=_type,
-        strict_intermediates=True, reactome_dict=reactome_dict,
+        return_unexplained=False, reactome_dict=reactome_dict,
         local_indranet=idg
     )
 
