@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
-import networkx as nx
-from typing import Optional
+from typing import Dict
 
 from indra.util import batch_iter
 from depmap_analysis.network_functions.depmap_network_functions import \
@@ -10,9 +9,6 @@ from depmap_analysis.scripts.depmap_script2 import _down_sample_df, \
     _match_correlation_body, expl_columns, id_columns
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from . import *
-
-
-indranet: Optional[nx.DiGraph] = None
 
 
 def _gen_sym_df(size):
@@ -162,11 +158,59 @@ def test_depmap_script():
     expl_df = pd.DataFrame(expl_dict)
     stats_df = pd.DataFrame(stats_dict)
 
+    # Test content
+    # Any connection with not_in_graph should be
     assert all(b for b in
                stats_df[(stats_df.agA == not_in_graph) |
                         (stats_df.agB == not_in_graph)].not_in_graph), \
         str([b for b in stats_df[(stats_df.agA == not_in_graph) |
                                  (stats_df.agB == not_in_graph)].not_in_graph])
+
     assert all(np.isnan(b) for b in
                stats_df[(stats_df.agA == not_in_graph) |
                         (stats_df.agB == not_in_graph)].explained)
+
+    expected = {'not_in_graph': False,
+                'explained': True,
+                'expl_ab': False,
+                'expl_ba': False,
+                'expl_axb': False,  # Not True, as pairs go alphabetically
+                'expl_bxa': True,  # True from testing Y2,Z2
+                'get_sr': False,
+                'get_st': False}
+    p = 'Y2_Z2'
+    res = stats_df[list(bool_columns)][stats_df.pair == p].to_dict(
+        orient='records')[0]
+    for k, b in res.items():
+        assert b == expected[k]
+
+    assert expl_df[
+               (expl_df.pair == p) & (expl_df.expl_type == 'expl_bxa')
+    ].expl_data.values[0] == ['X2']
+    assert expl_df[
+               (expl_df.pair == p) & (expl_df.expl_type == 'get_sr')
+    ].expl_data.values[0][2] == []
+    assert expl_df[
+               (expl_df.pair == p) & (expl_df.expl_type == 'get_st')
+    ].expl_data.values[0][2] == []
+
+    expected = {'not_in_graph': False,
+                'explained': True,
+                'expl_ab': False,
+                'expl_ba': False,
+                'expl_axb': False,
+                'expl_bxa': False,
+                'get_sr': True,
+                'get_st': True}
+    p = 'X1_X2'
+    res: Dict = stats_df[list(bool_columns)][stats_df.pair == p].to_dict(
+        orient='records')[0]
+    for k, b in res.items():
+        assert b == expected[k]
+
+    assert expl_df[
+               (expl_df.pair == p) & (expl_df.expl_type == 'get_sr')
+    ].expl_data.values[0][2] == ['Z2']
+    assert expl_df[
+               (expl_df.pair == p) & (expl_df.expl_type == 'get_st')
+    ].expl_data.values[0][2] == ['Z1']
