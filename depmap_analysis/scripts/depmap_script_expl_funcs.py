@@ -17,6 +17,7 @@ import pandas as pd
 from networkx import DiGraph, MultiDiGraph
 from pybel.dsl import CentralDogma
 
+from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
 from depmap_analysis.util.io_functions import dump_it_to_pickle
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.net_functions import \
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 class FunctionRegistrationError(Exception):
-    """Raise when a function does not adhere to set rules for """
+    """Raise when a function does not adhere to the explainer function rules"""
 
 
 def apriori_explained(s: str, o: str, corr: float,
@@ -72,6 +73,69 @@ def apriori_explained(s: str, o: str, corr: float,
         return s, o, True, explanation
     else:
         return s, o, False, None
+
+
+def common_reactome_paths(s: str, o: str, corr: float,
+                          net: Union[DiGraph, MultiDiGraph],
+                          _type: str, reactome_dict: Dict[str, List[str]]) \
+        -> Tuple[str, str, bool, Union[None, List[str]]]:
+    """Explain pair by matching common reactome pathways
+
+    Parameters
+    ----------
+    s: str
+        Subject node
+    o: str
+        Object node
+    corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
+    net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
+    _type: str
+        The graph type used
+    reactome_dict: Dict[str, List[str]]
+        Dict mapping gene names to reactome pathway identifiers. The dict is
+        keyed by gene UP IDs, so s and o must be translated to UP.
+
+    Returns
+    -------
+
+    """
+    hgnc_id_s = get_current_hgnc_id(s)
+    if isinstance(hgnc_id_s, list):
+        ix = 0
+        while True:
+            try:
+                s_up = get_uniprot_id(hgnc_id_s[ix])
+            except IndexError:
+                s_up = None
+                break
+            if s_up is None:
+                ix += 1
+    else:
+        s_up = get_uniprot_id(hgnc_id_s)
+    if s_up is None:
+        return s, o, False, None
+
+    hgnc_id_o = get_current_hgnc_id(o)
+    if isinstance(hgnc_id_o, list):
+        ix = 0
+        while True:
+            try:
+                o_up = get_uniprot_id(hgnc_id_o[ix])
+            except IndexError:
+                o_up = None
+                break
+            if o_up is None:
+                ix += 1
+    else:
+        o_up = get_uniprot_id(hgnc_id_o)
+    if o_up is None:
+        return s, o, False, None
+
+    common_reactome = set(reactome_dict.get(s_up, [])) & \
+        set(reactome_dict.get(o_up, []))
+    return s, o, bool(common_reactome), common_reactome or None
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
