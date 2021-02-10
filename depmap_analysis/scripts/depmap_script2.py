@@ -82,7 +82,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                             allowed_sources: Optional[Set[str]] = None,
                             is_a_part_of: Optional[List[str]] = None,
                             immediate_only: Optional[bool] = False,
-                            strict_intermediates: Optional[bool] = False,
+                            return_unexplained: Optional[bool] = False,
                             reactome_dict: Optional[Dict[str, Any]] = None,
                             local_indranet: Optional[nx.DiGraph] = None):
     try:
@@ -102,7 +102,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
         stats_dict = {k: [] for k in stats_columns}
         expl_dict = {k: [] for k in expl_cols}
         options = {'immediate_only': immediate_only,
-                   'strict_intermediates': strict_intermediates,
+                   'return_unexplained': return_unexplained,
                    'reactome_dict': reactome_dict}
         if is_a_part_of:
             options['is_a_part_of'] = is_a_part_of
@@ -291,7 +291,7 @@ def match_correlations(corr_z: pd.DataFrame,
         allowed_sources = None
     is_a_part_of = kwargs.get('is_a_part_of')
     immediate_only = kwargs.get('immediate_only', False)
-    strict_intermediates = kwargs.get('strict_intermediates', False)
+    return_unexplained = kwargs.get('return_unexplained', False)
     reactome_dict = kwargs.get('reactome_dict')
 
     # Try to get dates of files from file names and file info
@@ -335,7 +335,7 @@ def match_correlations(corr_z: pd.DataFrame,
                                  allowed_sources,
                                  is_a_part_of,
                                  immediate_only,
-                                 strict_intermediates,
+                                 return_unexplained,
                                  reactome_dict
                              ),
                              callback=success_callback,
@@ -416,7 +416,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          expl_mapping: Optional[Dict[str, str]] = None,
          is_a_part_of: Optional[List[str]] = None,
          immediate_only: Optional[bool] = False,
-         strict_intermediates: Optional[bool] = False,
+         return_unexplained: Optional[bool] = False,
          reactome_dict: Optional[Dict[str, Any]] = None,
          allowed_ns: Optional[List[str]] = None,
          allowed_sources: Optional[List[str]] = None,
@@ -581,7 +581,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     run_options['graph_type'] = graph_type
     # Add optional options
     run_options['immediate_only'] = immediate_only
-    run_options['strict_intermediates'] = strict_intermediates
+    run_options['return_unexplained'] = return_unexplained
     run_options['reactome_dict'] = reactome_dict
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
@@ -838,7 +838,7 @@ if __name__ == '__main__':
     parser.add_argument('--immediate-only', action='store_true',
                         help='Only look in immediate parents in common '
                              'parent search.')
-    parser.add_argument('--strict-intermediates', action='store_true',
+    parser.add_argument('--return-unexplained', action='store_true',
                         help='For shared target and shared regulators: only '
                              'return explanation if there are shared nodes '
                              'up- or downstream of A-B pair.')

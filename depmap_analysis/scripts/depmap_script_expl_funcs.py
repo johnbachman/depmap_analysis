@@ -340,13 +340,14 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     # Return x_nodes if strict, else if there is anything in union or s_pred
     # or o_pred
-    strict = kwargs.get('strict_intermediates', False)
-    if (strict and x_nodes) or (not strict and (s_pred or o_pred)):
-        expl = True
+    unexpl = kwargs.get('return_unexplained', False)
+    if (not unexpl and x_nodes) or (unexpl and (s_pred or o_pred)):
+        data = (list(s_pred), list(o_pred),
+                list(x_nodes or []),
+                list(x_nodes_union or []))
     else:
-        expl = False
-    return s, o, expl, (list(s_pred), list(o_pred), list(x_nodes or []),
-                        list(x_nodes_union or []))
+        data = None
+    return s, o, bool(x_nodes), data
 
 
 # Shared target: A->X<-B
@@ -408,14 +409,15 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     # Return x_nodes if strict, else if there is anything in union or s_succ
     # or o_succ
-    strict = kwargs.get('strict_intermediates', False)
-    if (strict and x_nodes) or (not strict and (s_succ or o_succ)):
-        expl = True
+    unexpl = kwargs.get('return_unexplained', False)
+    if (not unexpl and x_nodes) or (unexpl and (s_succ or o_succ)):
+        data = (list(s_succ), list(o_succ),
+                list(x_nodes or []),
+                list(x_nodes_union or []))
     else:
-        expl = False
+        data = None
 
-    return s, o, expl, (list(s_succ), list(o_succ), list(x_nodes or []),
-                        list(x_nodes_union or []))
+    return s, o, bool(x_nodes), data
 
 
 def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
