@@ -14,10 +14,13 @@ logger = logging.getLogger(__name__)
 __all__ = ['run_corr_merge', 'drugs_to_corr_matrix', 'get_mitocarta_info']
 
 
-def run_corr_merge(crispr_raw=None, rnai_raw=None,
-                   crispr_corr=None, rnai_corr=None,
-                   output_dir='correlation_output',
-                   remove_self_corr=True, dropna=False, random_sampl=0):
+def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
+                   rnai_raw: Optional[Union[str, pd.DataFrame]] = None,
+                   crispr_corr: Optional[Union[str, pd.DataFrame]] = None,
+                   rnai_corr: Optional[Union[str, pd.DataFrame]] = None,
+                   output_dir: str = 'correlation_output',
+                   remove_self_corr: bool = False,
+                   random_sampl: int = 0):
     """Return a merged correlation matrix from DepMap data
 
     Start with with either the raw DepMap files or pre-calculated
@@ -43,15 +46,11 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         input data.
     remove_self_corr : bool
         If True, remove self correlations from the resulting DataFrame.
-        Default: True
+        Default: False
     random_sampl : int
         If specified, provides the size of the final correlation matrix
         where the genes are picked at random from the intersection of genes
         from both the RNAI and CRISPR data sets.
-    dropna : bool
-        If True, return the result of
-        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
-        Default: False.
 
     Returns
     -------
@@ -79,7 +78,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         else:
             crispr_raw_df = crispr_raw
         crispr_corr_df = raw_depmap_to_corr(crispr_raw_df, split_names=True,
-                                            dropna=True)
+                                            dropna=False)
 
         crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
         logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
@@ -108,7 +107,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
             rnai_raw_df = rnai_raw_df.T
 
         rnai_corr_df = raw_depmap_to_corr(rnai_raw_df, split_names=True,
-                                          dropna=True)
+                                          dropna=False)
 
         rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
         if not rnai_fpath.parent.is_dir():
@@ -118,7 +117,7 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
 
     # Merge the correlation matrices
     z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df,
-                         remove_self_corr, dropna)
+                         remove_self_corr)
 
     if random_sampl and random_sampl < len(z_cm.columns):
         # Get n random rows
@@ -201,8 +200,7 @@ def raw_depmap_to_corr(depmap_raw_df: pd.DataFrame,
     return corr
 
 
-def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
-                  dropna=False):
+def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
     """Merge two correlation matrices containing their combined z-scores
 
     Parameters
@@ -216,10 +214,6 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
     remove_self_corr : bool
         If True, remove self correlations from the resulting DataFrame.
         Default: True
-    dropna : bool
-        If True, return the result of
-        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
-        Default: False.
 
     Returns
     -------
