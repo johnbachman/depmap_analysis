@@ -267,9 +267,7 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
         # Assumes the max correlation ONLY occurs on the diagonal
         self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
         dep_z = dep_z[dep_z != self_corr_value]
-    if dropna:
-        dep_z = dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
-    assert dep_z.notna().sum().sum() > 0, print('Correlation matrix is empty')
+    assert dep_z.notna().sum().sum() > 0, 'Correlation matrix is empty!'
     return dep_z
 
 
@@ -337,8 +335,9 @@ if __name__ == '__main__':
                              'the final correlation matrix where the genes '
                              'are picked at random from the intersection of '
                              'genes from both the RNAI and CRISPR data sets.')
-    parser.add_argument('--fname', help='A file name for the output '
-                                        'correlations DataFrame.')
+    parser.add_argument('--fname',
+                        help='A file name for the output correlation '
+                             'DataFrame.')
 
     args = parser.parse_args()
     options = {
