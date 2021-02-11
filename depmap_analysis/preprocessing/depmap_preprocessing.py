@@ -1,8 +1,9 @@
 import logging
 import argparse
-from typing import Dict
+from typing import Dict, Union, Optional
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from depmap_analysis.util import io_functions as io
@@ -225,17 +226,31 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
     pd.DataFrame
         A merged correlation matrix containing the merged values a z-scores
     """
-    def _rename(corr):
+    def _mask_array(df: pd.DataFrame) -> np.ma.MaskedArray:
+        """Mask any NaN's in dataframe values"""
+        logger.info('Masking DataFrame values')
+        return np.ma.array(df.values, mask=np.isnan(df.values))
+
+    def _get_mean(df: pd.DataFrame) -> float:
+        ma = _mask_array(df)
+        return ma.mean()
+
+    def _get_sd(df: pd.DataFrame) -> float:
+        ma = _mask_array(df)
+        return ma.std()
+
+    def _rename(corr: pd.DataFrame) -> pd.DataFrame:
         gene_names = [n.split()[0] for n in corr.columns]
         corr.columns = gene_names
         corr.index = gene_names
         return corr
 
-    def _z_scored(corr):
-        mean = corr.values.mean()
-        sd = corr.values.std()
+    def _z_scored(corr: pd.DataFrame) -> pd.DataFrame:
+        mean = _get_mean(corr)
+        sd = _get_sd(corr)
         logger.info('Mean value: %f; St dev: %f' % (mean, sd))
-        return (corr - mean) / sd
+        out_df: pd.DataFrame = (corr - mean) / sd
+        return out_df
 
     # Rename columns/indices to gene name only
     if len(corr_df.columns[0].split()) > 1:
