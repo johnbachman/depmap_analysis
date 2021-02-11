@@ -273,7 +273,7 @@ class DepMapExplainer:
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
             self.corr_stats_axb = axb_stats(
-                self.expl_df, z_corr=z_corr, reactome=reactome,
+                self.expl_df, self.stats_df, z_corr=z_corr, reactome=reactome,
                 eval_str=False, max_proc=max_proc,
                 max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs
             )

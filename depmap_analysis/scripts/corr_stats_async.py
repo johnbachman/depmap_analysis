@@ -52,9 +52,16 @@ def error_callback(err):
 
 
 class GlobalVars(object):
-    def __init__(self, df=None, z_cm=None, reactome=None, sampl=10):
-        if df is not None:
-            global_vars['df'] = df
+    def __init__(self,
+                 expl_df: pd.DataFrame = None,
+                 stats_df: pd.DataFrame = None,
+                 z_cm: pd.DataFrame = None,
+                 reactome: Dict[str, List[str]] = None,
+                 sampl: int = 10):
+        if expl_df is not None:
+            global_vars['expl_df'] = expl_df
+        if stats_df is not None:
+            global_vars['stats_df'] = stats_df
         if sampl:
             global_vars['subset_size'] = sampl
         if reactome:
@@ -97,7 +104,7 @@ class GlobalVars(object):
     @staticmethod
     def assert_vars():
         """Same as assert_global_vars but with the shared array as well"""
-        df_exists = global_vars.get('df', False) is not False
+        df_exists = global_vars.get('expl_df', False) is not False
         z_cm_exists = global_vars.get('z_cm', False) is not False
         reactome_exists = global_vars.get('reactome', False) is not False
         ssize_exists = global_vars.get('subset_size', False) is not False
@@ -164,7 +171,7 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
 
 def get_pairs(corr_pairs):
     # Get global args
-    expl_df = global_vars['df']
+    expl_df = global_vars['expl_df']
 
     # Pairs where a-x-b AND a-b explanation exists
     pairs_axb_direct = set()
@@ -252,7 +259,8 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
 def get_corr_stats(so_pairs):
     try:
         global list_of_genes
-        df = global_vars['df']
+        expl_df = global_vars['expl_df']
+        stats_df = global_vars['stats_df']
         z_corr = global_vars['z_cm']
         reactome = global_vars.get('reactome')
         subset_size = global_vars['subset_size']
@@ -276,7 +284,7 @@ def get_corr_stats(so_pairs):
         for subj, obj in so_pairs:
             # Get x values
             (avg_x_corrs_per_ab, axb_corrs), x_len = \
-                get_interm_corr_stats_x(subj, obj, z_corr, df)
+                get_interm_corr_stats_x(subj, obj, z_corr, expl_df)
             all_axb_corrs += axb_corrs
             if len(avg_x_corrs_per_ab) > 0:
                 max_magn_avg = max(avg_x_corrs_per_ab)
@@ -352,7 +360,7 @@ def get_interm_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
     obj : str
         The entity corresponding to B in A,B
     z_corr : pd.DataFrame
-        The correlation dataframe used to produce the input data in df
+        The correlation dataframe used to produce the input data in expl_df
     expl_df : pd.DataFrame
         The explanation data frame from the input data
 

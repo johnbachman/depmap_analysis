@@ -6,21 +6,28 @@ import ast
 import pickle
 import logging
 from os import path
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
 from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
     bxa_colname, ab_colname, ba_colname, st_colname
+from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
 
 logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.INFO)
 
 
-def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
-         max_corr_pairs=10000, do_mp_pairs=True):
+def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
+         reactome: Optional[Tuple[Dict[str, List[str]],
+                                  Dict[str, List[str]],
+                                  Dict[str, str]]] = None,
+         eval_str: Optional[bool] = False,
+         max_proc: Optional[int] = None,
+         max_corr_pairs: Optional[int] = 10000,
+         do_mp_pairs: Optional[bool] = True):
     """Get statistics of the correlations associated with different
     explanation types
 
@@ -28,7 +35,12 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
     ----------
     expl_df: pd.DataFrame
         A pd.DataFrame containing all available explanations for the pairs
-        of genes in z_corr
+        of genes in z_corr. Available in the DepmapExplainer as
+        DepmapExplainer.expl_df.
+    stats_df: pd.DataFrame
+        A pd.DataFrame containing all checked A-B pairs and if they are
+        explained or not. Available in the DepmapExplainer as
+        DepmapExplainer.stats_df.
     z_corr : pd.DataFrame
         A pd.DataFrame of correlation z scores
     reactome : tuple[dict]|list[dict]
@@ -77,7 +89,7 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
     all_ab_corr_pairs = set(map(lambda p: tuple(p),
                                 expl_df[['agA', 'agB']].values))
 
-    gbv = GlobalVars(df=expl_df, sampl=16)
+    gbv = GlobalVars(expl_df=expl_df, stats_df=stats_df, sampl=16)
     if do_mp_pairs and len(all_ab_corr_pairs) > 10000:
         # Do multiprocessing
         logger.info('Getting axb subj-obj pairs through multiprocessing')
