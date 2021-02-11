@@ -340,13 +340,32 @@ def get_corr_stats(so_pairs):
         raise WrapException()
 
 
-def get_interm_corr_stats_x(subj, obj, z_corr, df):
-    path_rows = df[(df['agA'] == subj) &
-                   (df['agB'] == obj) &
-                   ((df['expl type'] == axb_colname) |
-                    (df['expl type'] == bxa_colname) |
-                    (df['expl type'] == st_colname))]
-    x_set = set()
+def get_interm_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
+                            expl_df: pd.DataFrame) \
+        -> Tuple[Tuple[List[float], List[float]], int]:
+    """Wrapper to get the a-x-b correlation data from explained a-x-b relations
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in df
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+
+    Returns
+    -------
+    Tuple[Tuple[List[float], List[float]], int]
+    """
+    path_rows = expl_df[(expl_df['agA'] == subj) &
+                        (expl_df['agB'] == obj) &
+                        ((expl_df['expl type'] == axb_colname) |
+                         (expl_df['expl type'] == bxa_colname) |
+                         (expl_df['expl type'] == st_colname))]
+    x_set: Set[str] = set()
     for ix, path_row in path_rows.iterrows():
         # Data is in a 4-tuple for shared targets:
         # subj successors, obj predecessors, x intersection, x union
@@ -361,7 +380,32 @@ def get_interm_corr_stats_x(subj, obj, z_corr, df):
 
 
 def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
-                              expl_df: pd.DataFrame, stats_df: pd.DataFrame):
+                              expl_df: pd.DataFrame, stats_df: pd.DataFrame) \
+        -> Tuple[Tuple[List[float], List[float]], int]:
+    """Wrapper to get the a-x-b correlation data from some a-x-b explanations
+
+    This function does exactly the same data extraction as
+    get_interm_corr_stats_x, but filters out those explanations that don't
+    pass the filter
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+        and stats_df
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+    stats_df : pd.DataFrame
+        The statistics data frame from the input data
+
+    Returns
+    -------
+    Tuple[Tuple[List[float], List[float]], int]
+    """
     key_pair = expl_df[(expl_df['agA'] == subj) &
                        (expl_df['agB'] == obj)].pair.values[0]
     stats_row = stats_df[stats_df.pair == key_pair]
@@ -382,8 +426,8 @@ def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
                 [x.name if isinstance(x, CentralDogma) else x for
                  x in x_iter if x not in (subj, obj)]
             x_set.update(x_names)
-        return _get_interm_corr_stats(subj, obj, x_set, z_corr)
-    return [], []
+        return _get_interm_corr_stats(subj, obj, x_set, z_corr), len(x_set)
+    return ([], []), 0
 
 
 def _check_interesting(stats_row: pd.DataFrame) -> bool:
