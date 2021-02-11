@@ -85,7 +85,8 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
                                             dropna=False)
 
         if save_corr_files:
-            crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
+            crispr_fpath = Path(output_dir).joinpath(
+                '_crispr_all_correlations.h5')
             logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
             if not crispr_fpath.parent.is_dir():
                 crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
