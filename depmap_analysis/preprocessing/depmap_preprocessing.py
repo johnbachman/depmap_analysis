@@ -291,20 +291,20 @@ def get_mitocarta_info(mitocarta_file: str) -> Dict[str, str]:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Data pre-processing')
     # Input dirs
-    parser.add_argument('--crispr-raw',
+    parser.add_argument('--crispr-raw', type=io.file_path('.csv'),
                         help='The raw CRISPR gene effect data. File name '
-                             'should match *gene_effect.csv')
-    parser.add_argument('--rnai-raw',
+                             'is usually Achilles_gene_effect.csv')
+    parser.add_argument('--rnai-raw', type=io.file_path('.csv'),
                         help='The raw RNAi gene dependency data. File name '
-                             'should match *gene_dep_scores.csv')
+                             'is usually D2_combined_gene_dep_scores.csv')
     # Option to start from raw correlations matrix instead of running
     # correlation calculation directly
-    parser.add_argument('--crispr-corr',
+    parser.add_argument('--crispr-corr', type=io.file_path('.h5'),
                         help='The file containing an hdf compressed '
                              'correlation data frame of the crispr data. If '
                              'this file is provided, the raw crispr data is '
                              'ignored.')
-    parser.add_argument('--rnai-corr',
+    parser.add_argument('--rnai-corr', type=io.file_path('.h5'),
                         help='The file containing an hdf compressed '
                              'correlation data frame of the rnai data. If '
                              'this file is provided, the raw rnai data is '
@@ -313,12 +313,12 @@ if __name__ == '__main__':
     parser.add_argument('--output-dir', '-o',
                         help='Optional. A directory where to put the '
                              'output of the script. If not provided the '
-                             'ouput will go to the directory/ies where '
-                             'the corresponding input came from, i.e. the '
-                             'output from the RNAi input will be placed '
-                             'in the RNAi input directory. The combined '
-                             'z-score matrix will be written to the crispr '
-                             'input directory if this option is not '
+                             'output will go to the directory/ies where '
+                             'the corresponding input data came from, '
+                             'e.g. the output from the RNAi input will be '
+                             'placed in the RNAi input directory. The '
+                             'combined z-score matrix will be written to the '
+                             'crispr input directory if this option is not '
                              'provided.')
     parser.add_argument('--random', '-r', type=int,
                         help='Optional. If specified, provide the size of '
