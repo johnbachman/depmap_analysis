@@ -1,5 +1,6 @@
 from time import time
 from ctypes import c_wchar_p
+from typing import Union, Set, List, Tuple, Dict
 from datetime import datetime
 from collections import Counter
 from multiprocessing import Pool, cpu_count, Array, current_process
@@ -7,12 +8,13 @@ import logging
 import random
 
 import numpy as np
+import pandas as pd
 from pybel.dsl.node_classes import CentralDogma
 
 from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
     bxa_colname, ab_colname, ba_colname, st_colname
 from indra.util.multiprocessing_traceback import WrapException
-from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id,\
+from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id, \
     uniprot_ids, get_hgnc_name
 
 logger = logging.getLogger(__name__)
