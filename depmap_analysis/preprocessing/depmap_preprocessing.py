@@ -185,7 +185,10 @@ def raw_depmap_to_corr(depmap_raw_df: pd.DataFrame,
         depmap_raw_df.columns = gene_names
 
     # Drop duplicates
-    depmap_raw_df = depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
+    if sum(depmap_raw_df.columns.duplicated()) > 0:
+        logger.info('Dropping duplicated columns')
+        depmap_raw_df = \
+            depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
 
     # Drop nan's
     if dropna:
