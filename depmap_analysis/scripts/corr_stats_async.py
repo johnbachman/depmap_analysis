@@ -237,7 +237,7 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
     logger.info(f'Assembling {len(global_results)} results')
-    results = [[], [], [], [], [], [], []]
+    results = [[]]*9
     for done_res in global_results:
         # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
         results[0] += done_res['all_axb_corrs']
@@ -253,6 +253,10 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
         results[5] += done_res['all_reactome_corrs']
         # Var name: reactome_avg_corrs; Dict key: reactome_avg_corrs
         results[6] += done_res['reactome_avg_corrs']
+        # Var name: axb_filtered_avg_corrs; Dict key: axb_filtered_avg_corrs
+        results[7] += done_res['axb_filtered_avg_corrs']
+        # Var name: all_axb_filtered_corrs; Dict key: all_axb_filtered_corrs
+        results[8] += done_res['all_axb_filtered_corrs']
     return results
 
 
@@ -266,20 +270,29 @@ def get_corr_stats(so_pairs):
         subset_size = global_vars['subset_size']
         chunk_size = max(len(list_of_genes[:]) // subset_size, 1)
 
+        # Gather data from paths found by indra
         all_axb_corrs = []
         top_axb_corrs = []
         axb_avg_corrs = []
 
+        # Gather data from paths fround by indra, but filter out those
+        # explained by mito, reactome and direct
+        axb_filtered_avg_corrs = []
+        all_axb_filtered_corrs = []
+
+        # Sample background data per pair
         azb_avg_corrs = []
         all_azb_corrs = []
 
+        # Gather data for reactome explanations
         reactome_avg_corrs = []
         all_reactome_corrs = []
 
         # reset counters
         counter = Counter({'r_skip': 0,
                            'z_skip': 0,
-                           'x_skip': 0})
+                           'x_skip': 0,
+                           'xf_skip': 0})
 
         for subj, obj in so_pairs:
             # Get x values
@@ -291,6 +304,13 @@ def get_corr_stats(so_pairs):
                 axb_avg_corrs += avg_x_corrs_per_ab
                 top_axb_corrs.append((subj, obj, max_magn_avg))
             counter['x_skip'] += x_len - len(avg_x_corrs_per_ab)
+
+            # Get filtered x-values
+            (avg_xf_corrs_per_ab, axb_filt_corrs), xf_len = \
+                get_filtered_corr_stats_x(subj, obj, z_corr, expl_df, stats_df)
+            axb_filtered_avg_corrs += avg_xf_corrs_per_ab
+            all_axb_filtered_corrs += axb_filt_corrs
+            counter['xf_skip'] += xf_len - len(avg_xf_corrs_per_ab)
 
             # Get z values
             z_iter = np.random.choice(list_of_genes[:], chunk_size, False)
@@ -309,7 +329,8 @@ def get_corr_stats(so_pairs):
                 counter['r_skip'] += r_len - len(avg_reactome_corrs_per_ab)
 
         assert_list = [all_axb_corrs, axb_avg_corrs, top_axb_corrs,
-                       all_azb_corrs, azb_avg_corrs]
+                       all_azb_corrs, azb_avg_corrs, axb_filtered_avg_corrs,
+                       all_axb_filtered_corrs]
         if reactome:
             assert_list += [all_reactome_corrs, reactome_avg_corrs]
         try:
@@ -323,8 +344,12 @@ def get_corr_stats(so_pairs):
                 f'top_axb_corrs: {len(top_axb_corrs)}, '
                 f'all_azb_corrs: {len(all_azb_corrs)}, '
                 f'azb_avg_corrs: {len(azb_avg_corrs)}, '
-                f'all_reactome_corrs: {len(all_reactome_corrs)}, '
-                f'reactome_avg_corrs: {len(reactome_avg_corrs)}'
+                f'all_reactome_corrs (only if provided):'
+                f' {len(all_reactome_corrs)}, '
+                f'reactome_avg_corrs (only if provided):'
+                f' {len(reactome_avg_corrs)}, '
+                f'axb_filtered_avg_corrs: {len(axb_filtered_avg_corrs)}'
+                f'all_axb_filtered_corrs: {len(all_axb_filtered_corrs)}'
             ) from exc
 
         logger.info('Counting skips...')
@@ -343,7 +368,9 @@ def get_corr_stats(so_pairs):
                 'all_azb_corrs': all_azb_corrs,
                 'azb_avg_corrs': azb_avg_corrs,
                 'all_reactome_corrs': all_reactome_corrs,
-                'reactome_avg_corrs': reactome_avg_corrs}
+                'reactome_avg_corrs': reactome_avg_corrs,
+                'axb_filtered_avg_corrs': axb_filtered_avg_corrs,
+                'all_axb_filtered_corrs': all_axb_filtered_corrs}
     except Exception:
         raise WrapException()
 

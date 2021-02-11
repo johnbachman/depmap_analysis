@@ -447,6 +447,8 @@ class DepMapExplainer:
                  color='b', alpha=0.3)
         plt.hist(all_ind['avg_x_corrs'], bins='auto', density=True,
                  color='r', alpha=0.3)
+        plt.hist(all_ind['avg_x_filtered_corrs'], bins='auto', density=True,
+                 color='k', alpha=0.3)
         legend = ['A-X-B for all X', 'A-X-B for X in network']
         if len(all_ind['reactome_avg_corrs']):
             plt.hist(all_ind['reactome_avg_corrs'], bins='auto',

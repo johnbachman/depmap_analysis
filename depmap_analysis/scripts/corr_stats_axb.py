@@ -157,7 +157,8 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
     if gbv.assert_global_vars(assert_vars):
         all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
             all_azb_corrs_no_direct, azb_avg_corrs_no_direct, \
-            all_reactome_corrs, reactome_avg_corrs = \
+            all_reactome_corrs, reactome_avg_corrs, \
+            axb_filtered_avg_corrs, all_axb_filtered_corrs = \
             get_corr_stats_mp(**options)
     else:
         raise ValueError('Global variables could not be set')
@@ -168,7 +169,9 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
                             'all_azb_corrs': all_azb_corrs_no_direct,
                             'azb_avg_corrs': azb_avg_corrs_no_direct,
                             'all_reactome_corrs': all_reactome_corrs,
-                            'reactome_avg_corrs': reactome_avg_corrs}}
+                            'reactome_avg_corrs': reactome_avg_corrs,
+                            'all_x_filtered_corrs': all_axb_filtered_corrs,
+                            'avg_x_filtered_corrs': axb_filtered_avg_corrs}}
 
 
 if __name__ == '__main__':
