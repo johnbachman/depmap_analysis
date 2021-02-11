@@ -86,7 +86,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
         expl_df['expl data'] = \
             expl_df['expl data'].apply(lambda x: ast.literal_eval(x))
 
-    # Get all correlation pairs
+    # Get all correlation pairs that were explained
     all_ab_corr_pairs = set(map(lambda p: tuple(p),
                                 expl_df[['agA', 'agB']].values))
 
@@ -131,15 +131,6 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
         logger.info('Removing self correlations')
         diag_val = z_corr.loc[z_corr.columns[0], z_corr.columns[0]]
         z_corr = z_corr[z_corr != diag_val]
-
-    # a-x-b AND direct
-    """
-    logger.info("Getting correlations for a-x-b AND direct")
-    all_x_corrs_direct, avg_x_corrs_direct, top_x_corrs_direct, \
-            all_azb_corrs_direct, azb_avg_corrs_direct = \
-        get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
-                       rnai_cm=rnai_corr_matrix, so_pairs=pairs_axb_direct)
-    """
 
     # a-x-b AND NOT direct
     logger.info("Getting correlations for a-x-b AND NOT direct")
