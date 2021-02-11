@@ -57,7 +57,8 @@ class GlobalVars(object):
                  stats_df: pd.DataFrame = None,
                  z_cm: pd.DataFrame = None,
                  reactome: Dict[str, List[str]] = None,
-                 sampl: int = 10):
+                 sampl: int = 10,
+                 verbose: bool = False):
         if expl_df is not None:
             global_vars['expl_df'] = expl_df
         if stats_df is not None:
@@ -72,6 +73,8 @@ class GlobalVars(object):
             list_of_genes = Array(c_wchar_p,
                                   np.array(z_cm.columns.values),
                                   lock=False)
+        if verbose:
+            global_vars['verbose'] = verbose
 
     @staticmethod
     def update_global_vars(**kwargs):
@@ -552,12 +555,13 @@ def _get_interm_corr_stats(a, b, y_set, z_corr):
                 f'({a.__class__}), object {str(b)} '
                 f'({b.__class__}) and intermediate {str(y)} ({y.__class__})'
             ) from ke
-    if c['y_corr_none'] > 0:
-        logger.warning(f'Skipped {c["y_corr_none"]} pairs because of nan '
-                       f'values')
-    if c['y_none'] > 0:
-        logger.warning(f'Skipped {c["y_none"]} pairs because y was None or '
-                       f'self correlation or y, a or b not being in z_corr')
+    if global_vars['verbose']:
+        if c['y_corr_none'] > 0:
+            logger.warning(f'Skipped {c["y_corr_none"]} pairs because of nan '
+                           f'values')
+        if c['y_none'] > 0:
+            logger.warning(f'Skipped {c["y_none"]} pairs because y was None or '
+                           f'self correlation or y, a or b not being in z_corr')
     return avg_y_corrs_per_ab, all_ayb_corrs
 
 
