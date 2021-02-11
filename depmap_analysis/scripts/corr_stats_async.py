@@ -12,7 +12,8 @@ import pandas as pd
 from pybel.dsl.node_classes import CentralDogma
 
 from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
-    bxa_colname, ab_colname, ba_colname, st_colname
+    bxa_colname, ab_colname, ba_colname, st_colname, apriori_colname, \
+    react_colname
 from indra.util.multiprocessing_traceback import WrapException
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id, \
     uniprot_ids, get_hgnc_name
@@ -357,6 +358,57 @@ def get_interm_corr_stats_x(subj, obj, z_corr, df):
              x in x_iter if x not in (subj, obj)]
         x_set.update(x_names)
     return _get_interm_corr_stats(subj, obj, x_set, z_corr), len(x_set)
+
+
+def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
+                              expl_df: pd.DataFrame, stats_df: pd.DataFrame):
+    key_pair = expl_df[(expl_df['agA'] == subj) &
+                       (expl_df['agB'] == obj)].pair.values[0]
+    stats_row = stats_df[stats_df.pair == key_pair]
+    if _check_interesting(stats_row):
+        path_rows = expl_df[(expl_df['agA'] == subj) &
+                            (expl_df['agB'] == obj) &
+                            ((expl_df['expl type'] == axb_colname) |
+                             (expl_df['expl type'] == bxa_colname) |
+                             (expl_df['expl type'] == st_colname))]
+        x_set: Set[str] = set()
+        for ix, path_row in path_rows.iterrows():
+            # Data is in a 4-tuple for shared targets:
+            # subj successors, obj predecessors, x intersection, x union
+            # For a-x-b, b-x-a the data is not nested
+            x_iter = path_row['expl data'][2] if \
+                path_row['expl type'] == st_colname else path_row['expl data']
+            x_names = \
+                [x.name if isinstance(x, CentralDogma) else x for
+                 x in x_iter if x not in (subj, obj)]
+            x_set.update(x_names)
+        return _get_interm_corr_stats(subj, obj, x_set, z_corr)
+    return [], []
+
+
+def _check_interesting(stats_row: pd.DataFrame) -> bool:
+    """Filter the pair to: not direct, not explained by reactome or apriori
+
+    Parameters
+    ----------
+    stats_row : pd.DataFrame
+        A single row from the stats_df
+
+    Returns
+    -------
+    bool
+        If the pair passes the filter
+    """
+    ab = stats_row[ab_colname]
+    ba = stats_row[ab_colname]
+    st = stats_row[st_colname]
+    axb = stats_row[axb_colname]
+    bxa = stats_row[bxa_colname]
+    react = stats_row[react_colname]
+    apriori = stats_row[apriori_colname]
+
+    return (axb or bxa or st) and \
+        not ab and not ba and not react and not apriori
 
 
 def get_interm_corr_stats_z(subj, obj, z_set, z_corr):
