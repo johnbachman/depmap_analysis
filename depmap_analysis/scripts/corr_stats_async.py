@@ -263,7 +263,7 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
     return results
 
 
-def get_corr_stats(so_pairs):
+def get_corr_stats(so_pairs) -> Dict[str, List[float]]:
     try:
         global list_of_genes
         expl_df = global_vars['expl_df']
@@ -493,11 +493,13 @@ def _check_interesting(stats_row: pd.DataFrame) -> bool:
         not ab and not ba and not react and not apriori
 
 
-def get_interm_corr_stats_z(subj, obj, z_set, z_corr):
+def get_interm_corr_stats_z(subj, obj, z_set, z_corr) \
+        -> Tuple[List[float], List[float]]:
     return _get_interm_corr_stats(subj, obj, z_set, z_corr)
 
 
-def get_interm_corr_stats_reactome(subj, obj, reactome, z_corr):
+def get_interm_corr_stats_reactome(subj, obj, reactome, z_corr) \
+        -> Tuple[Tuple[List[float], List[float]], int]:
     pathways_by_gene, genes_by_pathway, _ = reactome
     subj_up = _hgncsym2up(subj)
     if subj_up is None:
@@ -518,7 +520,9 @@ def get_interm_corr_stats_reactome(subj, obj, reactome, z_corr):
     return ([], []), len(hgnc_gene_set)
 
 
-def _get_interm_corr_stats(a, b, y_set, z_corr):
+def _get_interm_corr_stats(a: str, b: str, y_set: Union[List[str], Set[str]],
+                           z_corr: pd.DataFrame) \
+        -> Tuple[List[float], List[float]]:
     # Get a list of the maximum ax-bx average per pair
     avg_y_corrs_per_ab = []
 
@@ -565,7 +569,7 @@ def _get_interm_corr_stats(a, b, y_set, z_corr):
     return avg_y_corrs_per_ab, all_ayb_corrs
 
 
-def _hgncsym2up(hgnc_symb):
+def _hgncsym2up(hgnc_symb: str) -> str:
     hgnc_id = get_current_hgnc_id(hgnc_symb)
     if isinstance(hgnc_id, list):
         ix = 0
@@ -581,5 +585,5 @@ def _hgncsym2up(hgnc_symb):
     return upid
 
 
-def _up2hgncsym(up_id):
+def _up2hgncsym(up_id: str) -> str:
     return get_hgnc_name(uniprot_ids_reverse.get(up_id))

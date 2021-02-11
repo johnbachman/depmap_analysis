@@ -27,7 +27,8 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
          eval_str: Optional[bool] = False,
          max_proc: Optional[int] = None,
          max_corr_pairs: Optional[int] = 10000,
-         do_mp_pairs: Optional[bool] = True):
+         do_mp_pairs: Optional[bool] = True) \
+        -> Dict[str, Dict[str, List[float]]]:
     """Get statistics of the correlations associated with different
     explanation types
 
