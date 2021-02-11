@@ -340,17 +340,15 @@ if __name__ == '__main__':
                              'DataFrame.')
 
     args = parser.parse_args()
-    options = {
-        'crispr_raw': args.crispr_raw,
-        'rnai_raw': args.rnai_raw,
-        'crispr_corr': args.crispr_corr,
-        'rnai_corr': args.rnai_corr,
-        'output_dir': args.output_dir,
-        'random_sampl': args.random
-    }
 
     # Run main script
-    z_corr = run_corr_merge(**options)
+    z_corr = run_corr_merge(crispr_raw=args.crispr_raw,
+                            rnai_raw=args.rnai_raw,
+                            crispr_corr=args.crispr_corr,
+                            rnai_corr=args.rnai_corr,
+                            output_dir=args.output_dir,
+                            random_sampl=args.random,
+                            remove_self_corr=False)
 
     # Write merged correlations combined z score
     outdir = args.output_dir if args.output_dir else (Path(
