@@ -20,7 +20,8 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
                    rnai_corr: Optional[Union[str, pd.DataFrame]] = None,
                    output_dir: str = 'correlation_output',
                    remove_self_corr: bool = False,
-                   random_sampl: int = 0):
+                   random_sampl: int = 0,
+                   save_corr_files: bool = False):
     """Return a merged correlation matrix from DepMap data
 
     Start with with either the raw DepMap files or pre-calculated
@@ -51,6 +52,9 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
         If specified, provides the size of the final correlation matrix
         where the genes are picked at random from the intersection of genes
         from both the RNAI and CRISPR data sets.
+    save_corr_files : bool
+        If True, save the intermediate correlation data frames for both
+        crispr and rnai. Default: True.
 
     Returns
     -------
@@ -80,11 +84,12 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
         crispr_corr_df = raw_depmap_to_corr(crispr_raw_df, split_names=True,
                                             dropna=False)
 
-        crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
-        logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
-        if not crispr_fpath.parent.is_dir():
-            crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
-        crispr_corr_df.to_hdf(crispr_fpath.absolute(), 'corr')
+        if save_corr_files:
+            crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
+            logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
+            if not crispr_fpath.parent.is_dir():
+                crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
+            crispr_corr_df.to_hdf(crispr_fpath.absolute(), 'corr')
 
     if rnai_corr:
         if isinstance(rnai_corr, str):
@@ -109,11 +114,12 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
         rnai_corr_df = raw_depmap_to_corr(rnai_raw_df, split_names=True,
                                           dropna=False)
 
-        rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
-        if not rnai_fpath.parent.is_dir():
-            rnai_fpath.mkdir(parents=True, exist_ok=True)
-        logger.info(f'Saving rnai correlation matrix to {rnai_fpath}')
-        rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
+        if save_corr_files:
+            rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
+            if not rnai_fpath.parent.is_dir():
+                rnai_fpath.mkdir(parents=True, exist_ok=True)
+            logger.info(f'Saving rnai correlation matrix to {rnai_fpath}')
+            rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
 
     # Merge the correlation matrices
     z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df,
@@ -338,6 +344,9 @@ if __name__ == '__main__':
     parser.add_argument('--fname',
                         help='A file name for the output correlation '
                              'DataFrame.')
+    parser.add_argument('--save-corr', action='store_true',
+                        help='A file name for the output correlation '
+                             'DataFrame.')
 
     args = parser.parse_args()
 
@@ -348,7 +357,8 @@ if __name__ == '__main__':
                             rnai_corr=args.rnai_corr,
                             output_dir=args.output_dir,
                             random_sampl=args.random,
-                            remove_self_corr=False)
+                            remove_self_corr=False,
+                            save_corr_files=args.save_corr)
 
     # Write merged correlations combined z score
     outdir = args.output_dir if args.output_dir else (Path(
