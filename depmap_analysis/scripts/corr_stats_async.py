@@ -443,9 +443,10 @@ def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
     -------
     Tuple[Tuple[List[float], List[float]], int]
     """
-    key_pair = expl_df[(expl_df['agA'] == subj) &
+    pair_key = expl_df[(expl_df['agA'] == subj) &
                        (expl_df['agB'] == obj)].pair.values[0]
-    stats_row = stats_df[stats_df.pair == key_pair]
+    # There should be only one row per pair_key
+    stats_row = stats_df[stats_df.pair == pair_key]
     if _check_interesting(stats_row):
         path_rows = expl_df[(expl_df['agA'] == subj) &
                             (expl_df['agB'] == obj) &
@@ -480,13 +481,13 @@ def _check_interesting(stats_row: pd.DataFrame) -> bool:
     bool
         If the pair passes the filter
     """
-    ab = stats_row[ab_colname]
-    ba = stats_row[ab_colname]
-    st = stats_row[st_colname]
-    axb = stats_row[axb_colname]
-    bxa = stats_row[bxa_colname]
-    react = stats_row[react_colname]
-    apriori = stats_row[apriori_colname]
+    ab = stats_row[ab_colname].bool()
+    ba = stats_row[ab_colname].bool()
+    st = stats_row[st_colname].bool()
+    axb = stats_row[axb_colname].bool()
+    bxa = stats_row[bxa_colname].bool()
+    react = stats_row[react_colname].bool()
+    apriori = stats_row[apriori_colname].bool()
 
     return (axb or bxa or st) and \
         not ab and not ba and not react and not apriori
