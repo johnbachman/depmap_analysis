@@ -52,7 +52,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
         to UP IDs). The third dict is expected to contain mappings from the
         Reactome IDs to their descriptions.
     eval_str : bool
-        If True, run ast.literal_eval() on the 'expl data' column of expl_df
+        If True, run ast.literal_eval() on the 'expl_data' column of expl_df
     max_proc : int > 0
         The maximum number of processes to run in the multiprocessing in
         get_corr_stats_mp. Default: multiprocessing.cpu_count()
@@ -88,8 +88,8 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
 
     # Re-map the columns containing string representations of objects
     if eval_str:
-        expl_df['expl data'] = \
-            expl_df['expl data'].apply(lambda x: ast.literal_eval(x))
+        expl_df['expl_data'] = \
+            expl_df['expl_data'].apply(lambda x: ast.literal_eval(x))
 
     # Get all correlation pairs that were explained
     all_ab_corr_pairs = set(map(lambda p: tuple(p),
