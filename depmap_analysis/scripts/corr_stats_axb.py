@@ -94,7 +94,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
     if do_mp_pairs and len(all_ab_corr_pairs) > 10000:
         # Do multiprocessing
         logger.info('Getting axb subj-obj pairs through multiprocessing')
-        gbv.assert_global_vars({'df'})
+        gbv.assert_global_vars({'expl_df', 'stats_df'})
         pairs_axb_only = get_pairs_mp(all_ab_corr_pairs, max_proc=max_proc,
                                       max_pairs=max_corr_pairs)
     else:
@@ -139,7 +139,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
         options['max_proc'] = max_proc
 
     # Set and assert existence of global variables
-    assert_vars = {'z_cm', 'df'}
+    assert_vars = {'z_cm', 'expl_df', 'stats_df'}
     if reactome is not None:
         gbv.update_global_vars(z_cm=z_corr, reactome=reactome)
         assert_vars.add('reactome')
