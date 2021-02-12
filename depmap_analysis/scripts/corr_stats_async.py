@@ -497,7 +497,7 @@ def _check_interesting(stats_row: pd.DataFrame) -> bool:
         If the pair passes the filter
     """
     ab = stats_row[ab_colname].bool()
-    ba = stats_row[ab_colname].bool()
+    ba = stats_row[ba_colname].bool()
     st = stats_row[st_colname].bool()
     axb = stats_row[axb_colname].bool()
     bxa = stats_row[bxa_colname].bool()
