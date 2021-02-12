@@ -4,6 +4,7 @@ is an intermediate between gene pair a-b.
 import sys
 import ast
 import pickle
+import random
 import logging
 from os import path
 from typing import Dict, List, Optional, Tuple
@@ -130,6 +131,11 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
                     ab_colname not in int_types and \
                     ba_colname not in int_types:
                 pairs_axb_only.add((s, o))
+
+        # Check if we need to sample
+        if max_corr_pairs < len(pairs_axb_only):
+            logger.info(f'Down sampling number of pairs to {max_corr_pairs}')
+            pairs_axb_only = random.sample(pairs_axb_only, max_corr_pairs)
 
     # Check for and remove self correlations
     if not np.isnan(z_corr.loc[z_corr.columns[0], z_corr.columns[0]]):
