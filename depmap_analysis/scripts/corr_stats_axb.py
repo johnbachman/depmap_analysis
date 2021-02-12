@@ -74,11 +74,11 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
     # very small set)
     logger.info("Filter expl_df to pathway, direct, shared_target")
     expl_df = expl_df[
-        (expl_df['expl type'] == axb_colname) |
-        (expl_df['expl type'] == bxa_colname) |
-        (expl_df['expl type'] == ab_colname) |
-        (expl_df['expl type'] == ba_colname) |
-        (expl_df['expl type'] == st_colname)
+        (expl_df['expl_type'] == axb_colname) |
+        (expl_df['expl_type'] == bxa_colname) |
+        (expl_df['expl_type'] == ab_colname) |
+        (expl_df['expl_type'] == ba_colname) |
+        (expl_df['expl_type'] == st_colname)
     ]
 
     # Re-map the columns containing string representations of objects
@@ -113,7 +113,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
 
             # Get all interaction types associated with s and o
             int_types = \
-                set(expl_df['expl type'][(expl_df['agA'] == s) &
+                set(expl_df['expl_type'][(expl_df['agA'] == s) &
                                          (expl_df['agB'] == o)].values)
 
             # Filter to a-x-b, b-x-a, st

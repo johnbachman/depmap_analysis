@@ -191,7 +191,7 @@ def get_pairs(corr_pairs):
             continue
         # Get all interaction types associated with given subject s and
         # object o
-        int_types = set(expl_df['expl type'][(expl_df['agA'] == s) &
+        int_types = set(expl_df['expl_type'][(expl_df['agA'] == s) &
                                              (expl_df['agB'] == o)].values)
         # Check intersection of types
         axb_types = {axb_colname, bxa_colname,
@@ -400,16 +400,16 @@ def get_interm_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
     """
     path_rows = expl_df[(expl_df['agA'] == subj) &
                         (expl_df['agB'] == obj) &
-                        ((expl_df['expl type'] == axb_colname) |
-                         (expl_df['expl type'] == bxa_colname) |
-                         (expl_df['expl type'] == st_colname))]
+                        ((expl_df['expl_type'] == axb_colname) |
+                         (expl_df['expl_type'] == bxa_colname) |
+                         (expl_df['expl_type'] == st_colname))]
     x_set: Set[str] = set()
     for ix, path_row in path_rows.iterrows():
         # Data is in a 4-tuple for shared targets:
         # subj successors, obj predecessors, x intersection, x union
         # For a-x-b, b-x-a the data is not nested
         x_iter = path_row['expl data'][2] if \
-            path_row['expl type'] == st_colname else path_row['expl data']
+            path_row['expl_type'] == st_colname else path_row['expl data']
         x_names = \
             [x.name if isinstance(x, CentralDogma) else x for
              x in x_iter if x not in (subj, obj)]
@@ -450,16 +450,16 @@ def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
     if _check_interesting(stats_row):
         path_rows = expl_df[(expl_df['agA'] == subj) &
                             (expl_df['agB'] == obj) &
-                            ((expl_df['expl type'] == axb_colname) |
-                             (expl_df['expl type'] == bxa_colname) |
-                             (expl_df['expl type'] == st_colname))]
+                            ((expl_df['expl_type'] == axb_colname) |
+                             (expl_df['expl_type'] == bxa_colname) |
+                             (expl_df['expl_type'] == st_colname))]
         x_set: Set[str] = set()
         for ix, path_row in path_rows.iterrows():
             # Data is in a 4-tuple for shared targets:
             # subj successors, obj predecessors, x intersection, x union
             # For a-x-b, b-x-a the data is not nested
             x_iter = path_row['expl data'][2] if \
-                path_row['expl type'] == st_colname else path_row['expl data']
+                path_row['expl_type'] == st_colname else path_row['expl data']
             x_names = \
                 [x.name if isinstance(x, CentralDogma) else x for
                  x in x_iter if x not in (subj, obj)]
