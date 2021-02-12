@@ -28,7 +28,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
          max_proc: Optional[int] = None,
          max_corr_pairs: Optional[int] = 10000,
          do_mp_pairs: Optional[bool] = True) \
-        -> Dict[str, Dict[str, List[float]]]:
+        -> Dict[str, List[float]]:
     """Get statistics of the correlations associated with different
     explanation types
 
@@ -155,15 +155,15 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
     else:
         raise ValueError('Global variables could not be set')
 
-    return {'axb_not_dir': {'all_x_corrs': all_x_corrs_no_direct,
-                            'avg_x_corrs': avg_x_corrs_no_direct,
-                            'top_x_corrs': top_x_corrs_no_direct,
-                            'all_azb_corrs': all_azb_corrs_no_direct,
-                            'azb_avg_corrs': azb_avg_corrs_no_direct,
-                            'all_reactome_corrs': all_reactome_corrs,
-                            'reactome_avg_corrs': reactome_avg_corrs,
-                            'all_x_filtered_corrs': all_axb_filtered_corrs,
-                            'avg_x_filtered_corrs': axb_filtered_avg_corrs}}
+    return {'all_x_corrs': all_x_corrs_no_direct,
+            'avg_x_corrs': avg_x_corrs_no_direct,
+            'top_x_corrs': top_x_corrs_no_direct,
+            'all_azb_corrs': all_azb_corrs_no_direct,
+            'azb_avg_corrs': azb_avg_corrs_no_direct,
+            'all_reactome_corrs': all_reactome_corrs,
+            'reactome_avg_corrs': reactome_avg_corrs,
+            'all_x_filtered_corrs': all_axb_filtered_corrs,
+            'avg_x_filtered_corrs': axb_filtered_avg_corrs}
 
 
 if __name__ == '__main__':

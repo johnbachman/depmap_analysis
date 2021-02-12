@@ -115,7 +115,7 @@ class DepMapExplainer:
         self.is_signed = True if network_type in {'signed', 'pybel'} else False
         self.summary = {}
         self.summary_str = ''
-        self.corr_stats_axb = {}
+        self.corr_stats_axb: Optional[Dict[str, List[float]]] = {}
 
     def __str__(self):
         return self.get_summary_str() if self.__len__() else \
@@ -232,7 +232,8 @@ class DepMapExplainer:
             return f'{self.sd_range[0]}+SD'
 
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
-                           max_so_pairs_size=10000, mp_pairs=True):
+                           max_so_pairs_size=10000, mp_pairs=True) \
+            -> Dict[str, List[float]]:
         """Get statistics of the correlations associated with different
         explanation types
 
@@ -335,56 +336,47 @@ class DepMapExplainer:
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
         )
         sd_str = self.get_sd_str()
-        for n, (k, v) in enumerate(corr_stats.items()):
-            for m, plot_type in enumerate(['all_azb_corrs', 'azb_avg_corrs',
-                                           'all_x_corrs', 'avg_x_corrs',
-                                           'top_x_corrs',
-                                           'all_reactome_corrs',
-                                           'reactome_avg_corrs']):
-                if len(v[plot_type]) > 0:
-                    name = '%s_%s_%s.pdf' % \
-                           (plot_type, k, self.script_settings['graph_type'])
-                    logger.info(f'Using file name {name}')
-                    if od is None:
-                        fname = BytesIO()
-                    else:
-                        fname = od.joinpath(name).as_posix()
-                    if isinstance(v[plot_type][0], tuple):
-                        data = [t[-1] for t in v[plot_type]]
-                    else:
-                        data = v[plot_type]
-                    fig_index = next(index_counter) if index_counter \
-                        else int(f'{n}{m}')
-                    plt.figure(fig_index)
-                    plt.hist(x=data, bins='auto')
-                    title = '%s %s; %s (%s)' % \
-                            (plot_type.replace('_', ' ').capitalize(),
-                             k.replace('_', ' '), sd_str,
-                             self.script_settings['graph_type'])
-                    plt.title(title)
-                    plt.xlabel('combined z-score')
-                    plt.ylabel('count')
-
-                    # Save to file or ByteIO and S3
-                    plt.savefig(fname, format='pdf')
-                    if od is None:
-                        # Reset pointer
-                        fname.seek(0)
-                        # Upload to s3
-                        full_s3_path = _joinpath(s3_path, name)
-                        _upload_bytes_io_to_s3(bytes_io_obj=fname,
-                                               s3p=full_s3_path)
-
-                    # Show plot
-                    if show_plot:
-                        plt.show()
-
-                    # Close figure
-                    plt.close(fig_index)
+        for m, (plot_type, data) in enumerate(corr_stats.items()):
+            if len(data) > 0:
+                name = f'{plot_type}_{self.script_settings["graph_type"]}.pdf'
+                logger.info(f'Using file name {name}')
+                if od is None:
+                    fname = BytesIO()
                 else:
-                    logger.warning(f'Empty result for {k} ({plot_type}) in '
-                                   f'range {sd_str} for graph type '
-                                   f'{self.script_settings["graph_type"]}')
+                    fname = od.joinpath(name).as_posix()
+                if isinstance(data[0], tuple):
+                    data = [t[-1] for t in data]
+
+                fig_index = next(index_counter) if index_counter else m
+                plt.figure(fig_index)
+                plt.hist(x=data, bins='auto')
+                title = f'{plot_type.replace("_", " ").capitalize()}; '\
+                        f'{sd_str} {self.script_settings["graph_type"]}'
+
+                plt.title(title)
+                plt.xlabel('combined z-score')
+                plt.ylabel('count')
+
+                # Save to file or ByteIO and S3
+                plt.savefig(fname, format='pdf')
+                if od is None:
+                    # Reset pointer
+                    fname.seek(0)
+                    # Upload to s3
+                    full_s3_path = _joinpath(s3_path, name)
+                    _upload_bytes_io_to_s3(bytes_io_obj=fname,
+                                           s3p=full_s3_path)
+
+                # Show plot
+                if show_plot:
+                    plt.show()
+
+                # Close figure
+                plt.close(fig_index)
+            else:
+                logger.warning(f'Empty result for {plot_type} in '
+                               f'range {sd_str} for graph type '
+                               f'{self.script_settings["graph_type"]}')
 
     def plot_dists(self, outdir, z_corr=None, reactome=None,
                    show_plot=False, max_proc=None, index_counter=None,
@@ -442,18 +434,18 @@ class DepMapExplainer:
         fig_index = next(index_counter) if index_counter \
             else floor(datetime.timestamp(datetime.utcnow()))
         plt.figure(fig_index)
-        all_ind = corr_stats['axb_not_dir']
-        plt.hist(all_ind['azb_avg_corrs'], bins='auto', density=True,
-                 color='b', alpha=0.3)
-        plt.hist(all_ind['avg_x_corrs'], bins='auto', density=True,
-                 color='r', alpha=0.3)
-        plt.hist(all_ind['avg_x_filtered_corrs'], bins='auto', density=True,
-                 color='k', alpha=0.3)
         legend = ['A-X-B for all X', 'A-X-B for X in network']
-        if len(all_ind['reactome_avg_corrs']):
-            plt.hist(all_ind['reactome_avg_corrs'], bins='auto',
+        plt.hist(corr_stats['azb_avg_corrs'], bins='auto', density=True,
+                 color='b', alpha=0.3)
+        plt.hist(corr_stats['avg_x_corrs'], bins='auto', density=True,
+                 color='r', alpha=0.3)
+        if len(corr_stats['reactome_avg_corrs']):
+            plt.hist(corr_stats['reactome_avg_corrs'], bins='auto',
                      density=True, color='g', alpha=0.3)
             legend.append('A-X-B for X in reactome path')
+        plt.hist(corr_stats['avg_x_filtered_corrs'], bins='auto', density=True,
+                 color='k', alpha=0.3)
+        legend.append('Filtered A-X-B for X in network')
 
         sd_str = self.get_sd_str()
         title = 'avg X corrs %s (%s)' % (sd_str,
