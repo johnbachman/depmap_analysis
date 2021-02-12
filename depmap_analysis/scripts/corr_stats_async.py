@@ -540,7 +540,8 @@ def _get_interm_corr_stats(a: str, b: str, y_set: Union[List[str], Set[str]],
                 continue
             ay_corr = z_corr.loc[y, a]
             by_corr = z_corr.loc[y, b]
-            if np.isnan(ay_corr) or np.isnan(by_corr):
+            if global_vars['verbose'] and \
+                    (np.isnan(ay_corr) or np.isnan(by_corr)):
                 # Is there a more efficient way of doing this?
                 logger.info(
                     f'NaN correlations for subj-y ({str(a)}-{str(y)}) or '
