@@ -408,8 +408,8 @@ def get_interm_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
         # Data is in a 4-tuple for shared targets:
         # subj successors, obj predecessors, x intersection, x union
         # For a-x-b, b-x-a the data is not nested
-        x_iter = path_row['expl data'][2] if \
-            path_row['expl_type'] == st_colname else path_row['expl data']
+        x_iter = path_row['expl_data'][2] if \
+            path_row['expl_type'] == st_colname else path_row['expl_data']
         x_names = \
             [x.name if isinstance(x, CentralDogma) else x for
              x in x_iter if x not in (subj, obj)]
@@ -458,8 +458,8 @@ def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
             # Data is in a 4-tuple for shared targets:
             # subj successors, obj predecessors, x intersection, x union
             # For a-x-b, b-x-a the data is not nested
-            x_iter = path_row['expl data'][2] if \
-                path_row['expl_type'] == st_colname else path_row['expl data']
+            x_iter = path_row['expl_data'][2] if \
+                path_row['expl_type'] == st_colname else path_row['expl_data']
             x_names = \
                 [x.name if isinstance(x, CentralDogma) else x for
                  x in x_iter if x not in (subj, obj)]
