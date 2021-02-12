@@ -133,7 +133,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
                 pairs_axb_only.add((s, o))
 
         # Check if we need to sample
-        if max_corr_pairs < len(pairs_axb_only):
+        if max_corr_pairs and max_corr_pairs < len(pairs_axb_only):
             logger.info(f'Down sampling number of pairs to {max_corr_pairs}')
             pairs_axb_only = random.sample(pairs_axb_only, max_corr_pairs)
 
