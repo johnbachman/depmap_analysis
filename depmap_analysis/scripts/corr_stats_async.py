@@ -73,8 +73,7 @@ class GlobalVars(object):
             list_of_genes = Array(c_wchar_p,
                                   np.array(z_cm.columns.values),
                                   lock=False)
-        if verbose:
-            global_vars['verbose'] = verbose
+        global_vars['verbose'] = verbose
 
     @staticmethod
     def update_global_vars(**kwargs):
