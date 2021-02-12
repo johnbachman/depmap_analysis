@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from indra.util.aws import get_s3_client
 from indra_db.util.s3_path import S3Path
-from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
+from depmap_analysis.scripts.corr_stats_axb import main as axb_stats, Results
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ class DepMapExplainer:
         self.is_signed = True if network_type in {'signed', 'pybel'} else False
         self.summary = {}
         self.summary_str = ''
-        self.corr_stats_axb: Optional[Dict[str, List[float]]] = {}
+        self.corr_stats_axb: Optional[Results] = None
 
     def __str__(self):
         return self.get_summary_str() if self.__len__() else \
@@ -233,8 +233,7 @@ class DepMapExplainer:
 
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True,
-                           run_linear=False) \
-            -> Dict[str, List[float]]:
+                           run_linear=False) -> Results:
         """Get statistics of the correlations associated with different
         explanation types
 
@@ -268,8 +267,8 @@ class DepMapExplainer:
 
         Returns
         -------
-        dict
-            A Dict containing correlation data for different explanations
+        Results
+            A BaseModel containing correlation data for different explanations
         """
         if not self.corr_stats_axb:
             if z_corr is None:
@@ -278,7 +277,7 @@ class DepMapExplainer:
                                  'for the first time.')
             if isinstance(z_corr, str):
                 z_corr = pd.read_hdf(z_corr)
-            self.corr_stats_axb = axb_stats(
+            self.corr_stats_axb: Results = axb_stats(
                 self.expl_df, self.stats_df, z_corr=z_corr, reactome=reactome,
                 eval_str=False, max_proc=max_proc,
                 max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs,
@@ -342,13 +341,13 @@ class DepMapExplainer:
                 od.mkdir(parents=True, exist_ok=True)
 
         # Get corr stats
-        corr_stats = self.get_corr_stats_axb(
+        corr_stats: Results = self.get_corr_stats_axb(
             z_corr=z_corr, max_proc=max_proc, reactome=reactome,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
             run_linear=run_linear
         )
         sd_str = self.get_sd_str()
-        for m, (plot_type, data) in enumerate(corr_stats.items()):
+        for m, (plot_type, data) in enumerate(corr_stats.dict().items()):
             if len(data) > 0:
                 name = f'{plot_type}_{self.script_settings["graph_type"]}.pdf'
                 logger.info(f'Using file name {name}')
@@ -390,7 +389,7 @@ class DepMapExplainer:
                                f'range {sd_str} for graph type '
                                f'{self.script_settings["graph_type"]}')
 
-    def plot_dists(self, outdir, z_corr=None, reactome=None,
+    def plot_dists(self, outdir, z_corr: pd.DataFrame = None, reactome=None,
                    show_plot=False, max_proc=None, index_counter=None,
                    max_so_pairs_size=10000, mp_pairs=True, run_linear=False):
         """Compare the distributions of differently sampled A-X-B correlations
@@ -443,7 +442,7 @@ class DepMapExplainer:
                 od.mkdir(parents=True, exist_ok=True)
 
         # Get corr stats
-        corr_stats = self.get_corr_stats_axb(
+        corr_stats: Results = self.get_corr_stats_axb(
             z_corr=z_corr, max_proc=max_proc, reactome=reactome,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
             run_linear=run_linear
@@ -453,17 +452,17 @@ class DepMapExplainer:
         plt.figure(fig_index)
         legend = ['A-X-B for all X', 'A-X-B for X in network']
         # Plot A-Z-B
-        plt.hist(corr_stats['azb_avg_corrs'], bins='auto', density=True,
+        plt.hist(corr_stats.azb_avg_corrs, bins='auto', density=True,
                  color='b', alpha=0.3)
         # Plot A-X-B
-        plt.hist(corr_stats['avg_x_corrs'], bins='auto', density=True,
+        plt.hist(corr_stats.avg_x_corrs, bins='auto', density=True,
                  color='r', alpha=0.3)
         # Plot reactome expl in
-        if len(corr_stats['reactome_avg_corrs']):
-            plt.hist(corr_stats['reactome_avg_corrs'], bins='auto',
+        if len(corr_stats.reactome_avg_corrs):
+            plt.hist(corr_stats.reactome_avg_corrs, bins='auto',
                      density=True, color='g', alpha=0.3)
             legend.append('A-X-B for X in reactome path')
-        plt.hist(corr_stats['avg_x_filtered_corrs'], bins='auto', density=True,
+        plt.hist(corr_stats.avg_x_filtered_corrs, bins='auto', density=True,
                  color='k', alpha=0.3)
         legend.append('Filtered A-X-B for X in network')
 

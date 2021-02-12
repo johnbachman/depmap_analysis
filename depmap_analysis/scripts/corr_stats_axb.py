@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 
 from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
     bxa_colname, ab_colname, ba_colname, st_colname
-from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
+from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp, \
+    Results
 
 logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.INFO)
@@ -29,8 +30,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
          max_proc: Optional[int] = None,
          max_corr_pairs: Optional[int] = 10000,
          do_mp_pairs: Optional[bool] = True,
-         run_linear: bool = False) \
-        -> Dict[str, List[float]]:
+         run_linear: bool = False) -> Results:
     """Get statistics of the correlations associated with different
     explanation types
 
@@ -72,7 +72,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
 
     Returns
     -------
-    dict
+    Results
         A Dict containing correlation data for different explanations
     """
     # Limit to any a-x-b OR a-b expl (this COULD include explanations where
@@ -158,23 +158,11 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
         logger.info('No reactome file provided')
         gbv.update_global_vars(z_cm=z_corr)
     if gbv.assert_global_vars(assert_vars):
-        all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
-            all_azb_corrs_no_direct, azb_avg_corrs_no_direct, \
-            all_reactome_corrs, reactome_avg_corrs, \
-            axb_filtered_avg_corrs, all_axb_filtered_corrs = \
-            get_corr_stats_mp(**options)
+        results: Results = get_corr_stats_mp(**options)
     else:
         raise ValueError('Global variables could not be set')
 
-    return {'all_x_corrs': all_x_corrs_no_direct,
-            'avg_x_corrs': avg_x_corrs_no_direct,
-            'top_x_corrs': top_x_corrs_no_direct,
-            'all_azb_corrs': all_azb_corrs_no_direct,
-            'azb_avg_corrs': azb_avg_corrs_no_direct,
-            'all_reactome_corrs': all_reactome_corrs,
-            'reactome_avg_corrs': reactome_avg_corrs,
-            'all_x_filtered_corrs': all_axb_filtered_corrs,
-            'avg_x_filtered_corrs': axb_filtered_avg_corrs}
+    return results
 
 
 if __name__ == '__main__':

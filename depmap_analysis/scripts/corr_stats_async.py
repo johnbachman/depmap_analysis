@@ -10,6 +10,7 @@ import random
 import numpy as np
 import pandas as pd
 from pybel.dsl.node_classes import CentralDogma
+from pydantic import BaseModel
 
 from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
     bxa_colname, ab_colname, ba_colname, st_colname, apriori_colname, \
@@ -22,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 uniprot_ids_reverse = {v: k for k, v in uniprot_ids.items()}
 
-global_results = []
+global_results: \
+    List[Dict[str, List[Union[float, Tuple[str, str, float]]]]] = []
 global_results_pairs = []
 global_vars = {}
 list_of_genes = []
@@ -49,6 +51,19 @@ def success_callback_pairs(res):
 def error_callback(err):
     logger.error(f'An error occurred in process {current_process().pid}')
     logger.exception(err)
+
+
+class Results(BaseModel):
+    """The results data model"""
+    all_x_corrs: List[float] = []
+    avg_x_corrs: List[float] = []
+    top_x_corrs: List[Tuple[str, str, float]] = []
+    all_azb_corrs: List[float] = []
+    azb_avg_corrs: List[float] = []
+    all_reactome_corrs: List[float] = []
+    reactome_avg_corrs: List[float] = []
+    all_x_filtered_corrs: List[float] = []
+    avg_x_filtered_corrs: List[float] = []
 
 
 class GlobalVars(object):
@@ -207,7 +222,7 @@ def get_pairs(corr_pairs):
 
 
 def get_corr_stats_mp(so_pairs, max_proc=cpu_count(),
-                      run_linear: bool = False):
+                      run_linear: bool = False) -> Results:
     logger.info(
         f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
         f'with about {len(so_pairs)} pairs to check')
@@ -244,26 +259,26 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count(),
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
     logger.info(f'Assembling {len(global_results)} results')
-    results = [[]]*9
+    results = Results()
     for done_res in global_results:
         # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
-        results[0] += done_res['all_axb_corrs']
+        results.all_x_corrs += done_res['all_axb_corrs']
         # Var name: avg_x_corrs; Dict key: axb_avg_corrs
-        results[1] += done_res['axb_avg_corrs']
+        results.avg_x_corrs += done_res['axb_avg_corrs']
         # Var name: top_x_corrs; Dict key: top_axb_corrs
-        results[2] += done_res['top_axb_corrs']
+        results.top_x_corrs += done_res['top_axb_corrs']
         # Var name: all_azb_corrs; Dict key: all_azb_corrs
-        results[3] += done_res['all_azb_corrs']
+        results.all_azb_corrs += done_res['all_azb_corrs']
         # Var name: azb_avg_corrs; Dict key: azb_avg_corrs
-        results[4] += done_res['azb_avg_corrs']
+        results.azb_avg_corrs += done_res['azb_avg_corrs']
         # Var name: all_reactome_corrs; Dict key: all_reactome_corrs
-        results[5] += done_res['all_reactome_corrs']
+        results.all_reactome_corrs += done_res['all_reactome_corrs']
         # Var name: reactome_avg_corrs; Dict key: reactome_avg_corrs
-        results[6] += done_res['reactome_avg_corrs']
+        results.reactome_avg_corrs += done_res['reactome_avg_corrs']
         # Var name: axb_filtered_avg_corrs; Dict key: axb_filtered_avg_corrs
-        results[7] += done_res['axb_filtered_avg_corrs']
+        results.all_x_filtered_corrs += done_res['axb_filtered_avg_corrs']
         # Var name: all_axb_filtered_corrs; Dict key: all_axb_filtered_corrs
-        results[8] += done_res['all_axb_filtered_corrs']
+        results.avg_x_filtered_corrs += done_res['all_axb_filtered_corrs']
     return results
 
 
