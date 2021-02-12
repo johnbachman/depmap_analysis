@@ -206,35 +206,40 @@ def get_pairs(corr_pairs):
     return pairs_axb_only
 
 
-def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
+def get_corr_stats_mp(so_pairs, max_proc=cpu_count(),
+                      run_linear: bool = False):
     logger.info(
         f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
         f'with about {len(so_pairs)} pairs to check')
     tstart = time()
 
-    max_proc = min(cpu_count(), max_proc)
-    if max_proc < 1:
-        logger.warning('Max processes is set to < 1, resetting to 1')
-        max_proc = 1
+    if not run_linear:
+        max_proc = min(cpu_count(), max_proc)
+        if max_proc < 1:
+            logger.warning('Max processes is set to < 1, resetting to 1')
+            max_proc = 1
 
-    with Pool(max_proc) as pool:
-        # Split up so_pairs in equal chunks
-        size = len(so_pairs) // max_proc + 1 if max_proc > 1 else 1
-        lst_gen = _list_chunk_gen(lst=list(so_pairs),
-                                  size=size,
-                                  shuffle=True)
-        for pairs in lst_gen:
-            pool.apply_async(
-                func=get_corr_stats,
-                args=(pairs, ),
-                callback=success_callback,
-                error_callback=error_callback
-            )
-        logger.info('Done submitting work to pool of workers')
-        pool.close()
-        logger.info('Pool is closed')
-        pool.join()
-        logger.info('Pool is joined')
+        with Pool(max_proc) as pool:
+            # Split up so_pairs in equal chunks
+            size = len(so_pairs) // max_proc + 1 if max_proc > 1 else 1
+            lst_gen = _list_chunk_gen(lst=list(so_pairs),
+                                      size=size,
+                                      shuffle=True)
+            for pairs in lst_gen:
+                pool.apply_async(
+                    func=get_corr_stats,
+                    args=(pairs, False),
+                    callback=success_callback,
+                    error_callback=error_callback
+                )
+            logger.info('Done submitting work to pool of workers')
+            pool.close()
+            logger.info('Pool is closed')
+            pool.join()
+            logger.info('Pool is joined')
+    else:
+        logger.info('Executing in one process')
+        get_corr_stats_linearly(list(so_pairs))
     logger.info(f'Execution time: {time() - tstart} seconds')
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
@@ -262,7 +267,14 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
     return results
 
 
-def get_corr_stats(so_pairs) -> Dict[str, List[float]]:
+def get_corr_stats_linearly(so_pairs):
+    """A single process wrapper for get_corr_stats"""
+    res = get_corr_stats(so_pairs, run_single_proc=True)
+    global_results.append(res)
+
+
+def get_corr_stats(so_pairs, run_single_proc: bool = False) \
+        -> Dict[str, List[float]]:
     try:
         global list_of_genes
         expl_df = global_vars['expl_df']
@@ -373,8 +385,11 @@ def get_corr_stats(so_pairs) -> Dict[str, List[float]]:
                 'reactome_avg_corrs': reactome_avg_corrs,
                 'axb_filtered_avg_corrs': axb_filtered_avg_corrs,
                 'all_axb_filtered_corrs': all_axb_filtered_corrs}
-    except Exception:
-        raise WrapException()
+    except Exception as exc:
+        if run_single_proc:
+            raise exc
+        else:
+            raise WrapException()
 
 
 def get_interm_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
