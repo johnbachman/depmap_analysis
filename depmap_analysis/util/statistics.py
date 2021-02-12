@@ -390,7 +390,7 @@ class DepMapExplainer:
             's3://' upload to s3. outdir must then have the form
             's3://<bucket>/<sub_dir>' where <bucket> must be specified and
             <sub_dir> is optional and may contain subdirectories.
-        z_corr : pd.DataFrame
+        z_corr : Optional[pd.DataFrame]
             A pd.DataFrame containing the correlation z scores used to
             create the statistics in this object
         reactome : tuple[dict]|list[dict]
