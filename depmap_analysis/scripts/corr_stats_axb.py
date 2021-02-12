@@ -27,7 +27,8 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
          eval_str: Optional[bool] = False,
          max_proc: Optional[int] = None,
          max_corr_pairs: Optional[int] = 10000,
-         do_mp_pairs: Optional[bool] = True) \
+         do_mp_pairs: Optional[bool] = True,
+         run_linear: bool = False) \
         -> Dict[str, List[float]]:
     """Get statistics of the correlations associated with different
     explanation types
@@ -63,6 +64,10 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
     do_mp_pairs : bool
         If True, get the pairs to process using multiprocessing if larger
         than 10 000. Default: True.
+    run_linear : bool
+        If True, run the script without multiprocessing. This option is good
+        when debugging or if the environment for some reason does not
+        support multiprocessing. Default: False.
 
     Returns
     -------
@@ -91,7 +96,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
                                 expl_df[['agA', 'agB']].values))
 
     gbv = GlobalVars(expl_df=expl_df, stats_df=stats_df, sampl=16)
-    if do_mp_pairs and len(all_ab_corr_pairs) > 10000:
+    if not run_linear and do_mp_pairs and len(all_ab_corr_pairs) > 10000:
         # Do multiprocessing
         logger.info('Getting axb subj-obj pairs through multiprocessing')
         gbv.assert_global_vars({'expl_df', 'stats_df'})
@@ -134,7 +139,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
 
     # a-x-b AND NOT direct
     logger.info("Getting correlations for a-x-b AND NOT direct")
-    options = {'so_pairs': pairs_axb_only}
+    options = {'so_pairs': pairs_axb_only, 'run_linear': run_linear}
     if max_proc:
         options['max_proc'] = max_proc
 

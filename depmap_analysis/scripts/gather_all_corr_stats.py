@@ -1,4 +1,3 @@
-import boto3
 import logging
 import argparse
 from math import floor
@@ -7,6 +6,7 @@ from pathlib import Path
 from itertools import count
 from datetime import datetime
 
+import boto3
 import pandas as pd
 
 from indra_db.util.s3_path import S3Path
@@ -85,9 +85,17 @@ if __name__ == '__main__':
              'pairs to process.'
     )
 
+    parser.add_argument(
+        '--single-proc', action='store_true',
+        help='Run all scripts on a single process. This option is good when '
+             'debugging or if the environment for some reason does not '
+             'support multiprocessing. Default: False.'
+    )
+
     args = parser.parse_args()
     base_path: str = args.base_path
     outdir: str = args.outdir
+    single_proc: bool = args.single_proc
 
     if base_path.startswith('s3://') or outdir.startswith('s3://'):
         s3 = boto3.client('s3')
@@ -169,13 +177,16 @@ if __name__ == '__main__':
                                       max_proc=max_proc,
                                       index_counter=indexer,
                                       max_so_pairs_size=args.max_so_pairs,
-                                      mp_pairs=args.mp_pairs)
+                                      mp_pairs=args.mp_pairs,
+                                      run_linear=single_proc)
 
             explainer.plot_dists(outdir=explainer_out,
-                                 z_corr=None, show_plot=False,
+                                 z_corr=None,
+                                 show_plot=False,
                                  index_counter=indexer,
                                  max_so_pairs_size=args.max_so_pairs,
-                                 mp_pairs=args.mp_pairs)
+                                 mp_pairs=args.mp_pairs,
+                                 run_linear=single_proc)
         else:
             if not _exists(explainer_file):
                 raise FileNotFoundError(f'{explainer_file} does not exist')

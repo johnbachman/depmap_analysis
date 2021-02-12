@@ -232,7 +232,8 @@ class DepMapExplainer:
             return f'{self.sd_range[0]}+SD'
 
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
-                           max_so_pairs_size=10000, mp_pairs=True) \
+                           max_so_pairs_size=10000, mp_pairs=True,
+                           run_linear=False) \
             -> Dict[str, List[float]]:
         """Get statistics of the correlations associated with different
         explanation types
@@ -260,6 +261,10 @@ class DepMapExplainer:
         mp_pairs : bool
             If True, get the pairs to process using multiprocessing if larger
             than 10 000. Default: True.
+        run_linear : bool
+            If True, gather the data without multiprocessing. This option is
+            good when debugging or if the environment for some reason does
+            not support multiprocessing. Default: False.
 
         Returns
         -------
@@ -276,13 +281,15 @@ class DepMapExplainer:
             self.corr_stats_axb = axb_stats(
                 self.expl_df, self.stats_df, z_corr=z_corr, reactome=reactome,
                 eval_str=False, max_proc=max_proc,
-                max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs
+                max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs,
+                run_linear=run_linear
             )
         return self.corr_stats_axb
 
     def plot_corr_stats(self, outdir, z_corr=None, reactome=None,
                         show_plot=False, max_proc=None, index_counter=None,
-                        max_so_pairs_size=10000, mp_pairs=True):
+                        max_so_pairs_size=10000, mp_pairs=True,
+                        run_linear=False):
         """Plot the results of running explainer.get_corr_stats_axb()
 
         Parameters
@@ -317,6 +324,10 @@ class DepMapExplainer:
         mp_pairs : bool
             If True, get the pairs to process using multiprocessing if larger
             than 10 000. Default: True.
+        run_linear : bool
+            If True, gather the data without multiprocessing. This option is
+            good when debugging or if the environment for some reason does
+            not support multiprocessing. Default: False.
         """
         # Local file or s3
         if outdir.startswith('s3://'):
@@ -333,7 +344,8 @@ class DepMapExplainer:
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(
             z_corr=z_corr, max_proc=max_proc, reactome=reactome,
-            max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
+            max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
+            run_linear=run_linear
         )
         sd_str = self.get_sd_str()
         for m, (plot_type, data) in enumerate(corr_stats.items()):
@@ -380,7 +392,7 @@ class DepMapExplainer:
 
     def plot_dists(self, outdir, z_corr=None, reactome=None,
                    show_plot=False, max_proc=None, index_counter=None,
-                   max_so_pairs_size=10000, mp_pairs=True):
+                   max_so_pairs_size=10000, mp_pairs=True, run_linear=False):
         """Compare the distributions of differently sampled A-X-B correlations
 
         Parameters
@@ -415,6 +427,10 @@ class DepMapExplainer:
         mp_pairs : bool
             If True, get the pairs to process using multiprocessing if larger
             than 10 000. Default: True.
+        run_linear : bool
+            If True, gather the data without multiprocessing. This option is
+            good when debugging or if the environment for some reason does
+            not support multiprocessing. Default: False.
         """
         # Local file or s3
         if outdir.startswith('s3://'):
@@ -429,16 +445,20 @@ class DepMapExplainer:
         # Get corr stats
         corr_stats = self.get_corr_stats_axb(
             z_corr=z_corr, max_proc=max_proc, reactome=reactome,
-            max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs
+            max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
+            run_linear=run_linear
         )
         fig_index = next(index_counter) if index_counter \
             else floor(datetime.timestamp(datetime.utcnow()))
         plt.figure(fig_index)
         legend = ['A-X-B for all X', 'A-X-B for X in network']
+        # Plot A-Z-B
         plt.hist(corr_stats['azb_avg_corrs'], bins='auto', density=True,
                  color='b', alpha=0.3)
+        # Plot A-X-B
         plt.hist(corr_stats['avg_x_corrs'], bins='auto', density=True,
                  color='r', alpha=0.3)
+        # Plot reactome expl in
         if len(corr_stats['reactome_avg_corrs']):
             plt.hist(corr_stats['reactome_avg_corrs'], bins='auto',
                      density=True, color='g', alpha=0.3)
