@@ -28,7 +28,7 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
                                   Dict[str, str]]] = None,
          eval_str: Optional[bool] = False,
          max_proc: Optional[int] = None,
-         max_corr_pairs: Optional[int] = 10000,
+         max_corr_pairs: int = 10000,
          do_mp_pairs: Optional[bool] = True,
          run_linear: bool = False) -> Results:
     """Get statistics of the correlations associated with different
