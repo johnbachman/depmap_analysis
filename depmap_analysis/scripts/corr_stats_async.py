@@ -275,10 +275,10 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count(),
         results.all_reactome_corrs += done_res['all_reactome_corrs']
         # Var name: reactome_avg_corrs; Dict key: reactome_avg_corrs
         results.reactome_avg_corrs += done_res['reactome_avg_corrs']
-        # Var name: axb_filtered_avg_corrs; Dict key: axb_filtered_avg_corrs
-        results.all_x_filtered_corrs += done_res['axb_filtered_avg_corrs']
         # Var name: all_axb_filtered_corrs; Dict key: all_axb_filtered_corrs
-        results.avg_x_filtered_corrs += done_res['all_axb_filtered_corrs']
+        results.all_x_filtered_corrs += done_res['all_axb_filtered_corrs']
+        # Var name: axb_filtered_avg_corrs; Dict key: axb_filtered_avg_corrs
+        results.avg_x_filtered_corrs += done_res['axb_filtered_avg_corrs']
     return results
 
 
