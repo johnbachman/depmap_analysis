@@ -15,6 +15,10 @@ from depmap_analysis.scripts.corr_stats_axb import main as axb_stats, Results
 
 logger = logging.getLogger(__name__)
 
+
+__all__ = ['min_columns', 'id_columns', 'expl_columns', 'DepMapExplainer']
+
+
 min_columns = ('pair', 'agA', 'agB', 'z_score')
 id_columns = min_columns + ('agA_ns', 'agA_id', 'agB_ns', 'agB_id')
 expl_columns = min_columns + ('expl_type', 'expl_data')
