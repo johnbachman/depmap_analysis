@@ -177,6 +177,10 @@ class DepMapExplainer:
             self.summary_str = self.get_summary_str()
         print(self.summary_str)
 
+    def extend_stats(self):
+        """Extend stats_df with the calculated booleans from self.summary"""
+        pass
+
     def get_summary(self):
         """Return a dict with the summary counts
 
