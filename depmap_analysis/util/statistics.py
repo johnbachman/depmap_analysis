@@ -262,11 +262,11 @@ class DepMapExplainer:
     def _get_sr_only(self):
         # Get indices where 'shared regulator' is True
         sr_true = self.stats_df[
-                self.stats_df['shared regulator'] == True
+                self.stats_df[sr_colname] == True
             ].index.values
         # Exclude overall explained and shared regulator
         other_cols = [col for col in self.expl_cols if col not in
-                      {'shared regulator', 'explained'}]
+                      {sr_colname, 'explained'}]
         others_false = self.stats_df[
                 self.stats_df[other_cols] == False
             ].index.values
