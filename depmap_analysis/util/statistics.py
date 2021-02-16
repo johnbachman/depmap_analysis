@@ -139,6 +139,38 @@ class DepMapExplainer:
         """
         return len(self.stats_df) > 0 or len(self.expl_df) > 0
 
+    def get_non_reactome_axb_expl(self, corr_cutoff: float):
+        """Get A,B for axb explanations, without reactome, direct or apriori
+
+        Get A, B pairs from axb type explanations without reactome, direct or
+        apriori explanations, where the correlation is above the provided
+        cutoff.
+
+        Parameters
+        ----------
+        corr_cutoff : float
+
+
+        Returns
+        -------
+        List[Tuple[str]]
+        """
+        df = self._filter_stats_to_interesting()
+
+        return [tuple(p.split('_')) for p in df.pair.values]
+
+    def _filter_stats_to_interesting(self) -> pd.DataFrame:
+        """Filter to axb/bxa/shared target, excl direct, reactome, apriori"""
+        df = self.stats_df[self.stats_df.not_in_graph == False]
+
+        return df[((df[st_colname]) |
+                   (df[axb_colname]) |
+                   (df[bxa_colname])) &
+                  (df[apriori_colname] == False) &
+                  (df[ab_colname] == False) &
+                  (df[ba_colname] == False) &
+                  (df[react_colname] == False)]
+
     def summarize(self):
         """Count explanations and print a summary count of them"""
         if not self.summary_str:
