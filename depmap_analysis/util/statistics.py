@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 from indra.util.aws import get_s3_client
 from indra_db.util.s3_path import S3Path
+from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats, Results
 
 logger = logging.getLogger(__name__)
@@ -165,17 +166,18 @@ class DepMapExplainer:
             self.summary['unexplained'] = \
                 sum(self.stats_df['explained'] == False)
             # count "complex or direct"
-            if 'a-b' in self.stats_df.columns and \
-                    'b-a' in self.stats_df.columns:
+            if ab_colname in self.stats_df.columns and \
+                    ba_colname in self.stats_df.columns:
                 self.summary['complex or direct'] = \
-                    sum(self.stats_df['a-b'] | self.stats_df['b-a'])
+                    sum(self.stats_df[ab_colname] | self.stats_df[ba_colname])
             # count directed a-x-b: a->x->b or b->x->a
-            if 'a-x-b' in self.stats_df.columns and \
-                    'b-x-a' in self.stats_df.columns:
+            if axb_colname in self.stats_df.columns and \
+                    bxa_colname in self.stats_df.columns:
                 self.summary['x intermediate'] = \
-                    sum(self.stats_df['a-x-b'] | self.stats_df['b-x-a'])
+                    sum(self.stats_df[axb_colname] |
+                        self.stats_df[bxa_colname])
             # count shared regulator as only expl
-            if 'shared regulator' in self.stats_df.columns:
+            if sr_colname in self.stats_df.columns:
                 self.summary['sr only'] = self._get_sr_only()
                 # explained - (shared regulator as only expl)
                 self.summary['explained (excl sr)'] = \
