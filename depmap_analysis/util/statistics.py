@@ -214,6 +214,13 @@ class DepMapExplainer:
                 # explained - (shared regulator as only expl)
                 self.summary['explained (excl sr)'] = \
                     self.summary['explained'] - self.summary['sr only']
+            # Count axb type explanations that does not have reactome,
+            # direct/complex or apriori explanations
+            if all([cn in self.stats_df.colummns for cn in
+                    [st_colname, axb_colname, bxa_colname, apriori_colname,
+                     ab_colname, ba_colname, react_colname]]):
+                self.summary['explained no reactome, direct, apriori'] = \
+                    self._get_axb_type_no_react()
 
         return self.summary
 
@@ -261,6 +268,10 @@ class DepMapExplainer:
             ].index.values
 
         return len(set(sr_true).intersection(others_false))
+
+    def _get_axb_type_no_react(self):
+        df = self._filter_stats_to_interesting()
+        return len(df)
 
     def get_sd_str(self):
         """Construct a string """
