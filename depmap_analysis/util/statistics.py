@@ -279,6 +279,9 @@ class DepMapExplainer:
 
     def get_sd_str(self):
         """Construct a string """
+        if self.sd_range[0] is None:
+            return 'RND'
+
         if self.sd_range[1]:
             return f'{self.sd_range[0]}-{self.sd_range[1]}SD'
         else:
