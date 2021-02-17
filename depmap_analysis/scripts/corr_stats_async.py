@@ -60,6 +60,8 @@ class Results(BaseModel):
     top_x_corrs: List[Tuple[str, str, float]] = []
     all_azb_corrs: List[float] = []
     azb_avg_corrs: List[float] = []
+    all_azfb_corrs: List[float] = []  # Background for filtered A,B
+    azfb_avg_corrs: List[float] = []
     all_reactome_corrs: List[float] = []
     reactome_avg_corrs: List[float] = []
     all_x_filtered_corrs: List[float] = []
@@ -300,6 +302,10 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
         axb_filtered_avg_corrs = []
         all_axb_filtered_corrs = []
 
+        # Sample filtered background data per pair
+        azfb_avg_corrs = []
+        all_azfb_corrs = []
+
         # Sample background data per pair
         azb_avg_corrs = []
         all_azb_corrs = []
@@ -332,8 +338,16 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
             all_axb_filtered_corrs += axb_filt_corrs
             counter['xf_skip'] += xf_len - len(avg_xf_corrs_per_ab)
 
-            # Get z values
+            # Get z values for background sampling
             z_iter = np.random.choice(list_of_genes[:], chunk_size, False)
+
+            # Get background for filtered A, B
+            avg_zf_corrs_per_ab, azfb_corrs = \
+                get_interm_corr_stats_zf(subj, obj, z_iter, z_corr, expl_df,
+                                         stats_df)
+            azfb_avg_corrs += avg_zf_corrs_per_ab
+            all_azfb_corrs += azfb_corrs
+
             avg_z_corrs_per_ab, azb_corrs = \
                 get_interm_corr_stats_z(subj, obj, z_iter, z_corr)
             azb_avg_corrs += avg_z_corrs_per_ab
@@ -349,8 +363,9 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
                 counter['r_skip'] += r_len - len(avg_reactome_corrs_per_ab)
 
         assert_list = [all_axb_corrs, axb_avg_corrs, top_axb_corrs,
-                       all_azb_corrs, azb_avg_corrs, axb_filtered_avg_corrs,
-                       all_axb_filtered_corrs]
+                       all_azb_corrs, azb_avg_corrs,
+                       azfb_avg_corrs, all_azfb_corrs,
+                       axb_filtered_avg_corrs, all_axb_filtered_corrs]
         if reactome:
             assert_list += [all_reactome_corrs, reactome_avg_corrs]
         try:
@@ -364,6 +379,8 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
                 f'top_axb_corrs: {len(top_axb_corrs)}, '
                 f'all_azb_corrs: {len(all_azb_corrs)}, '
                 f'azb_avg_corrs: {len(azb_avg_corrs)}, '
+                f'azfb_avg_corrs: {len(azfb_avg_corrs)}, '
+                f'all_azfb_corrs: {len(all_azfb_corrs)}, '
                 f'all_reactome_corrs (only if provided):'
                 f' {len(all_reactome_corrs)}, '
                 f'reactome_avg_corrs (only if provided):'
