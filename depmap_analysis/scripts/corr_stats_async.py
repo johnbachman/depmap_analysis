@@ -190,14 +190,8 @@ def get_pairs(corr_pairs):
     # Get global args
     expl_df = global_vars['expl_df']
 
-    # Pairs where a-x-b AND a-b explanation exists
-    pairs_axb_direct = set()
-
     # Pairs where a-x-b AND NOT a-b explanation exists
     pairs_axb_only = set()
-
-    # all a-x-b "pathway" explanations, should be union of the above two
-    pairs_any_axb = set()
 
     for s, o in corr_pairs:
         # Make sure we don't try to explain self-correlations
@@ -215,9 +209,6 @@ def get_pairs(corr_pairs):
                 in int_types:
             pairs_axb_only.add((s, o))
 
-    # The union should be all pairs where a-x-b explanations exist
-    ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
-    assert ab_axb_union == pairs_any_axb
     return pairs_axb_only
 
 

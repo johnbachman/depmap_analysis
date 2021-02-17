@@ -105,8 +105,6 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
                                       max_pairs=max_corr_pairs)
     else:
         logger.info('Assembling axb subj-obj pairs linearly')
-        # Pairs where a-x-b AND a-b explanation exists
-        pairs_axb_direct = set()
 
         # Pairs where a-x-b AND NOT a-b explanation exists
         pairs_axb_only = set()
