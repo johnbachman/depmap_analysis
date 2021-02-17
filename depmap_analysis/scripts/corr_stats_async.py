@@ -558,9 +558,28 @@ def get_interm_corr_stats_zf(subj: str, obj: str, z_set: List[str],
     return [], []
 
 
-
-def get_interm_corr_stats_z(subj, obj, z_set, z_corr) \
+def get_interm_corr_stats_z(subj: str, obj: str, z_set: List[str],
+                            z_corr: pd.DataFrame) \
         -> Tuple[List[float], List[float]]:
+    """
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_set : List[str]
+        A list of randomly sampled intermediate entities to get the a-z,
+        z-b correlations from
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+        and stats_df
+
+    Returns
+    -------
+    Tuple[List[str], List[str]]
+    """
     return _get_interm_corr_stats(subj, obj, z_set, z_corr)
 
 
