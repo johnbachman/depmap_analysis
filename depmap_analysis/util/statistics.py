@@ -518,9 +518,67 @@ class DepMapExplainer:
             plt.hist(corr_stats.reactome_avg_corrs, bins='auto',
                      density=True, color='g', alpha=0.3)
             legend.append('A-X-B for X in reactome path')
+
+        sd_str = self.get_sd_str()
+        title = 'avg X corrs %s (%s)' % (sd_str,
+                                         self.script_settings['graph_type'])
+        plt.title(title)
+        plt.ylabel('Norm. Density')
+        plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
+        plt.legend(legend)
+        name = '%s_%s_axb_hist_comparison.pdf' % \
+               (sd_str, self.script_settings['graph_type'])
+
+        # Save to file or ByteIO and S3
+        if od is None:
+            fname = BytesIO()
+        else:
+            fname = od.joinpath(name).as_posix()
+        plt.savefig(fname, format='pdf')
+        if od is None:
+            # Reset pointer
+            fname.seek(0)
+            # Upload to s3
+            full_s3_path = _joinpath(s3_path, name)
+            _upload_bytes_io_to_s3(bytes_io_obj=fname,
+                                   s3p=full_s3_path)
+
+        # Show plot
+        if show_plot:
+            plt.show()
+
+        # Close figure
+        plt.close(fig_index)
+
+    def plot_interesting(self, outdir, z_corr: pd.DataFrame = None,
+                         reactome=None, show_plot=False, max_proc=None,
+                         index_counter=None, max_so_pairs_size=10000,
+                         mp_pairs=True, run_linear=False):
+        # Local file or s3
+        if outdir.startswith('s3://'):
+            s3_path = S3Path.from_string(outdir)
+            od = None
+        else:
+            s3_path = None
+            od = Path(outdir)
+            if not od.is_dir():
+                od.mkdir(parents=True, exist_ok=True)
+
+        # Get corr stats
+        corr_stats: Results = self.get_corr_stats_axb(
+            z_corr=z_corr, max_proc=max_proc, reactome=reactome,
+            max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
+            run_linear=run_linear
+        )
+        fig_index = next(index_counter) if index_counter \
+            else floor(datetime.timestamp(datetime.utcnow()))
+        plt.figure(fig_index)
+        plt.hist(corr_stats.azb_avg_corrs, bins='auto', density=True,
+                 color='b', alpha=0.3)
+        legend = ['Filtered A-X-B for any X']
         plt.hist(corr_stats.avg_x_filtered_corrs, bins='auto', density=True,
                  color='k', alpha=0.3)
-        legend.append('Filtered A-X-B for X in network')
+        legend = ['Filtered A-X-B for X in network']
 
         sd_str = self.get_sd_str()
         title = 'avg X corrs %s (%s)' % (sd_str,
