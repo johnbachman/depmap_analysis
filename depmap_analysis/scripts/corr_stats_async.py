@@ -254,24 +254,27 @@ def get_corr_stats_mp(so_pairs, max_proc=cpu_count(),
     logger.info(f'Assembling {len(global_results)} results')
     results = Results()
     for done_res in global_results:
-        # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
+        # axb in network
         results.all_x_corrs += done_res['all_axb_corrs']
-        # Var name: avg_x_corrs; Dict key: axb_avg_corrs
         results.avg_x_corrs += done_res['axb_avg_corrs']
-        # Var name: top_x_corrs; Dict key: top_axb_corrs
         results.top_x_corrs += done_res['top_axb_corrs']
-        # Var name: all_azb_corrs; Dict key: all_azb_corrs
+
+        # Background
         results.all_azb_corrs += done_res['all_azb_corrs']
-        # Var name: azb_avg_corrs; Dict key: azb_avg_corrs
         results.azb_avg_corrs += done_res['azb_avg_corrs']
-        # Var name: all_reactome_corrs; Dict key: all_reactome_corrs
+
+        # Reactome "bag-of-genes" data
         results.all_reactome_corrs += done_res['all_reactome_corrs']
-        # Var name: reactome_avg_corrs; Dict key: reactome_avg_corrs
         results.reactome_avg_corrs += done_res['reactome_avg_corrs']
-        # Var name: all_axb_filtered_corrs; Dict key: all_axb_filtered_corrs
+
+        # Filtered axb in graph
         results.all_x_filtered_corrs += done_res['all_axb_filtered_corrs']
-        # Var name: axb_filtered_avg_corrs; Dict key: axb_filtered_avg_corrs
         results.avg_x_filtered_corrs += done_res['axb_filtered_avg_corrs']
+
+        # Filtered background
+        results.all_azfb_corrs += done_res['all_azfb_corrs']
+        results.azfb_avg_corrs += done_res['azfb_avg_corrs']
+
     return results
 
 
@@ -283,6 +286,7 @@ def get_corr_stats_linearly(so_pairs):
 
 def get_corr_stats(so_pairs, run_single_proc: bool = False) \
         -> Dict[str, List[float]]:
+    # ToDo: Switch to numpy arrays
     try:
         global list_of_genes
         expl_df = global_vars['expl_df']
@@ -348,6 +352,7 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
             azfb_avg_corrs += avg_zf_corrs_per_ab
             all_azfb_corrs += azfb_corrs
 
+            # Get unfiltered background
             avg_z_corrs_per_ab, azb_corrs = \
                 get_interm_corr_stats_z(subj, obj, z_iter, z_corr)
             azb_avg_corrs += avg_z_corrs_per_ab
@@ -377,10 +382,10 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
                 f'Stats: all_axb_corrs: {len(all_axb_corrs)}, '
                 f'axb_avg_corrs: {len(axb_avg_corrs)}, '
                 f'top_axb_corrs: {len(top_axb_corrs)}, '
-                f'all_azb_corrs: {len(all_azb_corrs)}, '
-                f'azb_avg_corrs: {len(azb_avg_corrs)}, '
                 f'azfb_avg_corrs: {len(azfb_avg_corrs)}, '
                 f'all_azfb_corrs: {len(all_azfb_corrs)}, '
+                f'all_azb_corrs: {len(all_azb_corrs)}, '
+                f'azb_avg_corrs: {len(azb_avg_corrs)}, '
                 f'all_reactome_corrs (only if provided):'
                 f' {len(all_reactome_corrs)}, '
                 f'reactome_avg_corrs (only if provided):'
@@ -402,6 +407,8 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
         return {'all_axb_corrs': all_axb_corrs,
                 'axb_avg_corrs': axb_avg_corrs,
                 'top_axb_corrs': top_axb_corrs,
+                'azfb_avg_corrs': azfb_avg_corrs,
+                'all_azfb_corrs': all_azfb_corrs,
                 'all_azb_corrs': all_azb_corrs,
                 'azb_avg_corrs': azb_avg_corrs,
                 'all_reactome_corrs': all_reactome_corrs,
