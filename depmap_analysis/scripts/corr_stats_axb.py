@@ -149,12 +149,12 @@ def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
 
     # Set and assert existence of global variables
     assert_vars = {'z_cm', 'expl_df', 'stats_df'}
+    gbv.update_global_vars(z_cm=z_corr)
     if reactome is not None:
-        gbv.update_global_vars(z_cm=z_corr, reactome=reactome)
+        gbv.update_global_vars(reactome=reactome)
         assert_vars.add('reactome')
     else:
         logger.info('No reactome file provided')
-        gbv.update_global_vars(z_cm=z_corr)
     if gbv.assert_global_vars(assert_vars):
         results: Results = get_corr_stats_mp(**options)
     else:
