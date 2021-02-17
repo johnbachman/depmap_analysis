@@ -464,44 +464,36 @@ def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
     -------
     Tuple[Tuple[List[float], List[float]], int]
     """
-    pair_key = expl_df[(expl_df['agA'] == subj) &
-                       (expl_df['agB'] == obj)].pair.values[0]
-    # There should be only one row per pair_key
-    stats_row = stats_df[stats_df.pair == pair_key]
-    if _check_interesting(stats_row):
-        path_rows = expl_df[(expl_df['agA'] == subj) &
-                            (expl_df['agB'] == obj) &
-                            ((expl_df['expl_type'] == axb_colname) |
-                             (expl_df['expl_type'] == bxa_colname) |
-                             (expl_df['expl_type'] == st_colname))]
-        x_set: Set[str] = set()
-        for ix, path_row in path_rows.iterrows():
-            # Data is in a 4-tuple for shared targets:
-            # subj successors, obj predecessors, x intersection, x union
-            # For a-x-b, b-x-a the data is not nested
-            x_iter = path_row['expl_data'][2] if \
-                path_row['expl_type'] == st_colname else path_row['expl_data']
-            x_names = \
-                [x.name if isinstance(x, CentralDogma) else x for
-                 x in x_iter if x not in (subj, obj)]
-            x_set.update(x_names)
-        return _get_interm_corr_stats(subj, obj, x_set, z_corr), len(x_set)
+    if _check_interesting(subj, obj, expl_df, stats_df):
+        return get_interm_corr_stats_x(subj, obj, z_corr, expl_df)
     return ([], []), 0
 
 
-def _check_interesting(stats_row: pd.DataFrame) -> bool:
+def _check_interesting(subj: str, obj: str, expl_df: pd.DataFrame,
+                       stats_df: pd.DataFrame) -> bool:
     """Filter the pair to: not direct, not explained by reactome or apriori
 
     Parameters
     ----------
-    stats_row : pd.DataFrame
-        A single row from the stats_df
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+    stats_df : pd.DataFrame
+        The statistics data frame from the input data
 
     Returns
     -------
     bool
         If the pair passes the filter
     """
+    pair_key = expl_df[(expl_df['agA'] == subj) &
+                       (expl_df['agB'] == obj)].pair.values[0]
+    # There should be only one row per pair_key
+    stats_row = stats_df[stats_df.pair == pair_key]
+
     ab = stats_row[ab_colname].bool()
     ba = stats_row[ba_colname].bool()
     st = stats_row[st_colname].bool()
