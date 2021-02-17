@@ -553,6 +553,51 @@ class DepMapExplainer:
                          reactome=None, show_plot=False, max_proc=None,
                          index_counter=None, max_so_pairs_size=10000,
                          mp_pairs=True, run_linear=False):
+        """Plots the same type of plot as plot_dists, but filters A, B
+
+        A, B are filtered to those that fulfill the following:
+            - No a-b or b-a explanations
+            - Not explained by apriori explanations
+            - Without common reactome pathways
+            - With a-x-b, b-x-a or shared target explanation
+
+        Parameters
+        ----------
+        outdir : str
+            The output directory to save the plots in. If string starts with
+            's3://' upload to s3. outdir must then have the form
+            's3://<bucket>/<sub_dir>' where <bucket> must be specified and
+            <sub_dir> is optional and may contain subdirectories.
+        z_corr : Optional[pd.DataFrame]
+            A pd.DataFrame containing the correlation z scores used to
+            create the statistics in this object
+        reactome : tuple[dict]|list[dict]
+            A tuple or list of dicts. The first dict is expected to contain
+            mappings from UP IDs of genes to Reactome pathway IDs. The second
+            dict is expected to contain the reverse mapping (i.e Reactome IDs
+            to UP IDs). The third dict is expected to contain mappings from
+            the Reactome IDs to their descriptions.
+        show_plot : bool
+            If True also show plots
+        max_proc : int > 0
+            The maximum number of processes to run in the multiprocessing in
+            get_corr_stats_mp. Default: multiprocessing.cpu_count()
+        index_counter : generator
+            An object which produces a new int by using 'next()' on it. The
+            integers are used to separate the figures so as to not append
+            new plots in the same figure.
+        max_so_pairs_size : int
+            The maximum number of correlation pairs to process. If the
+            number of eligible pairs is larger than this number, a random
+            sample of max_so_pairs_size is used. Default: 10000.
+        mp_pairs : bool
+            If True, get the pairs to process using multiprocessing if larger
+            than 10 000. Default: True.
+        run_linear : bool
+            If True, gather the data without multiprocessing. This option is
+            good when debugging or if the environment for some reason does
+            not support multiprocessing. Default: False.
+        """
         # Local file or s3
         if outdir.startswith('s3://'):
             s3_path = S3Path.from_string(outdir)
