@@ -437,38 +437,6 @@ def get_interm_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
     return _get_interm_corr_stats(subj, obj, x_set, z_corr), len(x_set)
 
 
-def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
-                              expl_df: pd.DataFrame, stats_df: pd.DataFrame) \
-        -> Tuple[Tuple[List[float], List[float]], int]:
-    """Wrapper to get the a-x-b correlation data from some a-x-b explanations
-
-    This function does exactly the same data extraction as
-    get_interm_corr_stats_x, but filters out those explanations that don't
-    pass the filter
-
-    Parameters
-    ----------
-    subj : str
-        The entity corresponding to A in A,B
-    obj : str
-        The entity corresponding to B in A,B
-    z_corr : pd.DataFrame
-        The correlation dataframe used to produce the input data in expl_df
-        and stats_df
-    expl_df : pd.DataFrame
-        The explanation data frame from the input data
-    stats_df : pd.DataFrame
-        The statistics data frame from the input data
-
-    Returns
-    -------
-    Tuple[Tuple[List[float], List[float]], int]
-    """
-    if _check_interesting(subj, obj, expl_df, stats_df):
-        return get_interm_corr_stats_x(subj, obj, z_corr, expl_df)
-    return ([], []), 0
-
-
 def _check_interesting(subj: str, obj: str, expl_df: pd.DataFrame,
                        stats_df: pd.DataFrame) -> bool:
     """Filter the pair to: not direct, not explained by reactome or apriori
@@ -504,6 +472,74 @@ def _check_interesting(subj: str, obj: str, expl_df: pd.DataFrame,
 
     return (axb or bxa or st) and \
         not ab and not ba and not react and not apriori
+
+
+def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
+                              expl_df: pd.DataFrame, stats_df: pd.DataFrame) \
+        -> Tuple[Tuple[List[float], List[float]], int]:
+    """Wrapper to get the a-x-b correlation data from some a-x-b explanations
+
+    This function does exactly the same data extraction as
+    get_interm_corr_stats_x, but filters out those explanations that don't
+    pass the filter
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+        and stats_df
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+    stats_df : pd.DataFrame
+        The statistics data frame from the input data
+
+    Returns
+    -------
+    Tuple[Tuple[List[float], List[float]], int]
+    """
+    if _check_interesting(subj, obj, expl_df, stats_df):
+        return get_interm_corr_stats_x(subj, obj, z_corr, expl_df)
+    return ([], []), 0
+
+
+def get_interm_corr_stats_zf(subj: str, obj: str, z_set: List[str],
+                             z_corr: pd.DataFrame, expl_df: pd.DataFrame,
+                             stats_df: pd.DataFrame) \
+        -> Tuple[List[float], List[float]]:
+    """Get correlation data from pairs that pass the filter
+
+    This function does the same data extraction as get_interm_corr_stats_z,
+    but skips A, B pairs that don't pass the filter.
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_set : List[str]
+        A list of randomly sampled intermediate entities to get the a-z,
+        z-b correlations from
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+        and stats_df
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+    stats_df : pd.DataFrame
+        The statistics data frame from the input data
+
+    Returns
+    -------
+    Tuple[List[str], List[str]]
+    """
+    if _check_interesting(subj, obj, expl_df, stats_df):
+        return get_interm_corr_stats_z(subj, obj, z_set, z_corr)
+    return [], []
+
 
 
 def get_interm_corr_stats_z(subj, obj, z_set, z_corr) \
