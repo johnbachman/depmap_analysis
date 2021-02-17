@@ -572,21 +572,21 @@ class DepMapExplainer:
         fig_index = next(index_counter) if index_counter \
             else floor(datetime.timestamp(datetime.utcnow()))
         plt.figure(fig_index)
-        plt.hist(corr_stats.azb_avg_corrs, bins='auto', density=True,
+        plt.hist(corr_stats.azfb_avg_corrs, bins='auto', density=True,
                  color='b', alpha=0.3)
-        legend = ['Filtered A-X-B for any X']
         plt.hist(corr_stats.avg_x_filtered_corrs, bins='auto', density=True,
-                 color='k', alpha=0.3)
-        legend = ['Filtered A-X-B for X in network']
+                 color='r', alpha=0.3)
+        legend = ['Filtered A-X-B for any X',
+                  'Filtered A-X-B for X in network']
 
         sd_str = self.get_sd_str()
-        title = 'avg X corrs %s (%s)' % (sd_str,
-                                         self.script_settings['graph_type'])
+        title = f'avg X corrs, filtered {sd_str} ' \
+                f'({self.script_settings["graph_type"]})'
         plt.title(title)
         plt.ylabel('Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
         plt.legend(legend)
-        name = '%s_%s_axb_hist_comparison.pdf' % \
+        name = '%s_%s_axb_filtered_hist_comparison.pdf' % \
                (sd_str, self.script_settings['graph_type'])
 
         # Save to file or ByteIO and S3
