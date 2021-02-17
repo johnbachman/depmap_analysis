@@ -290,8 +290,7 @@ class DepMapExplainer:
     def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
                            max_so_pairs_size=10000, mp_pairs=True,
                            run_linear=False) -> Results:
-        """Get statistics of the correlations associated with different
-        explanation types
+        """Get statistics of the correlations from different explanation types
 
         Parameters
         ----------
