@@ -71,7 +71,7 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        '--max-so-pairs', type=int,
+        '--max-so-pairs', type=int, default=10000,
         help='The maximum number of correlation pairs to process. If the '
              'number of eligble pairs is larger than this number, a random '
              'sample of max_so_pairs_size is used. Default: 10 000. If the '
