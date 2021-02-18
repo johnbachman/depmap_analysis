@@ -187,6 +187,13 @@ if __name__ == '__main__':
                                  max_so_pairs_size=args.max_so_pairs,
                                  mp_pairs=args.mp_pairs,
                                  run_linear=single_proc)
+            explainer.plot_interesting(outdir=explainer_out,
+                                       z_corr=None,
+                                       show_plot=False,
+                                       index_counter=indexer,
+                                       max_so_pairs_size=args.max_so_pairs,
+                                       mp_pairs=args.mp_pairs,
+                                       run_linear=single_proc)
         else:
             if not _exists(explainer_file):
                 raise FileNotFoundError(f'{explainer_file} does not exist')
