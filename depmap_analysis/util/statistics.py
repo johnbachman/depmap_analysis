@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 from indra.util.aws import get_s3_client
 from indra_db.util.s3_path import S3Path
+from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats, Results
 
@@ -129,6 +130,19 @@ class DepMapExplainer:
     def __len__(self):
         # Will return the number of pairs checked
         return len(self.stats_df)
+
+    def load_graph(self):
+        """Load and return the graph used in script"""
+        if self.script_settings.get('indranet'):
+            indranet_file = self.script_settings['indranet']
+        elif self.script_settings.get('argparse_info', {}).get('indranet'):
+            indranet_file = \
+                self.script_settings['argparse_info']['indranet']
+        else:
+            raise ValueError('No graph file location seems to be present')
+
+        return file_opener(indranet_file)
+
 
     def has_data(self):
         """Check if any of the data frames have data in them
