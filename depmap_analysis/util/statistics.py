@@ -139,10 +139,38 @@ class DepMapExplainer:
             indranet_file = \
                 self.script_settings['argparse_info']['indranet']
         else:
-            raise ValueError('No graph file location seems to be present')
+            raise FileNotFoundError('No graph file location seems to be '
+                                    'present in script settings.')
 
         return file_opener(indranet_file)
 
+    def load_z_corr(self):
+        """Load and return the correlation matrix used in script"""
+        if self.script_settings.get('z_score'):
+            z_corr_file = self.script_settings['z_score']
+        elif self.script_settings.get('argparse_info', {}).get('z_score'):
+            z_corr_file = self.script_settings['argparse_info']['z_score']
+        else:
+            raise FileNotFoundError('No file location seems to be present in '
+                                    'script settings.')
+
+        return pd.read_hdf(z_corr_file)
+
+    def load_reactome(self):
+        if self.script_settings.get('argparse_info', {}).get(
+                'reactome_dict'):
+            reactome_file = \
+                self.script_settings['argparse_info']['reactome_dict']
+            reactome = file_opener(reactome_file)
+            assert isinstance(reactome, (tuple, list)), \
+                f'{reactome_file} does not seem to contain tuple of ' \
+                f'(upid - pathway mapping, pathway - upid mapping, ' \
+                f'pathway id - pathway description).'
+        else:
+            raise FileNotFoundError('No reactome file location seems to be '
+                                    'present in script settings.')
+
+        return reactome
 
     def has_data(self):
         """Check if any of the data frames have data in them
