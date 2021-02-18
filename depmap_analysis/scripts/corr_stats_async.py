@@ -390,8 +390,8 @@ def get_corr_stats(so_pairs, run_single_proc: bool = False) \
                 f' {len(all_reactome_corrs)}, '
                 f'reactome_avg_corrs (only if provided):'
                 f' {len(reactome_avg_corrs)}, '
-                f'axb_filtered_avg_corrs: {len(axb_filtered_avg_corrs)}'
-                f'all_axb_filtered_corrs: {len(all_axb_filtered_corrs)}'
+                f'axb_filtered_avg_corrs: {len(axb_filtered_avg_corrs)} '
+                f'all_axb_filtered_corrs: {len(all_axb_filtered_corrs)} '
             ) from exc
 
         logger.info('Counting skips...')
