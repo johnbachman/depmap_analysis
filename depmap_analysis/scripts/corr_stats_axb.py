@@ -18,7 +18,7 @@ from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
 from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp, \
     Results
 
-logger = logging.getLogger('DepMap Corr Stats')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
