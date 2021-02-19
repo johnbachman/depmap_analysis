@@ -148,8 +148,8 @@ class DepMapExplainer:
         assert isinstance(graph, (nx.DiGraph, nx.MultiDiGraph))
         return graph
 
-    def load_z_corr(self):
-        """Load and return the correlation matrix used in script"""
+    def load_z_corr(self) -> pd.DataFrame:
+        """Load and return the correlation data frame used in script"""
         if self.script_settings.get('z_score'):
             z_corr_file = self.script_settings['z_score']
         elif self.script_settings.get('argparse_info', {}).get('z_score'):
@@ -157,10 +157,12 @@ class DepMapExplainer:
         else:
             raise FileNotFoundError('No file location seems to be present in '
                                     'script settings.')
-
-        return pd.read_hdf(z_corr_file)
+        z_corr = pd.read_hdf(z_corr_file)
+        assert isinstance(z_corr, pd.DataFrame)
+        return z_corr
 
     def load_reactome(self):
+        """Load and return the reactome data used in script"""
         if self.script_settings.get('argparse_info', {}).get(
                 'reactome_dict'):
             reactome_file = \
