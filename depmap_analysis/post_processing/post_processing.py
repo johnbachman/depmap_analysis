@@ -51,7 +51,7 @@ def _check_hashes(a: str, x: str, b: str, ab_corr: float,
                   G: Union[DiGraph, MultiDiGraph], expl_type: str) \
         -> Dict[str, Union[float, str, List[Tuple[str, str, float]]]]:
     # Get edge data:
-    # 'agX_ns', 'agX_id', 'ax_belief', 'xb_belief', 'ax_data', bx_data
+    # 'agX_ns', 'agX_id', 'ax_belief', 'bx_belief', 'ax_data', bx_data
     if expl_type == {axb_colname, bxa_colname}:
         # a->x; x->b  a/b already flipped in the expl_df where the pairs
         # come from
@@ -118,7 +118,7 @@ def _check_hashes(a: str, x: str, b: str, ab_corr: float,
 
     if ax_edge_data and bx_edge_data:
         return {'agX_ns': x_ns, 'agX_id': x_id,
-                'ax_belief': ax_belief, 'xb_belief': bx_belief,
+                'ax_belief': ax_belief, 'bx_belief': bx_belief,
                 'ax_data': ax_edge_data, 'bx_data': bx_edge_data}
     return {}
 
@@ -135,16 +135,16 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
     # Loop expl rows for current key
     for ix, expl_row in expl_df[expl_df.pair == key].iterrows():
         # 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
-        # 'xb_corr', 'ax_belief', 'xb_belief', 'ax_data', 'bx_data'
+        # 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
         x_iter = expl_row.expl_data[2] if expl_row.expl_type == st_colname \
             else expl_row.expl_data
         # 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
-        # 'xb_corr', 'ax_belief', 'xb_belief', 'ax_data', 'bx_data'
+        # 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
 
         for x in x_iter:
             # Get edge data:
             # 'agX_ns', 'agX_id', 'ax_belief',
-            # 'xb_belief', 'ax_data', 'bx_data'
+            # 'bx_belief', 'ax_data', 'bx_data'
             try:
                 edge_dict = _check_hashes(a=expl_row.agA, x=x, b=expl_row.agB,
                                           ab_corr=expl_row.z_score, G=graph,
@@ -176,7 +176,7 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
             rows_dict['ax_corr'].append(ax_corr)
             rows_dict['xb_corr'].append(bx_corr)
             rows_dict['ax_belief'].append(edge_dict['ax_belief'])
-            rows_dict['xb_belief'].append(edge_dict['bx_belief'])
+            rows_dict['bx_belief'].append(edge_dict['bx_belief'])
             rows_dict['ax_data'].append(edge_dict['ax_data'])
             rows_dict['bx_data'].append(edge_dict['bx_data'])
 
@@ -194,7 +194,7 @@ def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
     The resulting data frame will have the following columns:
     'pair', 'agA', 'agB', 'z_score', 'agA_ns', 'agA_id', 'agB_ns', 'agB_id',
     'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr', 'xb_corr',
-    'ax_belief', 'xb_belief', 'ax_data', 'bx_data'
+    'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
 
     'pair' is the unique key identifying a group of explanations per A, B, corr
     'ax_data'/'bx_data' are a collection of tuples, each one containing
@@ -231,7 +231,7 @@ def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
     # Loop AB given from outside, then collect the columns:
     columns = ('pair', 'agA', 'agB', 'z_score', 'agA_ns', 'agA_id',
                'agB_ns', 'agB_id', 'expl_type', 'agX', 'agX_ns', 'agX_id',
-               'ax_corr', 'xb_corr', 'ax_belief', 'xb_belief', 'ax_data',
+               'ax_corr', 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data',
                'bx_data')
     results: Dict[str, List] = {c: [] for c in columns}
     for key in ab_keys:
