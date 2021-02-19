@@ -7,6 +7,7 @@ from datetime import datetime
 
 import boto3
 import pandas as pd
+import networkx as nx
 import matplotlib.pyplot as plt
 
 from indra.util.aws import get_s3_client
@@ -131,7 +132,7 @@ class DepMapExplainer:
         # Will return the number of pairs checked
         return len(self.stats_df)
 
-    def load_graph(self):
+    def load_graph(self) -> Union[nx.DiGraph, nx.MultiDiGraph]:
         """Load and return the graph used in script"""
         if self.script_settings.get('indranet'):
             indranet_file = self.script_settings['indranet']
@@ -142,7 +143,9 @@ class DepMapExplainer:
             raise FileNotFoundError('No graph file location seems to be '
                                     'present in script settings.')
 
-        return file_opener(indranet_file)
+        graph = file_opener(indranet_file)
+        assert isinstance(graph, (nx.DiGraph, nx.MultiDiGraph))
+        return graph
 
     def load_z_corr(self):
         """Load and return the correlation matrix used in script"""
