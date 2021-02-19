@@ -310,15 +310,22 @@ class DepMapExplainer:
         'pair', 'agA', 'agB', 'z_score', 'agA_ns', 'agA_id', 'agB_ns',
         'agB_id', 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
         'xb_corr', 'ax_belief', 'xb_belief', 'hashes'
-        """
-        # Filter to interesting rows
-        interesting_stats_df = self._filter_stats_to_interesting()
-        ab_keys = interesting_stats_df.pair.values
 
+        - 'pair' is the unique key identifying a group of explanations per
+           A, B, corr
+        - 'ax_data'/'bx_data' are a collection of tuples, each one
+           containing (statement type, statement hash, belief)
+        """
         # Load indra graph used
         graph: Union[nx.DiGraph, nx.MultiDiGraph] = self.load_graph()
 
-        return get_non_reactome_axb_expl_df(ab_keys=ab_keys, graph=graph)
+        # Load the correlation matrix used
+        z_corr: pd.DataFrame = self.load_z_corr()
+
+        return get_non_reactome_axb_expl_df(graph=graph,
+                                            stats_df=self.stats_df,
+                                            expl_df=self.expl_df,
+                                            z_corr=z_corr)
 
     def get_sd_str(self):
         """Construct a string """
