@@ -15,6 +15,7 @@ from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats, Results
+from depmap_analysis.post_processing import get_non_reactome_axb_expl_df
 
 logger = logging.getLogger(__name__)
 
@@ -184,26 +185,6 @@ class DepMapExplainer:
         """
         return len(self.stats_df) > 0 or len(self.expl_df) > 0
 
-    def get_non_reactome_axb_expl(self, corr_cutoff: float):
-        """Get A,B for axb explanations, without reactome, direct or apriori
-
-        Get A, B pairs from axb type explanations without reactome, direct or
-        apriori explanations, where the correlation is above the provided
-        cutoff.
-
-        Parameters
-        ----------
-        corr_cutoff : float
-
-
-        Returns
-        -------
-        List[Tuple[str]]
-        """
-        df = self._filter_stats_to_interesting()
-
-        return [tuple(p.split('_')) for p in df.pair.values]
-
     def _filter_stats_to_interesting(self) -> pd.DataFrame:
         """Filter to axb/bxa/shared target, excl direct, reactome, apriori"""
         df = self.stats_df[self.stats_df.not_in_graph == False]
@@ -321,6 +302,23 @@ class DepMapExplainer:
     def _get_axb_type_no_react(self):
         df = self._filter_stats_to_interesting()
         return len(df)
+
+    def get_filtered_triples_df(self) -> pd.DataFrame:
+        """Generate a data frame containing a-x-b with their metadata
+
+        The columns are:
+        'pair', 'agA', 'agB', 'z_score', 'agA_ns', 'agA_id', 'agB_ns',
+        'agB_id', 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
+        'xb_corr', 'ax_belief', 'xb_belief', 'hashes'
+        """
+        # Filter to interesting rows
+        interesting_stats_df = self._filter_stats_to_interesting()
+        ab_keys = interesting_stats_df.pair.values
+
+        # Load indra graph used
+        graph: Union[nx.DiGraph, nx.MultiDiGraph] = self.load_graph()
+
+        return get_non_reactome_axb_expl_df(ab_keys=ab_keys, graph=graph)
 
     def get_sd_str(self):
         """Construct a string """
