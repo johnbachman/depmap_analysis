@@ -192,9 +192,11 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
             rows_dict['ax_data'].append(edge_dict['ax_data'])
             rows_dict['bx_data'].append(edge_dict['bx_data'])
 
-    # Check that all columns are in the dict
-    assert set(columns) == set(rows_dict.keys())
-    return rows_dict, skips
+    if rows_dict:
+        # Check that all columns are in the dict
+        assert set(columns) == set(rows_dict.keys())
+        return rows_dict, skips
+    return {}, skips
 
 
 def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
@@ -254,8 +256,9 @@ def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
                             corr_zsc_df=z_corr, graph=graph, columns=columns)
 
         # Append the data to its list
-        for k, dl in results.items():
-            dl.extend(rows_data[k])
+        if rows_data:
+            for k, dl in results.items():
+                dl.extend(rows_data[k])
 
     all_skip = sum(counters, Counter())
     if any(all_skip.values()):
