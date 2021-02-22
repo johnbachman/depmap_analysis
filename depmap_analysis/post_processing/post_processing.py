@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from typing import Dict, List, Union, Tuple, Optional
+from typing import Dict, List, Union, Tuple
 from networkx import DiGraph, MultiDiGraph
 from collections import defaultdict, Counter
 
