@@ -1002,6 +1002,9 @@ sd_colname = funcname_to_colname['get_sd']
 cp_colname = funcname_to_colname['find_cp']
 react_colname = funcname_to_colname['common_reactome_paths']
 
+# Set of all colnames
+all_colnames = set(funcname_to_colname.values())
+
 # Check that functions added to expl_func_list also exist in name to func map
 try:
     assert len(expl_func_list) == len(funcname_to_colname)

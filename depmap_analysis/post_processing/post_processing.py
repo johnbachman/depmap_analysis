@@ -127,8 +127,8 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
                     corr_zsc_df: pd.DataFrame, graph: DiGraph,
                     columns: Tuple[str, ...]) -> Dict[str, List]:
     # Ignored expl types
-    ign_types = (apriori_colname, ab_colname, ba_colname, sr_colname,
-                 sd_colname, cp_colname, react_colname)
+    ign_types = set(funcname_to_colname.values())\
+        .difference({st_colname, axb_colname, bxa_colname})
 
     # Initialize rows
     rows_dict = defaultdict(list)
