@@ -246,12 +246,10 @@ def test_depmap_script():
     assert expl_df[
                (expl_df.pair == p) & (expl_df.expl_type == bxa_colname)
     ].expl_data.values[0] == ['X2']
-    assert expl_df[
-               (expl_df.pair == p) & (expl_df.expl_type == sr_colname)
-    ].expl_data.values[0][2] == []
-    assert expl_df[
-               (expl_df.pair == p) & (expl_df.expl_type == st_colname)
-    ].expl_data.values[0][2] == []
+    assert len(expl_df[(expl_df.pair == p) &
+                       (expl_df.expl_type == sr_colname)]) == 0
+    assert len(expl_df[(expl_df.pair == p) &
+                       (expl_df.expl_type == st_colname)]) == 0
 
     expected = {'not_in_graph': False,
                 'explained': True,
