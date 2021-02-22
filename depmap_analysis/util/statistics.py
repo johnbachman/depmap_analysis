@@ -148,15 +148,36 @@ class DepMapExplainer:
         assert isinstance(graph, (nx.DiGraph, nx.MultiDiGraph))
         return graph
 
-    def load_z_corr(self) -> pd.DataFrame:
-        """Load and return the correlation data frame used in script"""
-        if self.script_settings.get('z_score'):
-            z_corr_file = self.script_settings['z_score']
-        elif self.script_settings.get('argparse_info', {}).get('z_score'):
-            z_corr_file = self.script_settings['argparse_info']['z_score']
+    def load_z_corr(self, local_file_path: Optional[str] = None) \
+            -> pd.DataFrame:
+        """Load and return the correlation data frame used in script
+
+        Note: Deprecate arg when pd.read_hdf can take S3 urls
+        https://github.com/pandas-dev/pandas/issues/31902
+
+        Parameters
+        ----------
+        local_file_path : str
+            File path to the correlation matrix data frame. Provide it if the
+            file path in the script settings attribute does not exist or is
+            inaccessible.
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        if local_file_path:
+            z_corr_file = local_file_path
         else:
-            raise FileNotFoundError('No file location seems to be present in '
-                                    'script settings.')
+            if self.script_settings.get('z_score'):
+                z_corr_file = self.script_settings['z_score']
+            elif self.script_settings.get('argparse_info', {}).get('z_score'):
+                z_corr_file = self.script_settings['argparse_info']['z_score']
+            else:
+                raise FileNotFoundError('No file location seems to be '
+                                        'present in script settings. Please '
+                                        'provide a file using '
+                                        '`local_file_path`')
         logger.info(f'Loading {z_corr_file}')
         z_corr = pd.read_hdf(z_corr_file)
         logger.info('Finished loading hdf file')
@@ -307,7 +328,9 @@ class DepMapExplainer:
         df = self._filter_stats_to_interesting()
         return len(df)
 
-    def get_filtered_triples_df(self) -> pd.DataFrame:
+    def get_filtered_triples_df(self,
+                                z_corr_file_path: Optional[str] = None) \
+            -> pd.DataFrame:
         """Generate a data frame containing a-x-b with their metadata
 
         The columns are:
@@ -319,12 +342,26 @@ class DepMapExplainer:
            A, B, corr
         - 'ax_data'/'bx_data' are a collection of tuples, each one
            containing (statement type, statement hash, belief)
+
+        Parameters
+        ----------
+        z_corr_file_path : str
+            File path to the correlation matrix data frame. Provide this
+            argument if the file path either does not exist in the script
+            settings attribute or it is inaccessible.
+
+        Returns
+        -------
+        pd.DataFrame
+            A data frame of filtered pairs with merged data from stats_df,
+            expl_df and meta data from the explaining edges in the graph.
         """
         # Load indra graph used
         graph: Union[nx.DiGraph, nx.MultiDiGraph] = self.load_graph()
 
         # Load the correlation matrix used
-        z_corr: pd.DataFrame = self.load_z_corr()
+        z_corr: pd.DataFrame = \
+            self.load_z_corr(local_file_path=z_corr_file_path)
 
         return get_non_reactome_axb_expl_df(graph=graph,
                                             stats_df=self.stats_df,
