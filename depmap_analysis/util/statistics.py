@@ -157,7 +157,9 @@ class DepMapExplainer:
         else:
             raise FileNotFoundError('No file location seems to be present in '
                                     'script settings.')
+        logger.info(f'Loading {z_corr_file}')
         z_corr = pd.read_hdf(z_corr_file)
+        logger.info('Finished loading hdf file')
         assert isinstance(z_corr, pd.DataFrame)
         return z_corr
 
