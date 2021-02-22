@@ -7,6 +7,7 @@ import networkx as nx
 from indra.util import batch_iter
 from indra.databases.hgnc_client import uniprot_ids, hgnc_names
 from depmap_analysis.util.io_functions import file_opener
+from depmap_analysis.post_processing import *
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, get_pairs, get_chunk_size, down_sample_df
 from depmap_analysis.scripts.depmap_script2 import _match_correlation_body, \
@@ -279,6 +280,13 @@ def test_depmap_script():
     len_react = len(stats_df[(stats_df[react_colname] == True) &
                              (stats_df.explained == False)])
     assert len_react == 1, len_react
+
+    # Test getting interesting df
+    interesting_df = get_non_reactome_axb_expl_df(graph=idg, stats_df=stats_df,
+                                                  expl_df=expl_df,
+                                                  z_corr=corr_m)
+    assert len(interesting_df) == 5
+    assert set(interesting_df.pair) == {'X1_X2', 'Y1_Z2', 'Y2_Z2', 'Z1_Z2'}
 
 
 def test_reactome_expl():
