@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 from typing import Dict, List, Union, Tuple, Optional
 from networkx import DiGraph, MultiDiGraph
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from depmap_analysis.network_functions.net_functions import ag_belief_score
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
@@ -125,13 +125,17 @@ def _check_hashes(a: str, x: str, b: str, ab_corr: float,
 
 def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
                     corr_zsc_df: pd.DataFrame, graph: DiGraph,
-                    columns: Tuple[str, ...]) -> Dict[str, List]:
+                    columns: Tuple[str, ...]) \
+        -> Tuple[Dict[str, List], Counter]:
     # Ignored expl types
     ign_types = set(funcname_to_colname.values())\
         .difference({st_colname, axb_colname, bxa_colname})
 
     # Initialize rows
     rows_dict = defaultdict(list)
+
+    # Initialize skip counter
+    skips = Counter({'ValueError': 0, 'KeyError': 0})
 
     # Get stats row for current key
     stats_row: pd.Series = stats_df[stats_df.pair == key]
@@ -156,11 +160,8 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
                 edge_dict = _check_hashes(a=expl_row.agA, x=x, b=expl_row.agB,
                                           ab_corr=expl_row.z_score, G=graph,
                                           expl_type=expl_row.expl_type)
-            except ValueError as ve:
-                logger.warning(str(ve))
-                continue
-            except KeyError as ke:
-                logger.warning(str(ke))
+            except ValueError:
+                skips['ValueError'] += 1
                 continue
 
             # Get 'ax_corr', 'xb_corr'
@@ -189,7 +190,7 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
 
     # Check that all columns are in the dict
     assert set(columns) == set(rows_dict.keys())
-    return rows_dict
+    return rows_dict, skips
 
 
 def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
@@ -241,14 +242,21 @@ def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
                'ax_corr', 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data',
                'bx_data')
     results: Dict[str, List] = {c: [] for c in columns}
+    counters = []
     for key in ab_keys:
         # Get df data per x:
-        rows_data: Dict[str, List] = \
+        rows_data, skips_counter = \
             _get_df_per_key(key=key, stats_df=stats_df, expl_df=expl_df,
                             corr_zsc_df=z_corr, graph=graph, columns=columns)
 
         # Append the data to its list
         for k, dl in results.items():
             dl.extend(rows_data[k])
+
+    all_skip = sum(counters, Counter())
+    if any(all_skip.values()):
+        for skip, count in all_skip.items():
+            if count > 0:
+                logger.warning(f'Skipped {skip} {count} times')
 
     return pd.DataFrame(data=results)
