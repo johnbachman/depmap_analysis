@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import pandas as pd
 from typing import Dict, List, Union, Tuple
 from networkx import DiGraph, MultiDiGraph
@@ -9,11 +10,35 @@ from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['get_non_reactome_axb_expl_df']
+__all__ = ['get_non_reactome_axb_expl_df', 'filter_to_interesting']
 
 
 class NotInGraph(Exception):
     """Raise for missing nodes or edges in graph"""
+
+
+def filter_to_interesting(stats_df: pd.DataFrame) -> pd.DataFrame:
+    or_columns = [st_colname, axb_colname, bxa_colname]
+    and_columns = [apriori_colname, ab_colname, ba_colname, react_colname]
+
+    # If none of the wanted columns are available, this function does not
+    # make any sense: raise ValueError
+    if not any(c in stats_df.columns for c in or_columns):
+        raise ValueError(f'This function cannot be run without at least one '
+                         f'of "{", ".join(or_columns)}"')
+
+    # Remove NaNs from not in graph
+    df = stats_df[stats_df.not_in_graph == False]
+
+    # Given that the column exists, get any row with st, axb, bxa == True
+    # where apriori, ab, ba, reactome == False
+    df = df[np.logical_and(
+        np.logical_or.reduce([df[c] for c in or_columns if c in df.columns]),
+        np.logical_and.reduce([df[c] == False for c in
+                               and_columns if c in df.columns])
+    )]
+
+    return df
 
 
 def _get_edge_data(G: Union[DiGraph, MultiDiGraph], a: str,
@@ -227,15 +252,7 @@ def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
     pd.DataFrame
         The exploded data frame
     """
-    # Get interesting keys
-    df = stats_df[stats_df.not_in_graph == False]
-    df = df[((df[st_colname]) |
-             (df[axb_colname]) |
-             (df[bxa_colname])) &
-            (df[apriori_colname] == False) &
-            (df[ab_colname] == False) &
-            (df[ba_colname] == False) &
-            (df[react_colname] == False)]
+    df = filter_to_interesting(stats_df)
     ab_keys = df.pair.values
 
     # Loop AB given from outside, then collect the columns:

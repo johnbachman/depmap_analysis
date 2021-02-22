@@ -15,7 +15,7 @@ from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats, Results
-from depmap_analysis.post_processing import get_non_reactome_axb_expl_df
+from depmap_analysis.post_processing import *
 
 logger = logging.getLogger(__name__)
 
@@ -212,15 +212,7 @@ class DepMapExplainer:
 
     def _filter_stats_to_interesting(self) -> pd.DataFrame:
         """Filter to axb/bxa/shared target, excl direct, reactome, apriori"""
-        df = self.stats_df[self.stats_df.not_in_graph == False]
-
-        return df[((df[st_colname]) |
-                   (df[axb_colname]) |
-                   (df[bxa_colname])) &
-                  (df[apriori_colname] == False) &
-                  (df[ab_colname] == False) &
-                  (df[ba_colname] == False) &
-                  (df[react_colname] == False)]
+        return filter_to_interesting(self.stats_df)
 
     def summarize(self):
         """Count explanations and print a summary count of them"""
