@@ -126,6 +126,10 @@ def _check_hashes(a: str, x: str, b: str, ab_corr: float,
 def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
                     corr_zsc_df: pd.DataFrame, graph: DiGraph,
                     columns: Tuple[str, ...]) -> Dict[str, List]:
+    # Ignored expl types
+    ign_types = (apriori_colname, ab_colname, ba_colname, sr_colname,
+                 sd_colname, cp_colname, react_colname)
+
     # Initialize rows
     rows_dict = defaultdict(list)
 
@@ -134,6 +138,9 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
 
     # Loop expl rows for current key
     for ix, expl_row in expl_df[expl_df.pair == key].iterrows():
+        if expl_row.expl_type in ign_types:
+            continue
+
         # 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
         # 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
         x_iter = expl_row.expl_data[2] if expl_row.expl_type == st_colname \
