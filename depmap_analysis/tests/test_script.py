@@ -165,8 +165,10 @@ def test_iterator_slicing():
 
 
 def test_depmap_script():
-    reactome_dict = file_opener(
-        's3://depmap-analysis/misc_files/reactome_pathways.pkl')[0]
+    up2path, _, pathid2pathname = file_opener(
+        's3://depmap-analysis/misc_files/reactome_pathways.pkl')
+    reactome_dict = {'uniprot_mapping': up2path,
+                     'pathid_name_mapping': pathid2pathname}
     df = get_df()
     idg = get_dg()
 
