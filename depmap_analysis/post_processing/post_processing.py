@@ -146,11 +146,9 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
             continue
 
         # 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
-        # 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
+        # 'bx_corr', 'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
         x_iter = expl_row.expl_data[2] if expl_row.expl_type == st_colname \
             else expl_row.expl_data
-        # 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
-        # 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
 
         for x in x_iter:
             # Get edge data:
@@ -164,7 +162,7 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
                 skips['ValueError'] += 1
                 continue
 
-            # Get 'ax_corr', 'xb_corr'
+            # Get 'ax_corr', 'bx_corr'
             try:
                 ax_corr = corr_zsc_df.loc[expl_row.agA, x]
                 bx_corr = corr_zsc_df.loc[expl_row.agB, x]
@@ -186,7 +184,7 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
             rows_dict['agX_ns'].append(edge_dict['agX_ns'])
             rows_dict['agX_id'].append(edge_dict['agX_id'])
             rows_dict['ax_corr'].append(ax_corr)
-            rows_dict['xb_corr'].append(bx_corr)
+            rows_dict['bx_corr'].append(bx_corr)
             rows_dict['ax_belief'].append(edge_dict['ax_belief'])
             rows_dict['bx_belief'].append(edge_dict['bx_belief'])
             rows_dict['ax_data'].append(edge_dict['ax_data'])
@@ -207,7 +205,7 @@ def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
 
     The resulting data frame will have the following columns:
     'pair', 'agA', 'agB', 'z_score', 'agA_ns', 'agA_id', 'agB_ns', 'agB_id',
-    'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr', 'xb_corr',
+    'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr', 'bx_corr',
     'ax_belief', 'bx_belief', 'ax_data', 'bx_data'
 
     'pair' is the unique key identifying a group of explanations per A, B, corr
@@ -245,7 +243,7 @@ def get_non_reactome_axb_expl_df(graph: Union[DiGraph, MultiDiGraph],
     # Loop AB given from outside, then collect the columns:
     columns = ('pair', 'agA', 'agB', 'z_score', 'agA_ns', 'agA_id',
                'agB_ns', 'agB_id', 'expl_type', 'agX', 'agX_ns', 'agX_id',
-               'ax_corr', 'xb_corr', 'ax_belief', 'bx_belief', 'ax_data',
+               'ax_corr', 'bx_corr', 'ax_belief', 'bx_belief', 'ax_data',
                'bx_data')
     results: Dict[str, List] = {c: [] for c in columns}
     counters = []
