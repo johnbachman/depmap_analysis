@@ -32,19 +32,17 @@ def _get_edge_data(G: Union[DiGraph, MultiDiGraph], a: str,
     agg_belief: float = ag_belief_score(float(sd['belief']) for sd in
                                         G.edges[edge]['statements'])
 
-    # Get Dict[stmt_type, Tuple[(hash, belief)]]
-    td = {}
+    # Get List[Tuple[stmt type, hash, belief]]
+    types_list = []
     for sd in G.edges[edge].get('statements', {}):
-        if sd['stmt_type'] in td:
-            td[sd['stmt_type']].append((sd['stmt_hash'], sd['belief']))
-        else:
-            td[sd['stmt_type']] = [(sd['stmt_hash'], sd['belief'])]
+        types_list.append((sd['stmt_type'], sd['stmt_hash'], sd['belief']))
 
     # If no edge data was collected, raise NotInGraph
-    if not td:
+    if not types_list:
         raise NotInGraph
+
     return {'agg_belief': agg_belief,
-            'types': [(k, *v) for k, v in td.items()]}
+            'types': types_list}
 
 
 def _check_hashes(a: str, x: str, b: str, ab_corr: float,
