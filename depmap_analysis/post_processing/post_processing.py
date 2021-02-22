@@ -52,7 +52,7 @@ def _check_hashes(a: str, x: str, b: str, ab_corr: float,
         -> Dict[str, Union[float, str, List[Tuple[str, str, float]]]]:
     # Get edge data:
     # 'agX_ns', 'agX_id', 'ax_belief', 'bx_belief', 'ax_data', bx_data
-    if expl_type == {axb_colname, bxa_colname}:
+    if expl_type in {axb_colname, bxa_colname}:
         # a->x; x->b  a/b already flipped in the expl_df where the pairs
         # come from
         s, z1, z2, o = a, x, x, b
