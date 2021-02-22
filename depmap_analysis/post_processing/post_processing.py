@@ -165,8 +165,12 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
                 continue
 
             # Get 'ax_corr', 'xb_corr'
-            ax_corr = corr_zsc_df.loc[expl_row.agA, x]
-            bx_corr = corr_zsc_df.loc[expl_row.agB, x]
+            try:
+                ax_corr = corr_zsc_df.loc[expl_row.agA, x]
+                bx_corr = corr_zsc_df.loc[expl_row.agB, x]
+            except KeyError:
+                skips['KeyError'] += 1
+                continue
 
             # Append new row
             rows_dict['pair'].append(stats_row.pair)
