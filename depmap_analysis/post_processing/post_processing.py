@@ -173,14 +173,14 @@ def _get_df_per_key(key: str, stats_df: pd.DataFrame, expl_df: pd.DataFrame,
                 continue
 
             # Append new row
-            rows_dict['pair'].append(stats_row.pair)
-            rows_dict['agA'].append(stats_row.agA)
-            rows_dict['agB'].append(stats_row.agB)
-            rows_dict['z_score'].append(stats_row.z_score)
-            rows_dict['agA_ns'].append(stats_row.agA_ns)
-            rows_dict['agA_id'].append(stats_row.agA_id)
-            rows_dict['agB_ns'].append(stats_row.agB_ns)
-            rows_dict['agB_id'].append(stats_row.agB_id)
+            rows_dict['pair'].append(stats_row.pair.values[0])
+            rows_dict['agA'].append(stats_row.agA.values[0])
+            rows_dict['agB'].append(stats_row.agB.values[0])
+            rows_dict['z_score'].append(stats_row.z_score.values[0])
+            rows_dict['agA_ns'].append(stats_row.agA_ns.values[0])
+            rows_dict['agA_id'].append(stats_row.agA_id.values[0])
+            rows_dict['agB_ns'].append(stats_row.agB_ns.values[0])
+            rows_dict['agB_id'].append(stats_row.agB_id.values[0])
             rows_dict['expl_type'].append(expl_row.expl_type)
             rows_dict['agX'].append(x)
             rows_dict['agX_ns'].append(edge_dict['agX_ns'])
