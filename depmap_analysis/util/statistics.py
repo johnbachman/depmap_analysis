@@ -385,25 +385,22 @@ class DepMapExplainer:
         else:
             return f'{self.sd_range[0]}+SD'
 
-    def get_corr_stats_axb(self, z_corr=None, max_proc=None, reactome=None,
-                           max_so_pairs_size=10000, mp_pairs=True,
-                           run_linear=False) -> Results:
+    def get_corr_stats_axb(self,
+                           z_corr: Optional[Union[str, pd.DataFrame]] = None,
+                           max_proc: Optional[int] = None,
+                           max_so_pairs_size: int = 10000,
+                           mp_pairs: bool = True,
+                           run_linear: bool = False) -> Results:
         """Get statistics of the correlations from different explanation types
 
         Parameters
         ----------
-        z_corr : pd.DataFrame
+        z_corr : Optional[Union[pd.DataFrame, str]]
             A pd.DataFrame containing the correlation z scores used to
-            create the statistics in this object
+            create the statistics in this object. Pro
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing
             in get_corr_stats_mp. Default: multiprocessing.cpu_count()
-        reactome : tuple[dict]|list[dict]
-            A tuple or list of dicts. The first dict is expected to contain
-            mappings from UP IDs of genes to Reactome pathway IDs. The second
-            dict is expected to contain the reverse mapping (i.e Reactome IDs
-            to UP IDs). The third dict is expected to contain mappings from
-            the Reactome IDs to their descriptions.
         max_so_pairs_size : int
             The maximum number of correlation pairs to process. If the
             number of eligible pairs is larger than this number, a random
@@ -434,12 +431,17 @@ class DepMapExplainer:
         #  plt.show()
         #  2. log along y axis
         if not self.corr_stats_axb:
+            # Load correlation matrix
             if z_corr is None:
-                raise ValueError('The z score correlation matrix must be '
-                                 'provided when running get_corr_stats_axb '
-                                 'for the first time.')
+                z_corr = self.load_z_corr()
             if isinstance(z_corr, str):
-                z_corr = pd.read_hdf(z_corr)
+                z_corr = self.load_z_corr(local_file_path=z_corr)
+            # Load reactome if present
+            try:
+                reactome = self.load_reactome()
+            except FileNotFoundError:
+                logger.info('No reactome file used in script')
+                reactome = None
             self.corr_stats_axb: Results = axb_stats(
                 self.expl_df, self.stats_df, z_corr=z_corr, reactome=reactome,
                 eval_str=False, max_proc=max_proc,
