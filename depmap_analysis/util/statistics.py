@@ -692,7 +692,7 @@ class DepMapExplainer:
                          z_corr: Optional[Union[str, pd.DataFrame]] = None,
                          show_plot: Optional[bool] = False,
                          max_proc: Optional[int] = None,
-                         index_counter: Optional[Generator] = None,
+                         index_counter: Optional[Iterator, Generator] = None,
                          max_so_pairs_size: int = 10000,
                          mp_pairs: bool = True,
                          run_linear: bool = False,
