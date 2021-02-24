@@ -438,16 +438,6 @@ class DepMapExplainer:
         Results
             A BaseModel containing correlation data for different explanations
         """
-        # Todo
-        #  1. Save histogram counts: Basemodel of s3url + np histogram/counts
-        #  instead of running the loop everytime to get full data. Code to
-        #  produce the same plot as plt.hist():
-        #  hist, bin_edges = np.histogram(a=data, bins='auto', density=True)
-        #  bin_width = bin_edges[1] - bin_edges[0]
-        #  bar_placements = bin_edges[:-1] + bin_width/2
-        #  plt.bar(bar_placements, hist, color='b', alpha=0.3, width=bin_width)
-        #  plt.show()
-        #  2. log along y axis
         if not self.corr_stats_axb:
             # Load correlation matrix
             if z_corr is None:
