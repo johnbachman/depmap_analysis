@@ -13,7 +13,7 @@ import pandas as pd
 from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.util.io_functions import file_opener, file_path, \
-    is_dir_path
+    is_dir_path, dump_it_to_pickle
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,22 @@ def _joinpath(fpath: Union[S3Path, Path], other: str) -> str:
         return fpath.joinpath(other).absolute().as_posix()
     else:
         return fpath.to_string() + other
+
+
+def _save(fpath: str, expl_inst: DepMapExplainer):
+    if fpath.startswith('s3://'):
+        try:
+            _ = expl_inst.s3_location
+        except AttributeError:
+            # For backwards compatibility
+            expl_inst.s3_location = path
+        logger.info(f'Uploading to {expl_inst.s3_location}')
+        if not dry:
+            s3p = expl_inst.get_s3_path()
+            s3p.upload(s3=s3, body=pickle.dumps(expl_inst))
+    else:
+        # Just dump to local pickle
+        dump_it_to_pickle(fname=fpath, pyobj=expl_inst)
 
 
 if __name__ == '__main__':
@@ -185,16 +201,8 @@ if __name__ == '__main__':
                 raise FileNotFoundError(f'{explainer_file} does not exist')
         logger.info(f'Writing output to {explainer_out}/*.pdf')
 
-    logger.info('Re-uploading explainers with axb correlation data')
+    logger.info('Re-save explainers with axb correlation data')
     for expl, path in processed_explainers:
         # Save explainer to its original location, now with data set in
         # explainer.corr_stats_axb
-        try:
-            _ = expl.s3_location
-        except AttributeError:
-            # For backwards compatibility
-            expl.s3_location = path
-        logger.info(f'Uploading to {expl.s3_location}')
-        if not dry:
-            s3p = expl.get_s3_path()
-            s3p.upload(s3=s3, body=pickle.dumps(expl))
+        _save(fpath=path, expl_inst=expl)
