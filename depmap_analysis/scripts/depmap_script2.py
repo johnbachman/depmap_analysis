@@ -694,6 +694,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
             logger.info(f'Uploading results to s3: {outname}')
             s3 = get_s3_client(unsigned=False)
             s3outpath = S3Path.from_string(outname)
+            explanations.s3_location = s3outpath.to_string()
             s3outpath.upload(s3=s3, body=pickle.dumps(explanations))
             logger.info('Finished uploading results to s3')
         except Exception:

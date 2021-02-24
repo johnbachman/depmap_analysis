@@ -125,6 +125,7 @@ class DepMapExplainer:
         self.is_signed = True if network_type in {'signed', 'pybel'} else False
         self.summary = {}
         self.summary_str = ''
+        self.s3_location: Optional[str] = None
         self.corr_stats_axb: Optional[Results] = None
         self.loaded_corr: Optional[pd.DataFrame] = None
         self.loaded_graph: Optional[Union[nx.DiGraph, nx.MultiDiGraph]] = None
