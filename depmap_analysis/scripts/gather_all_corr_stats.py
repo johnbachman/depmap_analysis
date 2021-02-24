@@ -179,16 +179,21 @@ if __name__ == '__main__':
                                        mp_pairs=args.mp_pairs,
                                        run_linear=single_proc)
 
-            processed_explainers.append(explainer)
+            processed_explainers.append((explainer, explainer_file))
         else:
             if not _exists(explainer_file):
                 raise FileNotFoundError(f'{explainer_file} does not exist')
         logger.info(f'Writing output to {explainer_out}/*.pdf')
 
     logger.info('Re-uploading explainers with axb correlation data')
-    for expl in processed_explainers:
+    for expl, path in processed_explainers:
         # Save explainer to its original location, now with data set in
         # explainer.corr_stats_axb
+        try:
+            _ = expl.s3_location
+        except AttributeError:
+            # For backwards compatibility
+            expl.s3_location = path
         logger.info(f'Uploading to {expl.s3_location}')
         if not dry:
             s3p = expl.get_s3_path()
