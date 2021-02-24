@@ -1,7 +1,8 @@
 import logging
 from math import floor
 from io import BytesIO
-from typing import Tuple, Dict, Union, Hashable, List, Optional, Any
+from typing import Tuple, Dict, Union, Hashable, List, Optional, Any, \
+    Iterator, Generator
 from pathlib import Path
 from datetime import datetime
 
@@ -467,10 +468,15 @@ class DepMapExplainer:
             )
         return self.corr_stats_axb
 
-    def plot_corr_stats(self, outdir, z_corr=None, reactome=None,
-                        show_plot=False, max_proc=None, index_counter=None,
-                        max_so_pairs_size=10000, mp_pairs=True,
-                        run_linear=False):
+    def plot_corr_stats(self, outdir: str,
+                        z_corr: Optional[Union[str, pd.DataFrame]] = None,
+                        show_plot: bool = False,
+                        max_proc: bool = None,
+                        index_counter: Union[Iterator, Generator] = None,
+                        max_so_pairs_size: int = 10000,
+                        mp_pairs: bool = True,
+                        run_linear: bool = False,
+                        log_scale_y: bool = False):
         """Plot the results of running explainer.get_corr_stats_axb()
 
         Parameters
@@ -480,28 +486,24 @@ class DepMapExplainer:
             's3://' upload to s3. outdir must then have the form
             's3://<bucket>/<sub_dir>' where <bucket> must be specified and
             <sub_dir> is optional and may contain subdirectories.
-        z_corr : pd.DataFrame
+        z_corr : Union[str, pd.DataFrame]
             A pd.DataFrame containing the correlation z scores used to
-            create the statistics in this object
-        reactome : tuple[dict]|list[dict]
-            A tuple or list of dicts. The first dict is expected to contain
-            mappings from UP IDs of genes to Reactome pathway IDs. The second
-            dict is expected to contain the reverse mapping (i.e Reactome IDs
-            to UP IDs). The third dict is expected to contain mappings from
-            the Reactome IDs to their descriptions.
+            create the statistics in this object. If not provided,
+            an attempt will be made to load it from the file path present in
+            script_settings.
         show_plot : bool
-            If True also show plots
+            If True, also show plots after saving them. Default False.
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing in
             get_corr_stats_mp. Default: multiprocessing.cpu_count()
-        index_counter : generator
+        index_counter : Union[Iterator, Generator]
             An object which produces a new int by using 'next()' on it. The
             integers are used to separate the figures so as to not append
             new plots in the same figure.
         max_so_pairs_size : int
             The maximum number of correlation pairs to process. If the
             number of eligible pairs is larger than this number, a random
-            sample of max_so_pairs_size is used. Default: 10000.
+            sample of max_so_pairs_size is used. Default: 10 000.
         mp_pairs : bool
             If True, get the pairs to process using multiprocessing if larger
             than 10 000. Default: True.
@@ -509,6 +511,9 @@ class DepMapExplainer:
             If True, gather the data without multiprocessing. This option is
             good when debugging or if the environment for some reason does
             not support multiprocessing. Default: False.
+        log_scale_y : bool
+            If True, plot the plots in this method with log10 scale on y-axis.
+            Default: False.
         """
         # Local file or s3
         if outdir.startswith('s3://'):
@@ -524,7 +529,7 @@ class DepMapExplainer:
 
         # Get corr stats
         corr_stats: Results = self.get_corr_stats_axb(
-            z_corr=z_corr, max_proc=max_proc, reactome=reactome,
+            z_corr=z_corr, max_proc=max_proc,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
             run_linear=run_linear
         )
@@ -542,7 +547,7 @@ class DepMapExplainer:
 
                 fig_index = next(index_counter) if index_counter else m
                 plt.figure(fig_index)
-                plt.hist(x=data, bins='auto')
+                plt.hist(x=data, bins='auto', log=log_scale_y)
                 title = f'{plot_type.replace("_", " ").capitalize()}; '\
                         f'{sd_str} {self.script_settings["graph_type"]}'
 
@@ -571,9 +576,16 @@ class DepMapExplainer:
                                f'range {sd_str} for graph type '
                                f'{self.script_settings["graph_type"]}')
 
-    def plot_dists(self, outdir, z_corr: pd.DataFrame = None, reactome=None,
-                   show_plot=False, max_proc=None, index_counter=None,
-                   max_so_pairs_size=10000, mp_pairs=True, run_linear=False):
+    def plot_dists(self,
+                   outdir: str,
+                   z_corr: Union[str, pd.DataFrame] = None,
+                   show_plot: bool = False,
+                   max_proc: int = None,
+                   index_counter: Union[Iterator, Generator] = None,
+                   max_so_pairs_size: int = 10000,
+                   mp_pairs: bool = True,
+                   run_linear: bool = False,
+                   log_scale_y: int = False):
         """Compare the distributions of differently sampled A-X-B correlations
 
         Parameters
@@ -583,28 +595,24 @@ class DepMapExplainer:
             's3://' upload to s3. outdir must then have the form
             's3://<bucket>/<sub_dir>' where <bucket> must be specified and
             <sub_dir> is optional and may contain subdirectories.
-        z_corr : Optional[pd.DataFrame]
+        z_corr : Optional[str, pd.DataFrame]
             A pd.DataFrame containing the correlation z scores used to
-            create the statistics in this object
-        reactome : tuple[dict]|list[dict]
-            A tuple or list of dicts. The first dict is expected to contain
-            mappings from UP IDs of genes to Reactome pathway IDs. The second
-            dict is expected to contain the reverse mapping (i.e Reactome IDs
-            to UP IDs). The third dict is expected to contain mappings from
-            the Reactome IDs to their descriptions.
+            create the statistics in this object. If not provided,
+            an attempt will be made to load it from the file path present in
+            script_settings.
         show_plot : bool
-            If True also show plots
+            If True, also show plots after saving them. Default False.
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing in
             get_corr_stats_mp. Default: multiprocessing.cpu_count()
-        index_counter : generator
+        index_counter : Union[Iterator, Generator]
             An object which produces a new int by using 'next()' on it. The
             integers are used to separate the figures so as to not append
             new plots in the same figure.
         max_so_pairs_size : int
             The maximum number of correlation pairs to process. If the
             number of eligible pairs is larger than this number, a random
-            sample of max_so_pairs_size is used. Default: 10000.
+            sample of max_so_pairs_size is used. Default: 10 000.
         mp_pairs : bool
             If True, get the pairs to process using multiprocessing if larger
             than 10 000. Default: True.
@@ -612,6 +620,9 @@ class DepMapExplainer:
             If True, gather the data without multiprocessing. This option is
             good when debugging or if the environment for some reason does
             not support multiprocessing. Default: False.
+        log_scale_y : bool
+            If True, plot the plots in this method with log10 scale on y-axis.
+            Default: False.
         """
         # Local file or s3
         if outdir.startswith('s3://'):
@@ -625,7 +636,7 @@ class DepMapExplainer:
 
         # Get corr stats
         corr_stats: Results = self.get_corr_stats_axb(
-            z_corr=z_corr, max_proc=max_proc, reactome=reactome,
+            z_corr=z_corr, max_proc=max_proc,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
             run_linear=run_linear
         )
@@ -635,21 +646,21 @@ class DepMapExplainer:
         legend = ['A-X-B for all X', 'A-X-B for X in network']
         # Plot A-Z-B
         plt.hist(corr_stats.azb_avg_corrs, bins='auto', density=True,
-                 color='b', alpha=0.3)
+                 color='b', alpha=0.3, log=log_scale_y)
         # Plot A-X-B
         plt.hist(corr_stats.avg_x_corrs, bins='auto', density=True,
-                 color='r', alpha=0.3)
+                 color='r', alpha=0.3, log=log_scale_y)
         # Plot reactome expl in
         if len(corr_stats.reactome_avg_corrs):
             plt.hist(corr_stats.reactome_avg_corrs, bins='auto',
-                     density=True, color='g', alpha=0.3)
+                     density=True, color='g', alpha=0.3, log=log_scale_y)
             legend.append('A-X-B for X in reactome path')
 
         sd_str = self.get_sd_str()
         title = 'avg X corrs %s (%s)' % (sd_str,
                                          self.script_settings['graph_type'])
         plt.title(title)
-        plt.ylabel('Norm. Density')
+        plt.ylabel('Norm. Density (log)' if log_scale_y else 'Norm. Density')
         plt.xlabel('mean(abs(corr(a,x)), abs(corr(x,b))) (SD)')
         plt.legend(legend)
         name = '%s_%s_axb_hist_comparison.pdf' % \
@@ -676,10 +687,16 @@ class DepMapExplainer:
         # Close figure
         plt.close(fig_index)
 
-    def plot_interesting(self, outdir, z_corr: pd.DataFrame = None,
-                         reactome=None, show_plot=False, max_proc=None,
-                         index_counter=None, max_so_pairs_size=10000,
-                         mp_pairs=True, run_linear=False):
+    def plot_interesting(self,
+                         outdir: str,
+                         z_corr: Optional[Union[str, pd.DataFrame]] = None,
+                         show_plot: Optional[bool] = False,
+                         max_proc: Optional[int] = None,
+                         index_counter: Optional[Generator] = None,
+                         max_so_pairs_size: int = 10000,
+                         mp_pairs: bool = True,
+                         run_linear: bool = False,
+                         log_scale_y: bool = False):
         """Plots the same type of plot as plot_dists, but filters A, B
 
         A, B are filtered to those that fulfill the following:
@@ -695,21 +712,17 @@ class DepMapExplainer:
             's3://' upload to s3. outdir must then have the form
             's3://<bucket>/<sub_dir>' where <bucket> must be specified and
             <sub_dir> is optional and may contain subdirectories.
-        z_corr : Optional[pd.DataFrame]
+        z_corr : Union[str, pd.DataFrame]
             A pd.DataFrame containing the correlation z scores used to
-            create the statistics in this object
-        reactome : tuple[dict]|list[dict]
-            A tuple or list of dicts. The first dict is expected to contain
-            mappings from UP IDs of genes to Reactome pathway IDs. The second
-            dict is expected to contain the reverse mapping (i.e Reactome IDs
-            to UP IDs). The third dict is expected to contain mappings from
-            the Reactome IDs to their descriptions.
+            create the statistics in this object. If not provided,
+            an attempt will be made to load it from the file path present in
+            script_settings.
         show_plot : bool
             If True also show plots
         max_proc : int > 0
             The maximum number of processes to run in the multiprocessing in
             get_corr_stats_mp. Default: multiprocessing.cpu_count()
-        index_counter : generator
+        index_counter : Union[Iterator, Generator]
             An object which produces a new int by using 'next()' on it. The
             integers are used to separate the figures so as to not append
             new plots in the same figure.
@@ -724,6 +737,9 @@ class DepMapExplainer:
             If True, gather the data without multiprocessing. This option is
             good when debugging or if the environment for some reason does
             not support multiprocessing. Default: False.
+        log_scale_y : bool
+            If True, plot the plots in this method with log10 scale on y-axis.
+            Default: False.
         """
         # Local file or s3
         if outdir.startswith('s3://'):
@@ -737,7 +753,7 @@ class DepMapExplainer:
 
         # Get corr stats
         corr_stats: Results = self.get_corr_stats_axb(
-            z_corr=z_corr, max_proc=max_proc, reactome=reactome,
+            z_corr=z_corr, max_proc=max_proc,
             max_so_pairs_size=max_so_pairs_size, mp_pairs=mp_pairs,
             run_linear=run_linear
         )
@@ -745,9 +761,9 @@ class DepMapExplainer:
             else floor(datetime.timestamp(datetime.utcnow()))
         plt.figure(fig_index)
         plt.hist(corr_stats.azfb_avg_corrs, bins='auto', density=True,
-                 color='b', alpha=0.3)
+                 color='b', alpha=0.3, log=log_scale_y)
         plt.hist(corr_stats.avg_x_filtered_corrs, bins='auto', density=True,
-                 color='r', alpha=0.3)
+                 color='r', alpha=0.3, log=log_scale_y)
         legend = ['Filtered A-X-B for any X',
                   'Filtered A-X-B for X in network']
 
