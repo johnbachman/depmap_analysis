@@ -306,6 +306,17 @@ class DepMapExplainer:
             for e, c in summary.items():
                 f.write(f'{e},{c}\n')
 
+    def get_s3_path(self) -> S3Path:
+        """Return an S3Path object of the saved s3 location
+
+        Returns
+        -------
+        S3Path
+        """
+        if self.s3_location is None:
+            raise ValueError('s3_location is not set')
+        return S3Path.from_string(self.s3_location)
+
     def _get_sr_only(self):
         # Get indices where 'shared regulator' is True
         sr_true = self.stats_df[
