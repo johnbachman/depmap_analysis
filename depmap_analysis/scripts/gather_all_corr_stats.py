@@ -205,5 +205,6 @@ if __name__ == '__main__':
         # Save explainer to its original location, now with data set in
         # explainer.corr_stats_axb
         logger.info(f'Uploading to {expl.s3_location}')
-        s3p = expl.get_s3_path()
-        s3p.upload(s3=s3, body=pickle.dumps(expl))
+        if not dry:
+            s3p = expl.get_s3_path()
+            s3p.upload(s3=s3, body=pickle.dumps(expl))
