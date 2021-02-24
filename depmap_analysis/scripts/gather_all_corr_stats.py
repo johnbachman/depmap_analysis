@@ -39,14 +39,6 @@ if __name__ == '__main__':
         help='The correlation matrix that was used to create the explanations'
     )
     parser.add_argument(
-        '--reactome', type=file_path('pkl'),
-        help='A tuple or list of dicts. The first dict is expected to'
-             'contain mappings from UP IDs of genes to Reactome pathway IDs.'
-             'The second dict is expected to contain the reverse mapping '
-             '(i.e Reactome IDs to UP IDs). The third dict is expected to '
-             'contain mappings from Reactome IDs to their descriptions.'
-    )
-    parser.add_argument(
         '--base-path', required=True, type=is_dir_path(),
         help='The path to the pickled explainer classes for each SD range.'
     )
@@ -134,16 +126,10 @@ if __name__ == '__main__':
     logger.info(f'Loading correlation file {args.z_corr}')
     if not dry:
         z_corr = pd.read_hdf(args.z_corr)
-        if args.reactome:
-            logger.info(f'Loading reactome file {args.reactome}')
-            reactome = file_opener(args.reactome)
-        else:
-            reactome = None
     else:
         if not Path(args.z_corr).is_file():
             raise FileNotFoundError(f'{args.z_corr} was not found')
         z_corr = pd.DataFrame()
-        reactome = None
 
     # Create a global indexer to separate each figure
     indexer = count(0)
@@ -171,7 +157,6 @@ if __name__ == '__main__':
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr,
-                                      reactome=reactome,
                                       show_plot=False,
                                       max_proc=max_proc,
                                       index_counter=indexer,
