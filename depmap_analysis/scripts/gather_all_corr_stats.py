@@ -1,3 +1,4 @@
+import pickle
 import logging
 import argparse
 from math import floor
@@ -97,10 +98,7 @@ if __name__ == '__main__':
     outdir: str = args.outdir
     single_proc: bool = args.single_proc
 
-    if base_path.startswith('s3://') or outdir.startswith('s3://'):
-        s3 = boto3.client('s3')
-    else:
-        s3 = None
+    s3 = boto3.client('s3')
 
     # Set input dir
     if base_path.startswith('s3://'):
@@ -149,6 +147,7 @@ if __name__ == '__main__':
 
     # Create a global indexer to separate each figure
     indexer = count(0)
+    processed_explainers = []
     for explainer_file in input_iter:
         logger.info(
             f'> > > > '
@@ -194,7 +193,17 @@ if __name__ == '__main__':
                                        max_so_pairs_size=args.max_so_pairs,
                                        mp_pairs=args.mp_pairs,
                                        run_linear=single_proc)
+
+            processed_explainers.append(explainer)
         else:
             if not _exists(explainer_file):
                 raise FileNotFoundError(f'{explainer_file} does not exist')
         logger.info(f'Writing output to {explainer_out}/*.pdf')
+
+    logger.info('Re-uploading explainers with axb correlation data')
+    for expl in processed_explainers:
+        # Save explainer to its original location, now with data set in
+        # explainer.corr_stats_axb
+        logger.info(f'Uploading to {expl.s3_location}')
+        s3p = expl.get_s3_path()
+        s3p.upload(s3=s3, body=pickle.dumps(expl))
