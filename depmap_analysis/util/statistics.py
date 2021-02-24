@@ -15,8 +15,7 @@ from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from depmap_analysis.scripts.corr_stats_axb import main as axb_stats
-from depmap_analysis.scripts.corr_stats_data_functions import HistData, \
-    Histogram, HistogramDirectory, Results, get_hist_dir
+from depmap_analysis.scripts.corr_stats_data_functions import Results
 from depmap_analysis.post_processing import *
 
 logger = logging.getLogger(__name__)
@@ -127,7 +126,6 @@ class DepMapExplainer:
         self.summary_str = ''
         self.s3_location: Optional[str] = None
         self.corr_stats_axb: Optional[Results] = None
-        self.histograms: Optional[HistogramDirectory] = None
 
     def __str__(self):
         return self.get_summary_str() if self.__len__() else \
@@ -438,41 +436,6 @@ class DepMapExplainer:
                 run_linear=run_linear
             )
         return self.corr_stats_axb
-
-    def get_data(self,
-                 z_corr: pd.DataFrame,
-                 reactome: Tuple[Dict[str, Union[List[str], str]]],
-                 max_corr_pairs: int = 10000,
-                 eval_str: bool = False,
-                 max_proc: Optional[int] = None,
-                 do_mp_pairs: Optional[bool] = False,
-                 run_linear: bool = False):
-        """
-
-        Parameters
-        ----------
-        z_corr
-        reactome
-        max_corr_pairs
-        eval_str
-        max_proc
-        do_mp_pairs
-        run_linear
-
-        Returns
-        -------
-
-        """
-        # Todo: Up- and download to/from S3
-        if not self.histograms:
-            results: Results = self.get_corr_stats_axb(
-                z_corr=z_corr, max_proc=max_proc, reactome=reactome,
-                max_so_pairs_size=max_corr_pairs, mp_pairs=do_mp_pairs,
-                run_linear=run_linear
-            )
-            hist_dir = get_hist_dir(results)
-            self.histograms = hist_dir
-        return self.histograms
 
     def plot_corr_stats(self, outdir, z_corr=None, reactome=None,
                         show_plot=False, max_proc=None, index_counter=None,
