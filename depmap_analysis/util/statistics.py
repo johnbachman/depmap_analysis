@@ -30,8 +30,7 @@ expl_columns = min_columns + ('expl_type', 'expl_data')
 
 
 class DepMapExplainer:
-    """Contains the result of the matching of correlations and an indranet
-    graph
+    """Contains the result of matching correlation pairs and an indranet graph
 
     Attributes
     ----------
@@ -188,10 +187,23 @@ class DepMapExplainer:
 
         return z_corr
 
-    def load_reactome(self):
-        """Load and return the reactome data used in script"""
-        if self.script_settings.get('argparse_info', {}).get(
-                'reactome_dict'):
+    def load_reactome(self) -> Tuple[Dict[str, List[str]],
+                                     Dict[str, List[str]],
+                                     Dict[str, str]]:
+        """Load and return the reactome data used in script
+
+        The loaded data is expected to be a tuple or list of dicts. The
+        first dict is expected to contain mappings from UP IDs of genes to
+        Reactome pathway IDs. The second dict is expected to contain the
+        reverse mapping (i.e Reactome IDs to UP IDs). The third dict is
+        expected to contain mappings from the Reactome IDs to their
+        descriptions.
+
+        Returns
+        -------
+        Tuple[Dict[str, List[str]], Dict[str, List[str]], Dict[str, str]]
+        """
+        if self.script_settings.get('argparse_info', {}).get('reactome_dict'):
             reactome_file = \
                 self.script_settings['argparse_info']['reactome_dict']
             reactome = file_opener(reactome_file)
