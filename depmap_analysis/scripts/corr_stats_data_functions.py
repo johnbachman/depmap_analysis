@@ -1,5 +1,7 @@
-"""This file contains functions to extract data and data models to carry the
-data """
+"""
+This file contains functions to extract data and data models to carry the
+data for the depmap script
+"""
 from typing import List, Tuple
 from pydantic import BaseModel
 
