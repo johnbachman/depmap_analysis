@@ -124,6 +124,9 @@ class DepMapExplainer:
         self.summary = {}
         self.summary_str = ''
         self.corr_stats_axb: Optional[Results] = None
+        self.loaded_corr: Optional[pd.DataFrame] = None
+        self.loaded_graph: Optional[Union[nx.DiGraph, nx.MultiDiGraph]] = None
+        self.loaded_reactome: Optional[Tuple[Dict[str, Any], ...]] = None
 
     def __str__(self):
         return self.get_summary_str() if self.__len__() else \
@@ -135,18 +138,20 @@ class DepMapExplainer:
 
     def load_graph(self) -> Union[nx.DiGraph, nx.MultiDiGraph]:
         """Load and return the graph used in script"""
-        if self.script_settings.get('indranet'):
-            indranet_file = self.script_settings['indranet']
-        elif self.script_settings.get('argparse_info', {}).get('indranet'):
-            indranet_file = \
-                self.script_settings['argparse_info']['indranet']
-        else:
-            raise FileNotFoundError('No graph file location seems to be '
-                                    'present in script settings.')
+        if self.loaded_graph is None:
+            if self.script_settings.get('indranet'):
+                indranet_file = self.script_settings['indranet']
+            elif self.script_settings.get('argparse_info', {}).get('indranet'):
+                indranet_file = \
+                    self.script_settings['argparse_info']['indranet']
+            else:
+                raise FileNotFoundError('No graph file location seems to be '
+                                        'present in script settings.')
 
-        graph = file_opener(indranet_file)
-        assert isinstance(graph, (nx.DiGraph, nx.MultiDiGraph))
-        return graph
+            graph = file_opener(indranet_file)
+            assert isinstance(graph, (nx.DiGraph, nx.MultiDiGraph))
+            self.loaded_graph = graph
+        return self.loaded_graph
 
     def load_z_corr(self, local_file_path: Optional[str] = None) \
             -> pd.DataFrame:
@@ -166,40 +171,44 @@ class DepMapExplainer:
         -------
         pd.DataFrame
         """
-        if local_file_path:
-            z_corr_file = local_file_path
-        else:
-            if self.script_settings.get('z_score'):
-                z_corr_file = self.script_settings['z_score']
-            elif self.script_settings.get('argparse_info', {}).get('z_score'):
-                z_corr_file = self.script_settings['argparse_info']['z_score']
+        if self.loaded_corr is None:
+            if local_file_path:
+                z_corr_file = local_file_path
             else:
-                raise FileNotFoundError('No file location seems to be '
-                                        'present in script settings. Please '
-                                        'provide a file using '
-                                        '`local_file_path`')
-        logger.info(f'Loading {z_corr_file}')
-        z_corr = pd.read_hdf(z_corr_file)
-        logger.info('Finished loading hdf file')
-        assert isinstance(z_corr, pd.DataFrame)
-        return z_corr
+                if self.script_settings.get('z_score'):
+                    z_corr_file = self.script_settings['z_score']
+                elif self.script_settings.get('argparse_info', {}).get('z_score'):
+                    z_corr_file = self.script_settings['argparse_info']['z_score']
+                else:
+                    raise FileNotFoundError('No file location seems to be '
+                                            'present in script settings. Please '
+                                            'provide a file using '
+                                            '`local_file_path`')
+            logger.info(f'Loading {z_corr_file}')
+            z_corr = pd.read_hdf(z_corr_file)
+            logger.info('Finished loading hdf file')
+            assert isinstance(z_corr, pd.DataFrame)
+            self.loaded_corr = z_corr
+        return self.loaded_corr
 
     def load_reactome(self):
         """Load and return the reactome data used in script"""
-        if self.script_settings.get('argparse_info', {}).get(
-                'reactome_dict'):
-            reactome_file = \
-                self.script_settings['argparse_info']['reactome_dict']
-            reactome = file_opener(reactome_file)
-            assert isinstance(reactome, (tuple, list)), \
-                f'{reactome_file} does not seem to contain tuple of ' \
-                f'(upid - pathway mapping, pathway - upid mapping, ' \
-                f'pathway id - pathway description).'
-        else:
-            raise FileNotFoundError('No reactome file location seems to be '
-                                    'present in script settings.')
+        if self.loaded_reactome is None:
+            if self.script_settings.get('argparse_info', {}).get(
+                    'reactome_dict'):
+                reactome_file = \
+                    self.script_settings['argparse_info']['reactome_dict']
+                reactome = file_opener(reactome_file)
+                assert isinstance(reactome, (tuple, list)), \
+                    f'{reactome_file} does not seem to contain tuple of ' \
+                    f'(upid - pathway mapping, pathway - upid mapping, ' \
+                    f'pathway id - pathway description).'
+            else:
+                raise FileNotFoundError('No reactome file location seems to '
+                                        'be present in script settings.')
+            self.loaded_reactome = reactome
 
-        return reactome
+        return self.loaded_reactome
 
     def has_data(self):
         """Check if any of the data frames have data in them
