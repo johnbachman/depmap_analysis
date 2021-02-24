@@ -135,7 +135,12 @@ class DepMapExplainer:
         return len(self.stats_df)
 
     def load_graph(self) -> Union[nx.DiGraph, nx.MultiDiGraph]:
-        """Load and return the graph used in script"""
+        """Load and return the graph used in script
+
+        Returns
+        -------
+        Union[nx.DiGraph, nx.MultiDiGraph]
+        """
         if self.script_settings.get('indranet'):
             indranet_file = self.script_settings['indranet']
         elif self.script_settings.get('argparse_info', {}).get('indranet'):
