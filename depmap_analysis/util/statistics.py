@@ -383,7 +383,7 @@ class DepMapExplainer:
         The columns are:
         'pair', 'agA', 'agB', 'z_score', 'agA_ns', 'agA_id', 'agB_ns',
         'agB_id', 'expl_type', 'agX', 'agX_ns', 'agX_id', 'ax_corr',
-        'xb_corr', 'ax_belief', 'xb_belief', 'hashes'
+        'xb_corr', 'ax_belief', 'xb_belief', 'ax_data', 'bx_data'
 
         - 'pair' is the unique key identifying a group of explanations per
            A, B, corr
