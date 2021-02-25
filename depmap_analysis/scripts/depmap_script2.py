@@ -918,15 +918,15 @@ if __name__ == '__main__':
                              arg_dict['pybel_node_mapping'].split('.')[-1])
 
     # Get ignore list
-    apriori_explained = args.apriori_explained
-    if apriori_explained:
+    apriori_expl = args.apriori_explained
+    if apriori_expl:
         # Check if it's the default file
-        if mito_file_name in apriori_explained:
-            expl_map = get_mitocarta_info(apriori_explained)
+        if mito_file_name in apriori_expl:
+            expl_map = get_mitocarta_info(apriori_expl)
         else:
             # Hope it's a csv
             try:
-                expl_df = pd.read_csv(apriori_explained)
+                expl_df = pd.read_csv(apriori_expl)
                 expl_map = {e: d for e, d in zip(expl_df.name,
                                                  expl_df.description)}
             except Exception as err:
