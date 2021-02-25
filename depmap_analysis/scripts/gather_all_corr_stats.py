@@ -38,7 +38,7 @@ def _save(fpath: str, expl_inst: DepMapExplainer):
             _ = expl_inst.s3_location
         except AttributeError:
             # For backwards compatibility
-            expl_inst.s3_location = path
+            expl_inst.s3_location = fpath
         logger.info(f'Uploading to {expl_inst.s3_location}')
         if not dry:
             s3p = expl_inst.get_s3_path()
@@ -170,6 +170,13 @@ if __name__ == '__main__':
                 logger.warning(f'File {explainer_file} is not '
                                f'DepMapExplainer, skipping...')
                 continue
+            # Backwards compatibility: check if s3_location attribute
+            # exists, otherwise set it and then re-upload
+            try:
+                _ = explainer.s3_location
+            except AttributeError:
+                _save(fpath=explainer_file, expl_inst=explainer)
+
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr,
@@ -194,15 +201,7 @@ if __name__ == '__main__':
                                        max_so_pairs_size=args.max_so_pairs,
                                        mp_pairs=args.mp_pairs,
                                        run_linear=single_proc)
-
-            processed_explainers.append((explainer, explainer_file))
         else:
             if not _exists(explainer_file):
                 raise FileNotFoundError(f'{explainer_file} does not exist')
         logger.info(f'Writing output to {explainer_out}/*.pdf')
-
-    logger.info('Re-save explainers with axb correlation data')
-    for expl, path in processed_explainers:
-        # Save explainer to its original location, now with data set in
-        # explainer.corr_stats_axb
-        _save(fpath=path, expl_inst=expl)
