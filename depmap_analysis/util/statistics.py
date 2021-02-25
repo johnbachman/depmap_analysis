@@ -1,3 +1,4 @@
+import json
 import logging
 from math import floor
 from io import BytesIO
@@ -433,6 +434,9 @@ class DepMapExplainer:
                            run_linear: bool = False) -> Results:
         """Get statistics of the correlations from different explanation types
 
+        Note: the provided options have no effect if the data is loaded
+        from cache.
+
         Parameters
         ----------
         z_corr : Optional[Union[pd.DataFrame, str]]
@@ -460,24 +464,47 @@ class DepMapExplainer:
         Results
             A BaseModel containing correlation data for different explanations
         """
-        if not self.corr_stats_axb:
-            # Load correlation matrix
-            if z_corr is None:
-                z_corr = self.load_z_corr()
-            if isinstance(z_corr, str):
-                z_corr = self.load_z_corr(local_file_path=z_corr)
-            # Load reactome if present
+        if self.corr_stats_axb is None:
+            s3 = get_s3_client(unsigned=False)
             try:
-                reactome = self.load_reactome()
-            except FileNotFoundError:
-                logger.info('No reactome file used in script')
-                reactome = None
-            self.corr_stats_axb: Results = axb_stats(
-                self.expl_df, self.stats_df, z_corr=z_corr, reactome=reactome,
-                eval_str=False, max_proc=max_proc,
-                max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs,
-                run_linear=run_linear
-            )
+                corr_stats_loc = self.get_s3_corr_stats_path()
+                if S3Path.from_string(corr_stats_loc).exists(s3):
+                    logger.info(f'Found corr stats data at {corr_stats_loc}')
+                    corr_stats_json = file_opener(corr_stats_loc)
+                    self.corr_stats_axb = Results(**corr_stats_json)
+            except ValueError as ve:
+                # Raised when s3 location is not set
+                logger.warning(ve)
+
+            # If not found on s3 or ValueError was raised
+            if self.corr_stats_axb is None:
+                logger.info('Generating corr stats data')
+                # Load correlation matrix
+                if z_corr is None:
+                    z_corr = self.load_z_corr()
+                if isinstance(z_corr, str):
+                    z_corr = self.load_z_corr(local_file_path=z_corr)
+                # Load reactome if present
+                try:
+                    reactome = self.load_reactome()
+                except FileNotFoundError:
+                    logger.info('No reactome file used in script')
+                    reactome = None
+                self.corr_stats_axb: Results = axb_stats(
+                    self.expl_df, self.stats_df, z_corr=z_corr,
+                    reactome=reactome, eval_str=False, max_proc=max_proc,
+                    max_corr_pairs=max_so_pairs_size, do_mp_pairs=mp_pairs,
+                    run_linear=run_linear
+                )
+                try:
+                    corr_stats_loc = self.get_s3_corr_stats_path()
+                    logger.info(f'Uploading corr stats to S3 at '
+                                f'{corr_stats_loc}')
+                    s3p_loc = S3Path.from_string(corr_stats_loc)
+                    s3p_loc.put(s3=s3, body=json.dumps(self.corr_stats_axb))
+                    logger.info('Finished uploding corr stats to S3')
+                except ValueError:
+                    logger.warning('Unable to upload corr stats to S3')
         return self.corr_stats_axb
 
     def plot_corr_stats(self, outdir: str,
