@@ -52,9 +52,9 @@ from depmap_analysis.util.io_functions import file_opener, \
 from depmap_analysis.network_functions.net_functions import \
     pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, down_sampl_size
+    corr_matrix_to_generator, down_sampl_size, get_pairs, get_chunk_size
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
-    id_columns
+    id_columns, expl_columns
 from depmap_analysis.preprocessing import *
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
@@ -74,20 +74,36 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                                                  None, None],
                             expl_types: Dict[str, Callable],
                             stats_columns: Tuple[str],
-                            expl_columns: Tuple[str],
+                            expl_cols: Tuple[str],
                             bool_columns: Tuple[str],
                             expl_mapping: Optional[Dict[str, str]],
                             _type: str,
                             allowed_ns: Optional[Set[str]] = None,
                             allowed_sources: Optional[Set[str]] = None,
                             is_a_part_of: Optional[List[str]] = None,
-                            immediate_only: bool = False):
+                            immediate_only: Optional[bool] = False,
+                            return_unexplained: Optional[bool] = False,
+                            reactome_dict: Optional[Dict[str, Any]] = None,
+                            local_indranet: Optional[nx.DiGraph] = None):
     try:
-        global indranet
+        if local_indranet is not None and len(local_indranet.nodes) > 0:
+            graph = local_indranet
+        else:
+            global indranet
+            graph = indranet
+            try:
+                assert len(graph.nodes)
+                assert len(graph.edges)
+            except AssertionError:
+                raise ValueError(f'indranet seems to be empty with '
+                                 f'{len(graph.nodes)} nodes and '
+                                 f'{len(graph.edges)} edges')
 
         stats_dict = {k: [] for k in stats_columns}
-        expl_dict = {k: [] for k in expl_columns}
-        options = {'immediate_only': immediate_only}
+        expl_dict = {k: [] for k in expl_cols}
+        options = {'immediate_only': immediate_only,
+                   'return_unexplained': return_unexplained,
+                   'reactome_dict': reactome_dict}
         if is_a_part_of:
             options['is_a_part_of'] = is_a_part_of
         if allowed_ns:
@@ -98,10 +114,11 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             options['expl_mapping'] = expl_mapping
 
         for tup in corr_iter:
-            # Break loop when batch_iter
+            # Break loop when batch_iter reaches None padding
             if tup is None:
                 break
             gA, gB, zsc = tup
+            pair_key = f'{gA}_{gB}'
             # Initialize current iteration stats
             stats = {k: False for k in bool_columns}
 
@@ -109,16 +126,17 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             # checks that will skip current iteration
             stats_dict['agA'].append(gA)
             stats_dict['agB'].append(gB)
-            stats_dict['z-score'].append(zsc)
+            stats_dict['pair'].append(pair_key)
+            stats_dict['z_score'].append(zsc)
 
             # Skip if A or B not in graph or (if type is pybel) no node
             # mapping exists for either A or B
             if _type == 'pybel' and (gA not in hgnc_node_mapping or
                                      gB not in hgnc_node_mapping) or \
-                    _type != 'pybel' and (gA not in indranet.nodes or
-                                          gB not in indranet.nodes):
+                    _type != 'pybel' and (gA not in graph.nodes or
+                                          gB not in graph.nodes):
                 for k in set(stats_dict.keys()).difference(set(min_columns)):
-                    if k == 'not in graph':
+                    if k == 'not_in_graph':
                         # Flag not in graph
                         stats_dict[k].append(True)
                     else:
@@ -131,7 +149,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                 a_ns, a_id = get_ns_id_pybel_node(gA, tuple(hgnc_node_mapping[gA]))
                 b_ns, b_id = get_ns_id_pybel_node(gB, tuple(hgnc_node_mapping[gB]))
             else:
-                a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, indranet)
+                a_ns, a_id, b_ns, b_id = get_ns_id(gA, gB, graph)
 
             # Append to stats dict
             stats_dict['agA_ns'].append(a_ns)
@@ -152,31 +170,36 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             for A, B in expl_iter:
                 # Loop expl functions. Args:
                 # s, o, corr, net, graph_type, **kwargs
-                expl_args = (A, B, zsc, indranet, _type)
+                expl_args = (A, B, zsc, graph, _type)
                 for expl_type, expl_func in expl_types.items():
-                    # Function should return what will be kept in the
-                    # 'expl_data' column of the expl_df
+                    # Function should return:
+                    # -s: str
+                    # -o: str
+                    # -explained: bool
+                    # -expl_data: Any
                     # Some functions reverses A, B hence the s, o assignment
-                    s, o, expl_data = expl_func(*expl_args, **options)
+                    s, o, is_expl, expl_data = expl_func(*expl_args, **options)
+
+                    # Append explanation status
+                    expl_iterations[expl_type].append(is_expl)
                     if expl_data:
                         # Use original name
                         s_name = s.name if _type == 'pybel' else s
                         o_name = o.name if _type == 'pybel' else o
                         expl_dict['agA'].append(s_name)
                         expl_dict['agB'].append(o_name)
-                        expl_dict['z-score'].append(zsc)
-                        expl_dict['expl type'].append(expl_type)
-                        expl_dict['expl data'].append(expl_data)
-
-                        # Append to expl_iterations
-                        expl_iterations[expl_type].append(expl_data)
+                        expl_dict['pair'].append(pair_key)
+                        expl_dict['z_score'].append(zsc)
+                        expl_dict['expl_type'].append(expl_type)
+                        expl_dict['expl_data'].append(expl_data)
 
             # Check which ones got explained
             for expl_type_, expl_data_ in expl_iterations.items():
-                stats[expl_type_] = bool(expl_data_)
+                stats[expl_type_] = any(expl_data_)
 
-            # Set explained column
-            stats['explained'] = any([b for b in stats.values()])
+            # Set explained column (ignore reactome)
+            stats['explained'] = any([b for k, b in stats.items() if k !=
+                                      react_colname])
 
             # Add stats to stats_dict
             for expl_tp in stats:
@@ -245,9 +268,9 @@ def match_correlations(corr_z: pd.DataFrame,
     if not len(expl_types):
         raise ValueError('No explanation functions provided')
 
-    bool_columns = ('not in graph', 'explained') + tuple(expl_types.keys())
+    bool_columns = ('not_in_graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
-    expl_columns = ('agA', 'agB', 'z-score', 'expl type', 'expl data')
+    expl_cols = expl_columns
     expl_mapping = kwargs.get('expl_mapping', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
@@ -268,6 +291,8 @@ def match_correlations(corr_z: pd.DataFrame,
         allowed_sources = None
     is_a_part_of = kwargs.get('is_a_part_of')
     immediate_only = kwargs.get('immediate_only', False)
+    return_unexplained = kwargs.get('return_unexplained', False)
+    reactome_dict = kwargs.get('reactome_dict')
 
     # Try to get dates of files from file names and file info
     ymd_now = datetime.now().strftime('%Y%m%d')
@@ -281,7 +306,7 @@ def match_correlations(corr_z: pd.DataFrame,
               if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
     logger.info('Calculating number of pairs to check...')
-    estim_pairs = _get_pairs(corr_z)
+    estim_pairs = get_pairs(corr_z)
     logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
                 f'with about {estim_pairs} pairs to check')
     tstart = time()
@@ -289,7 +314,7 @@ def match_correlations(corr_z: pd.DataFrame,
     with mp.Pool() as pool:
         MAX_SUB = 512
         n_sub = min(kwargs.get('n-chunks', 256), MAX_SUB)
-        chunksize = max(estim_pairs // n_sub, 1)
+        chunksize = get_chunk_size(n_sub, estim_pairs)
 
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0
@@ -302,14 +327,16 @@ def match_correlations(corr_z: pd.DataFrame,
                                  chunk,
                                  expl_types,
                                  stats_columns,
-                                 expl_columns,
+                                 expl_cols,
                                  bool_columns,
                                  expl_mapping,
                                  _type,
                                  allowed_ns,
                                  allowed_sources,
                                  is_a_part_of,
-                                 immediate_only
+                                 immediate_only,
+                                 return_unexplained,
+                                 reactome_dict
                              ),
                              callback=success_callback,
                              error_callback=error_callback)
@@ -341,28 +368,20 @@ def match_correlations(corr_z: pd.DataFrame,
         explainer.expl_df = explainer.expl_df.append(other=pd.DataFrame(
             data=expl_dict))
 
-    explainer.has_data = True
     return explainer
-
-
-def _get_pairs(corr_z: pd.DataFrame):
-    # Kudos to https://stackoverflow.com/a/45631406/10478812
-    return corr_z.mask(
-        np.triu(np.ones(corr_z.shape)).astype(bool)
-    ).notna().sum().sum()
 
 
 def _down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
     # Do small initial downsampling
     row_samples = len(z_corr) - 1
-    n_pairs = _get_pairs(corr_z=z_corr)
+    n_pairs = get_pairs(corr_z=z_corr)
     while n_pairs > int(1.1 * sample_size):
         logger.info(f'Down sampling from {n_pairs}')
         z_corr = z_corr.sample(row_samples, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
         # Update n_pairs and row_samples
-        n_pairs = _get_pairs(corr_z=z_corr)
+        n_pairs = get_pairs(corr_z=z_corr)
         mm = max(row_samples - int(np.ceil(0.05 * row_samples))
                  if n_pairs - sample_size < np.ceil(0.1 * sample_size)
                  else down_sampl_size(n_pairs, len(z_corr), sample_size),
@@ -397,6 +416,9 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          expl_mapping: Optional[Dict[str, str]] = None,
          is_a_part_of: Optional[List[str]] = None,
          immediate_only: Optional[bool] = False,
+         return_unexplained: Optional[bool] = False,
+         reactome_dict: Optional[Dict[str, Any]] = None,
+         apriori_explained: Optional[Dict[str, str]] = None,
          allowed_ns: Optional[List[str]] = None,
          allowed_sources: Optional[List[str]] = None,
          info: Optional[Dict[Hashable, Any]] = None,
@@ -461,6 +483,21 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     immediate_only : Optional[bool]
         Only look for immediate parents. This option might limit the number
         of results that are returned. Default: False.
+    return_unexplained : Optional[bool]
+        If True: return explanation data even if there is no set
+        intersection of nodes up- or downstream of A, B for shared
+        regulators and shared targets. Default: False.
+    reactome_dict : Dict[str, Any]
+        Mapping from gene UP ID to its associated reactome pathways
+    apriori_explained : Optional[Dict[str, str]]
+        A mapping from entity names to a string containing a short
+        explanation of why the entity is explained. To use the default
+        MitoCarta 3.0 file, run the following code:
+        >>> from depmap_analysis.scripts.depmap_script2 import mito_file
+        >>> from depmap_analysis.preprocessing import get_mitocarta_info
+        >>> apriori_mapping = get_mitocarta_info(mito_file)
+        then pass `apriori_mapping` to `apriori_explained` when calling this
+        funciton.
     allowed_ns : Optional[List[str]]
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
@@ -553,6 +590,8 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     run_options['graph_type'] = graph_type
     # Add optional options
     run_options['immediate_only'] = immediate_only
+    run_options['return_unexplained'] = return_unexplained
+    run_options['reactome_dict'] = reactome_dict
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
     if allowed_sources:
@@ -808,6 +847,16 @@ if __name__ == '__main__':
     parser.add_argument('--immediate-only', action='store_true',
                         help='Only look in immediate parents in common '
                              'parent search.')
+    parser.add_argument('--return-unexplained', action='store_true',
+                        help='For shared target and shared regulators: '
+                             'return explanation data even if there is no '
+                             'set intersection of nodes up- or downstream of '
+                             'A, B. The explanation will be marked as '
+                             'unexplained in its column in the stats data '
+                             'frame, but the data will still be reported in '
+                             'the explanations data frame')
+    parser.add_argument('--reactome-dict', type=file_path('pkl'),
+                        help='Path to reactome file.')
     parser.add_argument('--overwrite', action='store_true',
                         help='Overwrite any output files that already exist.')
     parser.add_argument('--normalize-names', action='store_true',
@@ -869,15 +918,15 @@ if __name__ == '__main__':
                              arg_dict['pybel_node_mapping'].split('.')[-1])
 
     # Get ignore list
-    apriori_explained = args.apriori_explained
-    if apriori_explained:
+    apriori_expl = args.apriori_explained
+    if apriori_expl:
         # Check if it's the default file
-        if mito_file_name in apriori_explained:
-            expl_map = get_mitocarta_info(apriori_explained)
+        if mito_file_name in apriori_expl:
+            expl_map = get_mitocarta_info(apriori_expl)
         else:
             # Hope it's a csv
             try:
-                expl_df = pd.read_csv(apriori_explained)
+                expl_df = pd.read_csv(apriori_expl)
                 expl_map = {e: d for e, d in zip(expl_df.name,
                                                  expl_df.description)}
             except Exception as err:
@@ -888,6 +937,11 @@ if __name__ == '__main__':
                                  'entity is explained.') \
                     from err
         arg_dict['expl_mapping'] = expl_map
+
+    if args.reactome_dict:
+        up2path, _, pathid2pathname = file_opener(args.reactome_dict)
+        arg_dict['reactome_dict'] = {'uniprot_mapping': up2path,
+                                     'pathid_name_mapping': pathid2pathname}
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}

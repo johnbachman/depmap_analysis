@@ -9,32 +9,36 @@ at the end
 """
 import inspect
 import logging
-import networkx as nx
 from typing import Set, Union, Tuple, List, Optional, Dict
 from itertools import product
 
+import networkx as nx
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
 from pybel.dsl import CentralDogma
 
+from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
 from depmap_analysis.util.io_functions import dump_it_to_pickle
 from depmap_analysis.network_functions.famplex_functions import common_parent
 from depmap_analysis.network_functions.net_functions import \
     gilda_normalization, INT_PLUS, INT_MINUS
 
-
 __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
-           'expl_functions', 'funcname_to_colname']
+           'expl_functions', 'funcname_to_colname', 'apriori', 'axb_colname',
+           'bxa_colname', 'ab_colname', 'ba_colname', 'st_colname',
+           'sr_colname', 'sd_colname', 'cp_colname', 'react_colname',
+           'react_funcname']
+
 logger = logging.getLogger(__name__)
 
 
 class FunctionRegistrationError(Exception):
-    """Raise when a function does not adhere to set rules for """
+    """Raise when a function does not adhere to the explainer function rules"""
 
 
 def apriori_explained(s: str, o: str, corr: float,
                       net: Union[DiGraph, MultiDiGraph], _type: str, **kwargs)\
-        -> Tuple[str, str, Union[str, None]]:
+        -> Tuple[str, str, bool, Union[str, None]]:
     """A mock function that is used for a-priori explained pairs
 
     Parameters
@@ -52,13 +56,14 @@ def apriori_explained(s: str, o: str, corr: float,
 
     Returns
     -------
-    Tuple[str, str, Union[str, None]]
-        If explained, the tuple (s, o, explanation) is returned,
-        where `explanation` is a string mapped from the subject or object.
+    Tuple[str, str, bool, Union[str, None]]
+        If explained, the tuple (s, o, explained, explanation) is returned,
+        where `explained` is a flags the truthyness of the explanation and
+        `explanation` is a string mapped from the subject and/or object.
     """
     expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
     if expl_mapping is None:
-        return s, o, None
+        return s, o, False, None
 
     # Get a-priori explanations for s and o
     why_s = expl_mapping.get(s)
@@ -66,13 +71,63 @@ def apriori_explained(s: str, o: str, corr: float,
 
     if why_s or why_o:
         explanation = f'{s}: {why_s}, {o}: {why_o}'
-        return s, o, explanation
+        return s, o, True, explanation
     else:
-        return s, o, None
+        return s, o, False, None
+
+
+def common_reactome_paths(s: str, o: str, corr: float,
+                          net: Union[DiGraph, MultiDiGraph],
+                          _type: str, reactome_dict: Dict[str, Dict],
+                          **kwargs) \
+        -> Tuple[str, str, bool, Union[None, List[str]]]:
+    """Explain pair by matching common reactome pathways
+
+    The pair is explained if they have any common reactome pathways
+
+    Parameters
+    ----------
+    s: str
+        Subject node
+    o: str
+        Object node
+    corr: float
+        Correlation, either as [-1.0, 1.0] or z-score
+    net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
+    _type: str
+        The graph type used
+    reactome_dict: Dict[str, Dict]
+        Dict containing two dicts:
+            - 'uniprot_mapping': Dict[str, List[str]]
+                mapping UP gene ids to reactome pathway ids
+            - 'pathid_name_mapping': Dict[str, str]
+                mapping reactome pathway ids to descriptions
+
+    Returns
+    -------
+    Tuple[str, str, bool, Union[None, List[str]]]
+        s, o, a bool flagging the explanation as explained and, if found,
+        the pathways s and o have in common
+    """
+    s_up = _get_upid_from_hgnc_symbol(s)
+    if s_up is None:
+        return s, o, False, None
+
+    o_up = _get_upid_from_hgnc_symbol(o)
+    if o_up is None:
+        return s, o, False, None
+
+    um = reactome_dict['uniprot_mapping']
+    pnm = reactome_dict['pathid_name_mapping']
+
+    cr = set(um.get(s_up, [])) & set(um.get(o_up, []))
+    return s, o, bool(cr), [pnm[pid] for pid in cr] or None
 
 
 def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-            _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+            _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                 List[str]]]:
     """Explain pair by looking for ontological parents
 
     The pair is explained if the two entities have common ontological parents
@@ -92,8 +147,9 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of s, o and, if any, the list of common parents
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of s, o, a bool flagging the explanation as explained and,
+        if any, the list of common parents
     """
     if _type == 'pybel':
         s_name = kwargs['s_name']
@@ -128,13 +184,14 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             # if kwargs.get('ns_set'):
             #     parents = {(ns, _id) for ns, _id in parents if ns.lower() in
             #                kwargs['ns_set']} or None
-            return s, o, parents
+            return s, o, True, parents
 
-    return s, o, None
+    return s, o, False, None
 
 
 def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-             _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+             _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                  List[str]]]:
     """Explain pair by looking for intermediate nodes connecting a to b
 
     The pair is considered explained if there is at least one node x
@@ -155,8 +212,9 @@ def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of s, o and a list of the nodes connecting s and o (if any)
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of s, o, a bool flagging if the explanations is explained
+        and a list of the nodes connecting s and o (if any)
     """
     s_succ = set(net.succ[s])
     o_pred = set(net.pred[o])
@@ -181,13 +239,14 @@ def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         x_nodes = x_set
 
     if x_nodes:
-        return s, o, list(x_nodes)
+        return s, o, True, list(x_nodes)
     else:
-        return s, o, None
+        return s, o, False, None
 
 
 def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-             _type: str, **kwargs) -> Tuple[str, str, Union[None, List[str]]]:
+             _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                  List[str]]]:
     """Reversal of expl_axb
 
     Parameters
@@ -205,8 +264,9 @@ def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, List[str]]]
-        A tuple of o, s and a list of the nodes connecting o and s (if any)
+    Tuple[str, str, bool, Union[None, List[str]]]
+        A tuple of o, s, a bool flagging if the explanation is explained and
+        a list of the nodes connecting o and s (if any)
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
@@ -214,13 +274,14 @@ def expl_bxa(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         options = {'o_name': s_name, 's_name': o_name}
     else:
         options = {}
-    return expl_axb(o, s, corr, net, _type, **kwargs, **options)
+    u, v, expl, data = expl_axb(o, s, corr, net, _type, **kwargs, **options)
+    return u, v, expl, data
 
 
 # Shared regulator: A<-X->B
 def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
-        Tuple[str, str,
+        Tuple[str, str, bool,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
     """Explain pair by finding common upstream nodes
 
@@ -243,10 +304,10 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
     List[str]]]]
-        A tuple of s, o and a tuple of the predecessors of s, o and their
-        intersection and union
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the predecessors of s, o and their intersection and union
     """
     # Filter ns
     if kwargs.get('ns_set'):
@@ -277,18 +338,22 @@ def get_sr(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         x_nodes = x_set
         x_nodes_union = x_set_union
 
-    # Return if there is anything in union, s_pred or o_pred
-    if x_nodes_union or s_pred or o_pred:
-        return s, o, (list(s_pred), list(o_pred),
-                      list(x_nodes or []), list(x_nodes_union or []))
+    # Return x_nodes if strict, else if there is anything in union or s_pred
+    # or o_pred
+    unexpl = kwargs.get('return_unexplained', False)
+    if (not unexpl and x_nodes) or (unexpl and (s_pred or o_pred)):
+        data = (list(s_pred), list(o_pred),
+                list(x_nodes or []),
+                list(x_nodes_union or []))
     else:
-        return s, o, None
+        data = None
+    return s, o, bool(x_nodes), data
 
 
 # Shared target: A->X<-B
 def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
-        Tuple[str, str,
+        Tuple[str, str, bool,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
     """Explain pair by finding common downstream nodes
 
@@ -311,10 +376,10 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
     List[str]]]]
-        A tuple of s, o and a tuple of the successors of s, o and their
-        intersection and union
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the successors of s, o and their intersection and union
     """
     s_succ = set(net.succ[s])
     o_succ = set(net.succ[o])
@@ -342,17 +407,22 @@ def get_st(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         x_nodes = x_set
         x_nodes_union = x_set_union
 
-    # Return if there is any node in union, s_succ or o_succ
-    if x_nodes_union or s_succ or o_succ:
-        return s, o, (list(s_succ), list(o_succ),
-                      list(x_nodes or []), list(x_nodes_union or []))
+    # Return x_nodes if strict, else if there is anything in union or s_succ
+    # or o_succ
+    unexpl = kwargs.get('return_unexplained', False)
+    if (not unexpl and x_nodes) or (unexpl and (s_succ or o_succ)):
+        data = (list(s_succ), list(o_succ),
+                list(x_nodes or []),
+                list(x_nodes_union or []))
     else:
-        return s, o, None
+        data = None
+
+    return s, o, bool(x_nodes), data
 
 
 def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
            _type: str, **kwargs) -> \
-        Tuple[str, str,
+        Tuple[str, str, bool,
               Union[None, Tuple[List[str], List[str], List[str], List[str]]]]:
     """Explain pair by finding common downstream nodes two edges from s and o
 
@@ -376,10 +446,11 @@ def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List[str], List[str], List[str],
-    List[str]]]]
-        A tuple of s, o and a tuple of the two-edge successors of s,
-        o and their intersection and union
+    Tuple[str, str, bool, Union[None, Tuple[List[str], List[str], List[str],
+                                            List[str]]]]
+        A tuple of s, o, a bool flagging if the explanation is explained and
+        a tuple of the two-edge successors of s, o and their intersection
+        and union
     """
     # Get nodes two edges away for subject
     args = (net, _type in {'signed', 'pybel'}, kwargs.get('ns_set'),
@@ -411,14 +482,15 @@ def get_sd(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             s_y_list = s_y_set
             o_y_list = o_y_set
 
-        return s, o, (list(s_y_list or []), list(o_y_list or []),
-                      list(y_nodes or []), list(y_nodes_union or []))
+        return s, o, True, (list(s_y_list or []), list(o_y_list or []),
+                            list(y_nodes or []), list(y_nodes_union or []))
     else:
-        return s, o, None
+        return s, o, False, None
 
 
 def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-            _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
+            _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                 Tuple[List]]]:
     """Explain pair by checking for an edge between s and o
 
     The pair is explained if there exists and edge between s and o. The edge
@@ -439,18 +511,20 @@ def expl_ab(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List]]]
-        A tuple of s, o and, if the edge s-o exists, the edge meta data
+    Tuple[str, str, bool, Union[None, Tuple[List]]]
+        A tuple of s, o, a bool flagging if the explanation is explained
+        and, if the edge s-o exists, the edge meta data
     """
     edge_dict = _get_edge_statements(s, o, corr, net, _type, **kwargs)
     if edge_dict:
-        return s, o, edge_dict.get('stmt_hash') if _type == 'pybel' else \
-            edge_dict.get('statements')
-    return s, o, None
+        return s, o, True, edge_dict.get('stmt_hash') if _type == 'pybel' \
+            else edge_dict.get('statements')
+    return s, o, False, None
 
 
 def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
-            _type: str, **kwargs) -> Tuple[str, str, Union[None, Tuple[List]]]:
+            _type: str, **kwargs) -> Tuple[str, str, bool, Union[None,
+                                                                 Tuple[List]]]:
     """Reversal of expl_ab
 
     The pair is explained if there exists and edge between o and s. The edge
@@ -471,8 +545,9 @@ def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
     Returns
     -------
-    Tuple[str, str, Union[None, Tuple[List]]]
-        A tuple of o, s and, if the edge o-s exists, the edge meta data
+    Tuple[str, str, bool, Union[None, Tuple[List]]]
+        A tuple of o, s, a bool flagging if the explanation is explained
+        and, if the edge o-s exists, the edge meta data
     """
     if _type == 'pybel':
         s_name = kwargs.pop('s_name')
@@ -480,7 +555,8 @@ def expl_ba(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
         options = {'o_name': s_name, 's_name': o_name}
     else:
         options = {}
-    return expl_ab(o, s, corr, net, _type, **kwargs, **options)
+    u, v, expl, data = expl_ab(o, s, corr, net, _type, **kwargs, **options)
+    return u, v, expl, data
 
 
 def _get_edge_statements(s: str, o: str, corr: float,
@@ -681,6 +757,23 @@ def _get_nnn_set(n: str,
     return n_x_set
 
 
+def _get_upid_from_hgnc_symbol(hgnc_gene: str) -> Union[str, None]:
+    hgnc_id = get_current_hgnc_id(hgnc_gene)
+    if isinstance(hgnc_id, list):
+        ix = 0
+        while True:
+            try:
+                up_id = get_uniprot_id(hgnc_id[ix])
+            except IndexError:
+                up_id = None
+                break
+            if up_id is None:
+                ix += 1
+    else:
+        up_id = get_uniprot_id(hgnc_id)
+    return up_id
+
+
 def _node_ns_filter(node_list: Union[Set[str], List[str]],
                     net: Union[DiGraph, MultiDiGraph],
                     allowed_ns: Union[Set[str], List[str], Tuple[str]]) \
@@ -875,7 +968,7 @@ def normalize_corr_names(corr_m: pd.DataFrame,
 
 # Add new function to the tuple
 expl_func_list = (apriori_explained, expl_ab, expl_ba, expl_axb, expl_bxa,
-                  find_cp, get_sr, get_st, get_sd)
+                  find_cp, get_sr, get_st, get_sd, common_reactome_paths)
 
 # Map the name of the function to a more human friendly column name
 funcname_to_colname = {
@@ -887,11 +980,27 @@ funcname_to_colname = {
     'find_cp': 'common_parent',
     'get_sr': 'shared_regulator',
     'get_st': 'shared_target',
-    'get_sd': 'shared_downstream'
+    'get_sd': 'shared_downstream',
+    'common_reactome_paths': 'reactome_paths'
 }
+
+# Set reactome funcname
+react_funcname = 'common_reactome_paths'
 
 # Map function name to function
 expl_functions = {f.__name__: f for f in expl_func_list}
+
+# Set colnames to variables
+apriori = funcname_to_colname['apriori_explained']
+axb_colname = funcname_to_colname['expl_axb']
+bxa_colname = funcname_to_colname['expl_bxa']
+ab_colname = funcname_to_colname['expl_ab']
+ba_colname = funcname_to_colname['expl_ba']
+st_colname = funcname_to_colname['get_st']
+sr_colname = funcname_to_colname['get_sr']
+sd_colname = funcname_to_colname['get_sd']
+cp_colname = funcname_to_colname['find_cp']
+react_colname = funcname_to_colname['common_reactome_paths']
 
 # Check that functions added to expl_func_list also exist in name to func map
 try:
@@ -915,11 +1024,14 @@ except AssertionError:
 for func in expl_func_list:
     try:
         assert \
-            {'_type', 'corr', 'kwargs', 'net', 'o', 's'} == \
-            set(inspect.signature(func).parameters.keys())
+            {'_type', 'corr', 'net', 'o', 's'}.issubset(
+                set(inspect.signature(func).parameters.keys()))
     except AssertionError:
         raise FunctionRegistrationError(
-            f'Function "{func.__name__}" does not have the required signature '
-            f'for its arguments. The required signature is '
-            f'(s, o, cor, net, _type, **kwargs)'
+            f'Function "{func.__name__}" does not have the required minimum '
+            f'signature for its arguments. The required signature is '
+            f'(s, o, corr, net, _type, **kwargs)'
         )
+
+# todo Check that all func return str, str, bool as first three values
+

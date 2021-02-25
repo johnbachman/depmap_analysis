@@ -11,8 +11,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp, \
-    ab_colname, ba_colname, axb_colname, bxa_colname, st_colname
+from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
+from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
+    bxa_colname, ab_colname, ba_colname, st_colname
 
 logger = logging.getLogger('DepMap Corr Stats')
 logger.setLevel(logging.INFO)

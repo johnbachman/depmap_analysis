@@ -178,7 +178,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
 
     corr_value_matrix = corr_df_sample.values
     gene_name_array = corr_df_sample.index.values
-    if not isinstance(gene_name_array[0], str):
+    if isinstance(gene_name_array[0], tuple):
         gene_name_array = [n[0] for n in gene_name_array]
     tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
     # Only get HGNC symbols (first in tuple) since we're gonna compare to
@@ -2162,3 +2162,55 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
 
     # Get number of rows to sample
     return int(np.ceil(p*L))
+
+
+def get_pairs(corr_z: pd.DataFrame) -> int:
+    """Count the number of extractable pairs from a pandas correlation matrix
+
+    Count the number of pairs that can be looped over from the DataFrame
+    correlation matrix from the upper triangle of the matrix (since the
+    matrix is assumed to be symmetric) with NaN's and potential values on
+    the diagonal ignored.
+
+    Parameters
+    ----------
+    corr_z : pd.DataFrame
+        A DataFrame with correlations obtained from pandas.DataFrame.corr().
+        The DataFrame is assumed to be pre-filtered such that values
+        filtered out are NaN's.
+
+    Returns
+    -------
+    int
+        The count of pairs that can be looped over
+    """
+    # Expect corr_z to be filtered to the values of interest and that the
+    # values that are filtered out are NaN's
+
+    # Map to boolean with NaN => False, else True
+    bm: pd.DataFrame = (~corr_z.isna())
+
+    # Mask lower triangle and diagonal with zeroes
+    ma = bm.mask(np.tril(np.ones(bm.shape).astype(bool)), other=0)
+
+    # Return sum over full matrix
+    return int(ma.sum().sum())
+
+
+def get_chunk_size(n_chunks: int, total_items: int) -> int:
+    """Find n such that `(n-1)*n_chunks < total_items <= n*n_chunks`
+
+    Parameters
+    ----------
+    n_chunks : int
+        The number of chunks of iterables wanted
+    total_items : int
+        The total number of items in the original iterable
+
+    Returns
+    -------
+    int
+        Return n in `(n-1)*n_chunks < total_items <= n*n_chunks`
+    """
+    # How many pairs does a chunk need to contain to get chunks_wanted chunks?
+    return max(int(np.ceil(total_items / n_chunks)), 1)

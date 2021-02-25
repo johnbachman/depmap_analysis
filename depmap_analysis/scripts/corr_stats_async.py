@@ -9,11 +9,11 @@ import random
 import numpy as np
 from pybel.dsl.node_classes import CentralDogma
 
+from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
+    bxa_colname, ab_colname, ba_colname, st_colname
 from indra.util.multiprocessing_traceback import WrapException
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id,\
     uniprot_ids, get_hgnc_name
-
-from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,6 @@ global_results = []
 global_results_pairs = []
 global_vars = {}
 list_of_genes = []
-
-apriori = funcname_to_colname['apriori_explained']
-axb_colname = funcname_to_colname['expl_axb']
-bxa_colname = funcname_to_colname['expl_bxa']
-ab_colname = funcname_to_colname['expl_ab']
-ba_colname = funcname_to_colname['expl_ba']
-st_colname = funcname_to_colname['get_st']
 
 
 def _list_chunk_gen(lst, size, shuffle=False):
