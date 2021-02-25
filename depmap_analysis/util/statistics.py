@@ -335,6 +335,28 @@ class DepMapExplainer:
             raise ValueError('s3_location is not set')
         return S3Path.from_string(self.s3_location)
 
+    def get_s3_corr_stats_path(self) -> str:
+        """Create the S3 url to the cached corr stats data
+
+        The corr stats data is generated from running get_corr_stats_axb
+
+        Returns
+        -------
+        str
+            A valid S3 url as a string where the corr stats data is cached.
+            Created using the s3_location attribute, assuming it is not None.
+
+        Raises
+        ------
+        ValueError
+            Raised if s3_location attribute is None
+        """
+        # File ending is assumed to be .pkl
+        # Call get_s3_path() to raise ValueError when s3_location is not set
+        s3p_loc = self.get_s3_path()
+        s3p_loc_str = s3p_loc.to_string().split('.pkl')[0]
+        return s3p_loc_str + '_axb_data.json'
+
     def _get_sr_only(self):
         # Get indices where 'shared regulator' is True
         sr_true = self.stats_df[
