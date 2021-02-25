@@ -502,9 +502,11 @@ class DepMapExplainer:
                                 f'{corr_stats_loc}')
                     s3p_loc = S3Path.from_string(corr_stats_loc)
                     s3p_loc.put(s3=s3, body=json.dumps(self.corr_stats_axb))
-                    logger.info('Finished uploding corr stats to S3')
+                    logger.info('Finished uploading corr stats to S3')
                 except ValueError:
                     logger.warning('Unable to upload corr stats to S3')
+        else:
+            logger.info('Data already present in corr_stats_axb')
         return self.corr_stats_axb
 
     def plot_corr_stats(self, outdir: str,
