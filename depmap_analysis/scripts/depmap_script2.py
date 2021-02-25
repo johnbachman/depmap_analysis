@@ -489,6 +489,15 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         regulators and shared targets. Default: False.
     reactome_dict : Dict[str, Any]
         Mapping from gene UP ID to its associated reactome pathways
+    apriori_explained : Optional[Dict[str, str]]
+        A mapping from entity names to a string containing a short
+        explanation of why the entity is explained. To use the default
+        MitoCarta 3.0 file, run the following code:
+        >>> from depmap_analysis.scripts.depmap_script2 import mito_file
+        >>> from depmap_analysis.preprocessing import get_mitocarta_info
+        >>> apriori_mapping = get_mitocarta_info(mito_file)
+        then pass `apriori_mapping` to `apriori_explained` when calling this
+        funciton.
     allowed_ns : Optional[List[str]]
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
