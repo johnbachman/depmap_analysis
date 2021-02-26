@@ -112,9 +112,9 @@ class DepMapExplainer:
             The graph type used, e.g. unsigned, signed, pybel
         """
         self.tag = tag
-        self.indra_network_date = info.pop('indra_network_date')
-        self.depmap_date = info.pop('depmap_date')
-        self.sd_range = info.pop('sd_range')
+        self.indra_network_date = info.pop('indra_network_date', None)
+        self.depmap_date = info.pop('depmap_date', None)
+        self.sd_range = info.pop('sd_range', None)
         self.info = info
         self.script_settings = script_settings
         self.network_type = network_type
