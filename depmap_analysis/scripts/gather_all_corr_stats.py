@@ -171,9 +171,11 @@ if __name__ == '__main__':
                                f'DepMapExplainer, skipping...')
                 continue
             # Backwards compatibility: check if s3_location attribute
-            # exists, otherwise set it and then re-upload
+            # exists, otherwise set it and then re-upload. If attribute
+            # exists but is not set, set it and re-upload
             try:
-                _ = explainer.s3_location
+                if not explainer.s3_location:
+                    _save(fpath=explainer_file, expl_inst=explainer)
             except AttributeError:
                 _save(fpath=explainer_file, expl_inst=explainer)
 
