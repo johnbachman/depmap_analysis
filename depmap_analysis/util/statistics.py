@@ -464,7 +464,7 @@ class DepMapExplainer:
         Results
             A BaseModel containing correlation data for different explanations
         """
-        if self.corr_stats_axb is None:
+        if not self.corr_stats_axb:
             s3 = get_s3_client(unsigned=False)
             try:
                 corr_stats_loc = self.get_s3_corr_stats_path()
@@ -477,7 +477,7 @@ class DepMapExplainer:
                 logger.warning(ve)
 
             # If not found on s3 or ValueError was raised
-            if self.corr_stats_axb is None:
+            if not self.corr_stats_axb:
                 logger.info('Generating corr stats data')
                 # Load correlation matrix
                 if z_corr is None:
