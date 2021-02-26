@@ -472,6 +472,9 @@ class DepMapExplainer:
                     logger.info(f'Found corr stats data at {corr_stats_loc}')
                     corr_stats_json = file_opener(corr_stats_loc)
                     self.corr_stats_axb = Results(**corr_stats_json)
+                else:
+                    logger.info(f'No corr stats data at found at '
+                                f'{corr_stats_loc}')
             except ValueError as ve:
                 # Raised when s3 location is not set
                 logger.warning(ve)
