@@ -2223,3 +2223,36 @@ def get_chunk_size(n_chunks: int, total_items: int) -> int:
     """
     # How many pairs does a chunk need to contain to get chunks_wanted chunks?
     return max(int(np.ceil(total_items / n_chunks)), 1)
+
+
+def down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+    """Given a square data frame, down sample it to sample_size or close to it
+
+    Parameters
+    ----------
+    z_corr : pd.DataFrame
+        DataFrame to down sample
+    sample_size
+        Goal number of extractable pairs
+
+    Returns
+    -------
+    pd.DataFrame
+        The down sampled data frame
+    """
+    # Do small initial downsampling
+    row_samples = len(z_corr) - 1
+    n_pairs = get_pairs(corr_z=z_corr)
+    while n_pairs > int(1.1 * sample_size):
+        logger.info(f'Down sampling from {n_pairs}')
+        z_corr = z_corr.sample(row_samples, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+
+        # Update n_pairs and row_samples
+        n_pairs = get_pairs(corr_z=z_corr)
+        mm = max(row_samples - int(np.ceil(0.05 * row_samples))
+                 if n_pairs - sample_size < np.ceil(0.1 * sample_size)
+                 else down_sampl_size(n_pairs, len(z_corr), sample_size),
+                 1)
+        row_samples = row_samples - 1 if mm >= row_samples else mm
+    return z_corr
