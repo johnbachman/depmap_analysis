@@ -336,7 +336,9 @@ if __name__ == '__main__':
                              'placed in the RNAi input directory. The '
                              'combined z-score matrix will be written to the '
                              'crispr input directory if this option is not '
-                             'provided.')
+                             'provided. Note that s3 URL are not allowed as '
+                             'pd.DataFrame.to_hdf does not support urls or '
+                             'buffers at the moment.')
     parser.add_argument('--random', '-r', type=int,
                         help='Optional. If specified, provide the size of '
                              'the final correlation matrix where the genes '
