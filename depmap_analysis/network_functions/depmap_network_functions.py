@@ -6,7 +6,7 @@ import logging
 import itertools as itt
 from random import choices
 from math import ceil, log10
-from typing import Iterable
+from typing import Iterable, Optional
 from collections import Mapping, OrderedDict, defaultdict
 
 import numpy as np
@@ -126,7 +126,9 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(correlation_df_matrix, max_pairs=None):
+def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
+                             max_pairs: Optional[int] = None,
+                             permute: Optional[bool] = False):
     """Return a tuple generator given a correlation matrix
     
     The function takes a correlation matrix and returns a consumable tuple 
@@ -135,6 +137,11 @@ def corr_matrix_to_generator(correlation_df_matrix, max_pairs=None):
 
     correlation_df_matrix : pd.DataFrame
         A correlation matrix as a pandas dataframe
+    max_pairs : Optional[int]
+        The maximum number of pairs to yield
+    permute : bool
+        If True, get any non-NaN element from the matrix, excluding values
+        from the diagonal, i.e. all permutations of valid pairs.
 
     Returns
     -------
@@ -180,15 +187,19 @@ def corr_matrix_to_generator(correlation_df_matrix, max_pairs=None):
     gene_name_array = corr_df_sample.index.values
     if isinstance(gene_name_array[0], tuple):
         gene_name_array = [n[0] for n in gene_name_array]
-    tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
-    # Only get HGNC symbols (first in tuple) since we're gonna compare to
-    # INDRA statements, which is currently done with HGNC symbols
-    # todo change to output HGNC IDs instead when switching to HGNC id in
-    #  stmts
-    return ((gene_name_array[i], gene_name_array[j],
-            float(corr_value_matrix[i, j]))
-            for i, j in zip(*tr_up_indices)
-            if not np.isnan(corr_value_matrix[i, j]))
+    if permute:
+        return ((a, b, corr_df_sample.loc[a, b])
+                for a, b in itt.permutations(gene_name_array, r=2))
+    else:
+        tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
+        # Only get HGNC symbols (first in tuple) since we're gonna compare to
+        # INDRA statements, which is currently done with HGNC symbols
+        # todo change to output HGNC IDs instead when switching to HGNC id in
+        #  stmts
+        return ((gene_name_array[i], gene_name_array[j],
+                float(corr_value_matrix[i, j]))
+                for i, j in zip(*tr_up_indices)
+                if not np.isnan(corr_value_matrix[i, j]))
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
