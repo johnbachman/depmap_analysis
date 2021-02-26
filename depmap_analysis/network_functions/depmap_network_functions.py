@@ -165,21 +165,11 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
             corr_df_sample = correlation_df_matrix
 
         elif max_pairs < all_pairs:
-            n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
-            corr_df_sample = correlation_df_matrix.sample(
-                n, axis=0).sample(n, axis=1)
-
-            # Increase sample until number of extractable pairs exceed
-            # max_pairs
-            n_pairs = get_pairs(corr_df_sample)
-            while n_pairs <= max_pairs:
-                n += 1
-                corr_df_sample = \
-                    correlation_df_matrix.sample(n, axis=0).sample(n, axis=1)
-                n_pairs = get_pairs(corr_df_sample)
+            corr_df_sample = down_sample_df(correlation_df_matrix, max_pairs)
 
             logger.info(f'Created a random sample of the correlation matrix '
-                        f'with {n_pairs} extractable correlation pairs.')
+                        f'with {get_pairs(corr_df_sample)} extractable '
+                        f'correlation pairs.')
 
     # max_pairs == None: no sampling, get all non-NaN correlations;
     else:
