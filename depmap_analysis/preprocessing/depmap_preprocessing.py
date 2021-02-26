@@ -346,8 +346,9 @@ if __name__ == '__main__':
                         help='A file name for the output correlation '
                              'DataFrame.')
     parser.add_argument('--save-corr', action='store_true',
-                        help='A file name for the output correlation '
-                             'DataFrame.')
+                        help='Also save the intermediate z-scored '
+                             'correlations matrices from each of the input '
+                             'data files.')
 
     args = parser.parse_args()
 
