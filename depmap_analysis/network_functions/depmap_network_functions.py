@@ -126,14 +126,14 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
+def corr_matrix_to_generator(correlation_df_matrix, max_pairs=None):
     """Return a tuple generator given a correlation matrix
     
     The function takes a correlation matrix and returns a consumable tuple 
     generator object. Once consumed, the object is exhausted and a new
     generator needs to be produced.
 
-    corrrelation_df_matrix : pandas.DataFrame
+    correlation_df_matrix : pd.DataFrame
         A correlation matrix as a pandas dataframe
 
     Returns
@@ -143,7 +143,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
     """
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = corrrelation_df_matrix.notna().sum().sum()
+    all_pairs = correlation_df_matrix.notna().sum().sum()
     if all_pairs == 0:
         logger.warning('Correlation matrix is empty')
         raise ValueError('Script aborted due to empty correlation matrix')
@@ -154,18 +154,18 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
             logger.info('The requested number of correlation pairs is '
                             'larger than the available number of pairs. '
                             'Resetting `max_pairs` to %i' % all_pairs)
-            corr_df_sample = corrrelation_df_matrix
+            corr_df_sample = correlation_df_matrix
 
         elif max_pairs < all_pairs:
             n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
-            corr_df_sample = corrrelation_df_matrix.sample(
+            corr_df_sample = correlation_df_matrix.sample(
                 n, axis=0).sample(n, axis=1)
 
             # Increase sample until number of extractable pairs exceed
             # max_pairs
             while corr_df_sample.notna().sum().sum() <= max_pairs:
                 n += 1
-                corr_df_sample = corrrelation_df_matrix.sample(
+                corr_df_sample = correlation_df_matrix.sample(
                     n, axis=0).sample(n, axis=1)
 
         logger.info('Created a random sample of the correlation matrix '
@@ -174,7 +174,7 @@ def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
 
     # max_pairs == None: no sampling, get all non-NaN correlations;
     else:
-        corr_df_sample = corrrelation_df_matrix
+        corr_df_sample = correlation_df_matrix
 
     corr_value_matrix = corr_df_sample.values
     gene_name_array = corr_df_sample.index.values
@@ -1067,7 +1067,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
             tuple_generator=corr_matrix_to_generator(
-                corrrelation_df_matrix=filtered_corr_matrix,
+                correlation_df_matrix=filtered_corr_matrix,
                 max_pairs=dataset_dict['max_pairs']
             )
         )
