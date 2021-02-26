@@ -40,9 +40,8 @@ def _save(fpath: str, expl_inst: DepMapExplainer):
             # For backwards compatibility
             expl_inst.s3_location = fpath
         logger.info(f'Uploading to {expl_inst.s3_location}')
-        if not dry:
-            s3p = expl_inst.get_s3_path()
-            s3p.upload(s3=s3, body=pickle.dumps(expl_inst))
+        s3p = expl_inst.get_s3_path()
+        s3p.upload(s3=s3, body=pickle.dumps(expl_inst))
     else:
         # Just dump to local pickle
         dump_it_to_pickle(fname=fpath, pyobj=expl_inst)
