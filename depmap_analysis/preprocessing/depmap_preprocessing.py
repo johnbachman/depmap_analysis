@@ -363,9 +363,10 @@ if __name__ == '__main__':
                             save_corr_files=args.save_corr)
 
     # Write merged correlations combined z score
-    outdir = args.output_dir if args.output_dir else (Path(
+    outdir: Path = Path(args.output_dir) if args.output_dir else (Path(
         args.crispr_corr).parent.as_posix() if args.crispr_corr else Path(
         args.crispr_raw).parent.as_posix())
     logger.info(f'Writing combined correlations to {outdir}')
     fname = args.fname if args.fname else 'combined_z_score.h5'
+    outdir.mkdir(parents=True, exist_ok=True)
     z_corr.to_hdf(Path(outdir, fname), 'zsc')
