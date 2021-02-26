@@ -501,7 +501,7 @@ class DepMapExplainer:
                     logger.info(f'Uploading corr stats to S3 at '
                                 f'{corr_stats_loc}')
                     s3p_loc = S3Path.from_string(corr_stats_loc)
-                    s3p_loc.put(s3=s3, body=json.dumps(self.corr_stats_axb))
+                    s3p_loc.put(s3=s3, body=self.corr_stats_axb.json())
                     logger.info('Finished uploading corr stats to S3')
                 except ValueError:
                     logger.warning('Unable to upload corr stats to S3')
