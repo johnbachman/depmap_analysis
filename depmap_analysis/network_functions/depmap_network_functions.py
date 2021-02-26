@@ -148,19 +148,20 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
+    # Todo: instead of down-sampling, consider just shuffling the matrix and
+    #  then yield until max pairs have been reached
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = correlation_df_matrix.notna().sum().sum()
+    all_pairs = get_pairs(correlation_df_matrix)
     if all_pairs == 0:
-        logger.warning('Correlation matrix is empty')
-        raise ValueError('Script aborted due to empty correlation matrix')
+        raise ValueError('Correlation matrix is empty')
 
     corr_df_sample = pd.DataFrame()
     if max_pairs:
         if max_pairs >= all_pairs:
-            logger.info('The requested number of correlation pairs is '
-                            'larger than the available number of pairs. '
-                            'Resetting `max_pairs` to %i' % all_pairs)
+            logger.info(f'The requested number of correlation pairs is larger '
+                        f'than the available number of pairs. Resetting '
+                        f'`max_pairs` to {all_pairs}')
             corr_df_sample = correlation_df_matrix
 
         elif max_pairs < all_pairs:
@@ -170,14 +171,15 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
 
             # Increase sample until number of extractable pairs exceed
             # max_pairs
-            while corr_df_sample.notna().sum().sum() <= max_pairs:
+            n_pairs = get_pairs(corr_df_sample)
+            while n_pairs <= max_pairs:
                 n += 1
-                corr_df_sample = correlation_df_matrix.sample(
-                    n, axis=0).sample(n, axis=1)
+                corr_df_sample = \
+                    correlation_df_matrix.sample(n, axis=0).sample(n, axis=1)
+                n_pairs = get_pairs(corr_df_sample)
 
-        logger.info('Created a random sample of the correlation matrix '
-                        'with %i extractable correlation pairs.'
-                    % corr_df_sample.notna().sum().sum())
+            logger.info(f'Created a random sample of the correlation matrix '
+                        f'with {n_pairs} extractable correlation pairs.')
 
     # max_pairs == None: no sampling, get all non-NaN correlations;
     else:
@@ -192,10 +194,6 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
                 for a, b in itt.permutations(gene_name_array, r=2))
     else:
         tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
-        # Only get HGNC symbols (first in tuple) since we're gonna compare to
-        # INDRA statements, which is currently done with HGNC symbols
-        # todo change to output HGNC IDs instead when switching to HGNC id in
-        #  stmts
         return ((gene_name_array[i], gene_name_array[j],
                 float(corr_value_matrix[i, j]))
                 for i, j in zip(*tr_up_indices)
