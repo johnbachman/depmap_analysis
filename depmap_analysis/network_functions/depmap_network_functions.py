@@ -2164,13 +2164,16 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
     return int(np.ceil(p*L))
 
 
-def get_pairs(corr_z: pd.DataFrame) -> int:
+def get_pairs(corr_z: pd.DataFrame, permute: bool = False) -> int:
     """Count the number of extractable pairs from a pandas correlation matrix
 
     Count the number of pairs that can be looped over from the DataFrame
-    correlation matrix from the upper triangle of the matrix (since the
-    matrix is assumed to be symmetric) with NaN's and potential values on
-    the diagonal ignored.
+    correlation matrix from:
+    - permute = False: The upper triangle of the matrix (since the matrix is
+                       assumed to be symmetric) with NaN's and potential
+                       values on the diagonal ignored.
+    - permute = True: All non-diagonal, not-NaN numbers, i.e. (a, b, corr)
+                      and (b, a, corr) are treated as independent values.
 
     Parameters
     ----------
@@ -2178,6 +2181,9 @@ def get_pairs(corr_z: pd.DataFrame) -> int:
         A DataFrame with correlations obtained from pandas.DataFrame.corr().
         The DataFrame is assumed to be pre-filtered such that values
         filtered out are NaN's.
+    permute : bool
+        If True, treat (a, b) and (b, a) independently and count all
+        off diagonal, not-NaN pairs. Default: False.
 
     Returns
     -------
@@ -2190,11 +2196,16 @@ def get_pairs(corr_z: pd.DataFrame) -> int:
     # Map to boolean with NaN => False, else True
     bm: pd.DataFrame = (~corr_z.isna())
 
-    # Mask lower triangle and diagonal with zeroes
-    ma = bm.mask(np.tril(np.ones(bm.shape).astype(bool)), other=0)
+    if permute:
+        # Set diagonal to zeroes
+        np.fill_diagonal(a=bm.values, val=False)
+        return int(bm.sum().sum())
+    else:
+        # Mask lower triangle and diagonal with zeroes
+        ma = bm.mask(np.tril(np.ones(bm.shape).astype(bool)), other=0)
 
-    # Return sum over full matrix
-    return int(ma.sum().sum())
+        # Return sum over full matrix
+        return int(ma.sum().sum())
 
 
 def get_chunk_size(n_chunks: int, total_items: int) -> int:
