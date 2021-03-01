@@ -80,7 +80,7 @@ def test_iterator_slicing():
 
     pairs = set()
     n = 0
-    for n in range(50):
+    for n in range(size):
         k = 0
         row, col = _get_off_diag_pair(size)
         while (row, col) in pairs:
