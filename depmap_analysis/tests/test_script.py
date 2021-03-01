@@ -128,6 +128,31 @@ def test_iterator_slicing():
     assert chunk_ix + 1 == chunks_wanted, \
         f'chunk_ix+1={chunk_ix + 1}, chunks_wanted={chunks_wanted}'
 
+    # Redo the same with permute==True
+    # Get total pairs available
+    total_pairs_permute = get_pairs(a, permute=True)
+
+    # Chunks wanted
+    chunks_wanted = 10
+
+    chunksize = get_chunk_size(chunks_wanted, total_pairs_permute)
+
+    chunk_iter = batch_iter(iterator=corr_matrix_to_generator(a, permute=True),
+                            batch_size=chunksize, return_func=list)
+
+    pair_count = 0
+    chunk_ix = 0
+    for chunk_ix, list_of_pairs in enumerate(chunk_iter):
+        pair_count += len([t for t in list_of_pairs if t is not None])
+
+    # Were all pairs looped?
+    assert pair_count == total_pairs_permute, \
+        f'pair_count={pair_count} total_pairs={total_pairs_permute}'
+    # Does the number of loop iterations correspond to the number of chunks
+    # wanted?
+    assert chunk_ix + 1 == chunks_wanted, \
+        f'chunk_ix+1={chunk_ix + 1}, chunks_wanted={chunks_wanted}'
+
 
 def test_depmap_script():
     reactome_dict = file_opener(
