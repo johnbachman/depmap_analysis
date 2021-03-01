@@ -181,7 +181,8 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
         gene_name_array = [n[0] for n in gene_name_array]
     if permute:
         return ((a, b, corr_df_sample.loc[a, b])
-                for a, b in itt.permutations(gene_name_array, r=2))
+                for a, b in itt.permutations(gene_name_array, r=2)
+                if not np.isnan(corr_df_sample.loc[a, b]))
     else:
         tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
         return ((gene_name_array[i], gene_name_array[j],
