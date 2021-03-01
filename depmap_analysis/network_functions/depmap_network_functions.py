@@ -152,7 +152,7 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
     #  then yield until max pairs have been reached
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = get_pairs(correlation_df_matrix)
+    all_pairs = get_pairs(correlation_df_matrix, permute=permute)
     if all_pairs == 0:
         raise ValueError('Correlation matrix is empty')
 
@@ -168,8 +168,8 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
             corr_df_sample = down_sample_df(correlation_df_matrix, max_pairs)
 
             logger.info(f'Created a random sample of the correlation matrix '
-                        f'with {get_pairs(corr_df_sample)} extractable '
-                        f'correlation pairs.')
+                        f'with {get_pairs(corr_df_sample, permute=permute)} '
+                        f'extractable correlation pairs.')
 
     # max_pairs == None: no sampling, get all non-NaN correlations;
     else:
@@ -2227,7 +2227,8 @@ def get_chunk_size(n_chunks: int, total_items: int) -> int:
     return max(int(np.ceil(total_items / n_chunks)), 1)
 
 
-def down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
+                   permute: bool = False) -> pd.DataFrame:
     """Given a square data frame, down sample it to sample_size or close to it
 
     Parameters
@@ -2236,6 +2237,9 @@ def down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
         DataFrame to down sample
     sample_size
         Goal number of extractable pairs
+    permute : bool
+        If True, count not-NaN off diagonal pairs of both permutations,
+        i.e. both (a, b) and (b, a).
 
     Returns
     -------
@@ -2244,14 +2248,14 @@ def down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
     """
     # Do small initial downsampling
     row_samples = len(z_corr) - 1
-    n_pairs = get_pairs(corr_z=z_corr)
+    n_pairs = get_pairs(corr_z=z_corr, permute=permute)
     while n_pairs > int(1.1 * sample_size):
         logger.info(f'Down sampling from {n_pairs}')
         z_corr = z_corr.sample(row_samples, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
         # Update n_pairs and row_samples
-        n_pairs = get_pairs(corr_z=z_corr)
+        n_pairs = get_pairs(corr_z=z_corr, permute=permute)
         mm = max(row_samples - int(np.ceil(0.05 * row_samples))
                  if n_pairs - sample_size < np.ceil(0.1 * sample_size)
                  else down_sampl_size(n_pairs, len(z_corr), sample_size),
