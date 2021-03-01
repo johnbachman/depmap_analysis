@@ -8,9 +8,9 @@ from indra.util import batch_iter
 from indra.databases.hgnc_client import uniprot_ids, hgnc_names
 from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, get_pairs, get_chunk_size
-from depmap_analysis.scripts.depmap_script2 import _down_sample_df, \
-    _match_correlation_body, expl_columns, id_columns
+    corr_matrix_to_generator, get_pairs, get_chunk_size, down_sample_df
+from depmap_analysis.scripts.depmap_script2 import _match_correlation_body, \
+    expl_columns, id_columns
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from . import *
 
@@ -70,7 +70,7 @@ def test_down_sampling():
         pairs.add((col, row))
 
     goal_pairs = 10
-    a = _down_sample_df(z_corr=a, sample_size=goal_pairs)
+    a = down_sample_df(z_corr=a, sample_size=goal_pairs)
     assert goal_pairs <= get_pairs(a) <= 1.1 * goal_pairs, get_pairs(a)
 
 
