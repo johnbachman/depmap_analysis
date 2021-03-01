@@ -217,6 +217,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
 def match_correlations(corr_z: pd.DataFrame,
                        sd_range: Tuple[float, Union[float, None]],
                        script_settings: Dict[str, Union[str, int, float]],
+                       permute_corrs: bool = False,
                        **kwargs):
     """The main loop for matching correlations with INDRA explanations
 
@@ -240,6 +241,9 @@ def match_correlations(corr_z: pd.DataFrame,
         The SD ranges that the corr_z is filtered to
     script_settings : Dict[str, Union[str, int, float]]
         Dictionary with script settings for the purpose of book keeping
+    permute_corrs :  bool
+        If True, check all combinations of off-diagonal values from the
+        correlation matrix, i.e. check both (a, b) and (b, a). Default: False.
 
     Returns
     -------
@@ -306,7 +310,7 @@ def match_correlations(corr_z: pd.DataFrame,
               if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
     logger.info('Calculating number of pairs to check...')
-    estim_pairs = get_pairs(corr_z)
+    estim_pairs = get_pairs(corr_z, permute=permute_corrs)
     logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
                 f'with about {estim_pairs} pairs to check')
     tstart = time()
@@ -318,8 +322,11 @@ def match_correlations(corr_z: pd.DataFrame,
 
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0
-        chunk_iter = batch_iter(iterator=corr_matrix_to_generator(corr_z),
-                                batch_size=chunksize, return_func=list)
+        chunk_iter = batch_iter(
+            iterator=corr_matrix_to_generator(corr_z, permute=permute_corrs),
+            batch_size=chunksize,
+            return_func=list
+        )
         for chunk in chunk_iter:
             pool.apply_async(func=_match_correlation_body,
                              # args should match the args for func
@@ -399,6 +406,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          immediate_only: Optional[bool] = False,
          return_unexplained: Optional[bool] = False,
          reactome_dict: Optional[Dict[str, Any]] = None,
+         permute_corrs: bool = False,
          apriori_explained: Optional[Dict[str, str]] = None,
          allowed_ns: Optional[List[str]] = None,
          allowed_sources: Optional[List[str]] = None,
@@ -470,6 +478,9 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         regulators and shared targets. Default: False.
     reactome_dict : Dict[str, Any]
         Mapping from gene UP ID to its associated reactome pathways
+    permute_corrs :  bool
+        If True, check all combinations of off-diagonal values from the
+        correlation matrix, i.e. check both (a, b) and (b, a). Default: False.
     apriori_explained : Optional[Dict[str, str]]
         A mapping from entity names to a string containing a short
         explanation of why the entity is explained. To use the default
@@ -573,6 +584,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     run_options['immediate_only'] = immediate_only
     run_options['return_unexplained'] = return_unexplained
     run_options['reactome_dict'] = reactome_dict
+    run_options['permute_corrs'] = permute_corrs
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
     if allowed_sources:
@@ -838,6 +850,10 @@ if __name__ == '__main__':
                              'the explanations data frame')
     parser.add_argument('--reactome-dict', type=file_path('pkl'),
                         help='Path to reactome file.')
+    parser.add_argument('--permute-corrs', action='store_true',
+                        help='Check all combinations of off-diagonal values '
+                             'from the correlation matrix, i.e. check both '
+                             '(a, b) and (b, a).')
     parser.add_argument('--overwrite', action='store_true',
                         help='Overwrite any output files that already exist.')
     parser.add_argument('--normalize-names', action='store_true',
