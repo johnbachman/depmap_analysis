@@ -107,7 +107,7 @@ class GlobalVars(object):
         return set(global_vars.keys())
 
     @staticmethod
-    def assert_global_vars(varnames):
+    def assert_global_vars(varnames: Set[str]):
         """
 
         varnames : set(str)
@@ -123,13 +123,14 @@ class GlobalVars(object):
     @staticmethod
     def assert_vars():
         """Same as assert_global_vars but with the shared array as well"""
-        df_exists = global_vars.get('expl_df', False) is not False
+        expl_df_exists = global_vars.get('expl_df', False) is not False
+        stats_df_exists = global_vars.get('stats_df', False) is not False
         z_cm_exists = global_vars.get('z_cm', False) is not False
         reactome_exists = global_vars.get('reactome', False) is not False
         ssize_exists = global_vars.get('subset_size', False) is not False
         shared_ar_exists = bool(len(list_of_genes[:]))
-        return df_exists and z_cm_exists and reactome_exists and \
-            ssize_exists and shared_ar_exists
+        return expl_df_exists and stats_df_exists and z_cm_exists and \
+               reactome_exists and ssize_exists and shared_ar_exists
 
 
 # ToDo: make one work submitting function as a wrapper and provide the inner
