@@ -477,7 +477,11 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         intersection of nodes up- or downstream of A, B for shared
         regulators and shared targets. Default: False.
     reactome_dict : Dict[str, Any]
-        Mapping from gene UP ID to its associated reactome pathways
+        A dict containing two dicts:
+        - Key 'uniprot_mapping': a dict containing a mapping from gene UP ID
+          to its associated reactome pathways
+        - Key 'pathid_name_mapping': a dict containing a mapping from a
+          reactome path id to human readable name
     permute_corrs :  bool
         If True, check all combinations of off-diagonal values from the
         correlation matrix, i.e. check both (a, b) and (b, a). Default: False.
