@@ -492,8 +492,9 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         >>> from depmap_analysis.scripts.depmap_script2 import mito_file
         >>> from depmap_analysis.preprocessing import get_mitocarta_info
         >>> apriori_mapping = get_mitocarta_info(mito_file)
-        then pass `apriori_mapping` to `apriori_explained` when calling this
-        funciton.
+        then pass `apriori_mapping` as `apriori_explained` when calling this
+        function:
+        >>> main(apriori_explained=apriori_mapping, ...)
     allowed_ns : Optional[List[str]]
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
