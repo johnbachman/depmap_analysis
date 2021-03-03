@@ -129,9 +129,11 @@ def test_iterator_slicing():
         f'chunk_ix+1={chunk_ix + 1}, chunks_wanted={chunks_wanted}'
 
     # Redo the same with subset of names
-    name_subset = np.random.choice(a.columns.values,
-                                   size=size // 3,
-                                   replace=False)
+    name_subset = list(np.random.choice(a.columns.values,
+                                        size=size // 3,
+                                        replace=False))
+    # Add a name that does not exist in the original df
+    name_subset.append(size+2)
 
     # Get total pairs available
     total_pairs_permute = get_pairs(a, subset_list=name_subset)
