@@ -454,9 +454,23 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         File paths to raw correlation data (before z-score conversion)
         containing hdf compressed correlation data. These files contain the
         result of running `raw_df.corr()`.
-    expl_funcs : Optional[Iterable[str]]
+    expl_funcs : Optional[List[str]]
         Provide a list of explanation functions to apply. Default: All
-        functions are applied.
+        functions are applied. Currently available functions:
+        - 'expl_ab': Explain pair by checking for an edge between a and b
+        - 'expl_ba': Explain pair by checking for an edge between b and a
+        - 'expl_axb': Explain pair by looking for intermediate nodes
+          connecting a to b
+        - 'expl_bxa': Explain pair by looking for intermediate nodes
+          connecting b to a
+        - 'get_sr': Explain pair by finding common upstream nodes
+        - 'get_st': Explain pair by finding common downstream nodes
+        - 'get_sd': Explain pair by finding common downstream nodes two
+          edges from s and o
+        - 'find_cp': Explain pair by looking for ontological parents
+        - 'apriori_explained': Map entities to a-priori explanations
+        - 'common_reactome_paths': Explain pair by matching common reactome
+          pathways
     pb_node_mapping : Optional[Union[Dict, Set[Any]]]
         If graph type is "pybel", use this argument to provide a mapping
         from HGNC symbols to pybel nodes in the pybel model
