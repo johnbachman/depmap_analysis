@@ -867,6 +867,12 @@ if __name__ == '__main__':
                              'the explanations data frame')
     parser.add_argument('--reactome-dict', type=file_path('pkl'),
                         help='Path to reactome file.')
+    parser.add_argument('--subset-list', type=file_path(),
+                        help='Path to a csv/tsv file that contains a column '
+                             '"name". These names will be used to '
+                             'effectively only check pairs where "a" in '
+                             '(a, b) is from `subset_list` and also in the '
+                             'correlation data frame.')
     parser.add_argument('--permute-corrs', action='store_true',
                         help='Check all combinations of off-diagonal values '
                              'from the correlation matrix, i.e. check both '
@@ -956,6 +962,10 @@ if __name__ == '__main__':
         up2path, _, pathid2pathname = file_opener(args.reactome_dict)
         arg_dict['reactome_dict'] = {'uniprot_mapping': up2path,
                                      'pathid_name_mapping': pathid2pathname}
+
+    if args.subset_list:
+        df: pd.DataFrame = file_opener(args.subset_list)
+        arg_dict['subset_list'] = list(df.name.values)
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
