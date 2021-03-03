@@ -6,7 +6,7 @@ import logging
 import itertools as itt
 from random import choices
 from math import ceil, log10
-from typing import Iterable, Optional
+from typing import Iterable, Optional, List
 from collections import Mapping, OrderedDict, defaultdict
 
 import numpy as np
@@ -128,7 +128,7 @@ def csv_file_to_generator(fname, column_list):
 
 def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
                              max_pairs: Optional[int] = None,
-                             permute: Optional[bool] = False):
+                             subset_list: List[str] = None):
     """Return a tuple generator given a correlation matrix
     
     The function takes a correlation matrix and returns a consumable tuple 
@@ -139,9 +139,10 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
         A correlation matrix as a pandas dataframe
     max_pairs : Optional[int]
         The maximum number of pairs to yield
-    permute : bool
-        If True, get any non-NaN element from the matrix, excluding values
-        from the diagonal, i.e. all permutations of valid pairs.
+    subset_list : Optional[List[str]]
+        If provided, get the first of the pair from this list of entities
+        under the assumption that the entities also exist in
+        correlation_df_matrix
 
     Returns
     -------
@@ -152,7 +153,7 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
     #  then yield until max pairs have been reached
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = get_pairs(correlation_df_matrix, permute=permute)
+    all_pairs = get_pairs(correlation_df_matrix, permute=False)
     if all_pairs == 0:
         raise ValueError('Correlation matrix is empty')
 
@@ -168,7 +169,7 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
             corr_df_sample = down_sample_df(correlation_df_matrix, max_pairs)
 
             logger.info(f'Created a random sample of the correlation matrix '
-                        f'with {get_pairs(corr_df_sample, permute=permute)} '
+                        f'with {get_pairs(corr_df_sample, permute=False)} '
                         f'extractable correlation pairs.')
 
     # max_pairs == None: no sampling, get all non-NaN correlations;
@@ -179,10 +180,12 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
     gene_name_array = corr_df_sample.index.values
     if isinstance(gene_name_array[0], tuple):
         gene_name_array = [n[0] for n in gene_name_array]
-    if permute:
+
+    if subset_list:
         return ((a, b, corr_df_sample.loc[a, b])
-                for a, b in itt.permutations(gene_name_array, r=2)
-                if not np.isnan(corr_df_sample.loc[a, b]))
+                for a, b in itt.product(subset_list, gene_name_array)
+                if a in corr_df_sample.columns and
+                not np.isnan(corr_df_sample.loc[a, b]))
     else:
         tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
         return ((gene_name_array[i], gene_name_array[j],
