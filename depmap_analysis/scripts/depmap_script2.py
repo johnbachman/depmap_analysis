@@ -217,7 +217,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
 def match_correlations(corr_z: pd.DataFrame,
                        sd_range: Tuple[float, Union[float, None]],
                        script_settings: Dict[str, Union[str, int, float]],
-                       permute_corrs: bool = False,
+                       subset_list: Optional[List[Union[str, int]]] = None,
                        **kwargs):
     """The main loop for matching correlations with INDRA explanations
 
@@ -241,7 +241,7 @@ def match_correlations(corr_z: pd.DataFrame,
         The SD ranges that the corr_z is filtered to
     script_settings : Dict[str, Union[str, int, float]]
         Dictionary with script settings for the purpose of book keeping
-    permute_corrs :  bool
+    subset_list : Optional[List[Union[str, int]]]
         If True, check all combinations of off-diagonal values from the
         correlation matrix, i.e. check both (a, b) and (b, a). Default: False.
 
@@ -310,7 +310,7 @@ def match_correlations(corr_z: pd.DataFrame,
               if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
     logger.info('Calculating number of pairs to check...')
-    estim_pairs = get_pairs(corr_z, permute=permute_corrs)
+    estim_pairs = get_pairs(corr_z, subset_list=subset_list)
     logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
                 f'with about {estim_pairs} pairs to check')
     tstart = time()
@@ -323,7 +323,7 @@ def match_correlations(corr_z: pd.DataFrame,
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0
         chunk_iter = batch_iter(
-            iterator=corr_matrix_to_generator(corr_z, permute=permute_corrs),
+            iterator=corr_matrix_to_generator(corr_z, subset_list=subset_list),
             batch_size=chunksize,
             return_func=list
         )
@@ -405,7 +405,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          immediate_only: Optional[bool] = False,
          return_unexplained: Optional[bool] = False,
          reactome_dict: Optional[Dict[str, Any]] = None,
-         permute_corrs: bool = False,
+         subset_list: Optional[List[Union[str, int]]] = None,
          apriori_explained: Optional[Dict[str, str]] = None,
          allowed_ns: Optional[List[str]] = None,
          allowed_sources: Optional[List[str]] = None,
@@ -492,9 +492,10 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
           to its associated reactome pathways
         - Key 'pathid_name_mapping': a dict containing a mapping from a
           reactome path id to human readable name
-    permute_corrs :  bool
-        If True, check all combinations of off-diagonal values from the
-        correlation matrix, i.e. check both (a, b) and (b, a). Default: False.
+    subset_list :  Optional[List[Union[str, int]]]
+        Provide a list if entities that defines a subset of the entities in
+        the correlation data frame that will be picked as 'a' when the pairs
+        (a, b) are generated
     apriori_explained : Optional[Dict[str, str]]
         A mapping from entity names to a string containing a short
         explanation of why the entity is explained. To use the default
@@ -599,7 +600,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     run_options['immediate_only'] = immediate_only
     run_options['return_unexplained'] = return_unexplained
     run_options['reactome_dict'] = reactome_dict
-    run_options['permute_corrs'] = permute_corrs
+    run_options['subset_list'] = subset_list
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
     if allowed_sources:
