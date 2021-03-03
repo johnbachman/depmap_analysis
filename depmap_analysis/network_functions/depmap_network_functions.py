@@ -6,7 +6,7 @@ import logging
 import itertools as itt
 from random import choices
 from math import ceil, log10
-from typing import Iterable, Optional, List
+from typing import Iterable, Optional, List, Union
 from collections import Mapping, OrderedDict, defaultdict
 
 import numpy as np
@@ -2164,7 +2164,8 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
     return int(np.ceil(p*L))
 
 
-def get_pairs(corr_z: pd.DataFrame, permute: bool = False) -> int:
+def get_pairs(corr_z: pd.DataFrame,
+              subset_list: Optional[List[Union[str, int]]] = None) -> int:
     """Count the number of extractable pairs from a pandas correlation matrix
 
     Count the number of pairs that can be looped over from the DataFrame
@@ -2181,9 +2182,9 @@ def get_pairs(corr_z: pd.DataFrame, permute: bool = False) -> int:
         A DataFrame with correlations obtained from pandas.DataFrame.corr().
         The DataFrame is assumed to be pre-filtered such that values
         filtered out are NaN's.
-    permute : bool
-        If True, treat (a, b) and (b, a) independently and count all
-        off diagonal, not-NaN pairs. Default: False.
+    subset_list : Optional[List[str]]
+        If provided, only let a in (a, b) be from subset_list and count all
+        not-NaN, off diagonal pairs.
 
     Returns
     -------
@@ -2196,9 +2197,13 @@ def get_pairs(corr_z: pd.DataFrame, permute: bool = False) -> int:
     # Map to boolean with NaN => False, else True
     bm: pd.DataFrame = (~corr_z.isna())
 
-    if permute:
-        # Set diagonal to zeroes
+    if subset_list is not None:
+        # Set diagonal to False
         np.fill_diagonal(a=bm.values, val=False)
+
+        # Also set those rows which are not in the list to False
+        bm[~corr_z.index.isin(values=list(subset_list))] = False
+
         return int(bm.sum().sum())
     else:
         # Mask lower triangle and diagonal with zeroes
