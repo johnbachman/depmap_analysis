@@ -58,10 +58,10 @@ def apriori_explained(s: str, o: str, corr: float,
     -------
     Tuple[str, str, bool, Union[str, None]]
         If explained, the tuple (s, o, explained, explanation) is returned,
-        where `explained` is a flags the truthyness of the explanation and
+        where `explained` flags the truthyness of the explanation and
         `explanation` is a string mapped from the subject and/or object.
     """
-    expl_mapping: Union[Dict[str, str], None] = kwargs.get('expl_mapping')
+    expl_mapping: Union[Dict[str, str], None] = kwargs.get('apriori_explained')
     if expl_mapping is None:
         return s, o, False, None
 

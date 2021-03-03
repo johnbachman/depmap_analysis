@@ -76,7 +76,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                             stats_columns: Tuple[str],
                             expl_cols: Tuple[str],
                             bool_columns: Tuple[str],
-                            expl_mapping: Optional[Dict[str, str]],
+                            apriori_explained: Optional[Dict[str, str]],
                             _type: str,
                             allowed_ns: Optional[Set[str]] = None,
                             allowed_sources: Optional[Set[str]] = None,
@@ -110,8 +110,8 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             options['ns_set'] = allowed_ns
         if allowed_sources:
             options['src_set'] = allowed_sources
-        if expl_mapping:
-            options['expl_mapping'] = expl_mapping
+        if apriori_explained:
+            options['apriori_explained'] = apriori_explained
 
         for tup in corr_iter:
             # Break loop when batch_iter reaches None padding
@@ -275,7 +275,7 @@ def match_correlations(corr_z: pd.DataFrame,
     bool_columns = ('not_in_graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_cols = expl_columns
-    expl_mapping = kwargs.get('expl_mapping', {})
+    apriori_explained = kwargs.get('apriori_explained', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
@@ -336,7 +336,7 @@ def match_correlations(corr_z: pd.DataFrame,
                                  stats_columns,
                                  expl_cols,
                                  bool_columns,
-                                 expl_mapping,
+                                 apriori_explained,
                                  _type,
                                  allowed_ns,
                                  allowed_sources,
@@ -401,7 +401,6 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          expl_funcs: Optional[List[str]] = None,
          pb_node_mapping: Optional[Dict[str, Set]] = None,
          n_chunks: Optional[int] = 256,
-         expl_mapping: Optional[Dict[str, str]] = None,
          is_a_part_of: Optional[List[str]] = None,
          immediate_only: Optional[bool] = False,
          return_unexplained: Optional[bool] = False,
@@ -477,9 +476,6 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     n_chunks : Optional[int]
         How many chunks to split the data into in the multiprocessing part
         of the script
-    expl_mapping : Optional[Dict[str, str]]
-        A mapping from entity to a string with information about the entity
-        that explains why it is considered 'explained'
     is_a_part_of : Optional[Iterable]
         A set of identifiers to look for when applying the common parent
         explanation between a pair of correlating nodes.
@@ -566,10 +562,10 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         raise ValueError('Must provide either z_score XOR either of raw_data '
                          'or raw_corr')
 
-    if expl_mapping:
-        run_options['expl_mapping'] = expl_mapping
+    if apriori_explained:
+        run_options['apriori_explained'] = apriori_explained
         logger.info(f'Using explained set with '
-                    f'{len(expl_mapping)} genes')
+                    f'{len(apriori_explained)} entities')
 
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
@@ -952,7 +948,7 @@ if __name__ == '__main__':
                                  '"description" for explanation why the '
                                  'entity is explained.') \
                     from err
-        arg_dict['expl_mapping'] = expl_map
+        arg_dict['apriori_explained'] = expl_map
 
     if args.reactome_dict:
         up2path, _, pathid2pathname = file_opener(args.reactome_dict)
