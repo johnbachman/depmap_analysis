@@ -128,7 +128,7 @@ def csv_file_to_generator(fname, column_list):
 
 def corr_matrix_to_generator(z_corr: pd.DataFrame,
                              max_pairs: Optional[int] = None,
-                             subset_list: List[str] = None):
+                             subset_list: List[Union[str, int]] = None):
     """Return a tuple generator given a correlation matrix
     
     The function takes a correlation matrix and returns a consumable tuple 
@@ -149,49 +149,31 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
-    # Todo: instead of down-sampling, consider just shuffling the matrix and
-    #  then yield until max pairs have been reached
-    # Sample at random: get a random sample of the correlation matrix that has
-    # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = get_pairs(z_corr, permute=False)
-    if all_pairs == 0:
-        raise ValueError('Correlation matrix is empty')
-
-    corr_df_sample = pd.DataFrame()
     if max_pairs:
-        if max_pairs >= all_pairs:
-            logger.info(f'The requested number of correlation pairs is larger '
-                        f'than the available number of pairs. Resetting '
-                        f'`max_pairs` to {all_pairs}')
-            corr_df_sample = z_corr
+        # Sample at random: the matrix is shuffled and we can therefore pick
+        # values "in order" since the order is random and then stop after
+        # max_pairs pairs have been yielded
+        logger.info('Shuffling correlation matrix...')
+        z_corr = z_corr.sample(frac=1, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
-        elif max_pairs < all_pairs:
-            corr_df_sample = down_sample_df(z_corr, max_pairs)
-
-            logger.info(f'Created a random sample of the correlation matrix '
-                        f'with {get_pairs(corr_df_sample, permute=False)} '
-                        f'extractable correlation pairs.')
-
-    # max_pairs == None: no sampling, get all non-NaN correlations;
+    if subset_list is not None:
+        pair_iter = ((a, b) for a, b in
+                     itt.product(subset_list, z_corr.columns.values)
+                     if a in z_corr.columns and a != b)
     else:
-        corr_df_sample = z_corr
+        tr_up_indices = np.triu_indices(n=z_corr.shape[0], k=1)
+        names = z_corr.columns.values
+        pair_iter = ((names[i], names[j]) for i, j in zip(*tr_up_indices))
 
-    corr_value_matrix = corr_df_sample.values
-    gene_name_array = corr_df_sample.index.values
-    if isinstance(gene_name_array[0], tuple):
-        gene_name_array = [n[0] for n in gene_name_array]
+    yielded_pairs = 0
+    for a, b in pair_iter:
+        if max_pairs and yielded_pairs >= max_pairs:
+            raise StopIteration
 
-    if subset_list:
-        return ((a, b, corr_df_sample.loc[a, b])
-                for a, b in itt.product(subset_list, gene_name_array)
-                if a in corr_df_sample.columns and
-                not np.isnan(corr_df_sample.loc[a, b]))
-    else:
-        tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
-        return ((gene_name_array[i], gene_name_array[j],
-                float(corr_value_matrix[i, j]))
-                for i, j in zip(*tr_up_indices)
-                if not np.isnan(corr_value_matrix[i, j]))
+        if not np.isnan(z_corr.loc[a, b]):
+            yield a, b, z_corr.loc[a, b]
+            yielded_pairs += 1
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
