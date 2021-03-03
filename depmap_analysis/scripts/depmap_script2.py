@@ -711,6 +711,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
                           pyobj=explanations, overwrite=overwrite)
     logger.info('Script finished')
+    explanations.summarize()
 
 
 if __name__ == '__main__':
