@@ -126,7 +126,7 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
+def corr_matrix_to_generator(z_corr: pd.DataFrame,
                              max_pairs: Optional[int] = None,
                              subset_list: List[str] = None):
     """Return a tuple generator given a correlation matrix
@@ -153,7 +153,7 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
     #  then yield until max pairs have been reached
     # Sample at random: get a random sample of the correlation matrix that has
     # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = get_pairs(correlation_df_matrix, permute=False)
+    all_pairs = get_pairs(z_corr, permute=False)
     if all_pairs == 0:
         raise ValueError('Correlation matrix is empty')
 
@@ -163,10 +163,10 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
             logger.info(f'The requested number of correlation pairs is larger '
                         f'than the available number of pairs. Resetting '
                         f'`max_pairs` to {all_pairs}')
-            corr_df_sample = correlation_df_matrix
+            corr_df_sample = z_corr
 
         elif max_pairs < all_pairs:
-            corr_df_sample = down_sample_df(correlation_df_matrix, max_pairs)
+            corr_df_sample = down_sample_df(z_corr, max_pairs)
 
             logger.info(f'Created a random sample of the correlation matrix '
                         f'with {get_pairs(corr_df_sample, permute=False)} '
@@ -174,7 +174,7 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
 
     # max_pairs == None: no sampling, get all non-NaN correlations;
     else:
-        corr_df_sample = correlation_df_matrix
+        corr_df_sample = z_corr
 
     corr_value_matrix = corr_df_sample.values
     gene_name_array = corr_df_sample.index.values
@@ -1070,7 +1070,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
             tuple_generator=corr_matrix_to_generator(
-                correlation_df_matrix=filtered_corr_matrix,
+                z_corr=filtered_corr_matrix,
                 max_pairs=dataset_dict['max_pairs']
             )
         )
