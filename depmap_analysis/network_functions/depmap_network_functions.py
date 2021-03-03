@@ -2215,7 +2215,8 @@ def get_chunk_size(n_chunks: int, total_items: int) -> int:
 
 
 def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
-                   permute: bool = False) -> pd.DataFrame:
+                   subset_list: Optional[List[Union[str, int]]] = None) \
+        -> pd.DataFrame:
     """Given a square data frame, down sample it to sample_size or close to it
 
     Parameters
@@ -2224,7 +2225,7 @@ def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
         DataFrame to down sample
     sample_size
         Goal number of extractable pairs
-    permute : bool
+    subset_list : Optional[List[Union[str, int]]]
         If True, count not-NaN off diagonal pairs of both permutations,
         i.e. both (a, b) and (b, a).
 
@@ -2235,14 +2236,14 @@ def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
     """
     # Do small initial downsampling
     row_samples = len(z_corr) - 1
-    n_pairs = get_pairs(corr_z=z_corr, permute=permute)
+    n_pairs = get_pairs(corr_z=z_corr, subset_list=subset_list)
     while n_pairs > int(1.1 * sample_size):
         logger.info(f'Down sampling from {n_pairs}')
         z_corr = z_corr.sample(row_samples, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
         # Update n_pairs and row_samples
-        n_pairs = get_pairs(corr_z=z_corr, permute=permute)
+        n_pairs = get_pairs(corr_z=z_corr, subset_list=subset_list)
         mm = max(row_samples - int(np.ceil(0.05 * row_samples))
                  if n_pairs - sample_size < np.ceil(0.1 * sample_size)
                  else down_sampl_size(n_pairs, len(z_corr), sample_size),
