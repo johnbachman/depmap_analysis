@@ -39,7 +39,7 @@ class FunctionRegistrationError(Exception):
 def apriori_explained(s: str, o: str, corr: float,
                       net: Union[DiGraph, MultiDiGraph], _type: str, **kwargs)\
         -> Tuple[str, str, bool, Union[str, None]]:
-    """A mock function that is used for a-priori explained pairs
+    """Map entities to a-priori explanations
 
     Parameters
     ----------
