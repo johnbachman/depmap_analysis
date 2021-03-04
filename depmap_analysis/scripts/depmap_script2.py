@@ -217,8 +217,23 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
 def match_correlations(corr_z: pd.DataFrame,
                        sd_range: Tuple[float, Union[float, None]],
                        script_settings: Dict[str, Union[str, int, float]],
-                       subset_list: Optional[List[Union[str, int]]] = None,
-                       **kwargs):
+                       graph_filepath: str,
+                       z_corr_filepath: str,
+                       apriori_explained: Optional[Dict[str, str]] = None,
+                       graph_type: str = 'unsigned',
+                       allowed_ns: Optional[List[str]] = None,
+                       allowed_sources: Optional[List[str]] = None,
+                       is_a_part_of: Optional[List[str]] = None,
+                       expl_funcs: Optional[List[str]] = None,
+                       reactome_filepath: Optional[str] = None,
+                       indra_date: Optional[str] = None,
+                       info: Optional[Dict[str, Any]] = None,
+                       depmap_date: Optional[str] = None,
+                       n_chunks: Optional[int] = 8,
+                       immediate_only: Optional[bool] = False,
+                       return_unexplained: Optional[bool] = False,
+                       reactome_dict: Optional[Dict[str, Any]] = None,
+                       subset_list: Optional[List[Union[str, int]]] = None):
     """The main loop for matching correlations with INDRA explanations
 
     Note that indranet is assumed to be a global variable that needs to be
@@ -241,6 +256,12 @@ def match_correlations(corr_z: pd.DataFrame,
         The SD ranges that the corr_z is filtered to
     script_settings : Dict[str, Union[str, int, float]]
         Dictionary with script settings for the purpose of book keeping
+    graph_filepath : str
+        File path to the graph used
+    z_corr_filepath : str
+        File path to the correlation matrix used
+    reactome_filepath : Optional[str]
+        File path to the reactome data
     subset_list : Optional[List[Union[str, int]]]
         If True, check all combinations of off-diagonal values from the
         correlation matrix, i.e. check both (a, b) and (b, a). Default: False.
@@ -252,7 +273,7 @@ def match_correlations(corr_z: pd.DataFrame,
         for the correlations.
     """
     # Map each expl type to a function that handles that explanation
-    if not kwargs.get('expl_funcs'):
+    if not expl_funcs:
         # No function names provided, use all explanation functions
         logger.info('All explanation types used')
         expl_types = {funcname_to_colname[func_name]: func
@@ -260,7 +281,7 @@ def match_correlations(corr_z: pd.DataFrame,
     else:
         # Map function names to functions, check if
         expl_types = {}
-        for func_name in kwargs['expl_funcs']:
+        for func_name in expl_funcs:
             if func_name not in expl_functions:
                 logger.warning(f'{func_name} does not map to a registered '
                                f'explanation function. Allowed functions '
@@ -275,39 +296,27 @@ def match_correlations(corr_z: pd.DataFrame,
     bool_columns = ('not_in_graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_cols = expl_columns
-    apriori_explained = kwargs.get('apriori_explained', {})
+    apriori_explained = apriori_explained or {}
 
-    _type = kwargs.get('graph_type', 'unsigned')
-    logger.info(f'Doing correlation matching with {_type} graph')
+    logger.info(f'Doing correlation matching with {graph_type} graph')
 
     # Get options
-    if kwargs.get('allowed_ns'):
-        allowed_ns = {n.lower() for n in kwargs['allowed_ns']}
+    if allowed_ns is not None:
+        allowed_ns = {n.lower() for n in allowed_ns}
         logger.info('Only allowing the following namespaces: %s' %
                     ', '.join(allowed_ns))
-    else:
-        allowed_ns = None
-    if kwargs.get('allowed_sources'):
-        allowed_sources = {s.lower() for s in kwargs['allowed_sources']}
+
+    if allowed_sources is not None:
+        allowed_sources = {s.lower() for s in allowed_sources}
         logger.info('Only allowing the following sources: %s' %
                     ', '.join(allowed_sources))
-    else:
-        allowed_sources = None
-    is_a_part_of = kwargs.get('is_a_part_of')
-    immediate_only = kwargs.get('immediate_only', False)
-    return_unexplained = kwargs.get('return_unexplained', False)
-    reactome_dict = kwargs.get('reactome_dict')
+
+    is_a_part_of = is_a_part_of or []
 
     # Try to get dates of files from file names and file info
     ymd_now = datetime.now().strftime('%Y%m%d')
-    inet_file = script_settings['indranet']
-    indra_date = kwargs['indra_date'] if kwargs.get('indra_date') \
-        else (strip_out_date(inet_file, r'\d{8}')
-              if strip_out_date(inet_file, r'\d{8}') else ymd_now)
-    dm_file = script_settings['z_score']
-    depmap_date = kwargs['depmap_date'] if kwargs.get('depmap_date') \
-        else (strip_out_date(dm_file, r'\d{8}')
-              if strip_out_date(dm_file, r'\d{8}') else ymd_now)
+    indra_date = indra_date or ymd_now
+    depmap_date = depmap_date or ymd_now
 
     logger.info('Calculating number of pairs to check...')
     estim_pairs = get_pairs(corr_z, subset_list=subset_list)
@@ -317,7 +326,7 @@ def match_correlations(corr_z: pd.DataFrame,
 
     with mp.Pool() as pool:
         MAX_SUB = 512
-        n_sub = min(kwargs.get('n-chunks', 256), MAX_SUB)
+        n_sub = min(n_chunks, MAX_SUB)
         chunksize = get_chunk_size(n_sub, estim_pairs)
 
         # Pick one more so we don't do more than MAX_SUB
@@ -336,7 +345,7 @@ def match_correlations(corr_z: pd.DataFrame,
                                  stats_columns,
                                  expl_cols,
                                  bool_columns,
-                                 _type,
+                                 graph_type,
                                  apriori_explained,
                                  allowed_ns,
                                  allowed_sources,
@@ -359,13 +368,15 @@ def match_correlations(corr_z: pd.DataFrame,
     # different processes
     explainer = DepMapExplainer(stats_columns=stats_columns,
                                 expl_columns=expl_columns,
+                                graph_filepath=graph_filepath,
+                                z_corr_filepath=z_corr_filepath,
+                                reactome_filepath=reactome_filepath,
                                 info={'indra_network_date': indra_date,
                                       'depmap_date': depmap_date,
                                       'sd_range': sd_range,
-                                      'graph_type': _type,
-                                      **kwargs.get('info', {})},
-                                script_settings=script_settings,
-                                )
+                                      'graph_type': graph_type,
+                                      **(info or {})},
+                                script_settings=script_settings)
 
     logger.info(f'Generating DepMapExplainer with output from '
                 f'{len(output_list)} results')
@@ -389,13 +400,12 @@ def error_callback(err):
     logger.exception(err)
 
 
-def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
+def main(indra_net: str,
+         z_score: str,
          outname: str,
          graph_type: str,
          sd_range: Tuple[float, Union[None, float]],
          random: bool = False,
-         z_score: Optional[Union[pd.DataFrame, str]] = None,
-         z_score_file: Optional[str] = None,
          raw_data: Optional[List[str]] = None,
          raw_corr: Optional[List[str]] = None,
          expl_funcs: Optional[List[str]] = None,
@@ -404,9 +414,9 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          is_a_part_of: Optional[List[str]] = None,
          immediate_only: Optional[bool] = False,
          return_unexplained: Optional[bool] = False,
-         reactome_dict: Optional[Dict[str, Any]] = None,
+         reactome_path: Optional[str] = None,
          subset_list: Optional[List[Union[str, int]]] = None,
-         apriori_explained: Optional[Dict[str, str]] = None,
+         apriori_explained: Optional[Union[bool, str]] = False,
          allowed_ns: Optional[List[str]] = None,
          allowed_sources: Optional[List[str]] = None,
          info: Optional[Dict[Hashable, Any]] = None,
@@ -441,12 +451,9 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         Whether to do a random sampling or not. If True do a random sample
         instead of cutting the correlations of to the given SD range.
     z_score : Union[pd.DataFrame, str]
-        The correlation matrix as a pandas DataFrame or a path to the
-        dataframe.
-    z_score_file : str
-        The path to the correlation DataFrame. This argument is only used
-        for storing the info about the location. To provide the location for
-        loading the DataFrame, use `z_score`.
+        The path to the correlation DataFrame. If either raw data or raw
+        corr are used, this filepath will be used to save the resulting
+        DataFrame instead.
     raw_data : Optional[List[str]]
         File paths to CRISPR raw data and RNAi raw data from the DepMap Portal
     raw_corr : Optional[List[str]]
@@ -486,17 +493,13 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         If True: return explanation data even if there is no set
         intersection of nodes up- or downstream of A, B for shared
         regulators and shared targets. Default: False.
-    reactome_dict : Dict[str, Any]
-        A dict containing two dicts:
-        - Key 'uniprot_mapping': a dict containing a mapping from gene UP ID
-          to its associated reactome pathways
-        - Key 'pathid_name_mapping': a dict containing a mapping from a
-          reactome path id to human readable name
+    reactome_path : Optional[str]
+        File path to reactome data.
     subset_list :  Optional[List[Union[str, int]]]
         Provide a list if entities that defines a subset of the entities in
         the correlation data frame that will be picked as 'a' when the pairs
         (a, b) are generated
-    apriori_explained : Optional[Dict[str, str]]
+    apriori_explained : Optional[str]
         A mapping from entity names to a string containing a short
         explanation of why the entity is explained. To use the default
         MitoCarta 3.0 file, run the following code:
@@ -539,10 +542,10 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         Provide the argparse options from running this file as a script
     """
     global indranet, hgnc_node_mapping, output_list
-    indranet = indra_net
+    indranet = file_opener(indra_net)
+    assert isinstance(indranet, nx.DiGraph)
 
     assert expl_funcs is None or isinstance(expl_funcs, (list, tuple, set))
-    run_options = {'n-chunks': n_chunks, 'expl_funcs': expl_funcs or None}
 
     # 1 Check options
     sd_l, sd_u = sd_range if sd_range and len(sd_range) == 2 else \
@@ -557,14 +560,24 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         raise ValueError('Must provide PyBEL node mapping with option '
                          'pb_node_mapping if graph type is "pybel"')
 
-    # Get the z-score corr matrix
-    if not (bool(z_score is not None and len(z_score)) ^
-            bool(raw_data or raw_corr)):
-        raise ValueError('Must provide either z_score XOR either of raw_data '
-                         'or raw_corr')
-
     if apriori_explained:
-        run_options['apriori_explained'] = apriori_explained
+        if apriori_explained is True or mito_file_name in apriori_explained:
+            # Run default
+            apriori_explained = get_mitocarta_info(mito_file)
+        else:
+            # Hope it's a csv
+            try:
+                expl_df = pd.read_csv(apriori_expl)
+                apriori_explained = {e: d for e, d in zip(expl_df.name,
+                                                 expl_df.description)}
+            except Exception as err:
+                raise ValueError('A-priori explained entities must be in a '
+                                 'file that can be parsed as CSV/TSV with '
+                                 'column names "name" for entity name and '
+                                 '"description" for explanation why the '
+                                 'entity is explained.') \
+                    from err
+
         logger.info(f'Using explained set with '
                     f'{len(apriori_explained)} entities')
 
@@ -578,35 +591,24 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         elif Path(outname).is_file():
             raise FileExistsError(f'File {str(outname)} already exists!')
 
-    if z_score is not None:
-        if isinstance(z_score, str) and Path(z_score).is_file():
-            z_corr = pd.read_hdf(z_score)
-        elif isinstance(z_score, pd.DataFrame):
-            z_corr = z_score
-        else:
-            raise ValueError(f'Unknown type {z_score.__class__} of provided '
-                             f'correlation matrix.')
+    if z_score is not None and Path(z_score).is_file():
+        z_corr = pd.read_hdf(z_score)
     else:
         z_sc_options = {
             'crispr_raw': raw_data[0],
             'rnai_raw': raw_data[1],
             'crispr_corr': raw_corr[0],
-            'rnai_corr': raw_corr[1]
+            'rnai_corr': raw_corr[1],
+            'z_corr_path': z_score
         }
         z_corr = run_corr_merge(**z_sc_options)
 
-    run_options['graph_type'] = graph_type
-    # Add optional options
-    run_options['immediate_only'] = immediate_only
-    run_options['return_unexplained'] = return_unexplained
-    run_options['reactome_dict'] = reactome_dict
-    run_options['subset_list'] = subset_list
-    if allowed_ns:
-        run_options['allowed_ns'] = allowed_ns
-    if allowed_sources:
-        run_options['allowed_sources'] = allowed_sources
-    if is_a_part_of:
-        run_options['is_a_part_of'] = is_a_part_of
+    if reactome_path:
+        up2path, _, pathid2pathname = file_opener(reactome_path)
+        reactome_dict = {'uniprot_mapping': up2path,
+                         'pathid_name_mapping': pathid2pathname}
+    else:
+        reactome_dict = None
 
     # Get mapping of correlation names to pybel nodes
     if graph_type == 'pybel':
@@ -634,7 +636,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
             logger.info(f'Filtering correlations to {sd_l}+ SD')
             z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
 
-    run_options['sd_range'] = (sd_l, sd_u) if sd_u else (sd_l, None)
+    sd_range = (sd_l, sd_u) if sd_u else (sd_l, None)
 
     # Pick a sample
     if sample_size is not None and not random:
@@ -650,28 +652,20 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
 
     if normalize_names:
         logger.info('Normalizing correlation matrix column names')
-        z_corr = normalize_corr_names(z_corr, indra_net)
+        z_corr = normalize_corr_names(z_corr, indranet)
     else:
         logger.info('Leaving correlation matrix column names as is')
-
-    run_options['corr_z'] = z_corr
 
     # 4. Add meta data
     info_dict = {}
     if info:
         info_dict['info'] = info
-    if depmap_date:
-        info_dict['depmap_date'] = depmap_date
-    if indra_date:
-        run_options['indra_date'] = indra_date
-    run_options['info'] = info_dict
 
     # Set the script_settings
-    run_options['script_settings'] = {
+    script_settings = {
         'raw_data': raw_data,
         'raw_corr': raw_corr,
-        'z_score': z_score if isinstance(z_score, str) else (z_score_file or
-                                                             'no info'),
+        'z_score': z_score,
         'random': random,
         'indranet': indra_net_file or 'no info',
         'shuffle': shuffle,
@@ -688,7 +682,28 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
 
     # Create output list in global scope
     output_list = []
-    explanations = match_correlations(**run_options)
+    explanations = match_correlations(
+        corr_z=z_corr,
+        sd_range=sd_range,
+        script_settings=script_settings,
+        graph_filepath=indra_net,
+        z_corr_filepath=z_score,
+        apriori_explained=apriori_explained,
+        graph_type=graph_type,
+        allowed_ns=allowed_ns,
+        allowed_sources=allowed_sources,
+        is_a_part_of=is_a_part_of,
+        expl_funcs=expl_funcs,
+        reactome_filepath=reactome_path,
+        indra_date=indra_date,
+        info=info_dict,
+        depmap_date=depmap_date,
+        n_chunks=n_chunks,
+        immediate_only=immediate_only,
+        return_unexplained=return_unexplained,
+        reactome_dict=reactome_dict,
+        subset_list=subset_list
+    )
     if outname.startswith('s3://'):
         try:
             logger.info(f'Uploading results to s3: {outname}')
