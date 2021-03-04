@@ -2157,9 +2157,9 @@ def get_pairs(corr_z: pd.DataFrame,
         symmetric) with NaN's and potential values on the diagonal ignored.
     b) subset_list is provided:
         All non-diagonal, not-NaN numbers, where a is from subset_list i.e.:
-        for a, b in product(subset_list, corr_z.columns):
-            if a in corr_z.columns and a != b:
-                yield a, b, corr_z.loc[a, b]
+        >>> for a, b in product(subset_list, corr_z.columns):
+        ...     if a in corr_z.columns and a != b:
+        ...         yield a, b, corr_z.loc[a, b]
 
     Parameters
     ----------
