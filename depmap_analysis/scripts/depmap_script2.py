@@ -769,23 +769,24 @@ if __name__ == '__main__':
              'per node pair, one edge per sign).'
     )
 
-    #   1c-1 Optionally provide PyBEL model
-    parser.add_argument(
-        '--pybel-model', type=file_path(),
-        help='If graph type is "pybel", use this argument to provide the '
-             'necessary pybel model used to precompute the pybel node mapping.'
-    )
-
-    #   1c-2 Optionally provide node mapping for hgnc symbol - pybel node
-    parser.add_argument(
-        '--pybel-node-mapping', type=file_path(),
-        help='If graph type is "pybel", use this argument to optionally '
-             'provide a mapping from HGNC symbols to pybel nodes in the '
-             'pybel model'
-    )
+    # #   1c-1 Optionally provide PyBEL model
+    # parser.add_argument(
+    #     '--pybel-model', type=file_path(),
+    #     help='If graph type is "pybel", use this argument to provide the '
+    #          'necessary pybel model used to precompute the pybel node mapping.'
+    # )
+    #
+    # #   1c-2 Optionally provide node mapping for hgnc symbol - pybel node
+    # parser.add_argument(
+    #     '--pybel-node-mapping', type=file_path(),
+    #     help='If graph type is "pybel", use this argument to optionally '
+    #          'provide a mapping from HGNC symbols to pybel nodes in the '
+    #          'pybel model'
+    # )
 
     #   1d Provide graph type
-    allowed_graph_types = {'unsigned', 'signed', 'pybel'}
+    # allowed_graph_types = {'unsigned', 'signed', 'pybel'}
+    allowed_graph_types = {'unsigned', 'signed'}
     parser.add_argument(
         '--graph-type', type=allowed_types(allowed_graph_types),
         default='unsigned',
@@ -844,7 +845,7 @@ if __name__ == '__main__':
 
     # 5 Pick number of jobs
     parser.add_argument(
-        '--n-chunks', type=int, default=256,
+        '--n-chunks', type=int, default=8,
         help='Pick the number of slices to split the work into. Does not '
              'have to be equal to the amount of CPUs.'
     )
@@ -881,7 +882,7 @@ if __name__ == '__main__':
                              'unexplained in its column in the stats data '
                              'frame, but the data will still be reported in '
                              'the explanations data frame')
-    parser.add_argument('--reactome-dict', type=file_path('pkl'),
+    parser.add_argument('--reactome-path', type=file_path('pkl'),
                         help='Path to reactome file.')
     parser.add_argument('--subset-list', type=file_path(),
                         help='Path to a csv/tsv file that contains a column '
@@ -889,10 +890,6 @@ if __name__ == '__main__':
                              'effectively only check pairs where "a" in '
                              '(a, b) is from `subset_list` and also in the '
                              'correlation data frame.')
-    parser.add_argument('--permute-corrs', action='store_true',
-                        help='Check all combinations of off-diagonal values '
-                             'from the correlation matrix, i.e. check both '
-                             '(a, b) and (b, a).')
     parser.add_argument('--overwrite', action='store_true',
                         help='Overwrite any output files that already exist.')
     parser.add_argument('--normalize-names', action='store_true',
@@ -905,79 +902,42 @@ if __name__ == '__main__':
     arg_dict['argparse_dict'] = deepcopy(arg_dict)
 
     # Load z_corr, indranet and optionally pybel_model
-    inet_graph = file_opener(args.indranet)
-    arg_dict['indra_net'] = inet_graph
-    arg_dict['indra_net_file'] = args.indranet
-    if arg_dict.get('z_score'):
-        corr_matrix = pd.read_hdf(arg_dict['z_score'])
-        arg_dict['z_score_file'] = arg_dict['z_score']
-    elif arg_dict.get('raw_drugs'):
+    arg_dict['indra_net'] = args.indranet
+    if arg_dict.get('raw_drugs'):
         raw_drug_data, raw_drug_info = arg_dict['raw_drugs']
         corr_matrix = drugs_to_corr_matrix(raw_drug_data, raw_drug_info)
-    else:
-        arg_dict['raw_data'] = arg_dict.get('raw_data')
-        arg_dict['corr_data'] = arg_dict.get('corr_data')
-        z_sc_options = {
-            'crispr_raw': arg_dict['raw_data'][0],
-            'rnai_raw': arg_dict['raw_data'][1],
-            'crispr_corr': arg_dict['corr_data'][0],
-            'rnai_corr': arg_dict['corr_data'][1]
-        }
-        corr_matrix = run_corr_merge(**z_sc_options)
+        drug_path = Path(raw_drug_data).parent.joinpath(
+            'drugs_corr.h5').absolute().as_posix()
+        corr_matrix.to_hdf(path_or_buf=drug_path, key='drugs')
+        arg_dict['z_score'] = drug_path
 
-    arg_dict['z_score'] = corr_matrix
-    hgnc_names = corr_matrix.columns.values
-    # Get hgnc node mapping
-    if arg_dict.get('graph_type') == 'pybel' and \
-            not arg_dict.get('pybel_node_mapping') and \
-            not arg_dict.get('pybel_model'):
-        raise ValueError('Must provide PyBEL model with option pybel_model '
-                         'or provide node mapping with option '
-                         'if graph type is pybel')
-    # Only model provided: create mapping
-    if arg_dict.get('pybel_model') and not arg_dict.get('pybel_node_mapping'):
-        mapping = pybel_node_name_mapping(
-            node_names=hgnc_names, node_ns='HGNC',
-            pb_model=file_opener(arg_dict['pybel_model'])
-        )
-        arg_dict['pb_node_mapping'] = mapping
-    # Mapping is provided: load the mapping
-    elif arg_dict.get('pybel_node_mapping'):
-        if arg_dict['pybel_node_mapping'].endswith('.pkl'):
-            arg_dict['pb_node_mapping'] = \
-                file_opener(arg_dict['pybel_node_mapping'])
-        elif arg_dict['pybel_node_mapping'].endswith('.json'):
-            arg_dict['pb_node_mapping'] = \
-                file_opener(arg_dict['pybel_node_mapping'])
-        else:
-            raise ValueError('Unknown file type %s' %
-                             arg_dict['pybel_node_mapping'].split('.')[-1])
-
-    # Get ignore list
-    apriori_expl = args.apriori_explained
-    if apriori_expl:
-        # Check if it's the default file
-        if mito_file_name in apriori_expl:
-            expl_map = get_mitocarta_info(apriori_expl)
-        else:
-            # Hope it's a csv
-            try:
-                expl_df = pd.read_csv(apriori_expl)
-                expl_map = {e: d for e, d in zip(expl_df.name,
-                                                 expl_df.description)}
-            except Exception as err:
-                raise ValueError('A-priori explained entities must be in a '
-                                 'file that can be parsed as CSV/TSV with '
-                                 'column names "name" for entity name and '
-                                 '"description" for explanation why the '
-                                 'entity is explained.') \
-                    from err
-        arg_dict['apriori_explained'] = expl_map
-
-    if args.reactome_dict:
-        up2path, _, pathid2pathname = file_opener(args.reactome_dict)
-        arg_dict['reactome_dict'] = {'uniprot_mapping': up2path,
-                                     'pathid_name_mapping': pathid2pathname}
+    # hgnc_names = corr_matrix.columns.values
+    # # Get hgnc node mapping
+    # if arg_dict.get('graph_type') == 'pybel' and \
+    #         not arg_dict.get('pybel_node_mapping') and \
+    #         not arg_dict.get('pybel_model'):
+    #     raise ValueError('Must provide PyBEL model with option pybel_model '
+    #                      'or provide node mapping with option '
+    #                      'if graph type is pybel')
+    # # Only model provided: create mapping
+    # if arg_dict.get('pybel_model') and \
+    #         not arg_dict.get('pybel_node_mapping'):
+    #     mapping = pybel_node_name_mapping(
+    #         node_names=hgnc_names, node_ns='HGNC',
+    #         pb_model=file_opener(arg_dict['pybel_model'])
+    #     )
+    #     arg_dict['pb_node_mapping'] = mapping
+    # # Mapping is provided: load the mapping
+    # elif arg_dict.get('pybel_node_mapping'):
+    #     if arg_dict['pybel_node_mapping'].endswith('.pkl'):
+    #         arg_dict['pb_node_mapping'] = \
+    #             file_opener(arg_dict['pybel_node_mapping'])
+    #     elif arg_dict['pybel_node_mapping'].endswith('.json'):
+    #         arg_dict['pb_node_mapping'] = \
+    #             file_opener(arg_dict['pybel_node_mapping'])
+    #     else:
+    #         raise ValueError('Unknown file type %s' %
+    #                          arg_dict['pybel_node_mapping'].split('.')[-1])
 
     if args.subset_list:
         df: pd.DataFrame = file_opener(args.subset_list)
