@@ -128,7 +128,8 @@ def csv_file_to_generator(fname, column_list):
 
 def corr_matrix_to_generator(z_corr: pd.DataFrame,
                              max_pairs: Optional[int] = None,
-                             subset_list: List[Union[str, int]] = None):
+                             subset_list: List[Union[str, int]] = None,
+                             shuffle: bool = False):
     """Return a tuple generator given a correlation matrix
     
     The function takes a correlation matrix and returns a consumable tuple 
@@ -138,18 +139,21 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
     correlation_df_matrix : pd.DataFrame
         A correlation matrix as a pandas dataframe
     max_pairs : Optional[int]
-        The maximum number of pairs to yield
+        The maximum number of pairs to yield. If specified, also shuffles the
+        correlation matrix to yield pairs at random.
     subset_list : Optional[List[str]]
         If provided, get the first of the pair from this list of entities
         under the assumption that the entities also exist in
         correlation_df_matrix
+    shuffle : bool
+        If True, shuffle the correlation matrix
 
     Returns
     -------
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
-    if max_pairs:
+    if max_pairs or shuffle:
         # Sample at random: the matrix is shuffled and we can therefore pick
         # values "in order" since the order is random and then stop after
         # max_pairs pairs have been yielded
