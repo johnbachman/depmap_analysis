@@ -565,11 +565,11 @@ def main(indra_net: str,
             # Run default
             apriori_explained = get_mitocarta_info(mito_file)
         else:
-            # Hope it's a csv
+            # Hope it's a csv/tsv
             try:
-                expl_df = pd.read_csv(apriori_expl)
-                apriori_explained = {e: d for e, d in zip(expl_df.name,
-                                                 expl_df.description)}
+                expl_df = pd.read_csv(apriori_explained)
+                apriori_explained = {e: d for e, d in
+                                     zip(expl_df.name, expl_df.description)}
             except Exception as err:
                 raise ValueError('A-priori explained entities must be in a '
                                  'file that can be parsed as CSV/TSV with '
