@@ -286,7 +286,7 @@ class DepMapExplainer:
                     self.summary['explained'] - self.summary['sr only']
             # Count axb type explanations that does not have reactome,
             # direct/complex or apriori explanations
-            if all([cn in self.stats_df.colummns for cn in
+            if all([cn in self.stats_df.columns for cn in
                     [st_colname, axb_colname, bxa_colname, apriori_colname,
                      ab_colname, ba_colname, react_colname]]):
                 self.summary['explained no reactome, direct, apriori'] = \
