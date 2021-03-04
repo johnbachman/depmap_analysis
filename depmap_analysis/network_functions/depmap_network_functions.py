@@ -2151,12 +2151,15 @@ def get_pairs(corr_z: pd.DataFrame,
     """Count the number of extractable pairs from a pandas correlation matrix
 
     Count the number of pairs that can be looped over from the DataFrame
-    correlation matrix from:
-    - permute = False: The upper triangle of the matrix (since the matrix is
-                       assumed to be symmetric) with NaN's and potential
-                       values on the diagonal ignored.
-    - permute = True: All non-diagonal, not-NaN numbers, i.e. (a, b, corr)
-                      and (b, a, corr) are treated as independent values.
+    correlation matrix from either:
+    a) subset_list is not provided:
+        The upper triangle of the matrix (since the matrix is assumed to be
+        symmetric) with NaN's and potential values on the diagonal ignored.
+    b) subset_list is provided:
+        All non-diagonal, not-NaN numbers, where a is from subset_list i.e.:
+        for a, b in product(subset_list, corr_z.columns):
+            if a in corr_z.columns and a != b:
+                yield a, b, corr_z.loc[a, b]
 
     Parameters
     ----------
