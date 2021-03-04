@@ -1,4 +1,3 @@
-import json
 import logging
 from math import floor
 from io import BytesIO
@@ -90,8 +89,11 @@ class DepMapExplainer:
 
     def __init__(self, stats_columns: Tuple[str],
                  expl_columns: Tuple[str],
+                 graph_filepath: str,
+                 z_corr_filepath: str,
                  info: Dict[Hashable, Any],
                  script_settings: Dict[str, Union[str, float, int, List[str]]],
+                 reactome_filepath: Optional[str] = None,
                  tag: Optional[str] = None,
                  network_type: str = 'digraph'):
         """
@@ -112,6 +114,9 @@ class DepMapExplainer:
             The graph type used, e.g. unsigned, signed, pybel
         """
         self.tag = tag
+        self.graph_filepath = graph_filepath
+        self.z_corr_filepath = z_corr_filepath
+        self.reactome_filepath = reactome_filepath
         self.indra_network_date = info.pop('indra_network_date', None)
         self.depmap_date = info.pop('depmap_date', None)
         self.sd_range = info.pop('sd_range', None)
@@ -143,16 +148,7 @@ class DepMapExplainer:
         -------
         Union[nx.DiGraph, nx.MultiDiGraph]
         """
-        if self.script_settings.get('indranet'):
-            indranet_file = self.script_settings['indranet']
-        elif self.script_settings.get('argparse_info', {}).get('indranet'):
-            indranet_file = \
-                self.script_settings['argparse_info']['indranet']
-        else:
-            raise FileNotFoundError('No graph file location seems to be '
-                                    'present in script settings.')
-
-        graph = file_opener(indranet_file)
+        graph = file_opener(self.graph_filepath)
         assert isinstance(graph, (nx.DiGraph, nx.MultiDiGraph))
 
         return graph
@@ -168,7 +164,7 @@ class DepMapExplainer:
         ----------
         local_file_path : str
             File path to the correlation matrix data frame. Provide it if the
-            file path in the script settings attribute does not exist or is
+            file path in the z_corr_filepath attribute does not exist or is
             inaccessible.
 
         Returns
@@ -178,15 +174,7 @@ class DepMapExplainer:
         if local_file_path:
             z_corr_file = local_file_path
         else:
-            if self.script_settings.get('z_score'):
-                z_corr_file = self.script_settings['z_score']
-            elif self.script_settings.get('argparse_info', {}).get('z_score'):
-                z_corr_file = self.script_settings['argparse_info']['z_score']
-            else:
-                raise FileNotFoundError('No file location seems to be '
-                                        'present in script settings. Please '
-                                        'provide a file using '
-                                        '`local_file_path`')
+            z_corr_file = self.z_corr_filepath
         logger.info(f'Loading {z_corr_file}')
         z_corr = pd.read_hdf(z_corr_file)
         logger.info('Finished loading hdf file')
@@ -210,13 +198,11 @@ class DepMapExplainer:
         -------
         Tuple[Dict[str, List[str]], Dict[str, List[str]], Dict[str, str]]
         """
-        if self.script_settings.get('argparse_info', {}).get('reactome_dict'):
-            reactome_file = \
-                self.script_settings['argparse_info']['reactome_dict']
-            reactome = file_opener(reactome_file)
+        if self.reactome_filepath is not None:
+            reactome = file_opener(self.reactome_filepath)
             assert isinstance(reactome, (tuple, list)), \
-                f'{reactome_file} does not seem to contain tuple of ' \
-                f'(upid - pathway mapping, pathway - upid mapping, ' \
+                f'{self.reactome_filepath} does not seem to contain tuple ' \
+                f'of (upid - pathway mapping, pathway - upid mapping, ' \
                 f'pathway id - pathway description).'
         else:
             raise FileNotFoundError('No reactome file location seems to '
