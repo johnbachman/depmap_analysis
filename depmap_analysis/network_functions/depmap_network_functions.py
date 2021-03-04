@@ -6,7 +6,7 @@ import logging
 import itertools as itt
 from random import choices
 from math import ceil, log10
-from typing import Iterable
+from typing import Iterable, Optional, List, Union
 from collections import Mapping, OrderedDict, defaultdict
 
 import numpy as np
@@ -126,69 +126,54 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(corrrelation_df_matrix, max_pairs=None):
+def corr_matrix_to_generator(z_corr: pd.DataFrame,
+                             max_pairs: Optional[int] = None,
+                             subset_list: List[Union[str, int]] = None):
     """Return a tuple generator given a correlation matrix
     
     The function takes a correlation matrix and returns a consumable tuple 
     generator object. Once consumed, the object is exhausted and a new
     generator needs to be produced.
 
-    corrrelation_df_matrix : pandas.DataFrame
+    correlation_df_matrix : pd.DataFrame
         A correlation matrix as a pandas dataframe
+    max_pairs : Optional[int]
+        The maximum number of pairs to yield
+    subset_list : Optional[List[str]]
+        If provided, get the first of the pair from this list of entities
+        under the assumption that the entities also exist in
+        correlation_df_matrix
 
     Returns
     -------
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
-    # Sample at random: get a random sample of the correlation matrix that has
-    # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = corrrelation_df_matrix.notna().sum().sum()
-    if all_pairs == 0:
-        logger.warning('Correlation matrix is empty')
-        raise ValueError('Script aborted due to empty correlation matrix')
-
-    corr_df_sample = pd.DataFrame()
     if max_pairs:
-        if max_pairs >= all_pairs:
-            logger.info('The requested number of correlation pairs is '
-                            'larger than the available number of pairs. '
-                            'Resetting `max_pairs` to %i' % all_pairs)
-            corr_df_sample = corrrelation_df_matrix
+        # Sample at random: the matrix is shuffled and we can therefore pick
+        # values "in order" since the order is random and then stop after
+        # max_pairs pairs have been yielded
+        logger.info('Shuffling correlation matrix...')
+        z_corr = z_corr.sample(frac=1, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
-        elif max_pairs < all_pairs:
-            n = int(np.floor(np.sqrt(max_pairs))/2 - 1)
-            corr_df_sample = corrrelation_df_matrix.sample(
-                n, axis=0).sample(n, axis=1)
-
-            # Increase sample until number of extractable pairs exceed
-            # max_pairs
-            while corr_df_sample.notna().sum().sum() <= max_pairs:
-                n += 1
-                corr_df_sample = corrrelation_df_matrix.sample(
-                    n, axis=0).sample(n, axis=1)
-
-        logger.info('Created a random sample of the correlation matrix '
-                        'with %i extractable correlation pairs.'
-                    % corr_df_sample.notna().sum().sum())
-
-    # max_pairs == None: no sampling, get all non-NaN correlations;
+    if subset_list is not None:
+        pair_iter = ((a, b) for a, b in
+                     itt.product(subset_list, z_corr.columns.values)
+                     if a in z_corr.columns and a != b)
     else:
-        corr_df_sample = corrrelation_df_matrix
+        tr_up_indices = np.triu_indices(n=z_corr.shape[0], k=1)
+        names = z_corr.columns.values
+        pair_iter = ((names[i], names[j]) for i, j in zip(*tr_up_indices))
 
-    corr_value_matrix = corr_df_sample.values
-    gene_name_array = corr_df_sample.index.values
-    if isinstance(gene_name_array[0], tuple):
-        gene_name_array = [n[0] for n in gene_name_array]
-    tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
-    # Only get HGNC symbols (first in tuple) since we're gonna compare to
-    # INDRA statements, which is currently done with HGNC symbols
-    # todo change to output HGNC IDs instead when switching to HGNC id in
-    #  stmts
-    return ((gene_name_array[i], gene_name_array[j],
-            float(corr_value_matrix[i, j]))
-            for i, j in zip(*tr_up_indices)
-            if not np.isnan(corr_value_matrix[i, j]))
+    yielded_pairs = 0
+    for a, b in pair_iter:
+        if max_pairs and yielded_pairs >= max_pairs:
+            raise StopIteration
+
+        if not np.isnan(z_corr.loc[a, b]):
+            yield a, b, z_corr.loc[a, b]
+            yielded_pairs += 1
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
@@ -1067,7 +1052,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
             tuple_generator=corr_matrix_to_generator(
-                corrrelation_df_matrix=filtered_corr_matrix,
+                z_corr=filtered_corr_matrix,
                 max_pairs=dataset_dict['max_pairs']
             )
         )
@@ -2134,10 +2119,7 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
     Parameters
     ----------
     available_pairs : int
-        Number of pairs in correlation matrix as counted by
-        corr_z.mask(
-            np.triu(np.ones(corr_z.shape)).astype(bool)
-        ).notna().sum().sum()
+        Number of pairs in correlation matrix as counted by `get_pairs()`
     size_of_matrix : int
         The number of rows/columns of the correlation matrix as counted by
         len(corr)
@@ -2164,13 +2146,20 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
     return int(np.ceil(p*L))
 
 
-def get_pairs(corr_z: pd.DataFrame) -> int:
+def get_pairs(corr_z: pd.DataFrame,
+              subset_list: Optional[List[Union[str, int]]] = None) -> int:
     """Count the number of extractable pairs from a pandas correlation matrix
 
     Count the number of pairs that can be looped over from the DataFrame
-    correlation matrix from the upper triangle of the matrix (since the
-    matrix is assumed to be symmetric) with NaN's and potential values on
-    the diagonal ignored.
+    correlation matrix from either:
+    a) subset_list is not provided:
+        The upper triangle of the matrix (since the matrix is assumed to be
+        symmetric) with NaN's and potential values on the diagonal ignored.
+    b) subset_list is provided:
+        All non-diagonal, not-NaN numbers, where a is from subset_list i.e.:
+        for a, b in product(subset_list, corr_z.columns):
+            if a in corr_z.columns and a != b:
+                yield a, b, corr_z.loc[a, b]
 
     Parameters
     ----------
@@ -2178,6 +2167,9 @@ def get_pairs(corr_z: pd.DataFrame) -> int:
         A DataFrame with correlations obtained from pandas.DataFrame.corr().
         The DataFrame is assumed to be pre-filtered such that values
         filtered out are NaN's.
+    subset_list : Optional[List[str]]
+        If provided, only let a in (a, b) be from subset_list and count all
+        not-NaN, off diagonal pairs.
 
     Returns
     -------
@@ -2190,11 +2182,20 @@ def get_pairs(corr_z: pd.DataFrame) -> int:
     # Map to boolean with NaN => False, else True
     bm: pd.DataFrame = (~corr_z.isna())
 
-    # Mask lower triangle and diagonal with zeroes
-    ma = bm.mask(np.tril(np.ones(bm.shape).astype(bool)), other=0)
+    if subset_list is not None:
+        # Set diagonal to False
+        np.fill_diagonal(a=bm.values, val=False)
 
-    # Return sum over full matrix
-    return int(ma.sum().sum())
+        # Also set those rows which are not in the list to False
+        bm[~corr_z.index.isin(values=list(subset_list))] = False
+
+        return int(bm.sum().sum())
+    else:
+        # Mask lower triangle and diagonal with zeroes
+        ma = bm.mask(np.tril(np.ones(bm.shape).astype(bool)), other=0)
+
+        # Return sum over full matrix
+        return int(ma.sum().sum())
 
 
 def get_chunk_size(n_chunks: int, total_items: int) -> int:
@@ -2214,3 +2215,41 @@ def get_chunk_size(n_chunks: int, total_items: int) -> int:
     """
     # How many pairs does a chunk need to contain to get chunks_wanted chunks?
     return max(int(np.ceil(total_items / n_chunks)), 1)
+
+
+def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
+                   subset_list: Optional[List[Union[str, int]]] = None) \
+        -> pd.DataFrame:
+    """Given a square data frame, down sample it to sample_size or close to it
+
+    Parameters
+    ----------
+    z_corr : pd.DataFrame
+        DataFrame to down sample
+    sample_size
+        Goal number of extractable pairs
+    subset_list : Optional[List[Union[str, int]]]
+        If True, count not-NaN off diagonal pairs of both permutations,
+        i.e. both (a, b) and (b, a).
+
+    Returns
+    -------
+    pd.DataFrame
+        The down sampled data frame
+    """
+    # Do small initial downsampling
+    row_samples = len(z_corr) - 1
+    n_pairs = get_pairs(corr_z=z_corr, subset_list=subset_list)
+    while n_pairs > int(1.1 * sample_size):
+        logger.info(f'Down sampling from {n_pairs}')
+        z_corr = z_corr.sample(row_samples, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+
+        # Update n_pairs and row_samples
+        n_pairs = get_pairs(corr_z=z_corr, subset_list=subset_list)
+        mm = max(row_samples - int(np.ceil(0.05 * row_samples))
+                 if n_pairs - sample_size < np.ceil(0.1 * sample_size)
+                 else down_sampl_size(n_pairs, len(z_corr), sample_size),
+                 1)
+        row_samples = row_samples - 1 if mm >= row_samples else mm
+    return z_corr

@@ -52,7 +52,7 @@ from depmap_analysis.util.io_functions import file_opener, \
 from depmap_analysis.network_functions.net_functions import \
     pybel_node_name_mapping
 from depmap_analysis.network_functions.depmap_network_functions import \
-    corr_matrix_to_generator, down_sampl_size, get_pairs, get_chunk_size
+    corr_matrix_to_generator, get_pairs, get_chunk_size, down_sample_df
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns, expl_columns
 from depmap_analysis.preprocessing import *
@@ -76,8 +76,8 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
                             stats_columns: Tuple[str],
                             expl_cols: Tuple[str],
                             bool_columns: Tuple[str],
-                            expl_mapping: Optional[Dict[str, str]],
                             _type: str,
+                            apriori_explained: Optional[Dict[str, str]] = None,
                             allowed_ns: Optional[Set[str]] = None,
                             allowed_sources: Optional[Set[str]] = None,
                             is_a_part_of: Optional[List[str]] = None,
@@ -110,8 +110,8 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             options['ns_set'] = allowed_ns
         if allowed_sources:
             options['src_set'] = allowed_sources
-        if expl_mapping:
-            options['expl_mapping'] = expl_mapping
+        if apriori_explained:
+            options['apriori_explained'] = apriori_explained
 
         for tup in corr_iter:
             # Break loop when batch_iter reaches None padding
@@ -217,6 +217,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
 def match_correlations(corr_z: pd.DataFrame,
                        sd_range: Tuple[float, Union[float, None]],
                        script_settings: Dict[str, Union[str, int, float]],
+                       subset_list: Optional[List[Union[str, int]]] = None,
                        **kwargs):
     """The main loop for matching correlations with INDRA explanations
 
@@ -240,6 +241,9 @@ def match_correlations(corr_z: pd.DataFrame,
         The SD ranges that the corr_z is filtered to
     script_settings : Dict[str, Union[str, int, float]]
         Dictionary with script settings for the purpose of book keeping
+    subset_list : Optional[List[Union[str, int]]]
+        If True, check all combinations of off-diagonal values from the
+        correlation matrix, i.e. check both (a, b) and (b, a). Default: False.
 
     Returns
     -------
@@ -271,7 +275,7 @@ def match_correlations(corr_z: pd.DataFrame,
     bool_columns = ('not_in_graph', 'explained') + tuple(expl_types.keys())
     stats_columns = id_columns + bool_columns
     expl_cols = expl_columns
-    expl_mapping = kwargs.get('expl_mapping', {})
+    apriori_explained = kwargs.get('apriori_explained', {})
 
     _type = kwargs.get('graph_type', 'unsigned')
     logger.info(f'Doing correlation matching with {_type} graph')
@@ -306,7 +310,7 @@ def match_correlations(corr_z: pd.DataFrame,
               if strip_out_date(dm_file, r'\d{8}') else ymd_now)
 
     logger.info('Calculating number of pairs to check...')
-    estim_pairs = get_pairs(corr_z)
+    estim_pairs = get_pairs(corr_z, subset_list=subset_list)
     logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
                 f'with about {estim_pairs} pairs to check')
     tstart = time()
@@ -318,8 +322,11 @@ def match_correlations(corr_z: pd.DataFrame,
 
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0
-        chunk_iter = batch_iter(iterator=corr_matrix_to_generator(corr_z),
-                                batch_size=chunksize, return_func=list)
+        chunk_iter = batch_iter(
+            iterator=corr_matrix_to_generator(corr_z, subset_list=subset_list),
+            batch_size=chunksize,
+            return_func=list
+        )
         for chunk in chunk_iter:
             pool.apply_async(func=_match_correlation_body,
                              # args should match the args for func
@@ -329,8 +336,8 @@ def match_correlations(corr_z: pd.DataFrame,
                                  stats_columns,
                                  expl_cols,
                                  bool_columns,
-                                 expl_mapping,
                                  _type,
+                                 apriori_explained,
                                  allowed_ns,
                                  allowed_sources,
                                  is_a_part_of,
@@ -371,25 +378,6 @@ def match_correlations(corr_z: pd.DataFrame,
     return explainer
 
 
-def _down_sample_df(z_corr: pd.DataFrame, sample_size: int) -> pd.DataFrame:
-    # Do small initial downsampling
-    row_samples = len(z_corr) - 1
-    n_pairs = get_pairs(corr_z=z_corr)
-    while n_pairs > int(1.1 * sample_size):
-        logger.info(f'Down sampling from {n_pairs}')
-        z_corr = z_corr.sample(row_samples, axis=0)
-        z_corr = z_corr.filter(list(z_corr.index), axis=1)
-
-        # Update n_pairs and row_samples
-        n_pairs = get_pairs(corr_z=z_corr)
-        mm = max(row_samples - int(np.ceil(0.05 * row_samples))
-                 if n_pairs - sample_size < np.ceil(0.1 * sample_size)
-                 else down_sampl_size(n_pairs, len(z_corr), sample_size),
-                 1)
-        row_samples = row_samples - 1 if mm >= row_samples else mm
-    return z_corr
-
-
 def success_callback(res):
     logger.info('Appending a result')
     output_list.append(res)
@@ -413,11 +401,11 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
          expl_funcs: Optional[List[str]] = None,
          pb_node_mapping: Optional[Dict[str, Set]] = None,
          n_chunks: Optional[int] = 256,
-         expl_mapping: Optional[Dict[str, str]] = None,
          is_a_part_of: Optional[List[str]] = None,
          immediate_only: Optional[bool] = False,
          return_unexplained: Optional[bool] = False,
          reactome_dict: Optional[Dict[str, Any]] = None,
+         subset_list: Optional[List[Union[str, int]]] = None,
          apriori_explained: Optional[Dict[str, str]] = None,
          allowed_ns: Optional[List[str]] = None,
          allowed_sources: Optional[List[str]] = None,
@@ -465,18 +453,29 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         File paths to raw correlation data (before z-score conversion)
         containing hdf compressed correlation data. These files contain the
         result of running `raw_df.corr()`.
-    expl_funcs : Optional[Iterable[str]]
+    expl_funcs : Optional[List[str]]
         Provide a list of explanation functions to apply. Default: All
-        functions are applied.
+        functions are applied. Currently available functions:
+        - 'expl_ab': Explain pair by checking for an edge between a and b
+        - 'expl_ba': Explain pair by checking for an edge between b and a
+        - 'expl_axb': Explain pair by looking for intermediate nodes
+          connecting a to b
+        - 'expl_bxa': Explain pair by looking for intermediate nodes
+          connecting b to a
+        - 'get_sr': Explain pair by finding common upstream nodes
+        - 'get_st': Explain pair by finding common downstream nodes
+        - 'get_sd': Explain pair by finding common downstream nodes two
+          edges from s and o
+        - 'find_cp': Explain pair by looking for ontological parents
+        - 'apriori_explained': Map entities to a-priori explanations
+        - 'common_reactome_paths': Explain pair by matching common reactome
+          pathways
     pb_node_mapping : Optional[Union[Dict, Set[Any]]]
         If graph type is "pybel", use this argument to provide a mapping
         from HGNC symbols to pybel nodes in the pybel model
     n_chunks : Optional[int]
         How many chunks to split the data into in the multiprocessing part
         of the script
-    expl_mapping : Optional[Dict[str, str]]
-        A mapping from entity to a string with information about the entity
-        that explains why it is considered 'explained'
     is_a_part_of : Optional[Iterable]
         A set of identifiers to look for when applying the common parent
         explanation between a pair of correlating nodes.
@@ -488,7 +487,15 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         intersection of nodes up- or downstream of A, B for shared
         regulators and shared targets. Default: False.
     reactome_dict : Dict[str, Any]
-        Mapping from gene UP ID to its associated reactome pathways
+        A dict containing two dicts:
+        - Key 'uniprot_mapping': a dict containing a mapping from gene UP ID
+          to its associated reactome pathways
+        - Key 'pathid_name_mapping': a dict containing a mapping from a
+          reactome path id to human readable name
+    subset_list :  Optional[List[Union[str, int]]]
+        Provide a list if entities that defines a subset of the entities in
+        the correlation data frame that will be picked as 'a' when the pairs
+        (a, b) are generated
     apriori_explained : Optional[Dict[str, str]]
         A mapping from entity names to a string containing a short
         explanation of why the entity is explained. To use the default
@@ -496,8 +503,9 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         >>> from depmap_analysis.scripts.depmap_script2 import mito_file
         >>> from depmap_analysis.preprocessing import get_mitocarta_info
         >>> apriori_mapping = get_mitocarta_info(mito_file)
-        then pass `apriori_mapping` to `apriori_explained` when calling this
-        funciton.
+        then pass `apriori_mapping` as `apriori_explained` when calling this
+        function:
+        >>> main(apriori_explained=apriori_mapping, ...)
     allowed_ns : Optional[List[str]]
         A list of allowed name spaces for explanations involving
         intermediary nodes. Default: Any namespace.
@@ -555,10 +563,10 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         raise ValueError('Must provide either z_score XOR either of raw_data '
                          'or raw_corr')
 
-    if expl_mapping:
-        run_options['expl_mapping'] = expl_mapping
+    if apriori_explained:
+        run_options['apriori_explained'] = apriori_explained
         logger.info(f'Using explained set with '
-                    f'{len(expl_mapping)} genes')
+                    f'{len(apriori_explained)} entities')
 
     outname = outname if outname.endswith('.pkl') else \
         outname + '.pkl'
@@ -592,6 +600,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     run_options['immediate_only'] = immediate_only
     run_options['return_unexplained'] = return_unexplained
     run_options['reactome_dict'] = reactome_dict
+    run_options['subset_list'] = subset_list
     if allowed_ns:
         run_options['allowed_ns'] = allowed_ns
     if allowed_sources:
@@ -631,7 +640,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
     if sample_size is not None and not random:
         logger.info(f'Reducing correlation matrix to a random approximately '
                     f'{sample_size} correlation pairs.')
-        z_corr = _down_sample_df(z_corr, sample_size)
+        z_corr = down_sample_df(z_corr, sample_size)
 
     # Shuffle corr matrix without removing items
     elif shuffle and not random:
@@ -703,6 +712,7 @@ def main(indra_net: Union[nx.DiGraph, nx.MultiDiGraph],
         dump_it_to_pickle(fname=outpath.absolute().resolve().as_posix(),
                           pyobj=explanations, overwrite=overwrite)
     logger.info('Script finished')
+    explanations.summarize()
 
 
 if __name__ == '__main__':
@@ -857,6 +867,16 @@ if __name__ == '__main__':
                              'the explanations data frame')
     parser.add_argument('--reactome-dict', type=file_path('pkl'),
                         help='Path to reactome file.')
+    parser.add_argument('--subset-list', type=file_path(),
+                        help='Path to a csv/tsv file that contains a column '
+                             '"name". These names will be used to '
+                             'effectively only check pairs where "a" in '
+                             '(a, b) is from `subset_list` and also in the '
+                             'correlation data frame.')
+    parser.add_argument('--permute-corrs', action='store_true',
+                        help='Check all combinations of off-diagonal values '
+                             'from the correlation matrix, i.e. check both '
+                             '(a, b) and (b, a).')
     parser.add_argument('--overwrite', action='store_true',
                         help='Overwrite any output files that already exist.')
     parser.add_argument('--normalize-names', action='store_true',
@@ -936,12 +956,16 @@ if __name__ == '__main__':
                                  '"description" for explanation why the '
                                  'entity is explained.') \
                     from err
-        arg_dict['expl_mapping'] = expl_map
+        arg_dict['apriori_explained'] = expl_map
 
     if args.reactome_dict:
         up2path, _, pathid2pathname = file_opener(args.reactome_dict)
         arg_dict['reactome_dict'] = {'uniprot_mapping': up2path,
                                      'pathid_name_mapping': pathid2pathname}
+
+    if args.subset_list:
+        df: pd.DataFrame = file_opener(args.subset_list)
+        arg_dict['subset_list'] = list(df.name.values)
 
     main_keys = inspect.signature(main).parameters.keys()
     kwargs = {k: v for k, v in arg_dict.items() if k in main_keys}
