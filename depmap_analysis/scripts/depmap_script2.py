@@ -421,7 +421,6 @@ def main(indra_net: str,
          allowed_sources: Optional[List[str]] = None,
          info: Optional[Dict[Hashable, Any]] = None,
          indra_date: Optional[str] = None,
-         indra_net_file: Optional[str] = None,
          depmap_date: Optional[str] = None,
          sample_size: Optional[int] = None,
          shuffle: Optional[bool] = False,
@@ -520,8 +519,6 @@ def main(indra_net: str,
         An optional dict in which to save meta data about this run
     indra_date : Optional[str]
         The date of the sif dump used to create the graph
-    indra_net_file : Optional[str]
-        The file path to the graph used
     depmap_date : Optional[str]
         The date (usually a quarter e.g. 19Q4) the depmap data was published
         on depmap.org
@@ -667,7 +664,7 @@ def main(indra_net: str,
         'raw_corr': raw_corr,
         'z_score': z_score,
         'random': random,
-        'indranet': indra_net_file or 'no info',
+        'indranet': indra_net,
         'shuffle': shuffle,
         'sample_size': sample_size,
         'n_chunks': n_chunks,
