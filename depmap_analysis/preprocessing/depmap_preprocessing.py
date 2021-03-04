@@ -21,7 +21,8 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
                    output_dir: str = 'correlation_output',
                    remove_self_corr: bool = False,
                    random_sampl: int = 0,
-                   save_corr_files: bool = False):
+                   save_corr_files: bool = False,
+                   z_corr_path: Optional[str] = None):
     """Return a merged correlation matrix from DepMap data
 
     Start with with either the raw DepMap files or pre-calculated
@@ -55,6 +56,8 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
     save_corr_files : bool
         If True, save the intermediate correlation data frames for both
         crispr and rnai. Default: True.
+    z_corr_path : Optional[str]
+        If provided, save the final correlation dataframe here
 
     Returns
     -------
@@ -118,7 +121,7 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
         if save_corr_files:
             rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
             if not rnai_fpath.parent.is_dir():
-                rnai_fpath.mkdir(parents=True, exist_ok=True)
+                rnai_fpath.parent.mkdir(parents=True, exist_ok=True)
             logger.info(f'Saving rnai correlation matrix to {rnai_fpath}')
             rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
 
@@ -134,6 +137,11 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
         z_cm = z_cm[list(z_cm.index.values)]
 
     assert z_cm.notna().sum().sum() > 0, 'Correlation matrix is empty'
+
+    if z_corr_path:
+        zc_path = Path(z_corr_path)
+        zc_path.parent.mkdir(parents=True, exist_ok=True)
+        z_cm.to_hdf(zc_path)
 
     return z_cm
 
