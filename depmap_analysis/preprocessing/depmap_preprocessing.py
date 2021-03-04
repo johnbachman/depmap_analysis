@@ -1,8 +1,9 @@
 import logging
 import argparse
-from typing import Dict
+from typing import Dict, Union, Optional
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from depmap_analysis.util import io_functions as io
@@ -13,10 +14,14 @@ logger = logging.getLogger(__name__)
 __all__ = ['run_corr_merge', 'drugs_to_corr_matrix', 'get_mitocarta_info']
 
 
-def run_corr_merge(crispr_raw=None, rnai_raw=None,
-                   crispr_corr=None, rnai_corr=None,
-                   output_dir='correlation_output',
-                   remove_self_corr=True, dropna=False, random_sampl=0):
+def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
+                   rnai_raw: Optional[Union[str, pd.DataFrame]] = None,
+                   crispr_corr: Optional[Union[str, pd.DataFrame]] = None,
+                   rnai_corr: Optional[Union[str, pd.DataFrame]] = None,
+                   output_dir: str = 'correlation_output',
+                   remove_self_corr: bool = False,
+                   random_sampl: int = 0,
+                   save_corr_files: bool = False):
     """Return a merged correlation matrix from DepMap data
 
     Start with with either the raw DepMap files or pre-calculated
@@ -42,15 +47,14 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         input data.
     remove_self_corr : bool
         If True, remove self correlations from the resulting DataFrame.
-        Default: True
+        Default: False
     random_sampl : int
         If specified, provides the size of the final correlation matrix
         where the genes are picked at random from the intersection of genes
         from both the RNAI and CRISPR data sets.
-    dropna : bool
-        If True, return the result of
-        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
-        Default: False.
+    save_corr_files : bool
+        If True, save the intermediate correlation data frames for both
+        crispr and rnai. Default: True.
 
     Returns
     -------
@@ -78,13 +82,15 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
         else:
             crispr_raw_df = crispr_raw
         crispr_corr_df = raw_depmap_to_corr(crispr_raw_df, split_names=True,
-                                            dropna=True)
+                                            dropna=False)
 
-        crispr_fpath = Path(output_dir).joinpath('_crispr_all_correlations.h5')
-        logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
-        if not crispr_fpath.parent.is_dir():
-            crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
-        crispr_corr_df.to_hdf(crispr_fpath.absolute(), 'corr')
+        if save_corr_files:
+            crispr_fpath = Path(output_dir).joinpath(
+                '_crispr_all_correlations.h5')
+            logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
+            if not crispr_fpath.parent.is_dir():
+                crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
+            crispr_corr_df.to_hdf(crispr_fpath.absolute(), 'corr')
 
     if rnai_corr:
         if isinstance(rnai_corr, str):
@@ -107,17 +113,18 @@ def run_corr_merge(crispr_raw=None, rnai_raw=None,
             rnai_raw_df = rnai_raw_df.T
 
         rnai_corr_df = raw_depmap_to_corr(rnai_raw_df, split_names=True,
-                                          dropna=True)
+                                          dropna=False)
 
-        rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
-        if not rnai_fpath.parent.is_dir():
-            rnai_fpath.mkdir(parents=True, exist_ok=True)
-        logger.info(f'Saving rnai correlation matrix to {rnai_fpath}')
-        rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
+        if save_corr_files:
+            rnai_fpath = Path(output_dir).joinpath('_rnai_all_correlations.h5')
+            if not rnai_fpath.parent.is_dir():
+                rnai_fpath.mkdir(parents=True, exist_ok=True)
+            logger.info(f'Saving rnai correlation matrix to {rnai_fpath}')
+            rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
 
     # Merge the correlation matrices
     z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df,
-                         remove_self_corr, dropna)
+                         remove_self_corr)
 
     if random_sampl and random_sampl < len(z_cm.columns):
         # Get n random rows
@@ -185,7 +192,10 @@ def raw_depmap_to_corr(depmap_raw_df: pd.DataFrame,
         depmap_raw_df.columns = gene_names
 
     # Drop duplicates
-    depmap_raw_df = depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
+    if sum(depmap_raw_df.columns.duplicated()) > 0:
+        logger.info('Dropping duplicated columns')
+        depmap_raw_df = \
+            depmap_raw_df.loc[:, ~depmap_raw_df.columns.duplicated()]
 
     # Drop nan's
     if dropna:
@@ -200,8 +210,7 @@ def raw_depmap_to_corr(depmap_raw_df: pd.DataFrame,
     return corr
 
 
-def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
-                  dropna=False):
+def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
     """Merge two correlation matrices containing their combined z-scores
 
     Parameters
@@ -215,27 +224,37 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
     remove_self_corr : bool
         If True, remove self correlations from the resulting DataFrame.
         Default: True
-    dropna : bool
-        If True, return the result of
-        corr_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
-        Default: False.
 
     Returns
     -------
     pd.DataFrame
         A merged correlation matrix containing the merged values a z-scores
     """
-    def _rename(corr):
+    def _mask_array(df: pd.DataFrame) -> np.ma.MaskedArray:
+        """Mask any NaN's in dataframe values"""
+        logger.info('Masking DataFrame values')
+        return np.ma.array(df.values, mask=np.isnan(df.values))
+
+    def _get_mean(df: pd.DataFrame) -> float:
+        ma = _mask_array(df)
+        return ma.mean()
+
+    def _get_sd(df: pd.DataFrame) -> float:
+        ma = _mask_array(df)
+        return ma.std()
+
+    def _rename(corr: pd.DataFrame) -> pd.DataFrame:
         gene_names = [n.split()[0] for n in corr.columns]
         corr.columns = gene_names
         corr.index = gene_names
         return corr
 
-    def _z_scored(corr):
-        mean = corr.values.mean()
-        sd = corr.values.std()
+    def _z_scored(corr: pd.DataFrame) -> pd.DataFrame:
+        mean = _get_mean(corr)
+        sd = _get_sd(corr)
         logger.info('Mean value: %f; St dev: %f' % (mean, sd))
-        return (corr - mean) / sd
+        out_df: pd.DataFrame = (corr - mean) / sd
+        return out_df
 
     # Rename columns/indices to gene name only
     if len(corr_df.columns[0].split()) > 1:
@@ -255,9 +274,7 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
         # Assumes the max correlation ONLY occurs on the diagonal
         self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
         dep_z = dep_z[dep_z != self_corr_value]
-    if dropna:
-        dep_z = dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
-    assert dep_z.notna().sum().sum() > 0, print('Correlation matrix is empty')
+    assert dep_z.notna().sum().sum() > 0, 'Correlation matrix is empty!'
     return dep_z
 
 
@@ -291,20 +308,20 @@ def get_mitocarta_info(mitocarta_file: str) -> Dict[str, str]:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DepMap Data pre-processing')
     # Input dirs
-    parser.add_argument('--crispr-raw',
+    parser.add_argument('--crispr-raw', type=io.file_path('.csv'),
                         help='The raw CRISPR gene effect data. File name '
-                             'should match *gene_effect.csv')
-    parser.add_argument('--rnai-raw',
+                             'is usually Achilles_gene_effect.csv')
+    parser.add_argument('--rnai-raw', type=io.file_path('.csv'),
                         help='The raw RNAi gene dependency data. File name '
-                             'should match *gene_dep_scores.csv')
+                             'is usually D2_combined_gene_dep_scores.csv')
     # Option to start from raw correlations matrix instead of running
     # correlation calculation directly
-    parser.add_argument('--crispr-corr',
+    parser.add_argument('--crispr-corr', type=io.file_path('.h5'),
                         help='The file containing an hdf compressed '
                              'correlation data frame of the crispr data. If '
                              'this file is provided, the raw crispr data is '
                              'ignored.')
-    parser.add_argument('--rnai-corr',
+    parser.add_argument('--rnai-corr', type=io.file_path('.h5'),
                         help='The file containing an hdf compressed '
                              'correlation data frame of the rnai data. If '
                              'this file is provided, the raw rnai data is '
@@ -313,38 +330,45 @@ if __name__ == '__main__':
     parser.add_argument('--output-dir', '-o',
                         help='Optional. A directory where to put the '
                              'output of the script. If not provided the '
-                             'ouput will go to the directory/ies where '
-                             'the corresponding input came from, i.e. the '
-                             'output from the RNAi input will be placed '
-                             'in the RNAi input directory. The combined '
-                             'z-score matrix will be written to the crispr '
-                             'input directory if this option is not '
-                             'provided.')
+                             'output will go to the directory/ies where '
+                             'the corresponding input data came from, '
+                             'e.g. the output from the RNAi input will be '
+                             'placed in the RNAi input directory. The '
+                             'combined z-score matrix will be written to the '
+                             'crispr input directory if this option is not '
+                             'provided. Note that s3 URL are not allowed as '
+                             'pd.DataFrame.to_hdf does not support urls or '
+                             'buffers at the moment.')
     parser.add_argument('--random', '-r', type=int,
                         help='Optional. If specified, provide the size of '
                              'the final correlation matrix where the genes '
                              'are picked at random from the intersection of '
                              'genes from both the RNAI and CRISPR data sets.')
-    parser.add_argument('--fname', help='A file name for the output '
-                                        'correlations DataFrame.')
+    parser.add_argument('--fname',
+                        help='A file name for the output correlation '
+                             'DataFrame.')
+    parser.add_argument('--save-corr', action='store_true',
+                        help='Also save the intermediate z-scored '
+                             'correlations matrices from each of the input '
+                             'data files.')
 
     args = parser.parse_args()
-    options = {
-        'crispr_raw': args.crispr_raw,
-        'rnai_raw': args.rnai_raw,
-        'crispr_corr': args.crispr_corr,
-        'rnai_corr': args.rnai_corr,
-        'output_dir': args.output_dir,
-        'random_sampl': args.random
-    }
 
     # Run main script
-    z_corr = run_corr_merge(**options)
+    z_corr = run_corr_merge(crispr_raw=args.crispr_raw,
+                            rnai_raw=args.rnai_raw,
+                            crispr_corr=args.crispr_corr,
+                            rnai_corr=args.rnai_corr,
+                            output_dir=args.output_dir,
+                            random_sampl=args.random,
+                            remove_self_corr=False,
+                            save_corr_files=args.save_corr)
 
     # Write merged correlations combined z score
-    outdir = args.output_dir if args.output_dir else (Path(
+    outdir: Path = Path(args.output_dir) if args.output_dir else (Path(
         args.crispr_corr).parent.as_posix() if args.crispr_corr else Path(
         args.crispr_raw).parent.as_posix())
     logger.info(f'Writing combined correlations to {outdir}')
     fname = args.fname if args.fname else 'combined_z_score.h5'
+    outdir.mkdir(parents=True, exist_ok=True)
     z_corr.to_hdf(Path(outdir, fname), 'zsc')
