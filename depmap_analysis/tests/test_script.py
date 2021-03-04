@@ -128,17 +128,26 @@ def test_iterator_slicing():
     assert chunk_ix + 1 == chunks_wanted, \
         f'chunk_ix+1={chunk_ix + 1}, chunks_wanted={chunks_wanted}'
 
-    # Redo the same with permute==True
+    # Redo the same with subset of names
+    name_subset = list(np.random.choice(a.columns.values,
+                                        size=size // 3,
+                                        replace=False))
+    # Add a name that does not exist in the original df
+    name_subset.append(size+2)
+
     # Get total pairs available
-    total_pairs_permute = get_pairs(a, permute=True)
+    total_pairs_permute = get_pairs(a, subset_list=name_subset)
 
     # Chunks wanted
     chunks_wanted = 10
 
     chunksize = get_chunk_size(chunks_wanted, total_pairs_permute)
 
-    chunk_iter = batch_iter(iterator=corr_matrix_to_generator(a, permute=True),
-                            batch_size=chunksize, return_func=list)
+    chunk_iter = batch_iter(
+        iterator=corr_matrix_to_generator(a, subset_list=name_subset),
+        batch_size=chunksize,
+        return_func=list
+    )
 
     pair_count = 0
     chunk_ix = 0
@@ -148,6 +157,7 @@ def test_iterator_slicing():
     # Were all pairs looped?
     assert pair_count == total_pairs_permute, \
         f'pair_count={pair_count} total_pairs={total_pairs_permute}'
+
     # Does the number of loop iterations correspond to the number of chunks
     # wanted?
     assert chunk_ix + 1 == chunks_wanted, \
@@ -193,9 +203,9 @@ def test_depmap_script():
     stats_dict, expl_dict = _match_correlation_body(
         corr_iter=corr_pairs, expl_types=func_map,
         stats_columns=stats_columns, expl_cols=expl_columns,
-        bool_columns=bool_columns, expl_mapping={}, _type=_type,
+        bool_columns=bool_columns, _type=_type,
         return_unexplained=False, reactome_dict=reactome_dict,
-        local_indranet=idg
+        local_indranet=idg, apriori_explained=None
     )
 
     assert set(stats_columns) == set(stats_dict.keys())

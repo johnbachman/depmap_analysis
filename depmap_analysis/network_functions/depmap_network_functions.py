@@ -6,7 +6,7 @@ import logging
 import itertools as itt
 from random import choices
 from math import ceil, log10
-from typing import Iterable, Optional
+from typing import Iterable, Optional, List, Union
 from collections import Mapping, OrderedDict, defaultdict
 
 import numpy as np
@@ -126,9 +126,9 @@ def csv_file_to_generator(fname, column_list):
     return (tuple(line[1]) for line in pair_corr_file.iterrows())
 
 
-def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
+def corr_matrix_to_generator(z_corr: pd.DataFrame,
                              max_pairs: Optional[int] = None,
-                             permute: Optional[bool] = False):
+                             subset_list: List[Union[str, int]] = None):
     """Return a tuple generator given a correlation matrix
     
     The function takes a correlation matrix and returns a consumable tuple 
@@ -139,56 +139,41 @@ def corr_matrix_to_generator(correlation_df_matrix: pd.DataFrame,
         A correlation matrix as a pandas dataframe
     max_pairs : Optional[int]
         The maximum number of pairs to yield
-    permute : bool
-        If True, get any non-NaN element from the matrix, excluding values
-        from the diagonal, i.e. all permutations of valid pairs.
+    subset_list : Optional[List[str]]
+        If provided, get the first of the pair from this list of entities
+        under the assumption that the entities also exist in
+        correlation_df_matrix
 
     Returns
     -------
     tuple_generator : generator object
         A generator that returns a tuple of each row
     """
-    # Todo: instead of down-sampling, consider just shuffling the matrix and
-    #  then yield until max pairs have been reached
-    # Sample at random: get a random sample of the correlation matrix that has
-    # enough non-nan values to exhaustively generate at least max_pair
-    all_pairs = get_pairs(correlation_df_matrix, permute=permute)
-    if all_pairs == 0:
-        raise ValueError('Correlation matrix is empty')
-
-    corr_df_sample = pd.DataFrame()
     if max_pairs:
-        if max_pairs >= all_pairs:
-            logger.info(f'The requested number of correlation pairs is larger '
-                        f'than the available number of pairs. Resetting '
-                        f'`max_pairs` to {all_pairs}')
-            corr_df_sample = correlation_df_matrix
+        # Sample at random: the matrix is shuffled and we can therefore pick
+        # values "in order" since the order is random and then stop after
+        # max_pairs pairs have been yielded
+        logger.info('Shuffling correlation matrix...')
+        z_corr = z_corr.sample(frac=1, axis=0)
+        z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
-        elif max_pairs < all_pairs:
-            corr_df_sample = down_sample_df(correlation_df_matrix, max_pairs)
-
-            logger.info(f'Created a random sample of the correlation matrix '
-                        f'with {get_pairs(corr_df_sample, permute=permute)} '
-                        f'extractable correlation pairs.')
-
-    # max_pairs == None: no sampling, get all non-NaN correlations;
+    if subset_list is not None:
+        pair_iter = ((a, b) for a, b in
+                     itt.product(subset_list, z_corr.columns.values)
+                     if a in z_corr.columns and a != b)
     else:
-        corr_df_sample = correlation_df_matrix
+        tr_up_indices = np.triu_indices(n=z_corr.shape[0], k=1)
+        names = z_corr.columns.values
+        pair_iter = ((names[i], names[j]) for i, j in zip(*tr_up_indices))
 
-    corr_value_matrix = corr_df_sample.values
-    gene_name_array = corr_df_sample.index.values
-    if isinstance(gene_name_array[0], tuple):
-        gene_name_array = [n[0] for n in gene_name_array]
-    if permute:
-        return ((a, b, corr_df_sample.loc[a, b])
-                for a, b in itt.permutations(gene_name_array, r=2)
-                if not np.isnan(corr_df_sample.loc[a, b]))
-    else:
-        tr_up_indices = np.triu_indices(n=len(corr_value_matrix), k=1)
-        return ((gene_name_array[i], gene_name_array[j],
-                float(corr_value_matrix[i, j]))
-                for i, j in zip(*tr_up_indices)
-                if not np.isnan(corr_value_matrix[i, j]))
+    yielded_pairs = 0
+    for a, b in pair_iter:
+        if max_pairs and yielded_pairs >= max_pairs:
+            raise StopIteration
+
+        if not np.isnan(z_corr.loc[a, b]):
+            yield a, b, z_corr.loc[a, b]
+            yielded_pairs += 1
 
 
 def _dump_master_corr_dict_to_pairs_in_csv(fname, nest_dict):
@@ -1067,7 +1052,7 @@ def get_combined_correlations(dict_of_data_sets, filter_settings,
         # Generate correlation dict
         corr_dict = get_gene_gene_corr_dict(
             tuple_generator=corr_matrix_to_generator(
-                correlation_df_matrix=filtered_corr_matrix,
+                z_corr=filtered_corr_matrix,
                 max_pairs=dataset_dict['max_pairs']
             )
         )
@@ -2161,16 +2146,20 @@ def down_sampl_size(available_pairs, size_of_matrix, wanted_pairs,
     return int(np.ceil(p*L))
 
 
-def get_pairs(corr_z: pd.DataFrame, permute: bool = False) -> int:
+def get_pairs(corr_z: pd.DataFrame,
+              subset_list: Optional[List[Union[str, int]]] = None) -> int:
     """Count the number of extractable pairs from a pandas correlation matrix
 
     Count the number of pairs that can be looped over from the DataFrame
-    correlation matrix from:
-    - permute = False: The upper triangle of the matrix (since the matrix is
-                       assumed to be symmetric) with NaN's and potential
-                       values on the diagonal ignored.
-    - permute = True: All non-diagonal, not-NaN numbers, i.e. (a, b, corr)
-                      and (b, a, corr) are treated as independent values.
+    correlation matrix from either:
+    a) subset_list is not provided:
+        The upper triangle of the matrix (since the matrix is assumed to be
+        symmetric) with NaN's and potential values on the diagonal ignored.
+    b) subset_list is provided:
+        All non-diagonal, not-NaN numbers, where a is from subset_list i.e.:
+        for a, b in product(subset_list, corr_z.columns):
+            if a in corr_z.columns and a != b:
+                yield a, b, corr_z.loc[a, b]
 
     Parameters
     ----------
@@ -2178,9 +2167,9 @@ def get_pairs(corr_z: pd.DataFrame, permute: bool = False) -> int:
         A DataFrame with correlations obtained from pandas.DataFrame.corr().
         The DataFrame is assumed to be pre-filtered such that values
         filtered out are NaN's.
-    permute : bool
-        If True, treat (a, b) and (b, a) independently and count all
-        off diagonal, not-NaN pairs. Default: False.
+    subset_list : Optional[List[str]]
+        If provided, only let a in (a, b) be from subset_list and count all
+        not-NaN, off diagonal pairs.
 
     Returns
     -------
@@ -2193,9 +2182,13 @@ def get_pairs(corr_z: pd.DataFrame, permute: bool = False) -> int:
     # Map to boolean with NaN => False, else True
     bm: pd.DataFrame = (~corr_z.isna())
 
-    if permute:
-        # Set diagonal to zeroes
+    if subset_list is not None:
+        # Set diagonal to False
         np.fill_diagonal(a=bm.values, val=False)
+
+        # Also set those rows which are not in the list to False
+        bm[~corr_z.index.isin(values=list(subset_list))] = False
+
         return int(bm.sum().sum())
     else:
         # Mask lower triangle and diagonal with zeroes
@@ -2225,7 +2218,8 @@ def get_chunk_size(n_chunks: int, total_items: int) -> int:
 
 
 def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
-                   permute: bool = False) -> pd.DataFrame:
+                   subset_list: Optional[List[Union[str, int]]] = None) \
+        -> pd.DataFrame:
     """Given a square data frame, down sample it to sample_size or close to it
 
     Parameters
@@ -2234,7 +2228,7 @@ def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
         DataFrame to down sample
     sample_size
         Goal number of extractable pairs
-    permute : bool
+    subset_list : Optional[List[Union[str, int]]]
         If True, count not-NaN off diagonal pairs of both permutations,
         i.e. both (a, b) and (b, a).
 
@@ -2245,14 +2239,14 @@ def down_sample_df(z_corr: pd.DataFrame, sample_size: int,
     """
     # Do small initial downsampling
     row_samples = len(z_corr) - 1
-    n_pairs = get_pairs(corr_z=z_corr, permute=permute)
+    n_pairs = get_pairs(corr_z=z_corr, subset_list=subset_list)
     while n_pairs > int(1.1 * sample_size):
         logger.info(f'Down sampling from {n_pairs}')
         z_corr = z_corr.sample(row_samples, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
         # Update n_pairs and row_samples
-        n_pairs = get_pairs(corr_z=z_corr, permute=permute)
+        n_pairs = get_pairs(corr_z=z_corr, subset_list=subset_list)
         mm = max(row_samples - int(np.ceil(0.05 * row_samples))
                  if n_pairs - sample_size < np.ceil(0.1 * sample_size)
                  else down_sampl_size(n_pairs, len(z_corr), sample_size),
