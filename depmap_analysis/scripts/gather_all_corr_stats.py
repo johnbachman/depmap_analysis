@@ -1,3 +1,4 @@
+import pickle
 import logging
 import argparse
 from math import floor
@@ -12,7 +13,7 @@ import pandas as pd
 from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.statistics import DepMapExplainer
 from depmap_analysis.util.io_functions import file_opener, file_path, \
-    is_dir_path
+    is_dir_path, dump_it_to_pickle
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +32,26 @@ def _joinpath(fpath: Union[S3Path, Path], other: str) -> str:
         return fpath.to_string() + other
 
 
+def _save(fpath: str, expl_inst: DepMapExplainer):
+    if fpath.startswith('s3://'):
+        try:
+            _ = expl_inst.s3_location
+        except AttributeError:
+            # For backwards compatibility
+            expl_inst.s3_location = fpath
+        logger.info(f'Uploading to {expl_inst.s3_location}')
+        s3p = expl_inst.get_s3_path()
+        s3p.upload(s3=s3, body=pickle.dumps(expl_inst))
+    else:
+        # Just dump to local pickle
+        dump_it_to_pickle(fname=fpath, pyobj=expl_inst)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Corr script looper')
     parser.add_argument(
         '--z-corr', required=True, type=file_path('h5'),
         help='The correlation matrix that was used to create the explanations'
-    )
-    parser.add_argument(
-        '--reactome', type=file_path('pkl'),
-        help='A tuple or list of dicts. The first dict is expected to'
-             'contain mappings from UP IDs of genes to Reactome pathway IDs.'
-             'The second dict is expected to contain the reverse mapping '
-             '(i.e Reactome IDs to UP IDs). The third dict is expected to '
-             'contain mappings from Reactome IDs to their descriptions.'
     )
     parser.add_argument(
         '--base-path', required=True, type=is_dir_path(),
@@ -97,10 +105,7 @@ if __name__ == '__main__':
     outdir: str = args.outdir
     single_proc: bool = args.single_proc
 
-    if base_path.startswith('s3://') or outdir.startswith('s3://'):
-        s3 = boto3.client('s3')
-    else:
-        s3 = None
+    s3 = boto3.client('s3')
 
     # Set input dir
     if base_path.startswith('s3://'):
@@ -136,19 +141,14 @@ if __name__ == '__main__':
     logger.info(f'Loading correlation file {args.z_corr}')
     if not dry:
         z_corr = pd.read_hdf(args.z_corr)
-        if args.reactome:
-            logger.info(f'Loading reactome file {args.reactome}')
-            reactome = file_opener(args.reactome)
-        else:
-            reactome = None
     else:
         if not Path(args.z_corr).is_file():
             raise FileNotFoundError(f'{args.z_corr} was not found')
         z_corr = pd.DataFrame()
-        reactome = None
 
     # Create a global indexer to separate each figure
     indexer = count(0)
+    processed_explainers = []
     for explainer_file in input_iter:
         logger.info(
             f'> > > > '
@@ -169,10 +169,18 @@ if __name__ == '__main__':
                 logger.warning(f'File {explainer_file} is not '
                                f'DepMapExplainer, skipping...')
                 continue
+            # Backwards compatibility: check if s3_location attribute
+            # exists, otherwise set it and then re-upload. If attribute
+            # exists but is not set, set it and re-upload
+            try:
+                if not explainer.s3_location:
+                    _save(fpath=explainer_file, expl_inst=explainer)
+            except AttributeError:
+                _save(fpath=explainer_file, expl_inst=explainer)
+
             # Run stuff
             explainer.plot_corr_stats(outdir=explainer_out,
                                       z_corr=z_corr,
-                                      reactome=reactome,
                                       show_plot=False,
                                       max_proc=max_proc,
                                       index_counter=indexer,
