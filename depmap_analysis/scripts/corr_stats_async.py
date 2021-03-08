@@ -1,5 +1,6 @@
 from time import time
 from ctypes import c_wchar_p
+from typing import Union, Set, List, Tuple, Dict
 from datetime import datetime
 from collections import Counter
 from multiprocessing import Pool, cpu_count, Array, current_process
@@ -7,19 +8,23 @@ import logging
 import random
 
 import numpy as np
+import pandas as pd
 from pybel.dsl.node_classes import CentralDogma
+from pydantic import BaseModel
 
 from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
-    bxa_colname, ab_colname, ba_colname, st_colname
+    bxa_colname, ab_colname, ba_colname, st_colname, apriori_colname, \
+    react_colname
 from indra.util.multiprocessing_traceback import WrapException
-from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id,\
+from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id, \
     uniprot_ids, get_hgnc_name
 
 logger = logging.getLogger(__name__)
 
 uniprot_ids_reverse = {v: k for k, v in uniprot_ids.items()}
 
-global_results = []
+global_results: \
+    List[Dict[str, List[Union[float, Tuple[str, str, float]]]]] = []
 global_results_pairs = []
 global_vars = {}
 list_of_genes = []
@@ -48,10 +53,33 @@ def error_callback(err):
     logger.exception(err)
 
 
+class Results(BaseModel):
+    """The results data model"""
+    all_x_corrs: List[float] = []
+    avg_x_corrs: List[float] = []
+    top_x_corrs: List[Tuple[str, str, float]] = []
+    all_azb_corrs: List[float] = []
+    azb_avg_corrs: List[float] = []
+    all_azfb_corrs: List[float] = []  # Background for filtered A,B
+    azfb_avg_corrs: List[float] = []
+    all_reactome_corrs: List[float] = []
+    reactome_avg_corrs: List[float] = []
+    all_x_filtered_corrs: List[float] = []
+    avg_x_filtered_corrs: List[float] = []
+
+
 class GlobalVars(object):
-    def __init__(self, df=None, z_cm=None, reactome=None, sampl=10):
-        if df is not None:
-            global_vars['df'] = df
+    def __init__(self,
+                 expl_df: pd.DataFrame = None,
+                 stats_df: pd.DataFrame = None,
+                 z_cm: pd.DataFrame = None,
+                 reactome: Dict[str, List[str]] = None,
+                 sampl: int = 10,
+                 verbose: bool = False):
+        if expl_df is not None:
+            global_vars['expl_df'] = expl_df
+        if stats_df is not None:
+            global_vars['stats_df'] = stats_df
         if sampl:
             global_vars['subset_size'] = sampl
         if reactome:
@@ -62,6 +90,7 @@ class GlobalVars(object):
             list_of_genes = Array(c_wchar_p,
                                   np.array(z_cm.columns.values),
                                   lock=False)
+        global_vars['verbose'] = verbose
 
     @staticmethod
     def update_global_vars(**kwargs):
@@ -78,7 +107,7 @@ class GlobalVars(object):
         return set(global_vars.keys())
 
     @staticmethod
-    def assert_global_vars(varnames):
+    def assert_global_vars(varnames: Set[str]):
         """
 
         varnames : set(str)
@@ -94,13 +123,14 @@ class GlobalVars(object):
     @staticmethod
     def assert_vars():
         """Same as assert_global_vars but with the shared array as well"""
-        df_exists = global_vars.get('df', False) is not False
+        expl_df_exists = global_vars.get('expl_df', False) is not False
+        stats_df_exists = global_vars.get('stats_df', False) is not False
         z_cm_exists = global_vars.get('z_cm', False) is not False
         reactome_exists = global_vars.get('reactome', False) is not False
         ssize_exists = global_vars.get('subset_size', False) is not False
         shared_ar_exists = bool(len(list_of_genes[:]))
-        return df_exists and z_cm_exists and reactome_exists and \
-            ssize_exists and shared_ar_exists
+        return expl_df_exists and stats_df_exists and z_cm_exists and \
+               reactome_exists and ssize_exists and shared_ar_exists
 
 
 # ToDo: make one work submitting function as a wrapper and provide the inner
@@ -161,16 +191,10 @@ def get_pairs_mp(ab_corr_pairs, max_proc=cpu_count(), max_pairs=10000):
 
 def get_pairs(corr_pairs):
     # Get global args
-    expl_df = global_vars['df']
-
-    # Pairs where a-x-b AND a-b explanation exists
-    pairs_axb_direct = set()
+    expl_df = global_vars['expl_df']
 
     # Pairs where a-x-b AND NOT a-b explanation exists
     pairs_axb_only = set()
-
-    # all a-x-b "pathway" explanations, should be union of the above two
-    pairs_any_axb = set()
 
     for s, o in corr_pairs:
         # Make sure we don't try to explain self-correlations
@@ -178,7 +202,7 @@ def get_pairs(corr_pairs):
             continue
         # Get all interaction types associated with given subject s and
         # object o
-        int_types = set(expl_df['expl type'][(expl_df['agA'] == s) &
+        int_types = set(expl_df['expl_type'][(expl_df['agA'] == s) &
                                              (expl_df['agB'] == o)].values)
         # Check intersection of types
         axb_types = {axb_colname, bxa_colname,
@@ -188,92 +212,123 @@ def get_pairs(corr_pairs):
                 in int_types:
             pairs_axb_only.add((s, o))
 
-    # The union should be all pairs where a-x-b explanations exist
-    ab_axb_union = pairs_axb_direct.union(pairs_axb_only)
-    assert ab_axb_union == pairs_any_axb
     return pairs_axb_only
 
 
-def get_corr_stats_mp(so_pairs, max_proc=cpu_count()):
+def get_corr_stats_mp(so_pairs, max_proc=cpu_count(),
+                      run_linear: bool = False) -> Results:
     logger.info(
         f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
         f'with about {len(so_pairs)} pairs to check')
     tstart = time()
 
-    max_proc = min(cpu_count(), max_proc)
-    if max_proc < 1:
-        logger.warning('Max processes is set to < 1, resetting to 1')
-        max_proc = 1
+    if not run_linear:
+        max_proc = min(cpu_count(), max_proc)
+        if max_proc < 1:
+            logger.warning('Max processes is set to < 1, resetting to 1')
+            max_proc = 1
 
-    with Pool(max_proc) as pool:
-        # Split up so_pairs in equal chunks
-        size = len(so_pairs) // max_proc + 1 if max_proc > 1 else 1
-        lst_gen = _list_chunk_gen(lst=list(so_pairs),
-                                  size=size,
-                                  shuffle=True)
-        for pairs in lst_gen:
-            pool.apply_async(
-                func=get_corr_stats,
-                args=(pairs, ),
-                callback=success_callback,
-                error_callback=error_callback
-            )
-        logger.info('Done submitting work to pool of workers')
-        pool.close()
-        logger.info('Pool is closed')
-        pool.join()
-        logger.info('Pool is joined')
+        with Pool(max_proc) as pool:
+            # Split up so_pairs in equal chunks
+            size = len(so_pairs) // max_proc + 1 if max_proc > 1 else 1
+            lst_gen = _list_chunk_gen(lst=list(so_pairs),
+                                      size=size,
+                                      shuffle=True)
+            for pairs in lst_gen:
+                pool.apply_async(
+                    func=get_corr_stats,
+                    args=(pairs, False),
+                    callback=success_callback,
+                    error_callback=error_callback
+                )
+            logger.info('Done submitting work to pool of workers')
+            pool.close()
+            logger.info('Pool is closed')
+            pool.join()
+            logger.info('Pool is joined')
+    else:
+        logger.info('Executing in one process')
+        get_corr_stats_linearly(list(so_pairs))
     logger.info(f'Execution time: {time() - tstart} seconds')
     logger.info(f'Done at {datetime.now().strftime("%H:%M:%S")}')
 
     logger.info(f'Assembling {len(global_results)} results')
-    results = [[], [], [], [], [], [], []]
+    results = Results()
     for done_res in global_results:
-        # Var name: all_x_corrs; Dict key: 'all_axb_corrs'
-        results[0] += done_res['all_axb_corrs']
-        # Var name: avg_x_corrs; Dict key: axb_avg_corrs
-        results[1] += done_res['axb_avg_corrs']
-        # Var name: top_x_corrs; Dict key: top_axb_corrs
-        results[2] += done_res['top_axb_corrs']
-        # Var name: all_azb_corrs; Dict key: all_azb_corrs
-        results[3] += done_res['all_azb_corrs']
-        # Var name: azb_avg_corrs; Dict key: azb_avg_corrs
-        results[4] += done_res['azb_avg_corrs']
-        # Var name: all_reactome_corrs; Dict key: all_reactome_corrs
-        results[5] += done_res['all_reactome_corrs']
-        # Var name: reactome_avg_corrs; Dict key: reactome_avg_corrs
-        results[6] += done_res['reactome_avg_corrs']
+        # axb in network
+        results.all_x_corrs += done_res['all_axb_corrs']
+        results.avg_x_corrs += done_res['axb_avg_corrs']
+        results.top_x_corrs += done_res['top_axb_corrs']
+
+        # Background
+        results.all_azb_corrs += done_res['all_azb_corrs']
+        results.azb_avg_corrs += done_res['azb_avg_corrs']
+
+        # Reactome "bag-of-genes" data
+        results.all_reactome_corrs += done_res['all_reactome_corrs']
+        results.reactome_avg_corrs += done_res['reactome_avg_corrs']
+
+        # Filtered axb in graph
+        results.all_x_filtered_corrs += done_res['all_axb_filtered_corrs']
+        results.avg_x_filtered_corrs += done_res['axb_filtered_avg_corrs']
+
+        # Filtered background
+        results.all_azfb_corrs += done_res['all_azfb_corrs']
+        results.azfb_avg_corrs += done_res['azfb_avg_corrs']
+
     return results
 
 
-def get_corr_stats(so_pairs):
+def get_corr_stats_linearly(so_pairs):
+    """A single process wrapper for get_corr_stats"""
+    res = get_corr_stats(so_pairs, run_single_proc=True)
+    global_results.append(res)
+
+
+def get_corr_stats(so_pairs, run_single_proc: bool = False) \
+        -> Dict[str, List[float]]:
+    # ToDo: Switch to numpy arrays
     try:
         global list_of_genes
-        df = global_vars['df']
+        expl_df = global_vars['expl_df']
+        stats_df = global_vars['stats_df']
         z_corr = global_vars['z_cm']
         reactome = global_vars.get('reactome')
         subset_size = global_vars['subset_size']
         chunk_size = max(len(list_of_genes[:]) // subset_size, 1)
 
+        # Gather data from paths found by indra
         all_axb_corrs = []
         top_axb_corrs = []
         axb_avg_corrs = []
 
+        # Gather data from paths fround by indra, but filter out those
+        # explained by mito, reactome and direct
+        axb_filtered_avg_corrs = []
+        all_axb_filtered_corrs = []
+
+        # Sample filtered background data per pair
+        azfb_avg_corrs = []
+        all_azfb_corrs = []
+
+        # Sample background data per pair
         azb_avg_corrs = []
         all_azb_corrs = []
 
+        # Gather data for reactome explanations
         reactome_avg_corrs = []
         all_reactome_corrs = []
 
         # reset counters
         counter = Counter({'r_skip': 0,
                            'z_skip': 0,
-                           'x_skip': 0})
+                           'x_skip': 0,
+                           'xf_skip': 0})
 
         for subj, obj in so_pairs:
             # Get x values
             (avg_x_corrs_per_ab, axb_corrs), x_len = \
-                get_interm_corr_stats_x(subj, obj, z_corr, df)
+                get_interm_corr_stats_x(subj, obj, z_corr, expl_df)
             all_axb_corrs += axb_corrs
             if len(avg_x_corrs_per_ab) > 0:
                 max_magn_avg = max(avg_x_corrs_per_ab)
@@ -281,8 +336,24 @@ def get_corr_stats(so_pairs):
                 top_axb_corrs.append((subj, obj, max_magn_avg))
             counter['x_skip'] += x_len - len(avg_x_corrs_per_ab)
 
-            # Get z values
+            # Get filtered x-values
+            (avg_xf_corrs_per_ab, axb_filt_corrs), xf_len = \
+                get_filtered_corr_stats_x(subj, obj, z_corr, expl_df, stats_df)
+            axb_filtered_avg_corrs += avg_xf_corrs_per_ab
+            all_axb_filtered_corrs += axb_filt_corrs
+            counter['xf_skip'] += xf_len - len(avg_xf_corrs_per_ab)
+
+            # Get z values for background sampling
             z_iter = np.random.choice(list_of_genes[:], chunk_size, False)
+
+            # Get background for filtered A, B
+            avg_zf_corrs_per_ab, azfb_corrs = \
+                get_interm_corr_stats_zf(subj, obj, z_iter, z_corr, expl_df,
+                                         stats_df)
+            azfb_avg_corrs += avg_zf_corrs_per_ab
+            all_azfb_corrs += azfb_corrs
+
+            # Get unfiltered background
             avg_z_corrs_per_ab, azb_corrs = \
                 get_interm_corr_stats_z(subj, obj, z_iter, z_corr)
             azb_avg_corrs += avg_z_corrs_per_ab
@@ -298,7 +369,9 @@ def get_corr_stats(so_pairs):
                 counter['r_skip'] += r_len - len(avg_reactome_corrs_per_ab)
 
         assert_list = [all_axb_corrs, axb_avg_corrs, top_axb_corrs,
-                       all_azb_corrs, azb_avg_corrs]
+                       all_azb_corrs, azb_avg_corrs,
+                       azfb_avg_corrs, all_azfb_corrs,
+                       axb_filtered_avg_corrs, all_axb_filtered_corrs]
         if reactome:
             assert_list += [all_reactome_corrs, reactome_avg_corrs]
         try:
@@ -310,10 +383,16 @@ def get_corr_stats(so_pairs):
                 f'Stats: all_axb_corrs: {len(all_axb_corrs)}, '
                 f'axb_avg_corrs: {len(axb_avg_corrs)}, '
                 f'top_axb_corrs: {len(top_axb_corrs)}, '
+                f'azfb_avg_corrs: {len(azfb_avg_corrs)}, '
+                f'all_azfb_corrs: {len(all_azfb_corrs)}, '
                 f'all_azb_corrs: {len(all_azb_corrs)}, '
                 f'azb_avg_corrs: {len(azb_avg_corrs)}, '
-                f'all_reactome_corrs: {len(all_reactome_corrs)}, '
-                f'reactome_avg_corrs: {len(reactome_avg_corrs)}'
+                f'all_reactome_corrs (only if provided):'
+                f' {len(all_reactome_corrs)}, '
+                f'reactome_avg_corrs (only if provided):'
+                f' {len(reactome_avg_corrs)}, '
+                f'axb_filtered_avg_corrs: {len(axb_filtered_avg_corrs)} '
+                f'all_axb_filtered_corrs: {len(all_axb_filtered_corrs)} '
             ) from exc
 
         logger.info('Counting skips...')
@@ -329,27 +408,53 @@ def get_corr_stats(so_pairs):
         return {'all_axb_corrs': all_axb_corrs,
                 'axb_avg_corrs': axb_avg_corrs,
                 'top_axb_corrs': top_axb_corrs,
+                'azfb_avg_corrs': azfb_avg_corrs,
+                'all_azfb_corrs': all_azfb_corrs,
                 'all_azb_corrs': all_azb_corrs,
                 'azb_avg_corrs': azb_avg_corrs,
                 'all_reactome_corrs': all_reactome_corrs,
-                'reactome_avg_corrs': reactome_avg_corrs}
-    except Exception:
-        raise WrapException()
+                'reactome_avg_corrs': reactome_avg_corrs,
+                'axb_filtered_avg_corrs': axb_filtered_avg_corrs,
+                'all_axb_filtered_corrs': all_axb_filtered_corrs}
+    except Exception as exc:
+        if run_single_proc:
+            raise exc
+        else:
+            raise WrapException()
 
 
-def get_interm_corr_stats_x(subj, obj, z_corr, df):
-    path_rows = df[(df['agA'] == subj) &
-                   (df['agB'] == obj) &
-                   ((df['expl type'] == axb_colname) |
-                    (df['expl type'] == bxa_colname) |
-                    (df['expl type'] == st_colname))]
-    x_set = set()
+def get_interm_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
+                            expl_df: pd.DataFrame) \
+        -> Tuple[Tuple[List[float], List[float]], int]:
+    """Wrapper to get the a-x-b correlation data from explained a-x-b relations
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+
+    Returns
+    -------
+    Tuple[Tuple[List[float], List[float]], int]
+    """
+    path_rows = expl_df[(expl_df['agA'] == subj) &
+                        (expl_df['agB'] == obj) &
+                        ((expl_df['expl_type'] == axb_colname) |
+                         (expl_df['expl_type'] == bxa_colname) |
+                         (expl_df['expl_type'] == st_colname))]
+    x_set: Set[str] = set()
     for ix, path_row in path_rows.iterrows():
         # Data is in a 4-tuple for shared targets:
         # subj successors, obj predecessors, x intersection, x union
         # For a-x-b, b-x-a the data is not nested
-        x_iter = path_row['expl data'][2] if \
-            path_row['expl type'] == st_colname else path_row['expl data']
+        x_iter = path_row['expl_data'][2] if \
+            path_row['expl_type'] == st_colname else path_row['expl_data']
         x_names = \
             [x.name if isinstance(x, CentralDogma) else x for
              x in x_iter if x not in (subj, obj)]
@@ -357,11 +462,137 @@ def get_interm_corr_stats_x(subj, obj, z_corr, df):
     return _get_interm_corr_stats(subj, obj, x_set, z_corr), len(x_set)
 
 
-def get_interm_corr_stats_z(subj, obj, z_set, z_corr):
+def _check_interesting(subj: str, obj: str, expl_df: pd.DataFrame,
+                       stats_df: pd.DataFrame) -> bool:
+    """Filter the pair to: not direct, not explained by reactome or apriori
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+    stats_df : pd.DataFrame
+        The statistics data frame from the input data
+
+    Returns
+    -------
+    bool
+        If the pair passes the filter
+    """
+    pair_key = expl_df[(expl_df['agA'] == subj) &
+                       (expl_df['agB'] == obj)].pair.values[0]
+    # There should be only one row per pair_key
+    stats_row = stats_df[stats_df.pair == pair_key]
+
+    ab = stats_row[ab_colname].bool()
+    ba = stats_row[ba_colname].bool()
+    st = stats_row[st_colname].bool()
+    axb = stats_row[axb_colname].bool()
+    bxa = stats_row[bxa_colname].bool()
+    react = stats_row[react_colname].bool()
+    apriori = stats_row[apriori_colname].bool()
+
+    return (axb or bxa or st) and \
+        not ab and not ba and not react and not apriori
+
+
+def get_filtered_corr_stats_x(subj: str, obj: str, z_corr: pd.DataFrame,
+                              expl_df: pd.DataFrame, stats_df: pd.DataFrame) \
+        -> Tuple[Tuple[List[float], List[float]], int]:
+    """Wrapper to get the a-x-b correlation data from some a-x-b explanations
+
+    This function does exactly the same data extraction as
+    get_interm_corr_stats_x, but filters out those explanations that don't
+    pass the filter
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+        and stats_df
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+    stats_df : pd.DataFrame
+        The statistics data frame from the input data
+
+    Returns
+    -------
+    Tuple[Tuple[List[float], List[float]], int]
+    """
+    if _check_interesting(subj, obj, expl_df, stats_df):
+        return get_interm_corr_stats_x(subj, obj, z_corr, expl_df)
+    return ([], []), 0
+
+
+def get_interm_corr_stats_zf(subj: str, obj: str, z_set: List[str],
+                             z_corr: pd.DataFrame, expl_df: pd.DataFrame,
+                             stats_df: pd.DataFrame) \
+        -> Tuple[List[float], List[float]]:
+    """Get correlation data from pairs that pass the filter
+
+    This function does the same data extraction as get_interm_corr_stats_z,
+    but skips A, B pairs that don't pass the filter.
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_set : List[str]
+        A list of randomly sampled intermediate entities to get the a-z,
+        z-b correlations from
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+        and stats_df
+    expl_df : pd.DataFrame
+        The explanation data frame from the input data
+    stats_df : pd.DataFrame
+        The statistics data frame from the input data
+
+    Returns
+    -------
+    Tuple[List[str], List[str]]
+    """
+    if _check_interesting(subj, obj, expl_df, stats_df):
+        return get_interm_corr_stats_z(subj, obj, z_set, z_corr)
+    return [], []
+
+
+def get_interm_corr_stats_z(subj: str, obj: str, z_set: List[str],
+                            z_corr: pd.DataFrame) \
+        -> Tuple[List[float], List[float]]:
+    """
+
+    Parameters
+    ----------
+    subj : str
+        The entity corresponding to A in A,B
+    obj : str
+        The entity corresponding to B in A,B
+    z_set : List[str]
+        A list of randomly sampled intermediate entities to get the a-z,
+        z-b correlations from
+    z_corr : pd.DataFrame
+        The correlation dataframe used to produce the input data in expl_df
+        and stats_df
+
+    Returns
+    -------
+    Tuple[List[str], List[str]]
+    """
     return _get_interm_corr_stats(subj, obj, z_set, z_corr)
 
 
-def get_interm_corr_stats_reactome(subj, obj, reactome, z_corr):
+def get_interm_corr_stats_reactome(subj, obj, reactome, z_corr) \
+        -> Tuple[Tuple[List[float], List[float]], int]:
     pathways_by_gene, genes_by_pathway, _ = reactome
     subj_up = _hgncsym2up(subj)
     if subj_up is None:
@@ -382,7 +613,9 @@ def get_interm_corr_stats_reactome(subj, obj, reactome, z_corr):
     return ([], []), len(hgnc_gene_set)
 
 
-def _get_interm_corr_stats(a, b, y_set, z_corr):
+def _get_interm_corr_stats(a: str, b: str, y_set: Union[List[str], Set[str]],
+                           z_corr: pd.DataFrame) \
+        -> Tuple[List[float], List[float]]:
     # Get a list of the maximum ax-bx average per pair
     avg_y_corrs_per_ab = []
 
@@ -401,11 +634,12 @@ def _get_interm_corr_stats(a, b, y_set, z_corr):
             ay_corr = z_corr.loc[y, a]
             by_corr = z_corr.loc[y, b]
             if np.isnan(ay_corr) or np.isnan(by_corr):
+                if global_vars['verbose']:
+                    logger.info(
+                        f'NaN correlations for subj-y ({str(a)}-{str(y)}) or '
+                        f'obj-y ({str(b)}-{str(y)})'
+                    )
                 # Is there a more efficient way of doing this?
-                logger.info(
-                    f'NaN correlations for subj-y ({str(a)}-{str(y)}) or '
-                    f'obj-y ({str(b)}-{str(y)})'
-                )
                 c.update('y_corr_none')
                 continue
 
@@ -419,16 +653,17 @@ def _get_interm_corr_stats(a, b, y_set, z_corr):
                 f'({a.__class__}), object {str(b)} '
                 f'({b.__class__}) and intermediate {str(y)} ({y.__class__})'
             ) from ke
-    if c['y_corr_none'] > 0:
-        logger.warning(f'Skipped {c["y_corr_none"]} pairs because of nan '
-                       f'values')
-    if c['y_none'] > 0:
-        logger.warning(f'Skipped {c["y_none"]} pairs because y was None or '
-                       f'self correlation or y, a or b not being in z_corr')
+    if global_vars['verbose']:
+        if c['y_corr_none'] > 0:
+            logger.warning(f'Skipped {c["y_corr_none"]} pairs because of nan '
+                           f'values')
+        if c['y_none'] > 0:
+            logger.warning(f'Skipped {c["y_none"]} pairs because y was None or '
+                           f'self correlation or y, a or b not being in z_corr')
     return avg_y_corrs_per_ab, all_ayb_corrs
 
 
-def _hgncsym2up(hgnc_symb):
+def _hgncsym2up(hgnc_symb: str) -> str:
     hgnc_id = get_current_hgnc_id(hgnc_symb)
     if isinstance(hgnc_id, list):
         ix = 0
@@ -444,5 +679,5 @@ def _hgncsym2up(hgnc_symb):
     return upid
 
 
-def _up2hgncsym(up_id):
+def _up2hgncsym(up_id: str) -> str:
     return get_hgnc_name(uniprot_ids_reverse.get(up_id))

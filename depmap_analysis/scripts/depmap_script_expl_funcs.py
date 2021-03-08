@@ -24,7 +24,7 @@ from depmap_analysis.network_functions.net_functions import \
     gilda_normalization, INT_PLUS, INT_MINUS
 
 __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
-           'expl_functions', 'funcname_to_colname', 'apriori', 'axb_colname',
+           'expl_functions', 'funcname_to_colname', 'apriori_colname', 'axb_colname',
            'bxa_colname', 'ab_colname', 'ba_colname', 'st_colname',
            'sr_colname', 'sd_colname', 'cp_colname', 'react_colname',
            'react_funcname']
@@ -991,7 +991,7 @@ react_funcname = 'common_reactome_paths'
 expl_functions = {f.__name__: f for f in expl_func_list}
 
 # Set colnames to variables
-apriori = funcname_to_colname['apriori_explained']
+apriori_colname = funcname_to_colname['apriori_explained']
 axb_colname = funcname_to_colname['expl_axb']
 bxa_colname = funcname_to_colname['expl_bxa']
 ab_colname = funcname_to_colname['expl_ab']

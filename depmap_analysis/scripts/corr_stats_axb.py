@@ -4,23 +4,33 @@ is an intermediate between gene pair a-b.
 import sys
 import ast
 import pickle
+import random
 import logging
 from os import path
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp
 from depmap_analysis.scripts.depmap_script_expl_funcs import axb_colname, \
     bxa_colname, ab_colname, ba_colname, st_colname
+from .corr_stats_async import get_corr_stats_mp, GlobalVars, get_pairs_mp, \
+    Results
 
-logger = logging.getLogger('DepMap Corr Stats')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
-         max_corr_pairs=10000, do_mp_pairs=True):
+def main(expl_df: pd.DataFrame, stats_df: pd.DataFrame, z_corr: pd.DataFrame,
+         reactome: Optional[Tuple[Dict[str, List[str]],
+                                  Dict[str, List[str]],
+                                  Dict[str, str]]] = None,
+         eval_str: Optional[bool] = False,
+         max_proc: Optional[int] = None,
+         max_corr_pairs: int = 10000,
+         do_mp_pairs: Optional[bool] = True,
+         run_linear: bool = False) -> Results:
     """Get statistics of the correlations associated with different
     explanation types
 
@@ -28,7 +38,12 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
     ----------
     expl_df: pd.DataFrame
         A pd.DataFrame containing all available explanations for the pairs
-        of genes in z_corr
+        of genes in z_corr. Available in the DepmapExplainer as
+        DepmapExplainer.expl_df.
+    stats_df: pd.DataFrame
+        A pd.DataFrame containing all checked A-B pairs and if they are
+        explained or not. Available in the DepmapExplainer as
+        DepmapExplainer.stats_df.
     z_corr : pd.DataFrame
         A pd.DataFrame of correlation z scores
     reactome : tuple[dict]|list[dict]
@@ -38,7 +53,7 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
         to UP IDs). The third dict is expected to contain mappings from the
         Reactome IDs to their descriptions.
     eval_str : bool
-        If True, run ast.literal_eval() on the 'expl data' column of expl_df
+        If True, run ast.literal_eval() on the 'expl_data' column of expl_df
     max_proc : int > 0
         The maximum number of processes to run in the multiprocessing in
         get_corr_stats_mp. Default: multiprocessing.cpu_count()
@@ -50,10 +65,14 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
     do_mp_pairs : bool
         If True, get the pairs to process using multiprocessing if larger
         than 10 000. Default: True.
+    run_linear : bool
+        If True, run the script without multiprocessing. This option is good
+        when debugging or if the environment for some reason does not
+        support multiprocessing. Default: False.
 
     Returns
     -------
-    dict
+    Results
         A Dict containing correlation data for different explanations
     """
     # Limit to any a-x-b OR a-b expl (this COULD include explanations where
@@ -61,33 +80,31 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
     # very small set)
     logger.info("Filter expl_df to pathway, direct, shared_target")
     expl_df = expl_df[
-        (expl_df['expl type'] == axb_colname) |
-        (expl_df['expl type'] == bxa_colname) |
-        (expl_df['expl type'] == ab_colname) |
-        (expl_df['expl type'] == ba_colname) |
-        (expl_df['expl type'] == st_colname)
+        (expl_df['expl_type'] == axb_colname) |
+        (expl_df['expl_type'] == bxa_colname) |
+        (expl_df['expl_type'] == ab_colname) |
+        (expl_df['expl_type'] == ba_colname) |
+        (expl_df['expl_type'] == st_colname)
     ]
 
     # Re-map the columns containing string representations of objects
     if eval_str:
-        expl_df['expl data'] = \
-            expl_df['expl data'].apply(lambda x: ast.literal_eval(x))
+        expl_df['expl_data'] = \
+            expl_df['expl_data'].apply(lambda x: ast.literal_eval(x))
 
-    # Get all correlation pairs
+    # Get all correlation pairs that were explained
     all_ab_corr_pairs = set(map(lambda p: tuple(p),
                                 expl_df[['agA', 'agB']].values))
 
-    gbv = GlobalVars(df=expl_df, sampl=16)
-    if do_mp_pairs and len(all_ab_corr_pairs) > 10000:
+    gbv = GlobalVars(expl_df=expl_df, stats_df=stats_df, sampl=16)
+    if not run_linear and do_mp_pairs and len(all_ab_corr_pairs) > 10000:
         # Do multiprocessing
         logger.info('Getting axb subj-obj pairs through multiprocessing')
-        gbv.assert_global_vars({'df'})
+        gbv.assert_global_vars({'expl_df', 'stats_df'})
         pairs_axb_only = get_pairs_mp(all_ab_corr_pairs, max_proc=max_proc,
                                       max_pairs=max_corr_pairs)
     else:
         logger.info('Assembling axb subj-obj pairs linearly')
-        # Pairs where a-x-b AND a-b explanation exists
-        pairs_axb_direct = set()
 
         # Pairs where a-x-b AND NOT a-b explanation exists
         pairs_axb_only = set()
@@ -100,7 +117,7 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
 
             # Get all interaction types associated with s and o
             int_types = \
-                set(expl_df['expl type'][(expl_df['agA'] == s) &
+                set(expl_df['expl_type'][(expl_df['agA'] == s) &
                                          (expl_df['agB'] == o)].values)
 
             # Filter to a-x-b, b-x-a, st
@@ -113,50 +130,37 @@ def main(expl_df, z_corr, reactome=None, eval_str=False, max_proc=None,
                     ba_colname not in int_types:
                 pairs_axb_only.add((s, o))
 
+        # Check if we need to sample
+        if max_corr_pairs and max_corr_pairs < len(pairs_axb_only):
+            logger.info(f'Down sampling number of pairs to {max_corr_pairs}')
+            pairs_axb_only = random.sample(pairs_axb_only, max_corr_pairs)
+
     # Check for and remove self correlations
     if not np.isnan(z_corr.loc[z_corr.columns[0], z_corr.columns[0]]):
         logger.info('Removing self correlations')
         diag_val = z_corr.loc[z_corr.columns[0], z_corr.columns[0]]
         z_corr = z_corr[z_corr != diag_val]
 
-    # a-x-b AND direct
-    """
-    logger.info("Getting correlations for a-x-b AND direct")
-    all_x_corrs_direct, avg_x_corrs_direct, top_x_corrs_direct, \
-            all_azb_corrs_direct, azb_avg_corrs_direct = \
-        get_corr_stats(df=expl_df, crispr_cm=crispr_corr_matrix,
-                       rnai_cm=rnai_corr_matrix, so_pairs=pairs_axb_direct)
-    """
-
     # a-x-b AND NOT direct
     logger.info("Getting correlations for a-x-b AND NOT direct")
-    options = {'so_pairs': pairs_axb_only}
+    options = {'so_pairs': pairs_axb_only, 'run_linear': run_linear}
     if max_proc:
         options['max_proc'] = max_proc
 
     # Set and assert existence of global variables
-    assert_vars = {'z_cm', 'df'}
+    assert_vars = {'z_cm', 'expl_df', 'stats_df'}
+    gbv.update_global_vars(z_cm=z_corr)
     if reactome is not None:
-        gbv.update_global_vars(z_cm=z_corr, reactome=reactome)
+        gbv.update_global_vars(reactome=reactome)
         assert_vars.add('reactome')
     else:
         logger.info('No reactome file provided')
-        gbv.update_global_vars(z_cm=z_corr)
     if gbv.assert_global_vars(assert_vars):
-        all_x_corrs_no_direct, avg_x_corrs_no_direct, top_x_corrs_no_direct, \
-            all_azb_corrs_no_direct, azb_avg_corrs_no_direct, \
-            all_reactome_corrs, reactome_avg_corrs = \
-            get_corr_stats_mp(**options)
+        results: Results = get_corr_stats_mp(**options)
     else:
         raise ValueError('Global variables could not be set')
 
-    return {'axb_not_dir': {'all_x_corrs': all_x_corrs_no_direct,
-                            'avg_x_corrs': avg_x_corrs_no_direct,
-                            'top_x_corrs': top_x_corrs_no_direct,
-                            'all_azb_corrs': all_azb_corrs_no_direct,
-                            'azb_avg_corrs': azb_avg_corrs_no_direct,
-                            'all_reactome_corrs': all_reactome_corrs,
-                            'reactome_avg_corrs': reactome_avg_corrs}}
+    return results
 
 
 if __name__ == '__main__':
