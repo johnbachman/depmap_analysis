@@ -48,9 +48,7 @@ from indra.util.multiprocessing_traceback import WrapException
 from indra_db.util.s3_path import S3Path
 from depmap_analysis.util.aws import get_s3_client
 from depmap_analysis.util.io_functions import file_opener, \
-    dump_it_to_pickle, allowed_types, file_path, strip_out_date
-from depmap_analysis.network_functions.net_functions import \
-    pybel_node_name_mapping
+    dump_it_to_pickle, allowed_types, file_path
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, get_pairs, get_chunk_size, down_sample_df
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
@@ -627,11 +625,10 @@ def main(indra_net: str,
     else:
         if sd_l and sd_u:
             logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
-            z_corr = z_corr[((z_corr > sd_l) & (z_corr < sd_u)) |
-                            ((z_corr < -sd_l) & (z_corr > -sd_u))]
+            z_corr = z_corr[((z_corr.abs() > sd_l) & (z_corr.abs() < sd_u))]
         elif isinstance(sd_l, (int, float)) and sd_l and not sd_u:
             logger.info(f'Filtering correlations to {sd_l}+ SD')
-            z_corr = z_corr[(z_corr > sd_l) | (z_corr < -sd_l)]
+            z_corr = z_corr[z_corr.abs() > sd_l]
 
     sd_range = (sd_l, sd_u) if sd_u else (sd_l, None)
 
