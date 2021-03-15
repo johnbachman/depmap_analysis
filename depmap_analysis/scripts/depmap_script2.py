@@ -621,7 +621,8 @@ def main(indra_net: str,
         z_corr = z_corr.sample(142, axis=0)
         z_corr = z_corr.filter(list(z_corr.index), axis=1)
         # Remove correlation values to not confuse with real data
-        z_corr.loc[:, :] = 0
+        z_corr[z_corr < 0] = -0.1
+        z_corr[z_corr > 0] = 0.1
     else:
         if sd_l and sd_u:
             logger.info(f'Filtering correlations to {sd_l} - {sd_u} SD')
