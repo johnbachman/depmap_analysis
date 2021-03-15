@@ -156,7 +156,8 @@ def test_iterator_slicing():
     pair_count = 0
     chunk_ix = 0
     for chunk_ix, list_of_pairs in enumerate(chunk_iter):
-        pair_count += len([t for t in list_of_pairs if t is not None])
+        pair_count += len([(t[0][0], t[0][1], t[1]) for t in
+                           list_of_pairs if t is not None])
 
     # Were all pairs looped?
     assert pair_count == total_pairs_permute, \
