@@ -18,7 +18,7 @@ def match_reactome(z_sc, reactome_dict):
     res = {'agA_hgnc': [], 'agA_up': [], 'agB_hgnc': [], 'agB_up': [],
            'z_sc': [], 'has_pathways': [], 'common_pathways': []}
     logger.info('Looping correlations')
-    for a, b, corr in corr_iterator:
+    for (a, b), corr in corr_iterator:
         hgnc_id_a = get_current_hgnc_id(a)
         if isinstance(hgnc_id_a, list):
             ix = 0
