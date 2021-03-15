@@ -100,13 +100,15 @@ def test_iterator_slicing():
     pairs_removed = n + 1
 
     # Assert that we're correct so far
-    assert (size**2 - size - 2*pairs_removed) / 2 == get_pairs(a)
+
+    # Get total pairs available:
+    total_pairs = get_pairs(a)
+
+    # all items - diagonal - all removed items off diagonal
+    assert (size**2 - size - 2*pairs_removed) / 2 == total_pairs
 
     # Check that the iterator slicing for multiprocessing runs through all
     # the pairs
-
-    # Get total pairs available
-    total_pairs = get_pairs(a)
 
     # Chunks wanted
     chunks_wanted = 10
@@ -119,7 +121,8 @@ def test_iterator_slicing():
     pair_count = 0
     chunk_ix = 0
     for chunk_ix, list_of_pairs in enumerate(chunk_iter):
-        pair_count += len([t for t in list_of_pairs if t is not None])
+        pair_count += len([(t[0][0], t[0][1], t[1]) for t in
+                           list_of_pairs if t is not None])
 
     # Were all pairs looped?
     assert pair_count == total_pairs, \
