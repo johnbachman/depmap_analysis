@@ -50,7 +50,7 @@ from depmap_analysis.util.aws import get_s3_client
 from depmap_analysis.util.io_functions import file_opener, \
     dump_it_to_pickle, allowed_types, file_path
 from depmap_analysis.network_functions.depmap_network_functions import \
-    get_pairs, get_chunk_size, down_sample_df
+    get_pairs, get_chunk_size, down_sample_df, corr_matrix_to_generator
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns, expl_columns
 from depmap_analysis.preprocessing import *
@@ -68,13 +68,7 @@ hgnc_node_mapping: Dict[str, Set] = dict()
 output_list: List[Tuple[Dict[str, List], Dict[str, List]]] = []
 
 
-def _stack_matrix_to_gen(corr_z: pd.DataFrame) -> Generator:
-    z_lt = corr_z.where(np.triu(np.ones(corr_z.shape), k=1).astype(np.bool))
-    stacked = z_lt.stack(dropna=True)
-    return stacked.iteritems()
-
-
-def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
+def _match_correlation_body(corr_iter: Generator[Tuple[Tuple[str, str], float],
                                                  None, None],
                             expl_types: Dict[str, Callable],
                             stats_columns: Tuple[str],
@@ -121,7 +115,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[str, str, float],
             # Break loop when batch_iter reaches None padding
             if tup is None:
                 break
-            gA, gB, zsc = tup
+            (gA, gB), zsc = tup
             pair_key = f'{gA}_{gB}'
             # Initialize current iteration stats
             stats = {k: False for k in bool_columns}
@@ -336,7 +330,8 @@ def match_correlations(corr_z: pd.DataFrame,
         # Pick one more so we don't do more than MAX_SUB
         chunksize += 1 if n_sub == MAX_SUB else 0
         chunk_iter = batch_iter(
-            iterator=_stack_matrix_to_gen(corr_z),  # fixme: Add rectangular
+            iterator=corr_matrix_to_generator(z_corr=corr_z,
+                                              subset_list=subset_list),
             batch_size=chunksize,
             return_func=list
         )
