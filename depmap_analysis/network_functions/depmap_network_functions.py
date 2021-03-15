@@ -152,9 +152,9 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
     """
 
     def _matrix_to_stack_gen(corr_z: pd.DataFrame) -> Generator:
-        z_lt = corr_z.where(
+        z_ut = corr_z.where(
             np.triu(np.ones(corr_z.shape), k=1).astype(np.bool))
-        stacked: pd.DataFrame = z_lt.stack(dropna=True)
+        stacked: pd.DataFrame = z_ut.stack(dropna=True)
         return stacked.iteritems()
 
     if max_pairs or shuffle:
