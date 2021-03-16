@@ -737,8 +737,8 @@ if __name__ == '__main__':
         '--raw-data', nargs=2, type=file_path(),
         help='File paths to CRISPR raw data and RNAi raw data from the '
              'DepMap Portal. The CRISPR file name should match '
-             '*gene_effect.csv. The RNAi file name should match '
-             '*gene_dep_scores.csv'
+             'Achilles_gene_effect.csv. The RNAi file name should match '
+             'D2_combined_gene_dep_scores.csv'
     )
     corr_group.add_argument(
         '--raw-corr', nargs=2, type=file_path(),
