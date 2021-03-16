@@ -213,7 +213,7 @@ def _match_correlation_body(corr_iter: Generator[Tuple[Tuple[str, str], float],
 
 
 def match_correlations(corr_z: pd.DataFrame,
-                       sd_range: Tuple[float, Union[float, None]],
+                       sd_range: Tuple[float, Optional[float]],
                        script_settings: Dict[str, Union[str, int, float]],
                        graph_filepath: str,
                        z_corr_filepath: str,
@@ -227,9 +227,11 @@ def match_correlations(corr_z: pd.DataFrame,
                        indra_date: Optional[str] = None,
                        info: Optional[Dict[str, Any]] = None,
                        depmap_date: Optional[str] = None,
-                       n_chunks: Optional[int] = 8,
-                       immediate_only: Optional[bool] = False,
-                       return_unexplained: Optional[bool] = False,
+                       n_chunks: int = 8,
+                       max_pairs: Optional[int] = None,
+                       shuffle: bool = False,
+                       immediate_only: bool = False,
+                       return_unexplained: bool = False,
                        reactome_dict: Optional[Dict[str, Any]] = None,
                        subset_list: Optional[List[Union[str, int]]] = None):
     """The main loop for matching correlations with INDRA explanations
@@ -349,7 +351,9 @@ def match_correlations(corr_z: pd.DataFrame,
             chunksize += 1 if n_sub == MAX_SUB else 0
             chunk_iter = batch_iter(
                 iterator=corr_matrix_to_generator(z_corr=corr_z,
-                                                  subset_list=subset_list),
+                                                  subset_list=subset_list,
+                                                  max_pairs=max_pairs,
+                                                  shuffle=shuffle),
                 batch_size=chunksize,
                 return_func=list
             )
@@ -371,7 +375,9 @@ def match_correlations(corr_z: pd.DataFrame,
     else:
         # Run single process
         pair_gen = corr_matrix_to_generator(z_corr=corr_z,
-                                            subset_list=subset_list),
+                                            subset_list=subset_list,
+                                            max_pairs=max_pairs,
+                                            shuffle=shuffle),
         _single_proc_matching(*(pair_gen, *args))
 
     print(f'Execution time: {time() - tstart} seconds')
@@ -638,9 +644,9 @@ def main(indra_net: str,
 
     # 2. Filter to SD range OR run random sampling
     if random:
-        logger.info('Doing random sampling through df.sample')
-        z_corr = z_corr.sample(142, axis=0)
-        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+        logger.info('Doing random sampling with 50k pairs. Resetting '
+                    'z-scores to +/-0.1')
+        sample_size = 50000
         # Remove correlation values to not confuse with real data
         z_corr[z_corr < 0] = -0.1
         z_corr[z_corr > 0] = 0.1
@@ -653,18 +659,6 @@ def main(indra_net: str,
             z_corr = z_corr[z_corr.abs() > sd_l]
 
     sd_range = (sd_l, sd_u) if sd_u else (sd_l, None)
-
-    # Pick a sample
-    if sample_size is not None and not random:
-        logger.info(f'Reducing correlation matrix to a random approximately '
-                    f'{sample_size} correlation pairs.')
-        z_corr = down_sample_df(z_corr, sample_size)
-
-    # Shuffle corr matrix without removing items
-    elif shuffle and not random:
-        logger.info('Shuffling correlation matrix...')
-        z_corr = z_corr.sample(frac=1, axis=0)
-        z_corr = z_corr.filter(list(z_corr.index), axis=1)
 
     if normalize_names:
         logger.info('Normalizing correlation matrix column names')
@@ -715,6 +709,8 @@ def main(indra_net: str,
         info=info_dict,
         depmap_date=depmap_date,
         n_chunks=n_chunks,
+        max_pairs=sample_size,
+        shuffle=shuffle,
         immediate_only=immediate_only,
         return_unexplained=return_unexplained,
         reactome_dict=reactome_dict,
