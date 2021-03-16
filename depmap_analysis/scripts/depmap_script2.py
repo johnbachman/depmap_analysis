@@ -548,8 +548,9 @@ def main(indra_net: str,
         The date (usually a quarter e.g. 19Q4) the depmap data was published
         on depmap.org
     sample_size : Optional[int]
-        Number of correlation pairs to approximately get out of the
-        correlation matrix after down sampling it
+        Number of correlation pairs to get out of the correlation matrix. If
+        specified and below the maximum number of extractable pairs,
+        a random sample of size sample_size is picked.
     shuffle : Optional[bool]
         If True, shuffle the correlation matrix. This is good to do in case
         the input data have some sort of structure that could lead to large
