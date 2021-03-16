@@ -315,50 +315,64 @@ def match_correlations(corr_z: pd.DataFrame,
     ymd_now = datetime.now().strftime('%Y%m%d')
     indra_date = indra_date or ymd_now
     depmap_date = depmap_date or ymd_now
-
-    logger.info('Calculating number of pairs to check...')
-    estim_pairs = get_pairs(corr_z, subset_list=subset_list)
-    logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
-                f'with about {estim_pairs} pairs to check')
     tstart = time()
 
-    with mp.Pool() as pool:
-        MAX_SUB = 512
-        n_sub = min(n_chunks, MAX_SUB)
-        chunksize = get_chunk_size(n_sub, estim_pairs)
+    # Set args for _match_correlation_body
+    match_args = (
+        expl_types,
+        stats_columns,
+        expl_cols,
+        bool_columns,
+        graph_type,
+        apriori_explained,
+        allowed_ns,
+        allowed_sources,
+        is_a_part_of,
+        immediate_only,
+        return_unexplained,
+        reactome_dict
+    )
 
-        # Pick one more so we don't do more than MAX_SUB
-        chunksize += 1 if n_sub == MAX_SUB else 0
-        chunk_iter = batch_iter(
-            iterator=corr_matrix_to_generator(z_corr=corr_z,
-                                              subset_list=subset_list),
-            batch_size=chunksize,
-            return_func=list
-        )
-        for chunk in chunk_iter:
-            pool.apply_async(func=_match_correlation_body,
-                             # args should match the args for func
-                             args=(
-                                 chunk,
-                                 expl_types,
-                                 stats_columns,
-                                 expl_cols,
-                                 bool_columns,
-                                 graph_type,
-                                 apriori_explained,
-                                 allowed_ns,
-                                 allowed_sources,
-                                 is_a_part_of,
-                                 immediate_only,
-                                 return_unexplained,
-                                 reactome_dict
-                             ),
-                             callback=success_callback,
-                             error_callback=error_callback)
+    # Only do multi processing if n_chunks == 1
+    if n_chunks > 1:
+        logger.info('Calculating number of pairs to check...')
+        estim_pairs = get_pairs(corr_z, subset_list=subset_list)
+        logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
+                    f'with about {estim_pairs} pairs to check')
 
-        logger.info('Done submitting work to pool workers')
-        pool.close()
-        pool.join()
+        with mp.Pool() as pool:
+            MAX_SUB = 512
+            n_sub = min(n_chunks, MAX_SUB)
+            chunksize = get_chunk_size(n_sub, estim_pairs)
+
+            # Pick one more so we don't do more than MAX_SUB
+            chunksize += 1 if n_sub == MAX_SUB else 0
+            chunk_iter = batch_iter(
+                iterator=corr_matrix_to_generator(z_corr=corr_z,
+                                                  subset_list=subset_list),
+                batch_size=chunksize,
+                return_func=list
+            )
+            for chunk in chunk_iter:
+                pool.apply_async(func=_match_correlation_body,
+                                 # args should match the args for func
+                                 # When updating, also update the single
+                                 # proc implementation
+                                 args=(
+                                     chunk,
+                                     *match_args
+                                 ),
+                                 callback=success_callback,
+                                 error_callback=error_callback)
+
+            logger.info('Done submitting work to pool workers')
+            pool.close()
+            pool.join()
+    else:
+        # Run single process
+        pair_gen = corr_matrix_to_generator(z_corr=corr_z,
+                                            subset_list=subset_list),
+        _single_proc_matching(*(pair_gen, *args))
 
     print(f'Execution time: {time() - tstart} seconds')
     print(f'Done at {datetime.now().strftime("%H:%M:%S")}')
@@ -386,6 +400,11 @@ def match_correlations(corr_z: pd.DataFrame,
             data=expl_dict))
 
     return explainer
+
+
+def _single_proc_matching(*corr_body_args):
+    res = _match_correlation_body(*corr_body_args)
+    output_list.append(res)
 
 
 def success_callback(res):
