@@ -499,7 +499,8 @@ def main(indra_net: str,
         from HGNC symbols to pybel nodes in the pybel model
     n_chunks : Optional[int]
         How many chunks to split the data into in the multiprocessing part
-        of the script
+        of the script. If n_chunks == 1, the inner correlation matching is
+        done in a way that is more optimized for single process execution.
     is_a_part_of : Optional[Iterable]
         A set of identifiers to look for when applying the common parent
         explanation between a pair of correlating nodes.
@@ -862,7 +863,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--n-chunks', type=int, default=8,
         help='Pick the number of slices to split the work into. Does not '
-             'have to be equal to the amount of CPUs.'
+             'have to be equal to the amount of CPUs. If set to 1, '
+             'the correlation matching code is run optimized for a single '
+             'process.'
     )
 
     # Sampling
