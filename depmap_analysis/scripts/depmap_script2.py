@@ -50,7 +50,7 @@ from depmap_analysis.util.aws import get_s3_client
 from depmap_analysis.util.io_functions import file_opener, \
     dump_it_to_pickle, allowed_types, file_path
 from depmap_analysis.network_functions.depmap_network_functions import \
-    get_pairs, get_chunk_size, down_sample_df, corr_matrix_to_generator
+    get_pairs, get_chunk_size, corr_matrix_to_generator
 from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
     id_columns, expl_columns
 from depmap_analysis.preprocessing import *
