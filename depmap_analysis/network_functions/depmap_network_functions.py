@@ -128,7 +128,7 @@ def csv_file_to_generator(fname, column_list):
 
 def corr_matrix_to_generator(z_corr: pd.DataFrame,
                              max_pairs: Optional[int] = None,
-                             subset_list: List[Union[str, int]] = None,
+                             subset_list: Optional[List[str]] = None,
                              shuffle: bool = False) \
         -> Union[Generator, Iterator]:
     """Return a tuple generator given a correlation matrix
