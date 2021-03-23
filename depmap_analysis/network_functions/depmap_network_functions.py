@@ -151,20 +151,17 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
         A generator that returns a tuple of each row
     """
 
-    def _matrix_to_stack_gen(corr_z: pd.DataFrame) -> Generator:
+    def _matrix_to_stack_gen(corr_z: pd.DataFrame,
+                             sample: bool = False) -> Generator:
         z_ut = corr_z.where(
             np.triu(np.ones(corr_z.shape), k=1).astype(np.bool))
         stacked: pd.DataFrame = z_ut.stack(dropna=True)
-        return stacked.iteritems()
-
-    name_array: np.core.ndarray = z_corr.columns.values
-
-    if max_pairs or shuffle and subset_list is None:
-        # Sample at random: the names are shuffled and we from them pick
-        # values "in order" and stop when max_pairs pairs, effectively
-        # making a sampling without replacement
-        logger.info('Shuffling indices for sampling...')
-        np.random.shuffle(name_array)
+        if sample:
+            rnd_indices = stacked.index.values
+            np.random.shuffle(rnd_indices)
+            return (((a, b), stacked[a, b]) for a, b in rnd_indices)
+        else:
+            return stacked.iteritems()
 
     if subset_list is not None:
         # Fixme: figure out way to do rectangular data with helper
@@ -173,7 +170,8 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
                      if a in z_corr.columns and a != b and
                      not np.isnan(z_corr.iloc[a, b]))
     else:
-        pair_iter = _matrix_to_stack_gen(z_corr)
+        rand = shuffle or (max_pairs is not None and max_pairs > 0)
+        pair_iter = _matrix_to_stack_gen(z_corr, sample=rand)
 
     if max_pairs:
         return itt.islice(pair_iter, max_pairs)
