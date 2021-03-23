@@ -157,13 +157,14 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
         stacked: pd.DataFrame = z_ut.stack(dropna=True)
         return stacked.iteritems()
 
-    if max_pairs or shuffle:
-        # Sample at random: the matrix is shuffled and we can therefore pick
-        # values "in order" since the order is random and then stop after
-        # max_pairs pairs have been yielded
-        logger.info('Shuffling correlation matrix...')
-        z_corr = z_corr.sample(frac=1, axis=0)
-        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+    name_array: np.core.ndarray = z_corr.columns.values
+
+    if max_pairs or shuffle and subset_list is None:
+        # Sample at random: the names are shuffled and we from them pick
+        # values "in order" and stop when max_pairs pairs, effectively
+        # making a sampling without replacement
+        logger.info('Shuffling indices for sampling...')
+        np.random.shuffle(name_array)
 
     if subset_list is not None:
         # Fixme: figure out way to do rectangular data with helper
