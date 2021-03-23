@@ -381,7 +381,7 @@ def match_correlations(corr_z: pd.DataFrame,
         pair_gen = corr_matrix_to_generator(z_corr=corr_z,
                                             subset_list=subset_list,
                                             max_pairs=max_pairs,
-                                            shuffle=shuffle),
+                                            shuffle=shuffle)
         _single_proc_matching(pair_gen, *match_args)
 
     print(f'Execution time: {time() - tstart} seconds')
