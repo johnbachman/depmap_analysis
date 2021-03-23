@@ -339,7 +339,7 @@ def match_correlations(corr_z: pd.DataFrame,
     if n_chunks > 1:
         logger.info('Calculating number of pairs to check...')
         estim_pairs = get_pairs(corr_z, subset_list=subset_list)
-        if estim_pairs > max_pairs:
+        if max_pairs is not None and estim_pairs > max_pairs:
             estim_pairs = max_pairs
         logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
                     f'with about {estim_pairs} pairs to check')
