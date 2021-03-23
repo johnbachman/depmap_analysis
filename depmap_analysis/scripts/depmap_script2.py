@@ -338,11 +338,13 @@ def match_correlations(corr_z: pd.DataFrame,
     # Only do multi processing if n_chunks == 1
     if n_chunks > 1:
         logger.info('Calculating number of pairs to check...')
-        estim_pairs = get_pairs(corr_z, subset_list=subset_list)
-        if max_pairs is not None and estim_pairs > max_pairs:
+        if max_pairs is not None:
             estim_pairs = max_pairs
-        logger.info(f'Starting workers at {datetime.now().strftime("%H:%M:%S")} '
-                    f'with about {estim_pairs} pairs to check')
+        else:
+            estim_pairs = get_pairs(corr_z, subset_list=subset_list)
+        logger.info(f'Starting workers at '
+                    f'{datetime.now().strftime("%H:%M:%S")} with '
+                    f'{estim_pairs} pairs to check')
 
         with mp.Pool() as pool:
             MAX_SUB = 512
