@@ -248,13 +248,13 @@ def parent_connections(s: str, o: str, corr: float,
                 s_op_data = _get_edge_statements(s=s, o=po_name, corr=corr,
                                                  net=net, _type=_type)
                 if s_op_data:
-                    op_conn[f'{s}_{po}'] = s_op_data
+                    op_conn[f'{s}_{po_name}'] = s_op_data
 
                 # Get object parent->subject data
                 op_s_data = _get_edge_statements(s=po_name, o=s, corr=corr,
                                                  net=net, _type=_type)
                 if op_s_data:
-                    op_conn[f'{po}_{s}'] = op_s_data
+                    op_conn[f'{po_name}_{s}'] = op_s_data
         if op_conn:
             results[f'{s}_op'] = op_conn
 
@@ -270,13 +270,13 @@ def parent_connections(s: str, o: str, corr: float,
                 sp_o_data = _get_edge_statements(s=ps_name, o=o, corr=corr,
                                                  net=net, _type=_type)
                 if sp_o_data:
-                    sp_conn[f'{ps}_{o}'] = sp_o_data
+                    sp_conn[f'{ps_name}_{o}'] = sp_o_data
 
                 # Get object -> subject parent data
                 o_sp_data = _get_edge_statements(s=o, o=ps_name, corr=corr,
                                                  net=net, _type=_type)
                 if o_sp_data:
-                    sp_conn[f'{o}_{ps}'] = o_sp_data
+                    sp_conn[f'{o}_{ps_name}'] = o_sp_data
         if sp_conn:
             results[f'{o}_sp'] = sp_conn
 
