@@ -19,7 +19,8 @@ from pybel.dsl import CentralDogma
 
 from indra.databases.hgnc_client import get_current_hgnc_id, get_uniprot_id
 from depmap_analysis.util.io_functions import dump_it_to_pickle
-from depmap_analysis.network_functions.famplex_functions import common_parent
+from depmap_analysis.network_functions.famplex_functions import \
+    common_parent, find_parent
 from depmap_analysis.network_functions.net_functions import \
     gilda_normalization, INT_PLUS, INT_MINUS
 
@@ -187,6 +188,123 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
             return s, o, True, parents
 
     return s, o, False, None
+
+
+def find_parent_connections(s: str, o: str, corr: float,
+                            net: Union[DiGraph, MultiDiGraph], _type: str)\
+        -> Tuple[str, str, bool, Union[None, List[str]]]:
+    """Explain pair by finding connections between entities and entity parents
+
+    If pA and pB are parents of A and B, respectively, look for connections
+    in graph between any of pA-B, A-pB, pA-pB
+
+    Parameters
+    ----------
+    s: str
+        Subject node
+    o: str
+     Object node
+    corr
+        Correlation, either as [-1.0, 1.0] or z-score
+    net: Union[DiGraph, MultiDiGraph]
+        The indra graph used to explain the correlation between s and o
+    _type: str
+        The graph type used
+
+    Returns
+    -------
+    Tuple[str, str, bool, Union[None, Tuple[List]]]:
+    """
+    # Get ns id for names
+    s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
+    if s_id is None:
+        s_ns, s_id, _ = gilda_normalization(s)
+    if o_id is None:
+        o_ns, o_id, _ = gilda_normalization(o)
+
+    # If still not available, return unexplained
+    if s_id is None or o_id is None:
+        return s, o, False, None
+
+    # loop available parents
+    s_parents = find_parent(id_=s_id, ns=s_ns, immediate_only=True)
+    o_parents = find_parent(id_=o_id, ns=o_ns, immediate_only=True)
+
+    if not s_parents and not o_parents:
+        return s, o, False, None
+
+    # Store results in dict
+    results = {}
+
+    # Find A-pB
+    if o_parents:
+        op_conn = {}
+        # Loop parents of object
+        for po in o_parents:
+            # Get object parent name
+            po_name = net.graph['node_by_ns_id'].get(po)
+            if po_name:
+                # Get subject->object parent data
+                s_op_data = _get_edge_statements(s=s, o=po_name, corr=corr,
+                                                 net=net, _type=_type)
+                if s_op_data:
+                    op_conn[f'{s}_{po}'] = s_op_data
+
+                # Get object parent->subject data
+                op_s_data = _get_edge_statements(s=po_name, o=s, corr=corr,
+                                                 net=net, _type=_type)
+                if op_s_data:
+                    op_conn[f'{po}_{s}'] = op_s_data
+        if op_conn:
+            results[f'{s}_op'] = op_conn
+
+    # pA-B
+    if s_parents:
+        sp_conn = {}
+        # Loop parents of subject
+        for ps in s_parents:
+            # Get subject parent name
+            ps_name = net.graph['node_by_ns_id'].get(ps)
+            if ps_name:
+                # Get subject parent -> object data
+                sp_o_data = _get_edge_statements(s=ps_name, o=o, corr=corr,
+                                                 net=net, _type=_type)
+                if sp_o_data:
+                    sp_conn[f'{ps}_{o}'] = sp_o_data
+
+                # Get object -> subject parent data
+                o_sp_data = _get_edge_statements(s=o, o=ps_name, corr=corr,
+                                                 net=net, _type=_type)
+                if o_sp_data:
+                    sp_conn[f'{o}_{ps}'] = o_sp_data
+        if sp_conn:
+            results[f'{o}_sp'] = sp_conn
+
+    # pA-pB: loop the product of the two parents
+    if s_parents and o_parents:
+        sp_op_conn = {}
+        # Loop all possible pairs
+        for ps, po in product(s_parents, o_parents):
+            ps_name = net.graph['node_by_ns_id'].get(ps)
+            po_name = net.graph['node_by_ns_id'].get(po)
+            if ps_name and po_name:
+                # Get subject parent -> object parent data
+                sp_op_data = _get_edge_statements(s=ps_name, o=po_name,
+                                                  corr=corr, net=net,
+                                                  _type=_type)
+                if sp_op_data:
+                    sp_op_conn[f'{ps_name}_{po_name}'] = sp_op_data
+
+                # Get object parent -> subject parent data
+                op_sp_data = _get_edge_statements(s=po_name, o=ps_name,
+                                                  corr=corr, net=net,
+                                                  _type=_type)
+                if op_sp_data:
+                    sp_op_conn[f'{po_name}_{ps_name}'] = op_sp_data
+        if sp_op_conn:
+            results['sp_op'] = sp_op_conn
+
+    return s, o, bool(results), results or None
 
 
 def expl_axb(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
