@@ -128,7 +128,7 @@ def csv_file_to_generator(fname, column_list):
 
 def corr_matrix_to_generator(z_corr: pd.DataFrame,
                              max_pairs: Optional[int] = None,
-                             subset_list: List[Union[str, int]] = None,
+                             subset_list: Optional[List[str]] = None,
                              shuffle: bool = False) \
         -> Union[Generator, Iterator]:
     """Return a tuple generator given a correlation matrix
@@ -151,19 +151,17 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
         A generator that returns a tuple of each row
     """
 
-    def _matrix_to_stack_gen(corr_z: pd.DataFrame) -> Generator:
+    def _matrix_to_stack_gen(corr_z: pd.DataFrame,
+                             sample: bool = False) -> Generator:
         z_ut = corr_z.where(
             np.triu(np.ones(corr_z.shape), k=1).astype(np.bool))
         stacked: pd.DataFrame = z_ut.stack(dropna=True)
-        return stacked.iteritems()
-
-    if max_pairs or shuffle:
-        # Sample at random: the matrix is shuffled and we can therefore pick
-        # values "in order" since the order is random and then stop after
-        # max_pairs pairs have been yielded
-        logger.info('Shuffling correlation matrix...')
-        z_corr = z_corr.sample(frac=1, axis=0)
-        z_corr = z_corr.filter(list(z_corr.index), axis=1)
+        if sample:
+            rnd_indices = stacked.index.values
+            np.random.shuffle(rnd_indices)
+            return (((a, b), stacked[a, b]) for a, b in rnd_indices)
+        else:
+            return stacked.iteritems()
 
     if subset_list is not None:
         # Fixme: figure out way to do rectangular data with helper
@@ -172,7 +170,8 @@ def corr_matrix_to_generator(z_corr: pd.DataFrame,
                      if a in z_corr.columns and a != b and
                      not np.isnan(z_corr.iloc[a, b]))
     else:
-        pair_iter = _matrix_to_stack_gen(z_corr)
+        rand = shuffle or (max_pairs is not None and max_pairs > 0)
+        pair_iter = _matrix_to_stack_gen(z_corr, sample=rand)
 
     if max_pairs:
         return itt.islice(pair_iter, max_pairs)
