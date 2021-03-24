@@ -192,7 +192,7 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
 def parent_connections(s: str, o: str, corr: float,
                        net: Union[DiGraph, MultiDiGraph], _type: str)\
-        -> Tuple[str, str, bool, Union[None, List[str]]]:
+        -> Tuple[str, str, bool, Optional[Dict[str, Dict]]]:
     """Explain pair by finding connections between entities and entity parents
 
     If pA and pB are parents of A and B, respectively, look for connections
@@ -213,7 +213,7 @@ def parent_connections(s: str, o: str, corr: float,
 
     Returns
     -------
-    Tuple[str, str, bool, Union[None, Tuple[List]]]:
+    Tuple[str, str, bool, Optional[Dict[str, Dict]]:
     """
     # Get ns id for names
     s_ns, s_id, o_ns, o_id = get_ns_id(s, o, net)
