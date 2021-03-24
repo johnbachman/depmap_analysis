@@ -28,7 +28,7 @@ __all__ = ['get_ns_id_pybel_node', 'get_ns_id', 'normalize_corr_names',
            'expl_functions', 'funcname_to_colname', 'apriori_colname',
            'axb_colname', 'bxa_colname', 'ab_colname', 'ba_colname',
            'st_colname', 'sr_colname', 'sd_colname', 'cp_colname',
-           'react_colname', 'react_funcname']
+           'react_colname', 'react_funcname', 'par_conn_colname']
 
 logger = logging.getLogger(__name__)
 
@@ -190,8 +190,8 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
     return s, o, False, None
 
 
-def find_parent_connections(s: str, o: str, corr: float,
-                            net: Union[DiGraph, MultiDiGraph], _type: str)\
+def parent_connections(s: str, o: str, corr: float,
+                       net: Union[DiGraph, MultiDiGraph], _type: str)\
         -> Tuple[str, str, bool, Union[None, List[str]]]:
     """Explain pair by finding connections between entities and entity parents
 
@@ -1086,7 +1086,8 @@ def normalize_corr_names(corr_m: pd.DataFrame,
 
 # Add new function to the tuple
 expl_func_list = (apriori_explained, expl_ab, expl_ba, expl_axb, expl_bxa,
-                  find_cp, get_sr, get_st, get_sd, common_reactome_paths)
+                  find_cp, get_sr, get_st, get_sd, common_reactome_paths,
+                  parent_connections)
 
 # Map the name of the function to a more human friendly column name
 funcname_to_colname = {
@@ -1099,7 +1100,8 @@ funcname_to_colname = {
     'get_sr': 'shared_regulator',
     'get_st': 'shared_target',
     'get_sd': 'shared_downstream',
-    'common_reactome_paths': 'reactome_paths'
+    'common_reactome_paths': 'reactome_paths',
+    'parent_connections': 'parent_connections'
 }
 
 # Set reactome funcname
@@ -1119,6 +1121,7 @@ sr_colname = funcname_to_colname['get_sr']
 sd_colname = funcname_to_colname['get_sd']
 cp_colname = funcname_to_colname['find_cp']
 react_colname = funcname_to_colname['common_reactome_paths']
+par_conn_colname = funcname_to_colname['parent_connections']
 
 # Set of all colnames
 all_colnames = set(funcname_to_colname.values())
@@ -1141,7 +1144,6 @@ except AssertionError:
     )
 
 # Check that all functions have the fixed arg structure
-
 for func in expl_func_list:
     try:
         assert \
@@ -1155,4 +1157,3 @@ for func in expl_func_list:
         )
 
 # todo Check that all func return str, str, bool as first three values
-
