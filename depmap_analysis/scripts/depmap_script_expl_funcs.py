@@ -191,7 +191,8 @@ def find_cp(s: str, o: str, corr: float, net: Union[DiGraph, MultiDiGraph],
 
 
 def parent_connections(s: str, o: str, corr: float,
-                       net: Union[DiGraph, MultiDiGraph], _type: str)\
+                       net: Union[DiGraph, MultiDiGraph], _type: str,
+                       **kwargs)\
         -> Tuple[str, str, bool, Optional[Dict[str, Dict]]]:
     """Explain pair by finding connections between entities and entity parents
 
