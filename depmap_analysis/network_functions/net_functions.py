@@ -30,7 +30,6 @@ from depmap_analysis.util.io_functions import file_opener
 
 logger = logging.getLogger(__name__)
 
-bio_ontology.initialize()
 np.seterr(all='raise')
 NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 INT_PLUS = 0
