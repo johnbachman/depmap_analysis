@@ -6,7 +6,7 @@ from typing import Union, Tuple, Any
 from operator import itemgetter
 
 from indra.util.aws import get_s3_file_tree, get_s3_client
-from indra_db.managers.dump_manager import Sif, StatementHashMeshId
+from indra_db.cli.dump import Sif, StatementHashMeshId
 
 dumpers = [Sif]
 
