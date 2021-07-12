@@ -804,7 +804,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--graph-type', type=allowed_types(allowed_graph_types),
         default='unsigned',
-        help=f'Specify the graph type used. Allowed values are {allowed_types}'
+        help=f'Specify the graph type used. Allowed values are '
+             f'{allowed_graph_types}'
     )
 
     #   1e Provide allowed_ns
@@ -826,8 +827,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--expl-funcs', nargs='+',
         type=allowed_types(set(expl_functions.keys())),
-        help='Provide explainer function names to be used in the explanation '
-             'loop'
+        help=f'Provide explainer function names to be used in the explanation '
+             f'loop. Allowed explanation functions are '
+             f'{set(expl_functions.keys())}.'
     )
 
     #   2a. Filter to SD range
