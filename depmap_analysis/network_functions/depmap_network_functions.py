@@ -18,6 +18,7 @@ from scipy import interpolate as interpol
 from scipy.optimize import curve_fit as opt_curve_fit
 from pandas.core.series import Series as pd_Series_class
 
+from indra_db.exceptions import IndraDbException
 from indra_db import util as dbu
 from indra_db import client as dbc
 from indra.tools import assemble_corpus as ac
@@ -27,9 +28,16 @@ from indra.sources.indra_db_rest.exceptions import IndraDBRestAPIError
 import depmap_analysis.util.io_functions as io
 import depmap_analysis.network_functions.famplex_functions as ff
 
-db_prim = dbu.get_primary_db()
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+try:
+    db_prim = dbu.get_primary_db()
+except IndraDbException:
+    db_prim = None
+    logger.warning('Database is not available')
 
 
 def entry_exist_dict(nest_dict, outer_key, inner_key):
