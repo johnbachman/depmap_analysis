@@ -745,7 +745,8 @@ def main(indra_net: str,
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('DepMap Explainer main script')
+    parser = argparse.ArgumentParser('DepMap Explainer main script',
+                                     fromfile_prefix_chars='@')
     #   1a Load depmap data from scratch | load crispr/rnai raw corr | z-score
     corr_group = parser.add_mutually_exclusive_group(required=True)
     range_group = parser.add_mutually_exclusive_group(required=True)
