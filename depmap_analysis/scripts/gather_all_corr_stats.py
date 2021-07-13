@@ -11,7 +11,7 @@ import boto3
 import pandas as pd
 
 from indra_db.util.s3_path import S3Path
-from depmap_analysis.util.statistics import DepMapExplainer
+from depmap_analysis.explainer.depmap_explainer import DepMapExplainer
 from depmap_analysis.util.io_functions import file_opener, file_path, \
     is_dir_path, dump_it_to_pickle
 

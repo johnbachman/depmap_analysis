@@ -9,7 +9,7 @@ from typing import Tuple, List, Optional, Set, Dict
 from networkx import DiGraph
 from collections import Counter, defaultdict
 from depmap_analysis.util.io_functions import file_opener
-from depmap_analysis.util.statistics import DepMapExplainer
+from depmap_analysis.explainer.depmap_explainer import DepMapExplainer
 
 logger = logging.getLogger(__name__)
 

@@ -51,8 +51,8 @@ from depmap_analysis.util.io_functions import file_opener, \
     dump_it_to_pickle, allowed_types, file_path
 from depmap_analysis.network_functions.depmap_network_functions import \
     get_pairs, get_chunk_size, corr_matrix_to_generator
-from depmap_analysis.util.statistics import DepMapExplainer, min_columns, \
-    id_columns, expl_columns
+from depmap_analysis.explainer.depmap_explainer import min_columns, \
+    id_columns, expl_columns, DepMapExplainer
 from depmap_analysis.preprocessing import *
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 
@@ -268,7 +268,7 @@ def match_correlations(corr_z: pd.DataFrame,
 
     Returns
     -------
-    depmap_analysis.util.statistics.DepMapExplainer
+    DepMapExplainer
         An instance of the DepMapExplainer class containing the explanations
         for the correlations.
     """

@@ -10,8 +10,8 @@ from depmap_analysis.util.io_functions import file_opener
 from depmap_analysis.post_processing import *
 from depmap_analysis.network_functions.depmap_network_functions import \
     corr_matrix_to_generator, get_pairs, get_chunk_size
-from depmap_analysis.scripts.depmap_script2 import _match_correlation_body, \
-    expl_columns, id_columns
+from depmap_analysis.scripts.depmap_script2 import _match_correlation_body
+from depmap_analysis.explainer.depmap_explainer import id_columns, expl_columns
 from depmap_analysis.scripts.depmap_script_expl_funcs import *
 from . import *
 
