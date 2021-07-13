@@ -1,5 +1,6 @@
 import logging
 from time import time
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -12,70 +13,152 @@ logger = logging.getLogger(__name__)
 __all__ = ['get_z', 'get_logp', 'get_n']
 
 
-def logerfcinv(logp):
+def logerfcinv(logp: pd.DataFrame) -> np.ndarray:
     """Calculate inverse of complementary error function given log of argument
 
+    Parameters
+    ----------
+    logp:
+        A pandas dataframe
+
+    Returns
+    -------
+    :
+        The inverse of complementary error function of the values
     """
     return np.where(logp > -10, erfcinv(np.exp(logp)),
                     ndtri_exp(logp))
 
 
-def norminv_logcdf(logp):
-    """Inverse CDF corresponding to log of p value"""
+def norminv_logcdf(logp: pd.DataFrame) -> np.ndarray:
+    """Inverse CDF corresponding to log of p value
+
+    Parameters
+    ----------
+    logp:
+        A pandas dataframe holding the values
+
+    Returns
+    -------
+    :
+        The inverse CDF corresponding to the log of p-value
+    """
     return -np.sqrt(2) * logerfcinv(np.log(2) + logp)
 
 
-def get_logp(recalculate, data_n, data_corr, filepath, method='beta'):
+def get_logp(recalculate: bool, data_n: pd.DataFrame,
+             data_corr: pd.DataFrame, filepath: Optional[str] = None,
+             method: Optional[str] = 'beta') -> pd.DataFrame:
+    """
+
+    Parameters
+    ----------
+    recalculate:
+        If True, recalculate the log of the p-values
+    data_n:
+        A dataframe with sampling size values
+    data_corr:
+        A dataframe with correlation values
+    filepath:
+        If `recalculate==True`: read the logp values from this file.
+        If `recalculate==False`: write the logp values to this file.
+        If not provided, run the calculation and return the logp values
+        without writing them to a file.
+    method:
+        Provided the method by which to calculate the log of the p-values.
+        Default: 'beta'.
+
+    Returns
+    -------
+    :
+        The logp values calculated using the provided method or read from
+        the filepath provided.
+    """
     if method not in ('t', 'beta'):
         raise ValueError('Method must be t or beta')
     start = time()
-    if recalculate:
+    if recalculate or filepath is None:
         # T-statistic method
         # See https://stackoverflow.com/a/24469099
         # See https://support.minitab.com/en-us/minitab-express/1/help-and-how-to/basic-statistics/inference/supporting-topics/basics/manually-calculate-a-p-value/
         if method == 't':
+            logger.info('Getting p-values using t statistic method')
             t = data_corr * np.sqrt((data_n - 2)/(1 - data_corr * data_corr))
             logp = np.log(2) + stats.t.logsf(t.abs(), data_n-2)
         # Beta-distribution method
         # https://github.com/scipy/scipy/blob/v1.6.2/scipy/stats/stats.py#L3781-L3962
-        elif method == 'beta':
+        else:
+            logger.info('Getting p values using beta distribution method')
             ab = data_n/2 - 1
-            logp = np.log(2) + stats.beta.logcdf(-abs(data_corr), ab, ab, loc=-1, scale=2)
+            logp = np.log(2) + \
+                stats.beta.logcdf(-abs(data_corr), ab, ab, loc=-1, scale=2)
         # Make dataframe
-        data_logp = pd.DataFrame(logp, columns=data_corr.columns, index=data_corr.index)
-        data_logp.to_hdf('%s.h5' % filepath, filepath.split('/')[-1])
+        data_logp = pd.DataFrame(logp, columns=data_corr.columns,
+                                 index=data_corr.index)
+        if filepath is not None:
+            logger.info(f'Saving logp dataframe to {filepath}')
+            data_logp.to_hdf('%s.h5' % filepath, filepath.split('/')[-1])
     else:
+        logger.info(f'Reading logp dataframe from file: {filepath}')
         data_logp = pd.read_hdf('%s.h5' % filepath)
     elapsed = time() - start
     print(elapsed, "sec")
     return data_logp
 
 
-def get_z(recalculate, data_logp, data_corr, filepath):
+def get_z(recalculate: bool, data_logp: pd.DataFrame, data_corr: pd.DataFrame,
+          filepath: Optional[str] = None) -> pd.DataFrame:
+    """Get the z-score based on p-values of the correlation matrix
+
+    Parameters
+    ----------
+    recalculate:
+        If True, recalculate the z-scores
+    data_logp:
+        The logp values
+    data_corr:
+        The correlation matrix of entity-entity correlations.
+    filepath:
+        If `recalculate==True`: read the z-score values from this file.
+        If `recalculate==False`: write the z-score values to this file.
+        If not provided, run the calculation and return the z-score dataframe
+        without writing it to a file.
+
+    Returns
+    -------
+    :
+        A dataframe with the z-scores
+    """
     start = time()
-    if recalculate:
-        #z_mat = stats.norm.ppf(1 - np.exp(data_logp) / 2)
-        #z_mat = -norminv_logcdf(data_logp - np.log(2))
+    if recalculate or filepath is None:
+        # z_mat = stats.norm.ppf(1 - np.exp(data_logp) / 2)
+        # z_mat = -norminv_logcdf(data_logp - np.log(2))
         z_mat = abs(norminv_logcdf(data_logp - np.log(2)))
         data_sign = data_corr.copy()
         data_sign[data_sign < 0] = -1
         data_sign[data_sign > 0] = 1
         data_z = data_sign * pd.DataFrame(z_mat, index=data_logp.columns,
                                           columns=data_logp.columns)
-        data_z.to_hdf('%s.h5' % filepath, filepath.split('/')[-1])
+        if filepath is not None:
+            logger.info(f'Saving z score dataframe to {filepath}')
+            data_z.to_hdf('%s.h5' % filepath, filepath.split('/')[-1])
     else:
+        logger.info(f'Reading z-score dataframe from {filepath}')
         data_z = pd.read_hdf('%s.h5' % filepath)
     elapsed = time() - start
     print(elapsed, "sec")
     return data_z
 
 
-def get_n(recalculate, data_df, data_corr, filepath):
+def get_n(recalculate: bool, data_df: pd.DataFrame,
+          filepath: Optional[str] = None) -> pd.DataFrame:
     start = time()
-    if recalculate:
+    if recalculate or filepath is None:
+        logger.info('Calculating sampling values')
         num_cols = data_df.shape[1]
         data_mat = data_df._get_numeric_data().to_numpy(dtype=float,
-                                                   na_value=np.nan, copy=False)
+                                                        na_value=np.nan,
+                                                        copy=False)
         n_mat = np.zeros((num_cols, num_cols))
         group_start = time()
         for a_ix in range(num_cols):
@@ -89,9 +172,12 @@ def get_n(recalculate, data_df, data_corr, filepath):
                      ~np.isnan(data_mat[:, b_ix])).sum()
                 n_mat[a_ix, b_ix] = n
                 n_mat[b_ix, a_ix] = n
-        data_n = pd.DataFrame(n_mat, index=data_df.columns, columns=data_df.columns)
-        data_n.to_hdf('%s.h5' % filepath, filepath.split('/')[-1])
+        data_n = pd.DataFrame(n_mat, index=data_df.columns,
+                              columns=data_df.columns)
+        if filepath is not None:
+            data_n.to_hdf('%s.h5' % filepath, filepath.split('/')[-1])
     else:
+        logger.info(f'Reading sampling values from file {filepath}')
         data_n = pd.read_hdf('%s.h5' % filepath)
     elapsed = time() - start
     print(int(elapsed), 'sec')
