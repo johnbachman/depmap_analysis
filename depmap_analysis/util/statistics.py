@@ -18,7 +18,7 @@ def logerfcinv(logp: pd.DataFrame) -> np.ndarray:
 
     Parameters
     ----------
-    logp:
+    logp :
         A pandas dataframe
 
     Returns
@@ -35,7 +35,7 @@ def norminv_logcdf(logp: pd.DataFrame) -> np.ndarray:
 
     Parameters
     ----------
-    logp:
+    logp :
         A pandas dataframe holding the values
 
     Returns
@@ -49,22 +49,22 @@ def norminv_logcdf(logp: pd.DataFrame) -> np.ndarray:
 def get_logp(recalculate: bool, data_n: pd.DataFrame,
              data_corr: pd.DataFrame, filepath: Optional[str] = None,
              method: Optional[str] = 'beta') -> pd.DataFrame:
-    """
+    """Get the log of p values
 
     Parameters
     ----------
-    recalculate:
+    recalculate :
         If True, recalculate the log of the p-values
-    data_n:
+    data_n :
         A dataframe with sampling size values
-    data_corr:
+    data_corr :
         A dataframe with correlation values
-    filepath:
+    filepath :
         If `recalculate==True`: read the logp values from this file.
         If `recalculate==False`: write the logp values to this file.
         If not provided, run the calculation and return the logp values
         without writing them to a file.
-    method:
+    method :
         Provided the method by which to calculate the log of the p-values.
         Default: 'beta'.
 
@@ -82,7 +82,7 @@ def get_logp(recalculate: bool, data_n: pd.DataFrame,
         # See https://stackoverflow.com/a/24469099
         # See https://support.minitab.com/en-us/minitab-express/1/help-and-how-to/basic-statistics/inference/supporting-topics/basics/manually-calculate-a-p-value/
         if method == 't':
-            logger.info('Getting p-values using t statistic method')
+            logger.info('Getting p values using t statistic method')
             t = data_corr * np.sqrt((data_n - 2)/(1 - data_corr * data_corr))
             logp = np.log(2) + stats.t.logsf(t.abs(), data_n-2)
         # Beta-distribution method
@@ -112,13 +112,13 @@ def get_z(recalculate: bool, data_logp: pd.DataFrame, data_corr: pd.DataFrame,
 
     Parameters
     ----------
-    recalculate:
+    recalculate :
         If True, recalculate the z-scores
-    data_logp:
+    data_logp :
         The logp values
-    data_corr:
+    data_corr :
         The correlation matrix of entity-entity correlations.
-    filepath:
+    filepath :
         If `recalculate==True`: read the z-score values from this file.
         If `recalculate==False`: write the z-score values to this file.
         If not provided, run the calculation and return the z-score dataframe
