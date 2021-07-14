@@ -152,6 +152,25 @@ def get_z(recalculate: bool, data_logp: pd.DataFrame, data_corr: pd.DataFrame,
 
 def get_n(recalculate: bool, data_df: pd.DataFrame,
           filepath: Optional[str] = None) -> pd.DataFrame:
+    """Get sample sizes
+
+    Parameters
+    ----------
+    recalculate :
+        If True, recalculate the sample sizes
+    data_df :
+        Correlation data as a dataframe
+    filepath :
+        If `recalculate==True`: read the correlation values from this file.
+        If `recalculate==False`: write the correlation values to this file.
+        If not provided, run the calculation and return the correlation data
+        without writing it to a file.
+
+    Returns
+    -------
+    :
+        A dataframe holding the sample sizes
+    """
     start = time()
     if recalculate or filepath is None:
         logger.info('Calculating sampling values')
