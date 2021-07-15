@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
 from datetime import datetime
@@ -5,7 +6,7 @@ from depmap_analysis.network_functions.net_functions import \
     sif_dump_df_to_digraph
 
 
-__all__ = ['get_df', 'get_dg']
+__all__ = ['get_df', 'get_dg', '_gen_sym_df', '_get_off_diag_pair']
 
 
 def get_df() -> pd.DataFrame:
@@ -46,3 +47,21 @@ def get_dg() -> DiGraph:
                                           graph_type='digraph',
                                           include_entity_hierarchies=False)
     return idg
+
+
+def _gen_sym_df(size):
+    # Get square, symmetric matrix in dataframe
+    m = np.random.rand(size, size)
+    m = (m + m.T) / 2
+    np.fill_diagonal(m, 1.)
+    return pd.DataFrame(m)
+
+
+def _get_off_diag_pair(max_index: int):
+    if max_index == 0:
+        raise ValueError('Cannot have max_index == 0')
+    r = np.random.randint(0, max_index)
+    c = np.random.randint(0, max_index)
+    while r == c:
+        c = np.random.randint(0, max_index)
+    return r, c

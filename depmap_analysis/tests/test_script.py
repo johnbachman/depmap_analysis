@@ -18,24 +18,6 @@ from . import *
 reverse_uniprot = {v: k for k, v in uniprot_ids.items()}
 
 
-def _gen_sym_df(size):
-    # Get square, symmetric matrix in dataframe
-    m = np.random.rand(size, size)
-    m = (m + m.T) / 2
-    np.fill_diagonal(m, 1.)
-    return pd.DataFrame(m)
-
-
-def _get_off_diag_pair(max_index: int):
-    if max_index == 0:
-        raise ValueError('Cannot have max_index == 0')
-    r = np.random.randint(0, max_index)
-    c = np.random.randint(0, max_index)
-    while r == c:
-        c = np.random.randint(0, max_index)
-    return r, c
-
-
 def test_df_pair_calc():
     size = 4
     a = _gen_sym_df(size)
