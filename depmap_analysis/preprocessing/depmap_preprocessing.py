@@ -17,11 +17,13 @@ __all__ = ['run_corr_merge', 'drugs_to_corr_matrix', 'get_mitocarta_info']
 MERGE_METHODS = ('average', 'stouffer')
 Z_SC_METHODS = ('standard', 't', 'beta')
 
+path_obj = Union[str, pd.DataFrame]
 
-def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
-                   rnai_raw: Optional[Union[str, pd.DataFrame]] = None,
-                   crispr_corr: Optional[Union[str, pd.DataFrame]] = None,
-                   rnai_corr: Optional[Union[str, pd.DataFrame]] = None,
+
+def run_corr_merge(crispr_raw: Optional[path_obj] = None,
+                   rnai_raw: Optional[path_obj] = None,
+                   crispr_corr: Optional[path_obj] = None,
+                   rnai_corr: Optional[path_obj] = None,
                    output_dir: str = 'correlation_output',
                    remove_self_corr: bool = False,
                    dropna: bool = False,
@@ -35,33 +37,36 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
 
     Parameters
     ----------
-    crispr_raw : str|pd.DataFrame
+    crispr_raw :
         Path to the raw crispr data. This file is typically named
         'Achilles_gene_effect.csv' at the DepMap portal.
-    rnai_raw : str|pd.DataFrame
+    rnai_raw :
         Path to the raw RNAi data. This file is typically named
         'D2_combined_gene_dep_scores.csv'
-    crispr_corr : str|pd.DataFrame
+    crispr_corr :
         Path to the pre-calculated crispr data matrix. This data structure
         is the result from running `crispr_raw_df.corr()`.
-    rnai_corr : str|pd.DataFrame
+    rnai_corr :
         Path to the pre-calculated rnai data matrix. This data structure
         is the result from running `rnai_raw_df.corr()`.
-    output_dir : str
+    output_dir :
         If used, write the correlation matrices to this directory.
         Otherwise they will be written to the same directory as the raw
         input data.
-    remove_self_corr : bool
+    remove_self_corr :
         If True, remove self correlations from the resulting DataFrame.
         Default: False
-    random_sampl : int
+    dropna :
+        If True, drop NaN values after merging the dataframes using
+        `pd.DataFrame.dropna(axis=0, how='all').dropna(axis=1, how='all')`
+    random_sampl :
         If specified, provides the size of the final correlation matrix
         where the genes are picked at random from the intersection of genes
         from both the RNAI and CRISPR data sets.
-    save_corr_files : bool
+    save_corr_files :
         If True, save the intermediate correlation data frames for both
         crispr and rnai. Default: True.
-    z_corr_path : Optional[str]
+    z_corr_path :
         If provided, save the final correlation dataframe here
 
     Returns
