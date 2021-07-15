@@ -97,7 +97,7 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
             logger.info(f'Saving crispr correlation matrix to {crispr_fpath}')
             if not crispr_fpath.parent.is_dir():
                 crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
-            crispr_corr_df.to_hdf(crispr_fpath.absolute(), 'corr')
+            crispr_corr_df.to_hdf(crispr_fpath.absolute().as_posix(), 'corr')
 
     if rnai_corr:
         if isinstance(rnai_corr, str):
@@ -145,7 +145,7 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
     if z_corr_path:
         zc_path = Path(z_corr_path)
         zc_path.parent.mkdir(parents=True, exist_ok=True)
-        z_cm.to_hdf(zc_path)
+        z_cm.to_hdf(zc_path.absolute().as_posix(), 'corr')
 
     return z_cm
 
@@ -456,4 +456,4 @@ if __name__ == '__main__':
     logger.info(f'Writing combined correlations to {outdir}')
     fname = args.fname if args.fname else 'combined_z_score.h5'
     outdir.mkdir(parents=True, exist_ok=True)
-    z_corr.to_hdf(Path(outdir, fname), 'zsc')
+    z_corr.to_hdf(Path(outdir, fname).absolute().as_posix(), 'zsc')
