@@ -24,6 +24,7 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
                    rnai_corr: Optional[Union[str, pd.DataFrame]] = None,
                    output_dir: str = 'correlation_output',
                    remove_self_corr: bool = False,
+                   dropna: bool = False,
                    random_sampl: int = 0,
                    save_corr_files: bool = False,
                    z_corr_path: Optional[str] = None):
@@ -130,8 +131,9 @@ def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
             rnai_corr_df.to_hdf(rnai_fpath.absolute().as_posix(), 'corr')
 
     # Merge the correlation matrices
-    z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df,
-                         remove_self_corr)
+    z_cm = merge_corr_df(crispr_corr_df, rnai_corr_df, remove_self_corr,
+                         merge_method='stouffer', z_sc_method='beta',
+                         dropna=dropna)
 
     if random_sampl and random_sampl < len(z_cm.columns):
         # Get n random rows
