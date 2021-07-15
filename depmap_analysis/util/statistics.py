@@ -133,7 +133,7 @@ def get_z(recalculate: bool, data_logp: pd.DataFrame, data_corr: pd.DataFrame,
     if recalculate or filepath is None:
         # z_mat = stats.norm.ppf(1 - np.exp(data_logp) / 2)
         # z_mat = -norminv_logcdf(data_logp - np.log(2))
-        z_mat = abs(norminv_logcdf(data_logp - np.log(2)))
+        z_mat = abs(ndtri_exp(data_logp - np.log(2)))
         data_sign = data_corr.copy()
         data_sign[data_sign < 0] = -1
         data_sign[data_sign > 0] = 1
