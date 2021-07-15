@@ -222,7 +222,9 @@ def raw_depmap_to_corr(depmap_raw_df: pd.DataFrame,
     return corr
 
 
-def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
+def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
+                  merge_method: str = 'stouffer', z_sc_method: str = 'beta',
+                  dropna: bool = False) -> pd.DataFrame:
     """Merge two correlation matrices containing their combined z-scores
 
     Parameters
@@ -257,12 +259,38 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
 
     # Get corresponding z-score matrices
     logger.info('Getting z-score matrix of first data frame.')
-    corr_z = _z_scored(corr_df)
+    corr_z = _z_scored(corr_df, method=z_sc_method)
     logger.info('Getting z-score matrix of second data frame.')
-    other_z = _z_scored(other_corr_df)
+    other_z = _z_scored(other_corr_df, method=z_sc_method)
 
     # Merge
-    dep_z = (corr_z + other_z) / 2
+    dep_z = _merge_z_corr(zdf=corr_z, other_z_df=other_z, method=merge_method,
+                          remove_self_corr=remove_self_corr, dropna=dropna)
+    assert dep_z.notna().sum().sum() > 0, 'Correlation matrix is empty!'
+    return dep_z
+
+
+def _merge_z_corr(zdf: pd.DataFrame, other_z_df: pd.DataFrame,
+                  remove_self_corr: bool, method: str = 'average',
+                  dropna: bool = False) -> pd.DataFrame:
+    if method not in MERGE_METHODS:
+        raise ValueError(f'Unrecognized merge method {method}. Valid methods '
+                         f'are {", ".join(MERGE_METHODS)}')
+
+    def _average(z1: pd.DataFrame, z2: pd.DataFrame) -> pd.DataFrame:
+        return (z1 + z2) / 2
+
+    def _stouffer_z(z1: pd.DataFrame, z2: pd.DataFrame) -> pd.DataFrame:
+        return (z1 + z2) / np.sqrt(2)
+
+    if method == 'average':
+        dep_z = _average(zdf, other_z_df)
+    else:
+        dep_z = _stouffer_z(zdf, other_z_df)
+
+    if dropna:
+        dep_z = dep_z.dropna(axis=0, how='all').dropna(axis=1, how='all')
+
     if remove_self_corr:
         # Assumes the max correlation ONLY occurs on the diagonal
         self_corr_value = dep_z.loc[dep_z.columns[0], dep_z.columns[0]]
