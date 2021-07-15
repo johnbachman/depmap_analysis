@@ -271,12 +271,38 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True):
     return dep_z
 
 
-def _z_scored(corr: pd.DataFrame) -> pd.DataFrame:
-    mean = _get_mean(corr)
-    sd = _get_sd(corr)
-    logger.info('Mean value: %f; St dev: %f' % (mean, sd))
-    out_df: pd.DataFrame = (corr - mean) / sd
-    return out_df
+def _z_scored_pvals(corr_df: pd.DataFrame, method: str = 'beta') \
+        -> pd.DataFrame:
+    # Get z-scores based on getting correlation dataframe
+    if method not in ('beta', 't'):
+        raise ValueError(f'Unrecognized p-value z-score method {method}. '
+                         f'Available methods are beta or t.')
+
+    # Get sample sizes from get_n
+    n_df = get_n(recalculate=True, data_df=corr_df)
+
+    # Get logp from get_logp
+    logp_df = get_logp(recalculate=True, data_n=n_df, data_corr=corr_df,
+                       method=method)
+
+    # Get z-scores from get_z
+    z_df = get_z(recalculate=True, data_logp=logp_df, data_corr=corr_df)
+    return z_df
+
+
+def _z_scored(corr: pd.DataFrame, method: str = 'beta') -> pd.DataFrame:
+    if method not in Z_SC_METHODS:
+        raise ValueError(f'Unrecognized z-score method {method}. Valid '
+                         f'methods are {", ".join(Z_SC_METHODS)}')
+    logger.info(f'Getting z-scores using {method} method')
+    if method == 'standard':
+        mean = _get_mean(corr)
+        sd = _get_sd(corr)
+        logger.info('Mean value: %f; St dev: %f' % (mean, sd))
+        z_df: pd.DataFrame = (corr - mean) / sd
+    else:
+        z_df = _z_scored_pvals(corr_df=corr, method=method)
+    return z_df
 
 
 def _get_sd(df: pd.DataFrame) -> float:
