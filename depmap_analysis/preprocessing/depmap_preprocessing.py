@@ -9,9 +9,13 @@ import pandas as pd
 from depmap_analysis.util import io_functions as io
 from depmap_analysis.network_functions.famplex_functions import ns_id_xref, \
     ns_id_to_name
+from depmap_analysis.util.statistics import *
 
 logger = logging.getLogger(__name__)
 __all__ = ['run_corr_merge', 'drugs_to_corr_matrix', 'get_mitocarta_info']
+
+MERGE_METHODS = ('average', 'stouffer')
+Z_SC_METHODS = ('standard', 't', 'beta')
 
 
 def run_corr_merge(crispr_raw: Optional[Union[str, pd.DataFrame]] = None,
