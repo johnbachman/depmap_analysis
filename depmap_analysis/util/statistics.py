@@ -5,45 +5,12 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from scipy import stats
-from scipy.special import erfcinv, ndtri_exp
+from scipy.special import ndtri_exp
 
 logger = logging.getLogger(__name__)
 
 
 __all__ = ['get_z', 'get_logp', 'get_n']
-
-
-def logerfcinv(logp: pd.DataFrame) -> np.ndarray:
-    """Calculate inverse of complementary error function given log of argument
-
-    Parameters
-    ----------
-    logp :
-        A pandas dataframe
-
-    Returns
-    -------
-    :
-        The inverse of complementary error function of the values
-    """
-    return np.where(logp > -10, erfcinv(np.exp(logp)),
-                    ndtri_exp(logp))
-
-
-def norminv_logcdf(logp: pd.DataFrame) -> np.ndarray:
-    """Inverse CDF corresponding to log of p value
-
-    Parameters
-    ----------
-    logp :
-        A pandas dataframe holding the values
-
-    Returns
-    -------
-    :
-        The inverse CDF corresponding to the log of p-value
-    """
-    return -np.sqrt(2) * logerfcinv(np.log(2) + logp)
 
 
 def get_logp(recalculate: bool, data_n: pd.DataFrame,
