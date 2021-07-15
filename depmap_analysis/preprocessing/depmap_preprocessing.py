@@ -431,6 +431,10 @@ if __name__ == '__main__':
                              'provided. Note that s3 URL are not allowed as '
                              'pd.DataFrame.to_hdf does not support urls or '
                              'buffers at the moment.')
+    parser.add_argument('--dropna', action='store_true',
+                        help='If set, drop NaN values after merging the '
+                             'dataframes using `pd.DataFrame.dropna(axis=0, '
+                             'how="all").dropna(axis=1, how="all")`')
     parser.add_argument('--random', '-r', type=int,
                         help='Optional. If specified, provide the size of '
                              'the final correlation matrix where the genes '
@@ -454,6 +458,7 @@ if __name__ == '__main__':
                             output_dir=args.output_dir,
                             random_sampl=args.random,
                             remove_self_corr=False,
+                            dropna=args.dropna,
                             save_corr_files=args.save_corr)
 
     # Write merged correlations combined z score
