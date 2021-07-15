@@ -81,7 +81,7 @@ def run_corr_merge(crispr_raw: Optional[path_obj] = None,
         raise ValueError('Need to provide one of rnai_raw or rnai_corr')
 
     # First check for correlation matrix, then get it if it doesn't exist
-    if crispr_corr:
+    if crispr_corr is not None:
         if isinstance(crispr_corr, str):
             logger.info(f'Reading crispr correlations from file {crispr_corr}')
             crispr_corr_df = pd.read_hdf(crispr_corr)
@@ -105,7 +105,7 @@ def run_corr_merge(crispr_raw: Optional[path_obj] = None,
                 crispr_fpath.parent.mkdir(parents=True, exist_ok=True)
             crispr_corr_df.to_hdf(crispr_fpath.absolute().as_posix(), 'corr')
 
-    if rnai_corr:
+    if rnai_corr is not None:
         if isinstance(rnai_corr, str):
             logger.info(f'Reading rnai correlations from file {crispr_corr}')
             rnai_corr_df = pd.read_hdf(rnai_corr)
