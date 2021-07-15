@@ -8,7 +8,14 @@ from . import *
 def test_merge_corr():
     size = 50
     a, nan_count_a = _get_df_w_nan(size=size)
+    acols = [str(cn) for cn in a.columns]
+    a.columns = acols
+    a.index = acols
+
     b, nan_count_b = _get_df_w_nan(size=size)
+    bcols = [str(cn) for cn in b.columns]
+    b.columns = bcols
+    b.index = bcols
 
     # Get samples
     an = get_n(recalculate=True, data_df=a)
