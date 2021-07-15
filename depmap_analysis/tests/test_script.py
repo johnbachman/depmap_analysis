@@ -66,27 +66,7 @@ def test_down_sampling():
 
 def test_iterator_slicing():
     size = 50
-    a = _gen_sym_df(size)
-
-    pairs = set()
-    n = 0
-    for n in range(size):
-        k = 0
-        row, col = _get_off_diag_pair(size)
-        while (row, col) in pairs:
-            row, col = _get_off_diag_pair(size)
-            k += 1
-            if k > 1000:
-                print('Too many while iterations, breaking')
-                break
-        if k > 1000:
-            break
-        a.iloc[row, col] = np.nan
-        a.iloc[col, row] = np.nan
-        pairs.add((row, col))
-        pairs.add((col, row))
-
-    pairs_removed = n + 1
+    a, pairs_removed = _get_df_w_nan(size)
 
     # Assert that we're correct so far
 
@@ -160,27 +140,8 @@ def test_iterator_slicing():
 
 def test_sampling():
     size = 50
-    a = _gen_sym_df(size)
+    a, pairs_removed = _get_df_w_nan(size)
 
-    pairs = set()
-    n = 0
-    for n in range(size):
-        k = 0
-        row, col = _get_off_diag_pair(size)
-        while (row, col) in pairs:
-            row, col = _get_off_diag_pair(size)
-            k += 1
-            if k > 1000:
-                print('Too many while iterations, breaking')
-                break
-        if k > 1000:
-            break
-        a.iloc[row, col] = np.nan
-        a.iloc[col, row] = np.nan
-        pairs.add((row, col))
-        pairs.add((col, row))
-
-    pairs_removed = n + 1
     # Assert that we're correct so far
 
     # Get total pairs available:
