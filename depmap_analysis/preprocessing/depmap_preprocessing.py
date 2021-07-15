@@ -229,19 +229,33 @@ def merge_corr_df(corr_df, other_corr_df, remove_self_corr=True,
 
     Parameters
     ----------
-    corr_df : pd.DataFrame
+    corr_df :
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with other_corr_df.
-    other_corr_df : pd.DataFrame
+    other_corr_df :
         A square pandas DataFrame containing gene-gene correlation values
         to be merged with corr_df.
-    remove_self_corr : bool
+    remove_self_corr :
         If True, remove self correlations from the resulting DataFrame.
         Default: True
+    dropna :
+        If True, drop NaN values after merging the dataframes using
+        `pd.DataFrame.dropna(axis=0, how='all').dropna(axis=1, how='all')`
+    merge_method :
+        The method used when merging the dataframes. Available methods:
+        - 'average': z_merged = (z1 + z2) / 2
+        - 'stouffer': z_merged = (z1 + z2) / sqrt(2)
+    z_sc_method :
+        The method to use when getting the z-scores. Available methods:
+        - 'standard' ("standard score"): z = (x - mu) / sigma.
+        - 'beta': based on getting the log of the p-values, here using the
+           beta distribution method.
+        - 't': based on getting the log of the p-values, here using the
+           t statistic method.
 
     Returns
     -------
-    pd.DataFrame
+    :
         A merged correlation matrix containing the merged values a z-scores
     """
 
