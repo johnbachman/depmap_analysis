@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 from networkx import DiGraph, MultiDiGraph
@@ -6,7 +8,8 @@ from depmap_analysis.network_functions.net_functions import \
     sif_dump_df_to_digraph
 
 
-__all__ = ['get_df', 'get_dg', '_gen_sym_df', '_get_off_diag_pair']
+__all__ = ['get_df', 'get_dg', '_gen_sym_df', '_get_off_diag_pair',
+           '_get_df_w_nan']
 
 
 def get_df() -> pd.DataFrame:
@@ -65,3 +68,31 @@ def _get_off_diag_pair(max_index: int):
     while r == c:
         c = np.random.randint(0, max_index)
     return r, c
+
+
+def _get_df_w_nan(size: int = 50,
+                  nan_count: int = 50) -> Tuple[pd.DataFrame, int]:
+    """Return symmetric dataframe with some NaNs"""
+    # Cannot remove more than a full off-diagonal triangle of the matrix
+    remove = min(nan_count, (size**2 - size) / 2)
+    a = _gen_sym_df(size)
+
+    pairs = set()
+    n = 0
+    for n in range(remove):
+        k = 0
+        row, col = _get_off_diag_pair(size)
+        while (row, col) in pairs:
+            row, col = _get_off_diag_pair(size)
+            k += 1
+            if k > 1000:
+                print('Too many while iterations, breaking')
+                break
+        if k > 1000:
+            break
+        a.iloc[row, col] = np.nan
+        a.iloc[col, row] = np.nan
+        pairs.add((row, col))
+        pairs.add((col, row))
+
+    return a, n+1
