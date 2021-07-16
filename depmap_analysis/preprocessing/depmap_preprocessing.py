@@ -297,6 +297,7 @@ def _merge_z_corr(zdf: pd.DataFrame, other_z_df: pd.DataFrame,
     if method not in MERGE_METHODS:
         raise ValueError(f'Unrecognized merge method {method}. Valid methods '
                          f'are {", ".join(MERGE_METHODS)}')
+    logger.info(f'Merging correlation dataframes using merge method {method}')
 
     def _average(z1: pd.DataFrame, z2: pd.DataFrame) -> pd.DataFrame:
         return (z1 + z2) / 2
