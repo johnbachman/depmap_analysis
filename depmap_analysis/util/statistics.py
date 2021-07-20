@@ -126,7 +126,7 @@ def get_n(recalculate: bool, data_df: pd.DataFrame,
     recalculate :
         If True, recalculate the sample sizes
     data_df :
-        Correlation data as a dataframe
+        Original raw data as a dataframe
     filepath :
         If `recalculate==False`: read the correlation values from this file.
         If `recalculate==True`: write the correlation values to this file.
