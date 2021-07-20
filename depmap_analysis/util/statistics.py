@@ -27,8 +27,8 @@ def get_logp(recalculate: bool, data_n: pd.DataFrame,
     data_corr :
         A dataframe with correlation values
     filepath :
-        If `recalculate==True`: read the logp values from this file.
-        If `recalculate==False`: write the logp values to this file.
+        If `recalculate==False`: read the logp values from this file.
+        If `recalculate==True`: write the logp values to this file.
         If not provided, run the calculation and return the logp values
         without writing them to a file.
     method :
@@ -86,8 +86,8 @@ def get_z(recalculate: bool, data_logp: pd.DataFrame, data_corr: pd.DataFrame,
     data_corr :
         The correlation matrix of entity-entity correlations.
     filepath :
-        If `recalculate==True`: read the z-score values from this file.
-        If `recalculate==False`: write the z-score values to this file.
+        If `recalculate==False`: read the z-score values from this file.
+        If `recalculate==True`: write the z-score values to this file.
         If not provided, run the calculation and return the z-score dataframe
         without writing it to a file.
 
@@ -128,8 +128,8 @@ def get_n(recalculate: bool, data_df: pd.DataFrame,
     data_df :
         Correlation data as a dataframe
     filepath :
-        If `recalculate==True`: read the correlation values from this file.
-        If `recalculate==False`: write the correlation values to this file.
+        If `recalculate==False`: read the correlation values from this file.
+        If `recalculate==True`: write the correlation values to this file.
         If not provided, run the calculation and return the correlation data
         without writing it to a file.
 
