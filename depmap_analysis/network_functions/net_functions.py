@@ -30,7 +30,6 @@ from depmap_analysis.util.io_functions import file_opener
 
 logger = logging.getLogger(__name__)
 
-np.seterr(all='raise')
 NP_PRECISION = 10 ** -np.finfo(np.longfloat).precision  # Numpy precision
 INT_PLUS = 0
 INT_MINUS = 1
@@ -108,22 +107,23 @@ def _weight_mapping(G, verbosity=0):
     G : IndraNet
         Graph with updated belief
     """
-    for edge in G.edges:
-        try:
-            G.edges[edge]['weight'] = \
-                _weight_from_belief(G.edges[edge]['belief'])
-        except FloatingPointError as err:
-            logger.warning('FloatingPointError from unexpected belief '
-                           '%s. Resetting ag_belief to 10*np.longfloat '
-                           'precision (%.0e)' %
-                           (G.edges[edge]['belief'],
-                            Decimal(NP_PRECISION * 10)))
-            if verbosity == 1:
-                logger.error('Error string: %s' % err)
-            elif verbosity > 1:
-                logger.error('Exception output follows:')
-                logger.exception(err)
-            G.edges[edge]['weight'] = NP_PRECISION
+    with np.errstate(all='raise'):
+        for edge in G.edges:
+            try:
+                G.edges[edge]['weight'] = \
+                    _weight_from_belief(G.edges[edge]['belief'])
+            except FloatingPointError as err:
+                logger.warning('FloatingPointError from unexpected belief '
+                               '%s. Resetting ag_belief to 10*np.longfloat '
+                               'precision (%.0e)' %
+                               (G.edges[edge]['belief'],
+                                Decimal(NP_PRECISION * 10)))
+                if verbosity == 1:
+                    logger.error('Error string: %s' % err)
+                elif verbosity > 1:
+                    logger.error('Exception output follows:')
+                    logger.exception(err)
+                G.edges[edge]['weight'] = NP_PRECISION
     return G
 
 
@@ -799,16 +799,17 @@ def rank_nodes(node_list, nested_dict_stmts, gene_a, gene_b, x_type):
 def ag_belief_score(belief_list):
     """Each item in `belief_list` should be a float"""
     # Aggregate belief score: 1-prod(1-belief_i)
-    try:
-        ag_belief = np.longfloat(1.0) - np.prod(np.fromiter(map(
-            lambda belief: np.longfloat(1.0) - belief, belief_list),
-            dtype=np.longfloat)
-        )
-    except FloatingPointError as err:
-        logger.warning('%s: Resetting ag_belief to 10*np.longfloat '
-                       'precision (%.0e)' %
-                       (err, Decimal(NP_PRECISION * 10)))
-        ag_belief = NP_PRECISION * 10
+    with np.errstate(all='raise'):
+        try:
+            ag_belief = np.longfloat(1.0) - np.prod(np.fromiter(map(
+                lambda belief: np.longfloat(1.0) - belief, belief_list),
+                dtype=np.longfloat)
+            )
+        except FloatingPointError as err:
+            logger.warning('%s: Resetting ag_belief to 10*np.longfloat '
+                           'precision (%.0e)' %
+                           (err, Decimal(NP_PRECISION * 10)))
+            ag_belief = NP_PRECISION * 10
 
     return ag_belief
 
